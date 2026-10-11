@@ -3,7 +3,7 @@
   position: absolute;
   inset: 0;
   display: grid;
-  grid-template-columns: minmax(320px, 1fr) minmax(320px, 1fr) minmax(360px, 1fr);
+  grid-template-columns: minmax(360px, 1fr) minmax(320px, 1fr) minmax(320px, 1fr);
   gap: var(--tasks-panel-gap);
   box-sizing: border-box;
   width: 100%;

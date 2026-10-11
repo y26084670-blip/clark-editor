@@ -551,8 +551,8 @@ export function Tasks(props) {
       class="tasks-layout"
       style={{
         "grid-template-columns": props.summaryBounds
-          ? `calc(${props.summaryBounds.left}px - var(--tasks-panel-gap)) `
-            + `${props.summaryBounds.width}px minmax(360px, 1fr)`
+          ? `minmax(360px, 1fr) ${props.summaryBounds.width}px `
+            + `calc(${props.summaryBounds.left}px - var(--tasks-panel-gap))`
           : undefined,
       }}
     >

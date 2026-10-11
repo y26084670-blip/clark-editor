@@ -24,6 +24,7 @@ import {
   isGeometryCameraShortcutTarget,
 } from "../../services/visualization/geometryCameraView.js";
 import { FloatingWindow } from "../window/FloatingWindow.jsx";
+import { GeometryMaterialLegend } from "./GeometryMaterialLegend.jsx";
 import {
   GEOMETRY_INSTANCE_BUDGET,
   ThreeGeometryViewport,
@@ -563,6 +564,8 @@ export function GeometryViewerWindow(props) {
             >
               Показ
             </button>
+            <GeometryMaterialLegend buttonClass="geometry-viewer-menu-button"
+              onOpen={() => setOpenPanel(null)} />
           </div>
         </div>
 

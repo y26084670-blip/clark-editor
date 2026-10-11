@@ -37,6 +37,7 @@
   display: grid;
   grid-auto-flow: column;
   grid-auto-columns: 1fr;
+  grid-template-columns: repeat(6, 1fr) 27px;
   align-items: stretch;
   gap: 7px;
   width: max-content;
