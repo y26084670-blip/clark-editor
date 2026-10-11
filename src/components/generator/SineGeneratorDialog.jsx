@@ -39,6 +39,7 @@ export function SineGeneratorDialog(props) {
   const [tau2, setTau2] = createSignal("0");
   const [error, setError] = createSignal("");
   const [help, setHelp] = createSignal(false);
+  const [helpPosition, setHelpPosition] = createSignal({});
   let dialog;
   let disposed = false;
 
@@ -61,6 +62,16 @@ export function SineGeneratorDialog(props) {
   onCleanup(() => { disposed = true; dialog?.close(); });
 
   const change = (setter, value) => { setter(value); setError(""); };
+  function showHelp() {
+    const bounds = dialog.getBoundingClientRect();
+    const width = Math.min(bounds.width, window.innerWidth - 32);
+    setHelpPosition({
+      left: `${Math.max(16, Math.min(bounds.left, window.innerWidth - width - 16))}px`,
+      top: `${Math.max(16, Math.min(bounds.top + 44, window.innerHeight - 280))}px`,
+      width: `${width}px`,
+    });
+    setHelp(true);
+  }
   function generate(event) {
     event.preventDefault();
     try {
@@ -79,12 +90,12 @@ export function SineGeneratorDialog(props) {
           <strong>Синус - генератор</strong>
           <button type="button" class="sine-generator-help" aria-label="Формула синус-генератора"
             aria-describedby={help() ? "sine-generator-formula" : undefined}
-            aria-expanded={help()} onMouseEnter={() => setHelp(true)} onMouseLeave={() => setHelp(false)}
-            onFocus={() => setHelp(true)} onBlur={() => setHelp(false)}
-            onClick={() => setHelp(true)}>?</button>
+            aria-expanded={help()} onMouseEnter={showHelp} onMouseLeave={() => setHelp(false)}
+            onFocus={showHelp} onBlur={() => setHelp(false)}
+            onClick={showHelp}>?</button>
         </div>
         <Show when={help()}>
-          <div id="sine-generator-formula" class="sine-generator-tooltip" role="tooltip"><SineFormula /></div>
+          <div id="sine-generator-formula" class="sine-generator-tooltip" style={helpPosition()} role="tooltip"><SineFormula /></div>
         </Show>
         <div class="sine-generator-inputs">
           <label>F — Частота, Гц<input name="frequency" type="number" min="0" step="any" required autofocus value={frequency()}
