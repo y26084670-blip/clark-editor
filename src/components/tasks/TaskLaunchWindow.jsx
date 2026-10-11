@@ -5,6 +5,8 @@ import {
 import { FloatingWindow } from "../window/FloatingWindow.jsx";
 import { selectionService } from "../../services/selectionService.js";
 import { unsavedChangesService } from "../../services/unsavedChangesService.js";
+import { TaskStatusCells } from "./TaskStatusCells.jsx";
+import { useTaskStatuses } from "../../services/taskStatusMonitor.js";
 import {
   TASK_LIST_FILE, createNativeLaunchUri, invalidateLaunchRequest,
   prepareLaunchRequest, readLaunchResult,
@@ -20,6 +22,10 @@ const errorText = error => error?.message || String(error);
 export function TaskLaunchWindow(props) {
   const listId = createUniqueId();
   const [entries, setEntries] = createSignal([]);
+  const taskStatus = useTaskStatuses(
+    () => entries().map(entry => ({ key: entry.path, root: props.rootHandle, path: entry.path })),
+    { refreshOnChange: false },
+  );
   const [listExists, setListExists] = createSignal(false);
   const [listValid, setListValid] = createSignal(false);
   const [selected, setSelected] = createSignal(new Set());
@@ -84,6 +90,8 @@ export function TaskLaunchWindow(props) {
       setEntries(result.entries);
       setListExists(result.exists);
       setListValid(true);
+      await taskStatus.refresh();
+      if (!current(root, revision)) return;
       await armLaunch(root, revision);
     } catch (failure) {
       if (current(root, revision)) setError(errorText(failure));
@@ -179,7 +187,7 @@ export function TaskLaunchWindow(props) {
     });
   });
 
-  async function changeList(operation) {
+  async function changeList(operation, refreshStatus = false) {
     if (locked() || !props.rootHandle) return;
     const root = props.rootHandle;
     const revision = rootRevision;
@@ -198,6 +206,10 @@ export function TaskLaunchWindow(props) {
       setSelected(previous => new Set([...previous].filter(path => retained.has(path))));
       setActiveIndex(0);
       anchorIndex = 0;
+      if (refreshStatus) {
+        await taskStatus.refresh();
+        if (!current(root, revision)) return;
+      }
       await armLaunch(root, revision);
     } catch (failure) {
       if (current(root, revision)) setError(errorText(failure));
@@ -206,7 +218,7 @@ export function TaskLaunchWindow(props) {
     }
   }
 
-  const updateList = () => changeList(root => refreshTaskList(root));
+  const updateList = () => changeList(root => refreshTaskList(root), true);
   const toggleSelected = enabled => {
     const snapshot = entries();
     const selection = new Set(selected());
@@ -480,7 +492,7 @@ export function TaskLaunchWindow(props) {
         </div>
         <div class="task-launch-toolbar">
           <button type="button" disabled={locked() || !props.rootHandle}
-            title="Обновить список заданий из базового каталога. Новые задания добавляются отключёнными; состояние существующих сохраняется."
+            title="Обновить список заданий и признаки их состояния. Новые задания добавляются отключёнными; подключение существующих сохраняется."
             onClick={updateList}>Обновить список</button>
           <button type="button" disabled={locked() || !listValid() || !selected().size}
             title="Включить выделенные задания в список для расчёта или импорта. Или дважды щелкнуть по строке в списке."
@@ -526,14 +538,17 @@ export function TaskLaunchWindow(props) {
           }>{(entry, index) => (
             <div
               id={`${listId}-${index()}`} role="option" aria-selected={selected().has(entry.path)}
-              class="task-launch-row"
+              class="task-launch-row task-status-row"
               classList={{ "is-disabled": !entry.enabled, "is-selected": selected().has(entry.path), "is-active": activeIndex() === index() }}
               onClick={event => selectRow(index(), event)}
               onDblClick={() => toggleEntry(entry)}
               title={entry.enabled
                 ? "Двойной щелчок — отключить это задание от запуска"
                 : "Двойной щелчок — подключить это задание к запуску"}
-            >{entry.enabled ? "" : "*"}{entry.path}</div>
+            >
+              <TaskStatusCells status={taskStatus(entry.path)} />
+              <span class="task-status-name">{entry.enabled ? "" : "*"}{entry.path}</span>
+            </div>
           )}</For>
         </div>
         <div class="task-launch-counts">
