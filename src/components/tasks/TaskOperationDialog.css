@@ -1,17 +1,47 @@
 .task-operation-dialog {
   width: min(540px, calc(100vw - 48px));
   box-sizing: border-box;
-  border: 1px solid #78838e;
+  border: 1px solid #5f6b77;
   border-radius: 8px;
   padding: 20px;
-  background: #fff;
-  color: #17212b;
+  background: #1d2228;
+  color: #edf2f7;
+  color-scheme: dark;
 }
-.task-operation-dialog::backdrop { background: rgb(0 0 0 / 40%); }
-.task-operation-dialog h2 { margin-top: 0; font-size: 19px; }
+.task-operation-dialog::backdrop { background: rgb(0 0 0 / 58%); }
+.task-operation-dialog h2 { margin-top: 0; color: #f4f7fa; font-size: 19px; }
 .task-operation-dialog p { line-height: 1.45; }
-.task-operation-dialog input[name="taskName"] { display: block; width: 100%; box-sizing: border-box; margin-top: 6px; padding: 7px; }
+.task-operation-dialog input[name="taskName"] {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 6px;
+  padding: 7px;
+  border: 1px solid #697683;
+  border-radius: 3px;
+  background: #141a20;
+  color: #edf2f7;
+}
+.task-operation-dialog input[name="taskName"]:disabled { color: #87919b; background: #20272e; }
 .task-operation-confirm { display: flex; align-items: baseline; gap: 8px; }
-.task-operation-error { white-space: pre-wrap; color: #a11423; }
-.task-operation-actions { display: flex; justify-content: flex-end; gap: 10px; }
-.task-operation-actions button { padding: 6px 10px; }
+.task-operation-error { white-space: pre-wrap; color: #ffaaaa; }
+.task-operation-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.task-operation-actions button {
+  width: 100%;
+  min-width: 0;
+  padding: 6px 10px;
+  border: 1px solid #5d6875;
+  background: #303740;
+  color: #f4f7fa;
+}
+.task-operation-actions button:hover:not(:disabled) { background: #3b444f; }
+.task-operation-actions button:disabled {
+  border-color: #3c444d;
+  background: #232930;
+  color: #747e88;
+  cursor: default;
+}

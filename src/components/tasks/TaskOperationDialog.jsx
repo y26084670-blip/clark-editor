@@ -48,7 +48,7 @@ export function TaskOperationDialog(props) {
       </Show>
       <Show when={needsStopped()}>
         <label class="task-operation-confirm"><input type="checkbox" checked={stopped()} disabled={props.busy}
-          onChange={event => setStopped(event.currentTarget.checked)} />Расчёт и другие программы, изменяющие это задание, остановлены</label>
+          onChange={event => setStopped(event.currentTarget.checked)} />Все операции с этим заданием будут остановлены</label>
       </Show>
       <p class="task-operation-error" role="alert">{props.error}</p>
       <p role="status">{props.busy ? "Выполнение операции и проверка файлов…" : ""}</p>
