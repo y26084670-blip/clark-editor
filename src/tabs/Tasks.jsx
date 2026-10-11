@@ -14,6 +14,8 @@ import { DEMO_TASK_NAME, loadDemoTask } from "../services/demoTaskService.js";
 import { DIRECTORIES, TABS } from "../services/schemas/common/constants";
 import { TaskGeometryPreview } from "../components/geometry/TaskGeometryPreview.jsx";
 import { TaskLaunchWindow } from "../components/tasks/TaskLaunchWindow.jsx";
+import { TaskStatusCells } from "../components/tasks/TaskStatusCells.jsx";
+import { useTaskStatuses } from "../services/taskStatusMonitor.js";
 import { importUsedTaskMaterials } from "../services/taskImportMaterialsService.js";
 import {
   prepareWorkspaceBinding,
@@ -44,6 +46,9 @@ export function Tasks(props) {
   const [projects, setProjects] = createSignal([]);
   const [selectedProject, setSelectedProject] = createSignal("");
   const [tasks, setTasks] = createSignal([]);
+  const taskStatus = useTaskStatuses(
+    () => tasks().map(task => ({ key: task.handle, handle: task.handle })),
+  );
   const [selectedTask, setSelectedTask] = createSignal(null);
   const loadedTaskHandle = selectionService.loadedTaskHandle;
   const loadedTaskPath = selectionService.loadedTaskPath;
@@ -623,6 +628,15 @@ export function Tasks(props) {
               >
                 Демо
               </button>
+              <button
+                type="button"
+                class="task-status-refresh"
+                disabled={!tasks().length || taskStatus.busy() || galleryBusy() || operationBusy()}
+                aria-label="Обновить признаки состояния заданий"
+                aria-busy={taskStatus.busy()}
+                title="Обновить признаки состояния заданий"
+                onClick={() => { void taskStatus.refresh(); }}
+              >↻</button>
             </div>
             <div
               id="listTask"
@@ -633,6 +647,7 @@ export function Tasks(props) {
                 <div
                   classList={{
                     "listTask-item": true,
+                    "task-status-row": true,
                     selected: selectedTask()?.handle === task.handle,
                   }}
                   onClick={() => selectTaskCandidate(task)}
@@ -641,7 +656,8 @@ export function Tasks(props) {
                   }}
                   title="Двойной щелчок — загрузить задание для редактирования"
                 >
-                  {task.name}
+                  <TaskStatusCells status={taskStatus(task.handle)} />
+                  <span class="task-status-name">{task.name}</span>
                 </div>
               ))}
             </div>

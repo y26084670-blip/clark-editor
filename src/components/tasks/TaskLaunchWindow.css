@@ -127,6 +127,8 @@
 }
 
 .task-launch-row {
+    display: grid;
+    grid-template-columns: var(--task-status-columns) auto;
     box-sizing: border-box;
     width: max-content;
     min-width: 100%;
