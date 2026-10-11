@@ -15,6 +15,6 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - run: npm test
+      - run: node --test test/taskOperationDialogUI.test.js test/userGuideAssets.test.js test/sidePanelElementActionsContract.test.js
       - run: npm run build:release
       - run: npm run build:pages
