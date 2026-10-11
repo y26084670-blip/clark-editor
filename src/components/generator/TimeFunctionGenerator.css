@@ -204,6 +204,55 @@
   min-height: 28px;
 }
 
+.time-generator.has-sine-generator .time-generator-history {
+  padding-bottom: 0;
+}
+
+.time-generator-history-actions {
+  flex: 0 0 auto;
+  padding-top: 2px;
+}
+
+.time-generator-history-actions button {
+  width: 100%;
+  min-height: 28px;
+}
+
+.sine-generator-dialog {
+  margin: auto;
+  width: min(460px, calc(100vw - 32px));
+  min-height: min(320px, calc(100dvh - 32px));
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+  padding: 16px;
+  box-sizing: border-box;
+  border: 1px solid #71818e;
+  border-radius: 5px;
+  background: #20262d;
+  color: #dce4ec;
+  font: 14px/1.4 sans-serif;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, .5);
+}
+
+.sine-generator-dialog::backdrop { background: rgba(0, 0, 0, .55); }
+.sine-generator-dialog form { position: relative; }
+.sine-generator-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.sine-generator-help { width: 28px; min-height: 28px; padding: 0; }
+.sine-generator-inputs { display: grid; gap: 10px; margin: 14px 0; }
+.sine-generator-inputs label { display: grid; grid-template-columns: 1fr 140px; align-items: center; gap: 10px; }
+.sine-generator-inputs input { min-width: 0; width: 100%; box-sizing: border-box; padding: 5px; }
+.sine-generator-actions { display: flex; justify-content: flex-end; gap: 6px; }
+.sine-generator-actions button { min-height: 28px; }
+.sine-generator-error { color: #ffb4b4; }
+.sine-generator-tooltip { position: absolute; top: 36px; left: 0; right: 0; z-index: 2; padding: 10px; border: 1px solid #71818e; border-radius: 4px; background: #f2f2f2; color: #111; pointer-events: none; }
+.sine-generator-formula math { font-size: 17px; margin: 8px 0; }
+.sine-generator-formula p { margin: 8px 0 0; font-size: 12px; }
+
+@media (max-width: 440px) {
+  .sine-generator-inputs label { grid-template-columns: 1fr; gap: 3px; }
+  .sine-generator-formula math { font-size: 14px; }
+}
+
 .time-generator-context-menu {
   position: fixed;
   z-index: 1300;

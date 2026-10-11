@@ -26,6 +26,8 @@ import {
   TIME_GENERATOR_SPLIT_LIMITS,
 } from "../../services/dataEditorLayout.js";
 import { TIME_EXPRESSION_HELP } from "../../services/generator/timeFunctionExpression.js";
+import { generateSineTimeSeries } from "../../services/generator/sineTimeFunction.js";
+import { SineGeneratorDialog } from "./SineGeneratorDialog.jsx";
 import "./TimeFunctionGenerator.css";
 
 function errorText(error) {
@@ -152,6 +154,8 @@ function GeneratorPreviewGraph(props) {
 
 export function TimeFunctionGenerator(props) {
   const descriptor = props.schema.views.generator;
+  const hasSineGenerator = props.schema.id === TABS.AMPS.id;
+  const [sineGeneratorOpen, setSineGeneratorOpen] = createSignal(false);
   const [formula, setFormula] = createSignal("");
   const [formulas, setFormulas] = createSignal([]);
   const [selectedIndices, setSelectedIndices] = createSignal([]);
@@ -203,6 +207,7 @@ export function TimeFunctionGenerator(props) {
     setMaximumTime("0");
     setPreview(null);
     setContextMenu(null);
+    setSineGeneratorOpen(false);
   }
 
   createEffect(() => {
@@ -326,6 +331,22 @@ export function TimeFunctionGenerator(props) {
     }
   }
 
+  function handleSineGenerate(parameters) {
+    const general = modelService.getModel()[TABS.GENERAL.id];
+    if (!general) throw new Error("Сначала загрузите общие параметры задания.");
+    const generated = generateSineTimeSeries({
+      ...parameters,
+      countTimeSteps: general.countTimeSteps,
+      timeStep: general.timeStep,
+    });
+    const targetItem = targetDefinition();
+    setFormula(generated.expression);
+    rangeTouched = false;
+    setMinimumTime("0");
+    setMaximumTime(String(generated.points.at(-1)[0]));
+    setPreview({ points: generated.points, target: targetItem.value, label: targetItem.label });
+  }
+
   function addCurrentFormula() {
     const nextFormulas = [];
     for (const sourceLine of formula().split(/\r?\n/u)) {
@@ -419,7 +440,7 @@ export function TimeFunctionGenerator(props) {
   }
 
   return (
-    <div class={`time-generator${descriptor.targets.length > 1 ? " has-target-selector" : ""}`}>
+    <div class={`time-generator${descriptor.targets.length > 1 ? " has-target-selector" : ""}${hasSineGenerator ? " has-sine-generator" : ""}`}>
       <div
         class="time-generator-layout"
         ref={(element) => (layoutHost = element)}
@@ -470,6 +491,13 @@ export function TimeFunctionGenerator(props) {
           <div class="time-generator-history-hint">
             Команды доступны по правому щелчку
           </div>
+          <Show when={hasSineGenerator}>
+            <div class="time-generator-history-actions">
+              <button disabled={!selectionService.loadedTaskHandle() || busy()}
+                title="Задать частоту, фазу и постоянные времени"
+                onClick={() => setSineGeneratorOpen(true)}>Синус - генератор</button>
+            </div>
+          </Show>
         </section>
 
         <section class="time-generator-editor">
@@ -546,6 +574,11 @@ export function TimeFunctionGenerator(props) {
         </section>
         </div>
       </div>
+
+      <Show when={hasSineGenerator}>
+        <SineGeneratorDialog open={sineGeneratorOpen()} taskHandle={selectionService.loadedTaskHandle()}
+          onClose={() => setSineGeneratorOpen(false)} onGenerate={handleSineGenerate} />
+      </Show>
 
       <Show when={contextMenu()}>
         <div
