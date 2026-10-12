@@ -1,3 +1,4 @@
+import { GEOMETRY_FLIGHT_HELP } from "../../services/visualization/geometryFlightController.js";
 import { createGeometryViewSetting } from "../../services/visualization/geometryViewSettings.js";
 import {
   For,
@@ -111,6 +112,11 @@ export function GeometryViewerWindow(props) {
   let sourceSettingsButton;
   let sourceSettingsBackButton;
   let viewportFrameController;
+  let flightControl;
+  const [flightState, setFlightState] = createSignal("idle");
+  const [flightReady, setFlightReady] = createSignal(false);
+  const [flightNotice, setFlightNotice] = createSignal("");
+  const flightBusy = () => flightState() !== "idle";
   let pendingTimeSelection;
 
   const [sceneModel, setSceneModel] = createSignal(null);
@@ -179,7 +185,7 @@ export function GeometryViewerWindow(props) {
   };
   const applyTimeIndex = (index) => {
     cancelTimeSelection();
-    if (!props.open) return;
+    if (!props.open || flightBusy()) return;
     const nextIndex = geometryTimeState(props.model?.general, index).index;
     setTimeSelection((previous) =>
       previous.taskKey === props.taskKey && previous.index === nextIndex
@@ -188,6 +194,7 @@ export function GeometryViewerWindow(props) {
     );
   };
   const scheduleTimeIndex = (index) => {
+    if (flightBusy()) return;
     pendingTimeSelection = { taskKey: props.taskKey, index };
     viewportFrameController?.requestRender();
   };
@@ -398,6 +405,7 @@ export function GeometryViewerWindow(props) {
   });
 
   const requestView = (command, restoreFocus = false) => {
+    if (flightBusy()) return;
     setViewRequest((previous) => ({
       command,
       sequence: (previous?.sequence ?? 0) + 1,
@@ -406,6 +414,7 @@ export function GeometryViewerWindow(props) {
   };
 
   const handleViewerKeyDown = (event) => {
+    if (flightBusy() || event.defaultPrevented || event.isComposing) return;
     if (event.key === "Escape") {
       event.preventDefault();
       if (openPanel() === "sources") {
@@ -424,6 +433,7 @@ export function GeometryViewerWindow(props) {
   };
 
   onCleanup(() => {
+    flightControl?.stop();
     viewerResizeObserver?.disconnect();
     cancelTimeSelection();
   });
@@ -431,6 +441,8 @@ export function GeometryViewerWindow(props) {
   createEffect(() => {
     const open = props.open;
     if (!open) {
+      flightControl?.stop();
+      setFlightNotice("");
       setOpenPanel(null);
       setViewRequest(null);
       setSceneModel(null);
@@ -596,6 +608,11 @@ export function GeometryViewerWindow(props) {
             }}
           >
             <Show when={openPanel() === "view"}>
+              <button type="button" class="geometry-viewer-view-command geometry-flight-command"
+                disabled={!flightReady()} title={GEOMETRY_FLIGHT_HELP}
+                onClick={() => {
+                  cancelTimeSelection(); setFlightNotice(""); closePanel(); flightControl?.start();
+                }}>Полёт</button>
               <button
                 type="button"
                 class="geometry-viewer-view-command"
@@ -950,7 +967,17 @@ export function GeometryViewerWindow(props) {
         </Show>
 
         <div class="geometry-viewer-canvas-region">
+          <Show when={flightBusy()}>
+            <div class="geometry-flight-hint" role="status">
+              {flightState() === "starting" ? "Включение полёта…" : "Полёт · время фиксировано"}
+              <span>{GEOMETRY_FLIGHT_HELP}</span>
+            </div>
+          </Show>
+          <Show when={flightNotice()}><div class="geometry-flight-hint" role="status">{flightNotice()}</div></Show>
           <ThreeGeometryViewport
+            allowFlight={true} flightFrameKey={timeState().index}
+            onFlightReady={control => { flightControl = control; setFlightReady(Boolean(control)); }}
+            onFlightStateChange={setFlightState} onFlightError={setFlightNotice}
             scene={displayScene()}
             geometryRevision={props.model}
             beforeRender={commitPendingTime}
@@ -994,7 +1021,7 @@ export function GeometryViewerWindow(props) {
             max={timeState().maxIndex}
             step="1"
             value={timeState().index}
-            disabled={timeState().maxIndex === 0}
+            disabled={flightBusy() || timeState().maxIndex === 0}
             aria-label="Номер момента времени"
             aria-valuetext={timeTitle()}
             onInput={(event) => scheduleTimeIndex(event.currentTarget.valueAsNumber)}
