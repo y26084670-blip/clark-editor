@@ -140,6 +140,17 @@
   font-weight: 600;
 }
 
+.geometry-viewer-options-panel.is-view-panel {
+  max-height: calc(100% - 54px);
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.geometry-viewer-options-panel.is-view-panel .geometry-viewer-view-command {
+  flex: 0 0 auto;
+  overflow-wrap: anywhere;
+}
+
 .geometry-viewer-options-panel label {
   display: flex;
   align-items: center;

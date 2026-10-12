@@ -145,7 +145,7 @@ export function GeometryViewerWindow(props) {
   const [showPeriodicSymmetry, setShowPeriodicSymmetry] = createGeometryViewSetting("showPeriodicSymmetry", true);
   const [showMirrorSymmetry, setShowMirrorSymmetry] = createGeometryViewSetting("showMirrorSymmetry", true);
   const [openPanel, setOpenPanel] = createSignal(null);
-  const [panelPosition, setPanelPosition] = createSignal({ left: 8, top: 40 });
+  const [panelPosition, setPanelPosition] = createSignal({ left: 8, top: 40, width: undefined });
   const [renderStats, setRenderStats] = createSignal(EMPTY_RENDER_STATS);
 
   // Scope the index to the loaded task before any frame is projected, including
@@ -334,9 +334,12 @@ export function GeometryViewerWindow(props) {
     const viewerBounds = viewerElement.getBoundingClientRect();
     const buttonBounds = activePanelButton.getBoundingClientRect();
     const toolbarBounds = toolbarElement?.getBoundingClientRect();
-    const panelWidth = optionsPanelElement?.offsetWidth ?? 248;
+    const panelWidth = openPanel() === "view"
+      ? Math.min(buttonBounds.width, viewerBounds.width - 16)
+      : optionsPanelElement?.offsetWidth ?? 248;
     const maximumLeft = Math.max(8, viewerBounds.width - panelWidth - 8);
     setPanelPosition({
+      width: openPanel() === "view" ? panelWidth : undefined,
       left: Math.min(
         Math.max(buttonBounds.left - viewerBounds.left, 8),
         maximumLeft,
@@ -589,7 +592,7 @@ export function GeometryViewerWindow(props) {
             }}
             id={OPTIONS_PANEL_ID}
             class="geometry-viewer-options-panel"
-            classList={{ "geometry-viewer-source-options": openPanel() === "sources" }}
+            classList={{ "geometry-viewer-source-options": openPanel() === "sources", "is-view-panel": openPanel() === "view" }}
             role="dialog"
             aria-modal="false"
             aria-label={openPanel() === "view"
@@ -605,6 +608,7 @@ export function GeometryViewerWindow(props) {
             style={{
               left: `${panelPosition().left}px`,
               top: `${panelPosition().top}px`,
+              width: openPanel() !== "view" || panelPosition().width === undefined ? undefined : `${panelPosition().width}px`,
             }}
           >
             <Show when={openPanel() === "view"}>
