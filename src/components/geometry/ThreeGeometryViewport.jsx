@@ -23,6 +23,7 @@ import {
   geometryCameraFrame,
   normalizeGeometryCameraCommand,
 } from "../../services/visualization/geometryCameraView.js";
+import { createGeometryFlightController } from "../../services/visualization/geometryFlightController.js";
 import {
   fitCameraToVisibleObjects,
 } from "../../services/visualization/geometryCameraFit.js";
@@ -1115,7 +1116,7 @@ function worldUnitsPerPixel(camera, target, viewportHeight) {
 
   const distance = Math.max(camera.position.distanceTo(target), 1e-9);
   const verticalFov = camera.fov * Math.PI / 180;
-  return 2 * distance * Math.tan(verticalFov / 2) / height;
+  return 2 * distance * Math.tan(verticalFov / 2) / Math.max(camera.zoom * height, 1e-9);
 }
 
 function createCamera(THREE, projection, aspect) {
@@ -1190,6 +1191,8 @@ export function ThreeGeometryViewport(props) {
   let axesRoot;
   let camera;
   let controls;
+  let flightController;
+  let flightSceneScale = 1, flightBoundsCenter, flightModel, flightFrameKey;
   let geometryRoot;
   let helperRoot;
   let prescribedSourceRoot;
@@ -1269,6 +1272,7 @@ export function ThreeGeometryViewport(props) {
   const [hoverTooltip, setHoverTooltip] = createSignal(null);
 
   const reportError = (value) => {
+    flightController?.stop();
     const message = value instanceof Error ? value.message : String(value);
     setError(message);
     props.onError?.(message);
@@ -1291,62 +1295,71 @@ export function ThreeGeometryViewport(props) {
     });
   };
 
-  const requestRender = () => {
-    if (!renderer || !threeScene || !camera || renderFrame || rendering || disposed) return;
-    renderFrame = requestAnimationFrame(() => {
-      renderFrame = 0;
-      rendering = true;
-      try {
-        // Commit the last requested time before drawing; no second RAF latency.
-        props.beforeRender?.();
-        if (pendingResize) applyRendererSize();
-        if (pendingGeometry) {
-          const {sceneModel, filters, mode, showEdges} = pendingGeometry;
-          pendingGeometry = null;
-          untrack(() => replaceGeometry(sceneModel, filters, mode, showEdges));
-        }
-        if (sourcesDirty) {
-          sourcesDirty = false;
-          replacePrescribedSources();
-        }
+  const renderNow = (timestamp) => {
+    if (!renderer || !threeScene || !camera || rendering || disposed || contextLost) return;
+    if (renderFrame) { cancelAnimationFrame(renderFrame); renderFrame = 0; }
+    rendering = true;
+    try {
+      // Commit the last requested time before drawing; no second RAF latency.
+      props.beforeRender?.();
+      if (pendingResize) applyRendererSize();
+      if (pendingGeometry) {
+        const {sceneModel, filters, mode, showEdges} = pendingGeometry;
+        pendingGeometry = null;
+        untrack(() => replaceGeometry(sceneModel, filters, mode, showEdges));
+      }
+      if (sourcesDirty) {
+        sourcesDirty = false;
+        replacePrescribedSources();
+      }
+      if (flightController?.active) {
+        flightController.update(timestamp ?? performance.now());
+        const far = Math.max(flightSceneScale * 100,
+          camera.position.distanceTo(flightBoundsCenter) + flightSceneScale * 2);
+        if (camera.far !== far) { camera.far = far; camera.updateProjectionMatrix(); }
+      }
+      renderer.setScissorTest(false);
+      renderer.setViewport(0, 0, viewportWidth, viewportHeight);
+      renderer.clear(true, true, true);
+      renderer.render(threeScene, camera);
+
+      if (axesScene && axesCamera && axesRoot && controls) {
+        const size = axesGizmoSize();
+        const direction = camera.position.clone().sub(controls.target);
+        if (direction.lengthSq() < 1e-12) direction.set(1, 1, 1);
+        axesCamera.position.copy(direction.normalize().multiplyScalar(5));
+        axesCamera.up.copy(camera.up);
+        axesCamera.lookAt(0, 0, 0);
+        axesCamera.updateMatrixWorld();
+
+        renderer.clearDepth();
+        renderer.setScissor(
+          AXES_GIZMO_MARGIN,
+          AXES_GIZMO_MARGIN,
+          size,
+          size,
+        );
+        renderer.setViewport(
+          AXES_GIZMO_MARGIN,
+          AXES_GIZMO_MARGIN,
+          size,
+          size,
+        );
+        renderer.setScissorTest(true);
+        renderer.render(axesScene, axesCamera);
         renderer.setScissorTest(false);
         renderer.setViewport(0, 0, viewportWidth, viewportHeight);
-        renderer.clear(true, true, true);
-        renderer.render(threeScene, camera);
-
-        if (axesScene && axesCamera && axesRoot && controls) {
-          const size = axesGizmoSize();
-          const direction = camera.position.clone().sub(controls.target);
-          if (direction.lengthSq() < 1e-12) direction.set(1, 1, 1);
-          axesCamera.position.copy(direction.normalize().multiplyScalar(5));
-          axesCamera.up.copy(camera.up);
-          axesCamera.lookAt(0, 0, 0);
-          axesCamera.updateMatrixWorld();
-
-          renderer.clearDepth();
-          renderer.setScissor(
-            AXES_GIZMO_MARGIN,
-            AXES_GIZMO_MARGIN,
-            size,
-            size,
-          );
-          renderer.setViewport(
-            AXES_GIZMO_MARGIN,
-            AXES_GIZMO_MARGIN,
-            size,
-            size,
-          );
-          renderer.setScissorTest(true);
-          renderer.render(axesScene, axesCamera);
-          renderer.setScissorTest(false);
-          renderer.setViewport(0, 0, viewportWidth, viewportHeight);
-        }
-      } catch (renderError) {
-        reportError(renderError);
-      } finally {
-        rendering = false;
       }
-    });
+    } catch (renderError) {
+      reportError(renderError);
+    } finally {
+      rendering = false;
+      if (flightController?.needsFrame) requestRender();
+    }
+  };
+  const requestRender = () => {
+    if (!renderer || !threeScene || !camera || renderFrame || rendering || disposed) return;
+    renderFrame = requestAnimationFrame(timestamp => { renderFrame = 0; renderNow(timestamp); });
   };
 
   const createOrbitControls = (target) => {
@@ -2101,7 +2114,26 @@ export function ThreeGeometryViewport(props) {
       };
       controls = createOrbitControls();
 
-      handlePointerMove = queuePointerPick;
+      flightController = createGeometryFlightController({
+        THREE, element: renderer.domElement, getCamera: () => camera, getTarget: () => controls.target,
+        getSpeed: () => flightSceneScale * 0.5,
+        canStart: () => ready() && !disposed && !contextLost && !error()
+          && props.allowFlight === true && currentBounds && !currentBounds.isEmpty(),
+        onActivate: () => {
+          renderNow();
+          if (error()) throw new Error(error());
+          flightSceneScale = Math.max(currentBounds.getSize(new THREE.Vector3()).length(), 1e-6);
+          flightBoundsCenter = currentBounds.getCenter(new THREE.Vector3());
+          camera.near = Math.max(flightSceneScale * 1e-5, 1e-8); camera.updateProjectionMatrix();
+          controls.enabled = false; controlsInteracting = true; hasFramedGeometry = true; clearHoverTooltip();
+        },
+        onDeactivate: () => { controlsInteracting = false; if (!disposed) rebuildOrbitControls(); },
+        onStateChange: state => props.onFlightStateChange?.(state),
+        onError: message => props.onFlightError?.(message), requestRender,
+      });
+      props.onFlightReady?.(flightController);
+
+      handlePointerMove = event => { if (flightController.state === "idle") queuePointerPick(event); };
       handlePointerLeave = clearHoverTooltip;
       renderer.domElement.addEventListener("pointermove", handlePointerMove);
       renderer.domElement.addEventListener("pointerleave", handlePointerLeave);
@@ -2232,6 +2264,7 @@ export function ThreeGeometryViewport(props) {
 
   createEffect(() => {
     const projection = props.projection;
+    if (flightController?.active && projection !== activeProjection) flightController.stop();
     if (ready()) switchProjection(projection);
   });
 
@@ -2240,8 +2273,16 @@ export function ThreeGeometryViewport(props) {
     if (ready()) applyViewRequest(request);
   });
 
+  createEffect(() => {
+    const model = props.geometryRevision, key = props.flightFrameKey;
+    if (model !== flightModel || key !== flightFrameKey) flightController?.stop();
+    flightModel = model; flightFrameKey = key;
+  });
+
   onCleanup(() => {
     disposed = true;
+    flightController?.dispose();
+    props.onFlightReady?.(null);
     props.onFrameController?.(null);
     setReady(false);
     resizeObserver?.disconnect();
