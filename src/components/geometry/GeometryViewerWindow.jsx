@@ -818,6 +818,7 @@ export function GeometryViewerWindow(props) {
                 <input
                   type="checkbox"
                   checked={orthographicView()}
+                  disabled={flightState() !== "idle"}
                   onChange={(event) =>
                     setOrthographicView(event.currentTarget.checked)}
                 />
@@ -977,7 +978,7 @@ export function GeometryViewerWindow(props) {
           <ThreeGeometryViewport
             allowFlight={true} flightFrameKey={timeState().index}
             onFlightReady={control => { flightControl = control; setFlightReady(Boolean(control)); }}
-            onFlightStateChange={setFlightState} onFlightError={setFlightNotice}
+            onFlightStateChange={state => { setFlightState(state); if (state === "active") setOrthographicView(false); }} onFlightError={setFlightNotice}
             scene={displayScene()}
             geometryRevision={props.model}
             beforeRender={commitPendingTime}
