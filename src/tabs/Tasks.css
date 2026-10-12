@@ -67,6 +67,7 @@
 
 .task-list-heading h4 {
   margin: 0;
+  margin-left: 10px;
 }
 
 .task-list-heading .task-status-refresh {
