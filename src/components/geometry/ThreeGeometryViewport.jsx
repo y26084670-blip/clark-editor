@@ -2215,6 +2215,7 @@ export function ThreeGeometryViewport(props) {
           lastFlightPickTime = Number.NEGATIVE_INFINITY; props.onFlightStateChange?.(state);
         },
         getApproachTarget: pickFlightTarget, getOrbitTarget: pickFlightOrbitTarget,
+        onSpeedChange: multiplier => props.onFlightSpeedChange?.(multiplier),
         onError: message => props.onFlightError?.(message), requestRender,
       });
       props.onFlightReady?.(flightController);

@@ -1,4 +1,4 @@
-import { GEOMETRY_FLIGHT_HELP } from "../../services/visualization/geometryFlightController.js";
+import { GEOMETRY_FLIGHT_HELP, formatGeometryFlightSpeed } from "../../services/visualization/geometryFlightController.js";
 import { createGeometryViewSetting } from "../../services/visualization/geometryViewSettings.js";
 import {
   For,
@@ -116,7 +116,23 @@ export function GeometryViewerWindow(props) {
   const [flightState, setFlightState] = createSignal("idle");
   const [flightReady, setFlightReady] = createSignal(false);
   const [flightNotice, setFlightNotice] = createSignal("");
+  const [flightSpeedNotice, setFlightSpeedNotice] = createSignal("");
+  let flightSpeedNoticeTimer;
+  const clearFlightSpeedNotice = () => {
+    clearTimeout(flightSpeedNoticeTimer); flightSpeedNoticeTimer = undefined;
+    setFlightSpeedNotice("");
+  };
+  const showFlightSpeedNotice = multiplier => {
+    clearTimeout(flightSpeedNoticeTimer);
+    setFlightSpeedNotice(formatGeometryFlightSpeed(multiplier));
+    flightSpeedNoticeTimer = setTimeout(clearFlightSpeedNotice, 1200);
+  };
   const flightBusy = () => flightState() !== "idle";
+  const onFlightStateChange = state => {
+    setFlightState(state);
+    if (state !== "active") clearFlightSpeedNotice();
+    if (state === "active") setOrthographicView(false);
+  };
   let pendingTimeSelection;
 
   const [sceneModel, setSceneModel] = createSignal(null);
@@ -436,6 +452,7 @@ export function GeometryViewerWindow(props) {
   };
 
   onCleanup(() => {
+    clearFlightSpeedNotice();
     flightControl?.stop();
     viewerResizeObserver?.disconnect();
     cancelTimeSelection();
@@ -975,6 +992,7 @@ export function GeometryViewerWindow(props) {
           <Show when={flightBusy()}>
             <div class="geometry-flight-hint" role="status">
               {flightState() === "starting" ? "Включение полёта…" : "Полёт · время фиксировано"}
+              <Show when={flightSpeedNotice()}><b data-flight-speed-notice> · {flightSpeedNotice()}</b></Show>
               <span>{GEOMETRY_FLIGHT_HELP}</span>
             </div>
           </Show>
@@ -982,7 +1000,8 @@ export function GeometryViewerWindow(props) {
           <ThreeGeometryViewport
             allowFlight={true} flightFrameKey={timeState().index}
             onFlightReady={control => { flightControl = control; setFlightReady(Boolean(control)); }}
-            onFlightStateChange={state => { setFlightState(state); if (state === "active") setOrthographicView(false); }} onFlightError={setFlightNotice}
+            onFlightStateChange={onFlightStateChange}
+            onFlightSpeedChange={showFlightSpeedNotice} onFlightError={setFlightNotice}
             onFlightProjectionRestore={projection => setOrthographicView(projection === "orthographic")}
             scene={displayScene()}
             geometryRevision={props.model}
