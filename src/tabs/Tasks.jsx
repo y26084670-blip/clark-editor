@@ -15,6 +15,7 @@ import { DIRECTORIES, TABS } from "../services/schemas/common/constants";
 import { TaskGeometryPreview } from "../components/geometry/TaskGeometryPreview.jsx";
 import { TaskLaunchWindow } from "../components/tasks/TaskLaunchWindow.jsx";
 import { TaskStatusCells } from "../components/tasks/TaskStatusCells.jsx";
+import { LastOpenedTaskMarker, ProjectSelectValue } from "../components/tasks/LastOpenedTaskMarker.jsx";
 import { useTaskStatuses } from "../services/taskStatusMonitor.js";
 import { createLastOpenedTaskHistory, sortTaskDirectories } from "../services/taskLastOpenedService.js";
 import { importUsedTaskMaterials } from "../services/taskImportMaterialsService.js";
@@ -616,13 +617,15 @@ export function Tasks(props) {
             <h4>Список проектов</h4>
             <select
               id="listProject"
+              class="task-project-select"
               value={selectedProject()}
               disabled={Boolean(operation()) || galleryBusy()}
               onChange={handleProjectChange}
             >
+              <ProjectSelectValue value={selectedProject()} placeholder="Выбрать проект" marked={selectedProject() === lastProjectName()} />
               <option value="">Выбрать проект</option>
               {projects().map((project) => (
-                <option value={project.name}>{project.name === lastProjectName() ? "✓ " : ""}{project.name}</option>
+                <option value={project.name}><Show when={project.name === lastProjectName()}><LastOpenedTaskMarker label="Последний открытый проект" /></Show>{project.name}</option>
               ))}
             </select>
           </div>
@@ -668,7 +671,7 @@ export function Tasks(props) {
                   title="Двойной щелчок — загрузить задание для редактирования"
                 >
                   <TaskStatusCells status={taskStatus(task.handle)} />
-                  <span class="task-status-name"><Show when={isLastTask(task)}><span class="task-last-opened-check" aria-label="Последнее открытое задание" title="Последнее открытое задание">✓ </span></Show>{task.name}</span>
+                  <span class="task-status-name"><Show when={isLastTask(task)}><LastOpenedTaskMarker label="Последнее открытое задание" /></Show>{task.name}</span>
                 </div>
               ))}
             </div>

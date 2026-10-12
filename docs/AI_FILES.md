@@ -1,6 +1,6 @@
 # Карта файлов и компонентов web-gui
 
-Обновлено: 2026-10-06 17:43 UTC+3.
+Обновлено: 2026-10-12 23:18 UTC+3.
 
 ## Назначение
 
@@ -12,7 +12,7 @@
 [`AI_CLARK_INTEGRATION.md`](AI_CLARK_INTEGRATION.md).
 
 Карта проверена по `main` на коммите `105d7789c63ef9e012dbb4328b812de7535c72d3`.
-Карта дополнена изменениями 4.42.0 в рабочей ветке.
+Карта дополнена изменениями 4.42.0 и общими модулями истории/проигрывания 4.51.0.
 
 ## 1. Точки входа и конфигурация
 
@@ -104,6 +104,8 @@
 | Владелец | Путь | Ответственность |
 |---|---|---|
 | Выбор | `src/services/selectionService.js` | Выбранные проект и задание, а также версия загруженных данных. |
+| История открытия | `src/services/taskLastOpenedService.js` | Сортировка каталогов, чтение и запись позиций последнего открытия в корне выбранного каталога. [Контракт](AI_UI_CONTRACTS.md#task-last-opened). |
+| Знак последнего открытия | `src/components/tasks/LastOpenedTaskMarker.jsx`, `.css` | Общий SVG-треугольник и реактивное значение нативного списка проектов; синхронизированы с Viewer. |
 | Проверка среды | `src/services/fileSystemAccessSupport.js` | Наличие безопасного контекста и File System Access API, классификация ошибок диалогов. |
 | Подтверждение задания | `src/services/taskApprovalService.js` | Маркер разрешения расчёта и его файловый жизненный цикл. |
 | Список и запуск | `src/services/taskLaunchService.js` | `clark.tasks.txt`, связь с обработчиком `clark://` и формирование команд запуска. |
@@ -360,7 +362,7 @@ kvs.txt, выбор записей локальной XAP.lib и пакетна�
 | Катушка | `src/services/generator/uniformFieldCoil.js` | Аналитика, проверка параметров, генерация Elements+MHJ. |
 | Окно катушки | `src/components/elements/UniformFieldCoilDialog.jsx`, `.css` | Ввод параметров и реактивная оценка; SidePanel/App координируют применение. |
 | Групповая история | `src/services/modelHistoryService.js` | Связанные снимки нескольких вкладок без изменения независимых историй. |
-| Проигрывание GIF | `src/components/tasks/TaskGifPlayer.jsx`, `src/services/taskGifPlayback.js` | Canvas, таймеры, пауза/продолжение, одиночный проход и цикл. |
+| Проигрывание GIF | `src/components/tasks/TaskGifPlayer.jsx`, `src/services/taskGifPlayback.js` | Canvas, таймеры, предварительная подготовка кадра, crossfade при максимизации, пауза/продолжение, одиночный проход и цикл. |
 | Декодирование GIF | `src/services/taskGifDecoder.js`, `src/workers/taskGifDecode.worker.js` | Последовательная декомпрессия и композиция кадров вне UI-потока. |
 | Проверки | `test/uniformFieldCoil.test.js`, `test/modelHistoryService.test.js`, `test/taskGifDecoder.test.js`, `test/taskGifPlayback.test.js` | Численная сверка аналитики, схема, история, направления токов, GIF disposal и таймеры. |
 
