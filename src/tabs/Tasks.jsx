@@ -16,6 +16,7 @@ import { TaskGeometryPreview } from "../components/geometry/TaskGeometryPreview.
 import { TaskLaunchWindow } from "../components/tasks/TaskLaunchWindow.jsx";
 import { TaskStatusCells } from "../components/tasks/TaskStatusCells.jsx";
 import { useTaskStatuses } from "../services/taskStatusMonitor.js";
+import { createLastOpenedTaskHistory, sortTaskDirectories } from "../services/taskLastOpenedService.js";
 import { importUsedTaskMaterials } from "../services/taskImportMaterialsService.js";
 import {
   prepareWorkspaceBinding,
@@ -46,6 +47,11 @@ export function Tasks(props) {
   const [projects, setProjects] = createSignal([]);
   const [selectedProject, setSelectedProject] = createSignal("");
   const [tasks, setTasks] = createSignal([]);
+  const [lastTask, setLastTask] = createSignal(null);
+  const [lastTaskNotice, setLastTaskNotice] = createSignal("");
+  const lastTaskHistory = createLastOpenedTaskHistory({ app: "editor", onChange: setLastTask, onNotice: setLastTaskNotice });
+  const lastProjectName = () => projects()[lastTask()?.projectIndex - 1]?.name;
+  const isLastTask = task => selectedProject() === lastProjectName() && tasks().indexOf(task) + 1 === lastTask()?.taskIndex;
   const taskStatus = useTaskStatuses(
     () => tasks().map(task => ({ key: task.handle, handle: task.handle })),
   );
@@ -301,7 +307,7 @@ export function Tasks(props) {
       window.removeEventListener("focus", onFocus);
     });
   });
-  onCleanup(() => { disposed = true; bindingRevision += 1; directoryPickRevision += 1; });
+  onCleanup(() => { disposed = true; bindingRevision += 1; directoryPickRevision += 1; lastTaskHistory.dispose(); });
 
   // получение полного пути
   const getFullPath = async (root, handle) => {
@@ -321,7 +327,7 @@ export function Tasks(props) {
         });
       }
     }
-    return dirs;
+    return sortTaskDirectories(dirs);
   };
 
   // выбор корневого каталога
@@ -351,11 +357,14 @@ export function Tasks(props) {
       setSelectedTask(null);
       setTaskInfo(EMPTY_TASK_INFO);
       setTaskResultsText("");
+      const historyRead = lastTaskHistory.open(sameDirectory ? previous : handle);
 
       const subdirs = await getSubdirs(handle);
-      if (requestId !== selectionRevision) return;
+      if (disposed || requestId !== selectionRevision || pickRevision !== directoryPickRevision) return;
       setProjects(subdirs);
+      await historyRead;
     } catch (error) {
+      if (disposed || pickRevision !== directoryPickRevision) return;
       // Отмена выбора пользователем — штатная ситуация.
       if (isFilePickerCancellation(error)) return;
 
@@ -393,13 +402,14 @@ export function Tasks(props) {
   };
 
   // выбор задания
-  const commitTaskLoad = ({ task, fullPath, openEditor = true }) => {
+  const commitTaskLoad = ({ task, fullPath, openEditor = true, lastTaskSnapshot }) => {
     batch(() => {
       clearLoadedTaskState();
       selectionService.setLoadedTaskIsDemo(task.isDemo === true);
       selectionService.setLoadedTaskPath(fullPath);
       selectionService.setLoadedTaskHandle(task.handle);
     });
+    if (openEditor && !task.isDemo) void lastTaskHistory.remember(lastTaskSnapshot);
     if (openEditor) props.onOpenTab?.(TABS.GENERAL.id);
     if (task.isDemo) void selectTaskCandidate(task);
     console.log("Выбранное задание:", fullPath);
@@ -515,6 +525,7 @@ export function Tasks(props) {
     try {
       const root = rootHandle();
       if (!root) return;
+      const lastTaskSnapshot = lastTaskHistory.capture(projects(), selectedProject(), tasks(), task);
 
       const [, fullPath] = await Promise.all([
         task.handle.getDirectoryHandle(DIRECTORIES.INPUT),
@@ -522,7 +533,7 @@ export function Tasks(props) {
       ]);
       if (requestId !== taskLoadRevision) return;
 
-      offerTaskLoad({ task, fullPath });
+      offerTaskLoad({ task, fullPath, lastTaskSnapshot });
     } catch (error) {
       if (requestId !== taskLoadRevision) return;
       if (error?.name === "NotFoundError") {
@@ -611,7 +622,7 @@ export function Tasks(props) {
             >
               <option value="">Выбрать проект</option>
               {projects().map((project) => (
-                <option value={project.name}>{project.name}</option>
+                <option value={project.name}>{project.name === lastProjectName() ? "✓ " : ""}{project.name}</option>
               ))}
             </select>
           </div>
@@ -657,7 +668,7 @@ export function Tasks(props) {
                   title="Двойной щелчок — загрузить задание для редактирования"
                 >
                   <TaskStatusCells status={taskStatus(task.handle)} />
-                  <span class="task-status-name">{task.name}</span>
+                  <span class="task-status-name"><Show when={isLastTask(task)}><span class="task-last-opened-check" aria-label="Последнее открытое задание" title="Последнее открытое задание">✓ </span></Show>{task.name}</span>
                 </div>
               ))}
             </div>
@@ -697,6 +708,7 @@ export function Tasks(props) {
             Формирование списка заданий и запуск решателей или импорта
           </button>
         </div>
+        <Show when={lastTaskNotice()}><p class="task-last-opened-notice" role="status">{lastTaskNotice()}</p></Show>
         <div class="task-panel-caption">выбор задания</div>
       </div>
       <div class="task-summary-panel">
