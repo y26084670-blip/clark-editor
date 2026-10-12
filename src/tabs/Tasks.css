@@ -620,7 +620,7 @@ button:hover {
 }
 
 
-.task-last-opened-check { color: #237d46; font-weight: 700; }
+.task-last-opened-check { color: #62df87; font-weight: 700; }
 .task-last-opened-notice { margin: 4px 8px; font-size: .875rem; overflow-wrap: anywhere; }
 
 /* Увеличенный горизонтальный и компактный вертикальный скроллы Tabulator. */
