@@ -26,6 +26,7 @@ import {
   restoreGeometryCamera,
 } from "../../services/visualization/geometryCameraView.js";
 import { createGeometryFlightController } from "../../services/visualization/geometryFlightController.js";
+import { pickGeometryFlightPivot } from "../../services/visualization/geometryFlightPivot.js";
 import {
   fitCameraToVisibleObjects,
 } from "../../services/visualization/geometryCameraFit.js";
@@ -1277,6 +1278,7 @@ export function ThreeGeometryViewport(props) {
   const [hoverTooltip, setHoverTooltip] = createSignal(null);
   const [flightActive, setFlightActive] = createSignal(false);
   const [flightTarget, setFlightTarget] = createSignal(null);
+  const [flightPivot, setFlightPivot] = createSignal(null);
 
   const reportError = (value) => {
     flightController?.stop();
@@ -1321,6 +1323,7 @@ export function ThreeGeometryViewport(props) {
       }
       if (flightController?.active) {
         flightController.update(timestamp ?? performance.now());
+        setFlightPivot(flightController.orbitTarget);
         const far = Math.max(flightSceneScale * 100,
           camera.position.distanceTo(flightBoundsCenter) + flightSceneScale * 2);
         if (camera.far !== far) { camera.far = far; camera.updateProjectionMatrix(); }
@@ -1501,6 +1504,13 @@ export function ThreeGeometryViewport(props) {
       stopDistance: Math.max((Number.isFinite(size) && size > 0 ? size : flightSceneScale * 0.001) * 0.3,
         camera.near * 8, flightSceneScale * 1e-5),
     };
+  };
+  const pickFlightOrbitTarget = () => {
+    if (!renderer || !camera || !flightController?.active) return null;
+    camera.updateMatrixWorld();
+    raycaster.setFromCamera(pointerNdc.set(0, 0), camera);
+    const pivot = pickGeometryFlightPivot(THREE, raycaster.ray, vertexBatches, { near: camera.near, far: camera.far });
+    return pivot ? { ...pivot, label: formatGeometryTooltip(pivot.source, pivot.instance).split("\n")[0] } : null;
   };
   const pickFlightTarget = () => {
     if (!renderer || !camera || !flightController?.active) return null;
@@ -2059,7 +2069,7 @@ export function ThreeGeometryViewport(props) {
             );
           }
         }
-        vertexBatches.push({ instances: accepted, primitive });
+        vertexBatches.push({ instances: accepted, primitive, object });
         if (primitive.discretization) {
           discretizationBatches.push({ instances: accepted, primitive });
         }
@@ -2201,10 +2211,10 @@ export function ThreeGeometryViewport(props) {
           } else rebuildOrbitControls();
         },
         onStateChange: state => {
-          setFlightActive(state === "active"); setFlightTarget(null);
+          setFlightActive(state === "active"); setFlightTarget(null); setFlightPivot(null);
           lastFlightPickTime = Number.NEGATIVE_INFINITY; props.onFlightStateChange?.(state);
         },
-        getApproachTarget: pickFlightTarget,
+        getApproachTarget: pickFlightTarget, getOrbitTarget: pickFlightOrbitTarget,
         onError: message => props.onFlightError?.(message), requestRender,
       });
       props.onFlightReady?.(flightController);
@@ -2408,8 +2418,8 @@ export function ThreeGeometryViewport(props) {
       aria-busy={loading()}
     >
       <Show when={flightActive()}>
-        <div class="geometry-flight-reticle" classList={{ "has-target": Boolean(flightTarget()) }} role="status">
-          <span>{flightTarget()?.label ?? "Наведите прицел на узел или элемент"}</span>
+        <div class="geometry-flight-reticle" classList={{ "has-target": Boolean(flightPivot() || flightTarget()) }} role="status">
+          <span>{flightPivot() ? `Центр вращения · ${flightPivot().label}` : flightTarget()?.label ?? "Наведите прицел на узел или элемент"}</span>
         </div>
       </Show>
       <Show when={loading()}>
