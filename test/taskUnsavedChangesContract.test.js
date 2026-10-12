@@ -18,7 +18,8 @@ const createTaskLoading = new Function("dependencies", `
         setSelectedTask, selectedTask, setTaskInfo, setTaskResultsText, EMPTY_TASK_INFO,
         readTaskSummary, readTaskResultsSummary, loadedTaskHandle, unsavedChangesService,
         setPendingTaskLoad, pendingTaskLoad, unsavedDialog, returnToEditingButton,
-        operation, galleryBusy, rootHandle, getFullPath, showLoadError, console } = dependencies;
+        operation, galleryBusy, rootHandle, getFullPath, showLoadError, console,
+        lastTaskHistory, projects, selectedProject, tasks } = dependencies;
     let taskLoadRevision = 0, taskInfoRevision = 0;
     ${taskFunctions("  const commitTaskLoad =", "  const handleLaunchComplete =")}
     ${taskFunctions("  const requestTaskLoad =", "  const taskLoaded =")}
@@ -27,7 +28,7 @@ const createTaskLoading = new Function("dependencies", `
 
 function taskLoadingRuntime() {
     const state = { selected: null, loaded: null, path: "", active: TABS.TASKS.id,
-        pending: null, dirty: false, opened: [], errors: [], returned: 0, galleryBusy: false };
+        pending: null, dirty: false, opened: [], errors: [], returned: 0, galleryBusy: false, remembered: [] };
     const api = createTaskLoading({
         batch: callback => callback(),
         clearLoadedTaskState: () => { state.loaded = null; state.path = ""; },
@@ -48,6 +49,12 @@ function taskLoadingRuntime() {
         unsavedDialog: { open: false, showModal() { this.open = true; }, close() { this.open = false; } },
         returnToEditingButton: null, operation: () => null, rootHandle: () => ({ name: "Projects" }),
         galleryBusy: () => state.galleryBusy,
+        projects: () => [{ name: "Project" }], selectedProject: () => "Project",
+        tasks: () => state.selected ? [state.selected] : [],
+        lastTaskHistory: {
+            capture(_projects, _project, _tasks, task) { return { task: task.handle }; },
+            async remember(snapshot) { if (snapshot) state.remembered.push(snapshot); },
+        },
         getFullPath: async (_root, handle) => `Projects/${handle.name}`,
         showLoadError: name => state.errors.push(name), console: { log() {}, error() {} },
     });
@@ -92,8 +99,10 @@ test("selecting a row stays in Tasks; successful load opens General after task s
     const h = taskLoadingRuntime(), task = taskCandidate("New task");
     await h.selectTaskCandidate(task);
     assert.equal(h.state.active, TABS.TASKS.id); assert.deepEqual(h.state.opened, []);
+    assert.deepEqual(h.state.remembered, []);
     await h.requestTaskLoad();
     assert.deepEqual(h.state.opened, [{ tab: TABS.GENERAL.id, loaded: task.handle, path: "Projects/New task" }]);
+    assert.deepEqual(h.state.remembered, [{ task: task.handle }]);
 });
 
 test("GIF deletion blocks candidate changes and editor loads until it finishes", async () => {
@@ -110,10 +119,13 @@ test("unsaved changes require confirmation before General opens; cancelling does
     h.state.loaded = { name: "Original" }; h.state.dirty = true;
     await h.selectTaskCandidate(task); await h.requestTaskLoad();
     assert.deepEqual(h.state.opened, []); assert.ok(h.state.pending);
+    assert.deepEqual(h.state.remembered, []);
     h.returnToEditing();
     assert.deepEqual(h.state.opened, []); assert.equal(h.state.pending, null); assert.equal(h.state.returned, 1);
+    assert.deepEqual(h.state.remembered, []);
     await h.requestTaskLoad(); h.confirmTaskLoad();
     assert.equal(h.state.active, TABS.GENERAL.id); assert.equal(h.state.loaded, task.handle);
+    assert.deepEqual(h.state.remembered, [{ task: task.handle }]);
 });
 
 test("missing input and a stale editor load do not navigate away from Tasks", async () => {
@@ -129,6 +141,7 @@ test("missing input and a stale editor load do not navigate away from Tasks", as
     finish({}); await load;
     assert.equal(h.state.loaded, null); assert.equal(h.state.active, TABS.TASKS.id);
     assert.deepEqual(h.state.opened, []);
+    assert.deepEqual(h.state.remembered, []);
 });
 
 test("rebinding a renamed or moved loaded task updates its handle without switching tabs", () => {
@@ -137,6 +150,22 @@ test("rebinding a renamed or moved loaded task updates its handle without switch
     h.commitTaskLoad({ task, fullPath: "Other project/Renamed", openEditor: false });
     assert.equal(h.state.loaded, task.handle); assert.equal(h.state.path, "Other project/Renamed");
     assert.equal(h.state.active, TABS.ELEMENTS.id); assert.deepEqual(h.state.opened, []);
+    assert.deepEqual(h.state.remembered, []);
     assert.match(taskFunctions("  async function finishTaskOperation(", "  let taskErrorCloseButton;"),
         /commitTaskLoad\(\{[^\n]+openEditor: false \}\)/u);
+});
+
+test("confirmation saves the originally requested task rather than a later preview row", async () => {
+    const h = taskLoadingRuntime(), requested = taskCandidate("Requested"), preview = taskCandidate("Preview");
+    h.state.loaded = {}; h.state.dirty = true;
+    await h.selectTaskCandidate(requested); await h.requestTaskLoad();
+    await h.selectTaskCandidate(preview); h.confirmTaskLoad();
+    assert.equal(h.state.loaded, requested.handle);
+    assert.deepEqual(h.state.remembered, [{ task: requested.handle }]);
+});
+
+test("opening the demo never writes a base directory's last-task record", () => {
+    const h = taskLoadingRuntime();
+    h.commitTaskLoad({ task: { ...taskCandidate("Demo"), isDemo: true }, fullPath: "Demo", lastTaskSnapshot: { task: {} } });
+    assert.deepEqual(h.state.remembered, []);
 });

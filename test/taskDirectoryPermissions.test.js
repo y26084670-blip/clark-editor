@@ -18,7 +18,7 @@ const createPicker = new Function("dependencies", `
         window, bindingBusy, operation, galleryBusy, getFileSystemAccessSupport, showTaskError,
         rootHandle, invalidateBrowserSelection, resetWorkspaceBinding,
         setRootHandle, setRootName, setProjects, setSelectedProject, setTasks,
-        setSelectedTask, setTaskInfo, setTaskResultsText, getSubdirs,
+        setSelectedTask, setTaskInfo, setTaskResultsText, getSubdirs, lastTaskHistory,
         isFilePickerCancellation, getFilePickerErrorMessage, console,
     } = dependencies;
     let directoryPickRevision = 0, selectionRevision = 0, disposed = false;
@@ -28,7 +28,7 @@ const createPicker = new Function("dependencies", `
 `);
 
 function runtime(picker) {
-    const state = { root: null, projects: [], errors: [], permissions: [], resets: 0, galleryBusy: false };
+    const state = { root: null, projects: [], errors: [], permissions: [], resets: 0, galleryBusy: false, historyRoots: [] };
     const pick = createPicker({
         window: {
             isSecureContext: true,
@@ -49,6 +49,7 @@ function runtime(picker) {
         setSelectedProject() {}, setTasks() {}, setSelectedTask() {},
         setTaskInfo() {}, setTaskResultsText() {},
         getSubdirs: async handle => handle.projects,
+        lastTaskHistory: { async open(handle) { state.historyRoots.push(handle); } },
         console: { error() {} },
     });
     return { state, pick };
@@ -64,6 +65,7 @@ test("editor accepts project roots of any name with read-write permission", asyn
         assert.equal(state.rootName, `Корневой каталог: ${name}`);
         assert.deepEqual(state.permissions, [{ mode: "readwrite" }]);
         assert.equal(state.resets, 1);
+        assert.deepEqual(state.historyRoots, [handle]);
         assert.deepEqual(state.errors, []);
     }
 });
