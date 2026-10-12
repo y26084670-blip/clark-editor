@@ -979,6 +979,7 @@ export function GeometryViewerWindow(props) {
             allowFlight={true} flightFrameKey={timeState().index}
             onFlightReady={control => { flightControl = control; setFlightReady(Boolean(control)); }}
             onFlightStateChange={state => { setFlightState(state); if (state === "active") setOrthographicView(false); }} onFlightError={setFlightNotice}
+            onFlightProjectionRestore={projection => setOrthographicView(projection === "orthographic")}
             scene={displayScene()}
             geometryRevision={props.model}
             beforeRender={commitPendingTime}

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import * as THREE from "three";
 
 import {
     GEOMETRY_CAMERA_COMMANDS,
@@ -7,6 +8,8 @@ import {
     geometryCameraFrame,
     isGeometryCameraShortcutTarget,
     normalizeGeometryCameraCommand,
+    snapshotGeometryCamera,
+    restoreGeometryCamera,
 } from "../src/services/visualization/geometryCameraView.js";
 
 const DIRECTIONAL_CASES = [
@@ -159,4 +162,22 @@ test("Ctrl+A restores the same oblique orientation as a new 3D camera in either 
     for (const state of [{ isComposing:true }, { defaultPrevented:true }, { altKey:true }, { shiftKey:true }, { metaKey:true }]) {
         assert.equal(geometryCameraCommandFromKeyboardEvent({ code:"KeyA", ctrlKey:true, ...state }), null);
     }
+});
+
+
+test("pre-flight view snapshots stay independent and restore both camera types after motion", () => {
+  for(const projection of ["perspective","orthographic"]) {
+    const camera=projection==="orthographic"?new THREE.OrthographicCamera(-4,4,2,-2,.01,100):new THREE.PerspectiveCamera(50,2,.01,100);
+    camera.position.set(3,-2,7);camera.zoom=2.3;camera.rotateY(.4);camera.rotateZ(.7);
+    camera.up.set(0,1,0).applyQuaternion(camera.quaternion);
+    const controls={target:camera.position.clone().addScaledVector(camera.getWorldDirection(new THREE.Vector3()),5)};
+    const saved=snapshotGeometryCamera(camera,controls,projection),expected=structuredClone(saved);
+    camera.position.set(200,100,-300);camera.zoom=.2;camera.rotateX(1);controls.target.set(1,2,3);
+    assert.deepEqual(saved,expected);
+    assert.equal(restoreGeometryCamera(camera,controls,saved),true);
+    const restored=snapshotGeometryCamera(camera,controls,projection);
+    for(const key of ["position","up","target"])assert.deepEqual(restored[key],saved[key]);
+    assert.equal(restored.zoom,saved.zoom);assert.equal(restored.projection,saved.projection);
+    assert.ok(camera.quaternion.angleTo(new THREE.Quaternion().fromArray(saved.quaternion))<1e-7);
+  }
 });
