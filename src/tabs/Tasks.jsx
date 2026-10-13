@@ -18,6 +18,7 @@ import { TaskStatusCells } from "../components/tasks/TaskStatusCells.jsx";
 import { LastOpenedTaskMarker, ProjectSelectValue } from "../components/tasks/LastOpenedTaskMarker.jsx";
 import { useTaskStatuses } from "../services/taskStatusMonitor.js";
 import { createLastOpenedTaskHistory, sortTaskDirectories } from "../services/taskLastOpenedService.js";
+import { createTaskSelectionChannel, readTaskSelection } from "../services/taskSelectionChannel.js";
 import { importUsedTaskMaterials } from "../services/taskImportMaterialsService.js";
 import {
   prepareWorkspaceBinding,
@@ -77,9 +78,14 @@ export function Tasks(props) {
   const [operationError, setOperationError] = createSignal("");
   const [operationFailed, setOperationFailed] = createSignal(false);
   const [galleryBusy, setGalleryBusy] = createSignal(false);
+  const [selectionReceiving, setSelectionReceiving] = createSignal(false);
+  const [selectionSending, setSelectionSending] = createSignal(false);
+  const [selectionNotice, setSelectionNotice] = createSignal("");
+  const [selectionError, setSelectionError] = createSignal("");
+  let taskListElement;
 
   const galleryDisabled = () => Boolean(operation()) || demoLoading() || bindingBusy()
-    || launchBusy() || taskLaunchOpen() || props.editorBusy;
+    || launchBusy() || taskLaunchOpen() || props.editorBusy || selectionReceiving();
   const operationsBlocked = () => galleryDisabled() || galleryBusy();
   createEffect(() => props.onTaskActionsChange?.({
     createEnabled: Boolean(selectedProject()) && !operationsBlocked(),
@@ -181,6 +187,49 @@ export function Tasks(props) {
   let bindingRevision = 0;
   let bindingPolling = false;
   let disposed = false;
+  const selectionChannel = createTaskSelectionChannel({ app: "editor", onSelection: receiveTaskSelection });
+  onCleanup(() => selectionChannel.dispose());
+
+  async function receiveTaskSelection(request) {
+    if (operationsBlocked() || pendingTaskLoad() || document.querySelector("dialog[open]")) {
+      throw new Error("Editor занят. Завершите текущую операцию и повторите переход.");
+    }
+    const root = rootHandle();
+    const revision = invalidateBrowserSelection();
+    directoryPickRevision += 1;
+    setSelectionReceiving(true);
+    setSelectionNotice(""); setSelectionError("");
+    try {
+      const selected = await readTaskSelection(root, request, {
+        isCurrent: () => !disposed && root === rootHandle() && revision === selectionRevision && !props.editorBusy,
+      });
+      batch(() => {
+        setProjects(selected.projects);
+        setSelectedProject(selected.project.name);
+        setTasks(selected.tasks);
+        void selectTaskCandidate(selected.task, { external: true });
+      });
+      props.onOpenTab?.(TABS.TASKS.id);
+      setSelectionNotice(`Выбрано задание из Viewer: ${selected.project.name}/${selected.task.name}`);
+      queueMicrotask(() => {
+        if (!disposed && revision === selectionRevision) {
+          taskListElement?.querySelector(".selected")?.scrollIntoView({ block: "nearest" });
+          taskListElement?.focus({ preventScroll: true });
+        }
+      });
+    } finally { setSelectionReceiving(false); }
+  }
+
+  async function showInViewer() {
+    if (!selectedTask() || selectedTask().isDemo || operationsBlocked() || selectionSending()) return;
+    const task = selectedTask(), project = selectedProject(), root = rootHandle();
+    setSelectionSending(true); setSelectionNotice(""); setSelectionError("");
+    try {
+      await selectionChannel.select({ baseHandle: root, projectName: project, taskName: task.name });
+      if (!disposed) setSelectionNotice(`В Viewer выделено задание: ${project}/${task.name}`);
+    } catch (error) { if (!disposed) setSelectionError(error.message); }
+    finally { if (!disposed) setSelectionSending(false); }
+  }
 
   // Сброс данных прежнего задания выполняется до любой новой загрузки.
   const clearLoadedTaskState = () => {
@@ -333,7 +382,7 @@ export function Tasks(props) {
 
   // выбор корневого каталога
   const handlePickDirectory = async () => {
-    if (bindingBusy() || operation() || galleryBusy()) return;
+    if (bindingBusy() || operation() || galleryBusy() || selectionReceiving()) return;
     const support = getFileSystemAccessSupport(window);
     if (!support.supported) {
       showTaskError(support.message);
@@ -378,7 +427,7 @@ export function Tasks(props) {
 
   // выбор проекта
   const handleProjectChange = async (event) => {
-    if (operation() || galleryBusy()) return;
+    if (operation() || galleryBusy() || selectionReceiving()) return;
     const projectName = event.currentTarget.value;
     const requestId = invalidateBrowserSelection();
     setSelectedProject(projectName);
@@ -416,8 +465,8 @@ export function Tasks(props) {
     console.log("Выбранное задание:", fullPath);
   };
 
-  const selectTaskCandidate = async (task) => {
-    if (galleryBusy()) return;
+  const selectTaskCandidate = async (task, { external = false } = {}) => {
+    if (galleryBusy() || (selectionReceiving() && !external)) return;
     taskLoadRevision += 1;
     const requestId = ++taskInfoRevision;
     setSelectedTask(task);
@@ -580,7 +629,7 @@ export function Tasks(props) {
               <div class="task-directory-buttons">
                 <button
                   id="pickDir"
-                  disabled={bindingBusy() || Boolean(operation()) || galleryBusy()}
+                  disabled={bindingBusy() || Boolean(operation()) || galleryBusy() || selectionReceiving()}
                   title={`Базовый каталог с проектами, обычно ${PROJECTS_ROOT_NAME}. Смена каталога не останавливает текущий расчёт. Одновременно допускается запуск только одного решателя.`}
                   onClick={handlePickDirectory}
                 >
@@ -619,7 +668,7 @@ export function Tasks(props) {
               id="listProject"
               class="task-project-select"
               value={selectedProject()}
-              disabled={Boolean(operation()) || galleryBusy()}
+              disabled={Boolean(operation()) || galleryBusy() || selectionReceiving()}
               onChange={handleProjectChange}
             >
               <ProjectSelectValue value={selectedProject()} placeholder="Выбрать проект" marked={selectedProject() === lastProjectName()} />
@@ -655,6 +704,7 @@ export function Tasks(props) {
             <div
               id="listTask"
               class="listTask"
+              ref={taskListElement}
               tabIndex="0"
             >
               {tasks().map((task) => (
@@ -680,7 +730,7 @@ export function Tasks(props) {
         <div class="task-browser-actions">
           <button
             class="task-load-button"
-            disabled={!selectedTask() || taskLoaded() || galleryBusy()}
+            disabled={!selectedTask() || taskLoaded() || galleryBusy() || selectionReceiving()}
             onClick={requestTaskLoad}
           >
             <span class="task-load-label">
@@ -702,6 +752,11 @@ export function Tasks(props) {
               <span class="task-load-trailing" aria-hidden="true" />
             </span>
           </button>
+          <button type="button" class="task-cross-open-button"
+            disabled={!selectedTask() || selectedTask()?.isDemo || !selectionChannel.supported || operationsBlocked() || selectionSending()}
+            aria-busy={selectionSending()}
+            title="Выбрать проект и выделить это задание в открытом Viewer с тем же базовым каталогом"
+            onClick={showInViewer}>Показать в Viewer</button>
           <button
             type="button"
             class="task-launch-open-button"
@@ -712,6 +767,8 @@ export function Tasks(props) {
           </button>
         </div>
         <Show when={lastTaskNotice()}><p class="task-last-opened-notice" role="status">{lastTaskNotice()}</p></Show>
+        <Show when={selectionNotice()}><p class="task-selection-notice" role="status">{selectionNotice()}</p></Show>
+        <Show when={selectionError()}><p class="task-selection-error" role="alert">{selectionError()}</p></Show>
         <div class="task-panel-caption">выбор задания</div>
       </div>
       <div class="task-summary-panel">

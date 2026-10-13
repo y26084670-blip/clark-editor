@@ -18,7 +18,7 @@ const createTaskLoading = new Function("dependencies", `
         setSelectedTask, selectedTask, setTaskInfo, setTaskResultsText, EMPTY_TASK_INFO,
         readTaskSummary, readTaskResultsSummary, loadedTaskHandle, unsavedChangesService,
         setPendingTaskLoad, pendingTaskLoad, unsavedDialog, returnToEditingButton,
-        operation, galleryBusy, rootHandle, getFullPath, showLoadError, console,
+        operation, galleryBusy, selectionReceiving, rootHandle, getFullPath, showLoadError, console,
         lastTaskHistory, projects, selectedProject, tasks } = dependencies;
     let taskLoadRevision = 0, taskInfoRevision = 0;
     ${taskFunctions("  const commitTaskLoad =", "  const handleLaunchComplete =")}
@@ -49,6 +49,7 @@ function taskLoadingRuntime() {
         unsavedDialog: { open: false, showModal() { this.open = true; }, close() { this.open = false; } },
         returnToEditingButton: null, operation: () => null, rootHandle: () => ({ name: "Projects" }),
         galleryBusy: () => state.galleryBusy,
+        selectionReceiving: () => false,
         projects: () => [{ name: "Project" }], selectedProject: () => "Project",
         tasks: () => state.selected ? [state.selected] : [],
         lastTaskHistory: {
