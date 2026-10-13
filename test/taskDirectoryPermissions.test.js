@@ -15,7 +15,7 @@ assert.ok(start >= 0 && end > start);
 // Execute the component's picker with browser permissions and directory state mocked.
 const createPicker = new Function("dependencies", `
     const {
-        window, bindingBusy, operation, galleryBusy, getFileSystemAccessSupport, showTaskError,
+        window, bindingBusy, operation, galleryBusy, selectionReceiving, getFileSystemAccessSupport, showTaskError,
         rootHandle, invalidateBrowserSelection, resetWorkspaceBinding,
         setRootHandle, setRootName, setProjects, setSelectedProject, setTasks,
         setSelectedTask, setTaskInfo, setTaskResultsText, getSubdirs, lastTaskHistory,
@@ -38,6 +38,7 @@ function runtime(picker) {
             },
         },
         bindingBusy: () => false, operation: () => null, galleryBusy: () => state.galleryBusy,
+        selectionReceiving: () => false,
         getFileSystemAccessSupport, isFilePickerCancellation, getFilePickerErrorMessage,
         showTaskError: message => state.errors.push(message),
         rootHandle: () => state.root,
