@@ -102,6 +102,7 @@ export default createSchema({
         useMED: {
             type: FIELD_TYPES.BOOLEAN,
             label: "Учёт зарядов",
+            labelColor: "#ff6060",
             description: "Учёт потенциальной составляющей электрического поля во всей задаче. "
                 + "Отключайте только при её заведомом отсутствии, например для длинных проводников с продольными токами.",
             default: true,

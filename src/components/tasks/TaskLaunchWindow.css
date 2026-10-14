@@ -230,3 +230,22 @@
 .task-launch-mpi input[aria-invalid="true"] {
     border-color: #ffafaf;
 }
+
+.task-launch-runtime {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: center;
+    gap: 7px;
+}
+.task-launch-runtime .iteration-control-submit { width: 100%; }
+.iteration-control-fields { display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+.iteration-control-fields label { display: flex; align-items: center; gap: 3px; }
+.iteration-control-fields input[type="text"] {
+    box-sizing: border-box; width: 7.5ch; padding: 5px 3px;
+    font: 12px Consolas, monospace; color: #edf2f7; background: #151a20;
+    border: 1px solid #667789; border-radius: 4px;
+}
+.iteration-control-fields label:last-child input { width: 13.5ch; }
+.iteration-control-fields input:disabled { color: #7d8791; border-color: #464f59; }
+.iteration-control-fields input[type="checkbox"] { margin: 0; }
+.iteration-control-message { grid-column: 1 / -1; }

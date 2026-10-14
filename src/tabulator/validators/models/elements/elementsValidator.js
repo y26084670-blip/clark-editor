@@ -87,7 +87,7 @@ export function elementsValidator(
         context.materialCatalog,
         diagnostics,
     );
-    if (service.getModel().general?.useMED !== false) {
+    if (service.getModel().general?.useMED !== false && service.getModel().general?.countTimeSteps !== 0) {
         diagnostics.push(...medDiagnostics(analyzeMed(service.getModel())));
     }
 }

@@ -659,7 +659,7 @@ export function GeometryViewerWindow(props) {
               <button
                 type="button"
                 class="geometry-viewer-view-command"
-                title="или нажмите Ctrl-X"
+                title="Направить взгляд против оси X"
                 onClick={() => requestView(
                   GEOMETRY_CAMERA_COMMANDS.VIEW_NEGATIVE_X,
                   true,
@@ -681,7 +681,7 @@ export function GeometryViewerWindow(props) {
               <button
                 type="button"
                 class="geometry-viewer-view-command"
-                title="или нажмите Ctrl-Y"
+                title="Направить взгляд против оси Y"
                 onClick={() => requestView(
                   GEOMETRY_CAMERA_COMMANDS.VIEW_NEGATIVE_Y,
                   true,
@@ -703,7 +703,7 @@ export function GeometryViewerWindow(props) {
               <button
                 type="button"
                 class="geometry-viewer-view-command"
-                title="или нажмите Ctrl-Z"
+                title="Направить взгляд против оси Z"
                 onClick={() => requestView(
                   GEOMETRY_CAMERA_COMMANDS.VIEW_NEGATIVE_Z,
                   true,

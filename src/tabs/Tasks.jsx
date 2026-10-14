@@ -728,6 +728,7 @@ export function Tasks(props) {
           </div>
         </div>
         <div class="task-browser-actions">
+          <div class="task-load-row">
           <button
             class="task-load-button"
             disabled={!selectedTask() || taskLoaded() || galleryBusy() || selectionReceiving()}
@@ -757,6 +758,7 @@ export function Tasks(props) {
             aria-busy={selectionSending()}
             title="Выбрать проект и выделить это задание в открытом Viewer с тем же базовым каталогом"
             onClick={showInViewer}>Показать в Viewer</button>
+          </div>
           <button
             type="button"
             class="task-launch-open-button"
@@ -767,7 +769,6 @@ export function Tasks(props) {
           </button>
         </div>
         <Show when={lastTaskNotice()}><p class="task-last-opened-notice" role="status">{lastTaskNotice()}</p></Show>
-        <Show when={selectionNotice()}><p class="task-selection-notice" role="status">{selectionNotice()}</p></Show>
         <Show when={selectionError()}><p class="task-selection-error" role="alert">{selectionError()}</p></Show>
         <div class="task-panel-caption">выбор задания</div>
       </div>

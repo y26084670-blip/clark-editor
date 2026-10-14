@@ -130,6 +130,12 @@
   margin: 0;
 }
 
+.task-load-row { display: flex; gap: 7px; width: 100%; align-items: stretch; }
+.task-load-row > button { margin: 0; }
+.task-load-row > .task-load-button { flex: 1 1 0; min-width: 0; }
+.task-load-row > .task-cross-open-button { flex: 0 0 auto; width: max-content; white-space: nowrap;
+  background: #dae8f3; color: #185f96; font-weight: bold; }
+
 .task-panel-caption {
   flex: 0 0 auto;
   margin: 0;

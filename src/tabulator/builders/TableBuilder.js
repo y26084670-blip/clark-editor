@@ -260,6 +260,13 @@ export const TableBuilder = {
             {
                 title: schema.config.rowLabelTitle ?? "Parameter",
                 field: "rowLabel",
+                formatter(cell) {
+                    const property = schema.properties[cell.getRow().getData().property];
+                    const label = document.createElement("span");
+                    label.textContent = cell.getValue();
+                    if (property?.labelColor) label.style.color = property.labelColor;
+                    return label;
+                },
                 width: schema.config.rowLabelWidth ?? 250,
                 headerTooltip: schema.config.rowLabelDescription ?? "",
             },

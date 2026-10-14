@@ -24,6 +24,7 @@ test("useMED: defaults, file round trip, new task, demo and nonblocking diagnost
             elementsValidator({ getModel: () => model }, messages);
             return messages;
         };
+        model.general.countTimeSteps = 1; model.general.timeStep = 1;
         assert.ok(check().some(d => d.code === "PARTIAL_CONTACT"));
         model.general.useMED = false;
         const before = structuredClone(model);

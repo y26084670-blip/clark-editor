@@ -85,12 +85,14 @@ export function geometryCameraCommandFromKeyboardEvent(event) {
 
     const commands = KEYBOARD_COMMANDS[event.code];
     if (!commands) return null;
-    return event.ctrlKey ? commands.negative : commands.positive;
+    return event.ctrlKey ? null : commands.positive; // Ctrl+axis belongs to mouse rotation.
 }
 
-export function isGeometryCameraShortcutTarget(target) {
+export function isGeometryCameraShortcutTarget(target, { allowControls = false } = {}) {
     if (target?.isContentEditable) return false;
     const tagName = String(target?.tagName ?? "").toLowerCase();
+    if (allowControls && tagName === "select") return true;
+    if (allowControls && tagName === "input") return ["range", "checkbox", "radio", "button", "submit", "reset"].includes(target.type);
     return !["input", "select", "textarea"].includes(tagName);
 }
 
@@ -125,6 +127,61 @@ export function restoreGeometryCamera(camera, controls, state) {
         camera.left = -state.halfHeight * aspect; camera.right = state.halfHeight * aspect;
     } else camera.fov = state.fov;
     camera.updateProjectionMatrix();
+    controls.update?.();
+    return true;
+}
+
+export const GEOMETRY_AXIS_ROTATION = Object.freeze({ X: "x", Y: "y", Z: "z" });
+
+function axisFromModifiedKeyboardEvent(event, modifier, options) {
+    if (!event || event.defaultPrevented || event.isComposing
+        || event.metaKey
+        || !isGeometryCameraShortcutTarget(event.target, options)) return null;
+    const valid = modifier === "alt"
+        ? (event.ctrlKey || event.altKey) && !event.shiftKey && !(event.ctrlKey && event.altKey)
+        : event.shiftKey && !event.altKey && !event.ctrlKey;
+    if (!valid) return null;
+    if (event.code === "KeyX") return GEOMETRY_AXIS_ROTATION.X;
+    if (event.code === "KeyY") return GEOMETRY_AXIS_ROTATION.Y;
+    if (event.code === "KeyZ") return GEOMETRY_AXIS_ROTATION.Z;
+    return null;
+}
+
+export function geometryAxisRotationFromKeyboardEvent(event, options) {
+    return axisFromModifiedKeyboardEvent(event, "alt", options);
+}
+
+export function geometryOriginAxisRotationFromKeyboardEvent(event, options) {
+    return axisFromModifiedKeyboardEvent(event, "shift", options);
+}
+
+export function rotateGeometryCameraAroundAxis(camera, controls, axis, angle, {
+    pivot = controls?.target,
+    rotateTarget = false,
+} = {}) {
+    if (!camera?.position || !camera?.up || !controls?.target
+        || !Number.isFinite(angle) || angle === 0
+        || !Object.values(GEOMETRY_AXIS_ROTATION).includes(axis)) return false;
+    if (!pivot) return false;
+    const offset = camera.position.clone().sub(pivot);
+    if (!(offset.lengthSq() > 0)) return false;
+    const basis = axis === GEOMETRY_AXIS_ROTATION.X ? [1,0,0]
+        : axis === GEOMETRY_AXIS_ROTATION.Y ? [0,1,0] : [0,0,1];
+    const quaternion = camera.quaternion?.constructor
+        ? new camera.quaternion.constructor().setFromAxisAngle(
+            new camera.position.constructor(...basis),
+            angle,
+          )
+        : null;
+    if (!quaternion) return false;
+    offset.applyQuaternion(quaternion);
+    camera.up.applyQuaternion(quaternion).normalize();
+    camera.position.copy(pivot).add(offset);
+    if (rotateTarget) {
+        const targetOffset = controls.target.clone().sub(pivot).applyQuaternion(quaternion);
+        controls.target.copy(pivot).add(targetOffset);
+    }
+    camera.lookAt(controls.target);
     controls.update?.();
     return true;
 }
