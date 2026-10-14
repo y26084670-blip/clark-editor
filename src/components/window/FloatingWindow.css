@@ -116,8 +116,11 @@
     border-bottom: 0;
 }
 
-.task-launch-window.is-minimized .floating-window-title,
-.geometry-viewer-floating-window.is-minimized .floating-window-title { color: #ff4040; }
+.task-launch-window.is-minimized .floating-window-titlebar,
+.geometry-viewer-floating-window.is-minimized .floating-window-titlebar {
+    color: #fff;
+    background: #b32626;
+}
 
 .floating-window.is-minimized .floating-window-content {
     display: none;
