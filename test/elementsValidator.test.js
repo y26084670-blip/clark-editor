@@ -7,6 +7,7 @@ import {medModel,medBox} from "./fixtures/medContactCases.js";
 
 test("MED diagnostics use the full model and do not modify stored pointers",()=>{
     const model=medModel([medBox(),medBox({origin:[1,.25,.25],size:[1,.5,.5]})]);
+    model.general.countTimeSteps=1; model.general.timeStep=1;
     const before=structuredClone(model),messages=[];
     elementsValidator({getModel:()=>model},messages);
     assert.ok(messages.some(d=>d.code==="PARTIAL_CONTACT"&&d.row===1));
@@ -15,6 +16,13 @@ test("MED diagnostics use the full model and do not modify stored pointers",()=>
 });
 
 const EPS = 0.1 * Math.PI / 180;
+test("a static model skips MED contacts and leaves its stored pointers unchanged",()=>{
+    const model=medModel([medBox({med:[999,999,999,999,999,999]}),medBox({origin:[1,.25,.25],size:[1,.5,.5]})]);
+    const before=structuredClone(model),messages=[];
+    elementsValidator({getModel:()=>model},messages);
+    assert.ok(!messages.some(d=>d.property==="med"||d.code==="PARTIAL_CONTACT"));
+    assert.deepEqual(model,before);
+});
 
 function validVertices() {
     return [

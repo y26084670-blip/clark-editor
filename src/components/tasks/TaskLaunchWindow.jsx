@@ -6,6 +6,7 @@ import { FloatingWindow } from "../window/FloatingWindow.jsx";
 import { selectionService } from "../../services/selectionService.js";
 import { unsavedChangesService } from "../../services/unsavedChangesService.js";
 import { TaskStatusCells } from "./TaskStatusCells.jsx";
+import { IterationControl } from "./IterationControl.jsx";
 import { useTaskStatuses } from "../../services/taskStatusMonitor.js";
 import {
   TASK_LIST_FILE, createNativeLaunchUri, invalidateLaunchRequest,
@@ -565,6 +566,7 @@ export function TaskLaunchWindow(props) {
               onClick={() => setConfirmImport(false)}>Отмена</button>
           </div>
         </Show>
+        <div class="task-launch-runtime">
         <label class="task-launch-mpi">
           <span>Процессов MPI:</span>
           <input type="text" inputMode="numeric" value={mpiValue()} disabled={locked()}
@@ -574,6 +576,8 @@ export function TaskLaunchWindow(props) {
             onBlur={() => { if (!mpiValue().trim()) setMpiValue("default"); }} />
           <Show when={mpiError()}><span class="task-launch-error" role="alert">{mpiError()}</span></Show>
         </label>
+        <IterationControl rootHandle={props.rootHandle} binding={binding()} active={props.open} />
+        </div>
         <div class="task-launch-actions">
           <button type="button" disabled={!canLaunch() || Boolean(mpiError())}
             title="Запустить расчёт всех подключённых заданий независимо от выделения строк."
