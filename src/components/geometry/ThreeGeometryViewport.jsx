@@ -2181,7 +2181,7 @@ export function ThreeGeometryViewport(props) {
       };
       controls = createOrbitControls();
 
-      flightController = createGeometryFlightController({
+      flightController = props.allowFlight === true ? createGeometryFlightController({
         THREE, element: renderer.domElement, getCamera: () => camera, getTarget: () => controls.target,
         getSpeed: () => flightSceneScale * 0.5,
         canStart: () => ready() && !disposed && !contextLost && !error()
@@ -2218,18 +2218,18 @@ export function ThreeGeometryViewport(props) {
         getApproachTarget: pickFlightTarget, getOrbitTarget: pickFlightOrbitTarget,
         onSpeedChange: multiplier => props.onFlightSpeedChange?.(multiplier),
         onError: message => props.onFlightError?.(message), requestRender,
-      });
+      }) : null;
       props.onFlightReady?.(flightController);
 
       axisRotationController = createGeometryAxisRotationController({
         element: renderer.domElement, getCamera: () => camera, getControls: () => controls,
-        canStart: () => !disposed && !contextLost && !error() && flightController.state === "idle",
+        canStart: () => !disposed && !contextLost && !error() && (flightController?.state ?? "idle") === "idle",
         onStateChange: active => {
-          controlsInteracting = active || flightController.active;
+          controlsInteracting = active || Boolean(flightController?.active);
           if (active) clearHoverTooltip();
           // OrbitControls caches camera.up. Rebase once after the direct gesture,
           // instead of letting its old spherical frame clamp each rotation.
-          else if (!disposed && flightController.state === "idle") rebuildOrbitControls();
+          else if (!disposed && (flightController?.state ?? "idle") === "idle") rebuildOrbitControls();
         },
         onRotate: () => { hasFramedGeometry = true; clearHoverTooltip(); requestRender(); },
         onPointerMove: queuePointerPick, onPointerLeave: clearHoverTooltip,

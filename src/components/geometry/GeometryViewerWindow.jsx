@@ -32,6 +32,9 @@ import {
 } from "./ThreeGeometryViewport.jsx";
 import "./GeometryViewerWindow.css";
 
+// Temporary diagnostic release: do not instantiate flight input or motion.
+const GEOMETRY_FLIGHT_ENABLED = false;
+
 const EMPTY_COUNTS = Object.freeze({
   elements: 0,
   regions: 0,
@@ -630,7 +633,8 @@ export function GeometryViewerWindow(props) {
           >
             <Show when={openPanel() === "view"}>
               <button type="button" class="geometry-viewer-view-command geometry-flight-command"
-                disabled={!flightReady()} title={GEOMETRY_FLIGHT_HELP}
+                disabled={!GEOMETRY_FLIGHT_ENABLED || !flightReady()}
+                title={GEOMETRY_FLIGHT_ENABLED ? GEOMETRY_FLIGHT_HELP : "Полёт временно отключён для проверки осевого вращения"}
                 onClick={() => {
                   cancelTimeSelection(); setFlightNotice(""); closePanel(); flightControl?.start();
                 }}>Полёт</button>
@@ -998,7 +1002,7 @@ export function GeometryViewerWindow(props) {
           </Show>
           <Show when={flightNotice()}><div class="geometry-flight-hint" role="status">{flightNotice()}</div></Show>
           <ThreeGeometryViewport
-            allowFlight={true} flightFrameKey={timeState().index}
+            allowFlight={GEOMETRY_FLIGHT_ENABLED} flightFrameKey={timeState().index}
             onFlightReady={control => { flightControl = control; setFlightReady(Boolean(control)); }}
             onFlightStateChange={onFlightStateChange}
             onFlightSpeedChange={showFlightSpeedNotice} onFlightError={setFlightNotice}
