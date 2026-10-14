@@ -21,9 +21,7 @@ import {
 import {
   GEOMETRY_CAMERA_COMMANDS,
   geometryCameraFrame,
-  geometryAxisRotationFromKeyboardEvent,
-  geometryOriginAxisRotationFromKeyboardEvent,
-  rotateGeometryCameraAroundAxis,
+  createGeometryAxisRotationController,
   normalizeGeometryCameraCommand,
   snapshotGeometryCamera,
   restoreGeometryCamera,
@@ -1230,10 +1228,7 @@ export function ThreeGeometryViewport(props) {
   let raycaster;
   let pointerNdc;
   let pendingPointer;
-  let handlePointerMove;
-  let handlePointerLeave;
-  let handlePointerEnter, handleAxisKeyDown, handleAxisKeyUp, handleAxisBlur;
-  let pointerInsideViewport = false, fixedAxisRotation = null, fixedAxisPivot = "target";
+  let axisRotationController;
   let handleControlsStart;
   let handleControlsEnd;
   let renderFrame = 0;
@@ -1381,12 +1376,6 @@ export function ThreeGeometryViewport(props) {
     renderFrame = requestAnimationFrame(timestamp => { renderFrame = 0; renderNow(timestamp); });
   };
 
-  const setFixedAxisRotation = (axis, pivot = "target") => {
-    fixedAxisRotation = axis; fixedAxisPivot = pivot;
-    if (controls) controls.enabled = !axis && flightController?.state === "idle";
-    controlsInteracting = Boolean(axis) || flightController?.state === "active";
-    if (axis) clearHoverTooltip();
-  };
   const createOrbitControls = (target) => {
     const nextControls = new OrbitControlsClass(camera, renderer.domElement);
     nextControls.enableDamping = false;
@@ -2198,6 +2187,7 @@ export function ThreeGeometryViewport(props) {
         canStart: () => ready() && !disposed && !contextLost && !error()
           && props.allowFlight === true && currentBounds && !currentBounds.isEmpty(),
         onActivate: () => {
+          axisRotationController?.stop();
           renderNow();
           if (error()) throw new Error(error());
           flightEntryState = snapshotGeometryCamera(camera, controls, activeProjection);
@@ -2231,38 +2221,19 @@ export function ThreeGeometryViewport(props) {
       });
       props.onFlightReady?.(flightController);
 
-      handlePointerEnter = () => { pointerInsideViewport = true; };
-      handlePointerMove = event => {
-        if (flightController.state !== "idle") return;
-        if (fixedAxisRotation) {
-          const movement = Number(event.movementX ?? 0) - Number(event.movementY ?? 0);
-          const origin = fixedAxisPivot === "origin";
-          if (rotateGeometryCameraAroundAxis(camera, controls, fixedAxisRotation, movement * 0.006,
-            { pivot: origin ? new THREE.Vector3() : controls.target, rotateTarget: origin })) {
-            hasFramedGeometry = true; clearHoverTooltip(); requestRender();
-          }
-          return;
-        }
-        queuePointerPick(event);
-      };
-      handlePointerLeave = () => { pointerInsideViewport = false; clearHoverTooltip(); };
-      handleAxisKeyDown = event => {
-        if (!pointerInsideViewport || event.repeat || flightController.state !== "idle" || document.querySelector("dialog[open]")) return;
-        const targetAxis = geometryAxisRotationFromKeyboardEvent(event, { allowControls: true });
-        const originAxis = geometryOriginAxisRotationFromKeyboardEvent(event, { allowControls: true });
-        if (targetAxis || originAxis) { event.preventDefault(); setFixedAxisRotation(targetAxis ?? originAxis, originAxis ? "origin" : "target"); }
-      };
-      handleAxisKeyUp = event => {
-        if ((fixedAxisPivot === "origin" && /^Shift/.test(event.code))
-          || (fixedAxisPivot === "target" && /^(Control|Alt)/.test(event.code))) setFixedAxisRotation(null);
-      };
-      handleAxisBlur = () => setFixedAxisRotation(null);
-      renderer.domElement.addEventListener("pointerenter", handlePointerEnter);
-      renderer.domElement.addEventListener("pointermove", handlePointerMove);
-      renderer.domElement.addEventListener("pointerleave", handlePointerLeave);
-      document.addEventListener("keydown", handleAxisKeyDown, true);
-      document.addEventListener("keyup", handleAxisKeyUp, true);
-      window.addEventListener("blur", handleAxisBlur);
+      axisRotationController = createGeometryAxisRotationController({
+        element: renderer.domElement, getCamera: () => camera, getControls: () => controls,
+        canStart: () => !disposed && !contextLost && !error() && flightController.state === "idle",
+        onStateChange: active => {
+          controlsInteracting = active || flightController.active;
+          if (active) clearHoverTooltip();
+          // OrbitControls caches camera.up. Rebase once after the direct gesture,
+          // instead of letting its old spherical frame clamp each rotation.
+          else if (!disposed && flightController.state === "idle") rebuildOrbitControls();
+        },
+        onRotate: () => { hasFramedGeometry = true; clearHoverTooltip(); requestRender(); },
+        onPointerMove: queuePointerPick, onPointerLeave: clearHoverTooltip,
+      });
 
       threeScene.add(new THREE.AmbientLight(0xffffff, 1.25));
       const light = new THREE.DirectionalLight(0xffffff, 0.55);
@@ -2407,6 +2378,7 @@ export function ThreeGeometryViewport(props) {
 
   onCleanup(() => {
     disposed = true;
+    axisRotationController?.dispose();
     flightController?.dispose();
     props.onFlightReady?.(null);
     props.onFrameController?.(null);
@@ -2422,12 +2394,6 @@ export function ThreeGeometryViewport(props) {
     disposeObject(helperRoot);
     disposeObject(axesRoot);
     if (renderer?.domElement) {
-      renderer.domElement.removeEventListener("pointermove", handlePointerMove);
-      renderer.domElement.removeEventListener("pointerleave", handlePointerLeave);
-      renderer.domElement.removeEventListener("pointerenter", handlePointerEnter);
-      document.removeEventListener("keydown", handleAxisKeyDown, true);
-      document.removeEventListener("keyup", handleAxisKeyUp, true);
-      window.removeEventListener("blur", handleAxisBlur);
       const handlers = renderer.domElement.__geometryContextHandlers;
       if (handlers) {
         renderer.domElement.removeEventListener(
