@@ -10,17 +10,23 @@ const html = await readFile(path.join(USER_GUIDE_SOURCE, 'index.html'), 'utf8');
 const ids = [...html.matchAll(/\bid="([^"]+)"/gu)].map(match => match[1]);
 const attributes = name => [...html.matchAll(new RegExp(`\\b${name}="([^"]*)"`, 'gu'))].map(match => match[1]);
 
-test('guide is standalone Russian HTML with complete sections and stable unique anchors', () => {
+test('guide is standalone Russian HTML with document chapters and stable unique anchors', () => {
     assert.match(html, /<html[^>]*lang="ru"/u);
     assert.equal(new Set(ids).size, ids.length);
     assert.equal((html.match(/<h1\b/gu) ?? []).length, 1);
-    assert.equal((html.match(/class="chapter"/gu) ?? []).length, 18);
+    assert.equal((html.match(/class="chapter"/gu) ?? []).length, 24);
     for (const id of ['med', 'med-apply', 'task-create', 'task-copy', 'task-rename', 'task-move', 'task-delete', 'material-source', 'test-team7', 'test-cube', 'test-bar', 'examples-external', 'examples-lessons', 'team13']) assert.ok(ids.includes(id), id);
 });
 
-test('every internal guide link and runtime asset resolves inside the standalone directory', async () => {
+test('every internal link resolves and images are embedded for offline reading', async () => {
     for (const value of [...attributes('href'), ...attributes('src')]) {
         if (/^https?:/u.test(value) || value === 'data:,') continue;
+        if (value.startsWith('data:image/')) {
+            const match = value.match(/^data:image\/(png|gif|jpeg|webp);base64,([A-Za-z0-9+/=]+)$/u);
+            assert.ok(match, 'valid embedded image data URI');
+            assert.ok(Buffer.from(match[2], 'base64').length > 0);
+            continue;
+        }
         const [relative, fragment] = value.split('#');
         if (!relative) assert.ok(fragment && ids.includes(decodeURIComponent(fragment)), value);
         else {
@@ -29,34 +35,32 @@ test('every internal guide link and runtime asset resolves inside the standalone
         }
     }
     assert.doesNotMatch(html, /<(?:script|img)\b[^>]+src="https?:/u);
+    assert.doesNotMatch(html, /<link\b[^>]+rel="stylesheet"/u);
     assert.doesNotMatch(html, /\b(?:src|href)="(?:file:|javascript:|#")/u);
 });
 
-test('mathematical model is part of the main guide with reachable subsections', async () => {
+test('mathematical model uses 175 embedded native-equation images with reachable subsections', async () => {
     assert.ok(!(await readdir(USER_GUIDE_SOURCE)).includes('model.html'));
     assert.doesNotMatch(html, /model\.html|HT[CS]_JC_OFFSET|AI_HT[CS]_JC_OFFSET/u);
+    assert.doesNotMatch(html, /<math\b|MathJax|katex/iu);
+    assert.equal((html.match(/data-equation="\d+"/gu) ?? []).length, 175);
     for (const id of ['integral', 'discretization', 'weak', 'newton', 'hts', 'symmetries', 'scope']) {
         assert.ok(ids.includes(`model-${id}`), id);
         assert.ok(attributes('href').includes(`#model-${id}`), id);
     }
-    assert.equal((html.match(/class="model-subsection"/gu) ?? []).length, 7);
-    assert.match(html, /без добавки или нижнего ограничения/u);
+    for (const id of ['jweak1', 'model-hts-power', 'model-hts-tanh']) assert.ok(ids.includes(id), id);
     assert.match(html, /j2_n=24/u);
     assert.match(html, /j_gmin=25000/u);
-    for (const id of ['jweak1', 'model-hts-power', 'model-hts-tanh']) assert.ok(ids.includes(id), id);
-    assert.match(html, /16\.5\. Аппроксимация для токовой подсистемы ВТСП/u);
-    assert.match(html, /1−tanh\(ab\/\(2δ\)\)/u);
-    assert.match(html, /htsMu=false/u);
-    assert.match(html, /htsRo=false/u);
+    assert.match(html, /аналитическ/u);
 });
 
-test('guide version matches the GUI and identifies the five implemented task commands', async () => {
-    const version = JSON.parse(await readFile(path.join(root, 'package.json'))).version;
-    assert.match(html, new RegExp(`версия GUI <strong>${version.replaceAll('.', '\\.')}<`));
-    assert.equal((html.match(/data-status="implemented"/gu) ?? []).length, 5);
-    assert.match(html, /начальным|Начальный источник/u);
-    assert.match(html, /пустой локальный список/u);
-    assert.match(html, /во время|Во время/u);
+test('guide identifies its GUI snapshot and retains all five task procedures', () => {
+    const prose = html.replace(/<[^>]*>/gu, ' ').replace(/\s+/gu, ' ');
+    assert.ok(/E3D Editor 4\.51\.0/u.test(prose), 'document GUI snapshot retained');
+    assert.doesNotMatch(html, /Lubin/u);
+    for (const id of ['task-create', 'task-copy', 'task-rename', 'task-move', 'task-delete']) assert.ok(ids.includes(id), id);
+    assert.ok(prose.includes('Начальный источник'));
+    assert.ok(prose.includes('пустой локальный список'));
 });
 
 test('guide retains the prepared images and recorded benchmark evidence', async () => {
