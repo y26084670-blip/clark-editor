@@ -254,7 +254,7 @@ export function TaskLaunchWindow(props) {
   }
 
   function launch(action) {
-    if (!canLaunch() || (action === "circuit" && enabledEntries().length !== 1)) return;
+    if (!canLaunch() || (["circuit", "modelica"].includes(action) && enabledEntries().length !== 1)) return;
     const prepared = proof();
     const snapshot = entries().map(entry => ({ ...entry }));
     try {
@@ -585,6 +585,9 @@ export function TaskLaunchWindow(props) {
           <button type="button" disabled={!canLaunch() || Boolean(mpiError()) || enabledEntries().length !== 1}
             title="Запустить клиента электрической цепи. Требуется ровно одно подключённое задание REAL64 с конфигурацией цепи."
             onClick={() => launch("circuit")}>Запустить клиента — эл. цепь</button>
+          <button type="button" disabled={!canLaunch() || Boolean(mpiError()) || enabledEntries().length !== 1}
+            title="Запустить установленную OM-модель для одного задания REAL64. Модель выбирается в input3XX/om-client.json."
+            onClick={() => launch("modelica")}>Запустить OM-клиент</button>
           <button type="button" disabled={!canLaunch()}
             title="Открыть подтверждение импорта для всех подключённых заданий. Импорт заменит их исходные данные."
             onClick={() => setConfirmImport(true)}>Запустить импорт данных</button>

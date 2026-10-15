@@ -5,7 +5,7 @@ export const WORKSPACE_FILE = "clark.workspace.json";
 export const PROOF_FILE = "clark.launch.json";
 export const RESULT_FILE = "clark.launch-result.json";
 export const SETTINGS_FILE = "clark.settings.json";
-export const LAUNCH_ACTIONS = Object.freeze(["solver", "circuit", "import"]);
+export const LAUNCH_ACTIONS = Object.freeze(["solver", "circuit", "modelica", "import"]);
 
 const SCHEMA_VERSION = 1;
 const GUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
