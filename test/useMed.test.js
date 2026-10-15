@@ -4,6 +4,44 @@ import { readFile } from "node:fs/promises";
 import { createServer } from "vite";
 import { medModel, medBox } from "./fixtures/medContactCases.js";
 
+test("AC requires useMED=false and suppresses the charge warning without changing input", async () => {
+    const server = await createServer({ configFile: false, server: { middlewareMode: true }, appType: "custom" });
+    try {
+        const { default: schema } = await server.ssrLoadModule("/src/services/schemas/general.schema.js");
+        const { deserialize } = await server.ssrLoadModule("/src/services/model/modelSerializer.js");
+        const { generalValidator } = await server.ssrLoadModule("/src/tabulator/validators/models/general/generalValidator.js");
+        for (const fullAxialSymmetry of [false, true]) {
+            for (const useMED of [false, true, undefined]) {
+                for (const conducting of [false, true]) {
+                    const general = deserialize({ fullAxialSymmetry,
+                        ...(useMED === undefined ? {} : { useMED }) }, schema);
+                    const model = { general, elements: conducting ? [medBox()] : [] };
+                    const before = structuredClone(model), messages = [];
+                    generalValidator({ getModel: () => model }, messages);
+                    const chargeMessages = messages.filter(d => d.property === "useMED");
+                    const conflict = fullAxialSymmetry && useMED !== false;
+                    const warning = !fullAxialSymmetry && useMED === false && conducting;
+                    assert.equal(chargeMessages.length, conflict || warning ? 1 : 0);
+                    if (conflict) {
+                        assert.equal(chargeMessages[0].level, "error");
+                        assert.equal(chargeMessages[0].tab.id, "general");
+                        assert.match(chargeMessages[0].message, /Осесимметричная \(AC\)/u);
+                        assert.match(chargeMessages[0].message, /useMED=false/u);
+                    } else if (warning) {
+                        assert.equal(chargeMessages[0].level, "warning");
+                    }
+                    assert.deepEqual(model, before);
+                }
+            }
+        }
+        const messages = [];
+        generalValidator({ getModel: () => ({ general: { fullAxialSymmetry: true } }) }, messages);
+        assert.ok(messages.some(d => d.property === "useMED" && d.level === "error"));
+    } finally {
+        await server.close();
+    }
+});
+
 test("useMED: defaults, file round trip, new task, demo and nonblocking diagnostics", async () => {
     const server = await createServer({ configFile: false, server: { middlewareMode: true }, appType: "custom" });
     const oldFetch = globalThis.fetch;
