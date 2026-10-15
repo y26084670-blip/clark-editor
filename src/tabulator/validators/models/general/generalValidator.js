@@ -9,7 +9,18 @@ export function generalValidator(
     const general = service.getModel().general;
     if (!general) return;
 
-    if (general.useMED === false && service.getModel().elements?.some(
+    if (general.fullAxialSymmetry === true && general.useMED !== false) {
+        diagnostics.push(createError({
+            tab: TABS.GENERAL,
+            property: "useMED",
+            message: "Включена «Осесимметричная (AC)». В этой постановке потенциальная "
+                + "составляющая электрического поля не рассчитывается. "
+                + "Отключите «Учёт зарядов» (useMED=false).",
+        }));
+    }
+
+    if (general.fullAxialSymmetry !== true
+        && general.useMED === false && service.getModel().elements?.some(
         row => row?.targ === 0 && Number.isFinite(row.rv) && row.rv > 0,
     )) {
         diagnostics.push(createWarning({
