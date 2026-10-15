@@ -12,6 +12,7 @@ import {
     snapshotGeometryCamera,
     restoreGeometryCamera,
     createGeometryAxisRotationController,
+    createGeometryAxisRotationDiagnostics,
 } from "../src/services/visualization/geometryCameraView.js";
 
 const DIRECTIONAL_CASES = [
@@ -209,7 +210,7 @@ test("Ctrl and Shift restore fixed-axis rotation without snapping or fitting", a
 });
 
 // Real Three.js controls and dispatched DOM events, without a WebGL renderer.
-function axisGestureFixture(projection = "perspective") {
+function axisGestureFixture(projection = "perspective", diagnosticOptions) {
     const owner = new EventTarget(), win = new EventTarget(), element = new EventTarget();
     owner.defaultView = win; owner.hidden = false;
     let dialog = false, allowed = true, rotations = 0, picks = 0;
@@ -225,8 +226,12 @@ function axisGestureFixture(projection = "perspective") {
     let controls = new OrbitControls(camera, element);
     controls.target.set(1, 2, 3); controls.update();
     const states = [];
+    const diagnostics = diagnosticOptions ? createGeometryAxisRotationDiagnostics({
+        element, getCamera: () => camera, getControls: () => controls, ...diagnosticOptions,
+    }) : null;
     const controller = createGeometryAxisRotationController({
         element, getCamera: () => camera, getControls: () => controls, canStart: () => allowed,
+        diagnostics,
         onStateChange(active) {
             states.push(active);
             if (!active) {
@@ -245,7 +250,7 @@ function axisGestureFixture(projection = "perspective") {
         target.dispatchEvent(event); return event;
     };
     return {
-        owner, win, element, camera, controller, states, emit,
+        owner, win, element, camera, controller, diagnostics, states, emit,
         get controls() { return controls; }, get rotations() { return rotations; }, get picks() { return picks; },
         set allowed(value) { allowed = value; }, set dialog(value) { dialog = value; },
         enter: (x = 100, y = 100) => emit(element, "pointerenter", { clientX: x, clientY: y }),
@@ -436,4 +441,116 @@ test("axis rotation follows a change from horizontal to vertical mouse movement"
             assert.equal(f.controller.active, true, "Changing mouse direction keeps the axis mode active");
         } finally { f.close(); }
     }
+});
+
+function diagnosticFixture() {
+    const messages = [];
+    let clock = 0;
+    const f = axisGestureFixture("perspective", {
+        version: "test", now: () => clock, getContext: () => ({ flight: "disabled" }),
+        write: message => messages.push(JSON.parse(message.slice("[axis-rotation] ".length))),
+    });
+    return { f, messages, advance(ms) { clock += ms; } };
+}
+
+test("axis diagnostics connect accepted input, camera changes, drawing and modifier release", () => {
+    const { f, messages, advance } = diagnosticFixture();
+    try {
+        assert.equal(messages[0].event, "ready"); assert.equal(messages[0].version, "test");
+        f.enter(); f.key("keydown", "KeyX", { altKey: true });
+        advance(2); f.move(120, 100, { altKey: true });
+        f.diagnostics.renderRequest("scheduled");
+        advance(12); const frame = f.diagnostics.beginRender({ geometry: false, resize: false });
+        f.diagnostics.beforeDraw(); advance(4); f.diagnostics.endRender(frame, true);
+        f.key("keyup", "AltLeft");
+        assert.ok(messages.some(row => row.event === "key" && row.code === "KeyX" && row.reason === "accepted"));
+        assert.ok(messages.some(row => row.event === "mode" && row.axis === "x" && row.pivot === "target"));
+        assert.equal(messages.find(row => row.event === "mode").controlsEnabled, false);
+        const summary = messages.findLast(row => row.event === "summary");
+        assert.equal(summary.reason, "modifier-released"); assert.equal(summary.moves, 1); assert.equal(summary.rotations, 1);
+        assert.equal(summary.frames, 1); assert.equal(summary.scheduled, 1); assert.equal(summary.dx, 20);
+        assert.equal(summary.overwrittenFrames, 0); assert.equal(summary.unpaintedRotation, false);
+        assert.equal(summary.renderMs, 4); assert.equal(summary.maxWaitMs, 12);
+        assert.equal(summary.context.flight, "disabled");
+        assert.deepEqual(summary.cameraAfterRotation, summary.cameraAtDraw);
+        assert.equal(messages.at(-1).reason, "modifier-released"); assert.equal(messages.at(-1).code, "AltLeft");
+        assert.equal(f.controls.enabled, true);
+        const count = messages.length; f.move(130, 100, {}); assert.equal(messages.length, count);
+    } finally { f.close(); }
+});
+
+test("axis diagnostics explain rejected shortcuts and changing pointer baselines", () => {
+    const { f, messages } = diagnosticFixture();
+    try {
+        f.key("keydown", "KeyX", { altKey: true });
+        f.enter(); f.dialog = true; f.key("keydown", "KeyX", { shiftKey: true });
+        f.dialog = false; f.allowed = false; f.key("keydown", "KeyZ", { ctrlKey: true });
+        f.allowed = true; f.key("keydown", "KeyY", { altKey: true, target: { tagName: "INPUT", type: "number" } });
+        const input = messages.find(row => row.event === "key" && row.reason === "editing-input");
+        assert.equal(input.target, "INPUT[number]");
+        for (const reason of ["pointer-outside-canvas", "modal-dialog-open", "viewport-unavailable", "editing-input"]) {
+            assert.ok(messages.some(row => row.event === "key" && row.reason === reason), reason);
+        }
+        f.key("keyup", "AltLeft");
+        f.key("keydown", "KeyZ", { shiftKey: true });
+        f.move(100, 100, { shiftKey: true });
+        f.move(105, 100, { shiftKey: true, pointerId: 2 });
+        f.move(110, 100, { shiftKey: true, pointerId: 2 });
+        f.emit(f.element, "pointerleave");
+        f.move(115, 100, { shiftKey: true, pointerId: 2 });
+        f.move(120, 100, { pointerId: 2 });
+        const summary = messages.findLast(row => row.event === "summary");
+        assert.equal(summary.reason, "pointer-modifier-lost"); assert.equal(summary.pointerChanges, 1);
+        assert.equal(summary.noBaseline, 1); assert.equal(summary.zeroDelta, 1); assert.equal(summary.rotations, 1);
+        assert.equal(summary.canvasLeaves, 1);
+        assert.equal(summary.lastPointer.shift, false); assert.equal(summary.unpaintedRotation, true);
+    } finally { f.close(); }
+});
+
+test("axis diagnostics expose camera overwrites and missing or blocked frames", () => {
+    const { f, messages, advance } = diagnosticFixture();
+    try {
+        f.enter(); f.key("keydown", "KeyY", { ctrlKey: true });
+        f.move(120, 100, { ctrlKey: true });
+        f.diagnostics.renderRequest("scheduled"); f.diagnostics.renderRequest("already-queued");
+        f.diagnostics.renderRequest("rendering");
+        advance(30); const frame = f.diagnostics.beginRender({ geometry: true, resize: true });
+        f.camera.position.x += 1;
+        f.diagnostics.beforeDraw(); advance(20); f.diagnostics.endRender(frame, true);
+        f.move(140, 100, { ctrlKey: true });
+        f.key("keyup", "ControlLeft");
+        const summary = messages.findLast(row => row.event === "summary");
+        assert.equal(summary.overwrittenFrames, 1); assert.equal(summary.geometryUpdates, 1); assert.equal(summary.resizes, 1);
+        assert.equal(summary.scheduled, 1); assert.equal(summary.coalesced, 1); assert.equal(summary.blocked, 1);
+        assert.equal(summary.frames, 1); assert.equal(summary.rotations, 2); assert.equal(summary.unpaintedRotation, true);
+        assert.notDeepEqual(summary.cameraAfterRotation, summary.cameraAtDraw);
+        assert.equal(summary.maxRenderMs, 20); assert.equal(summary.maxWaitMs, 30);
+        assert.equal(summary.lastOverwrite.cameraReplaced, false); assert.equal(summary.lastOverwrite.controlsReplaced, false);
+        assert.notDeepEqual(summary.lastOverwrite.cameraAfterRotation, summary.lastOverwrite.cameraAtDraw);
+    } finally { f.close(); }
+});
+
+test("axis diagnostic summaries and key repeats are bounded during continuous input", () => {
+    const { f, messages, advance } = diagnosticFixture();
+    const plain = axisGestureFixture();
+    try {
+        for (const fixture of [f, plain]) { fixture.enter(); fixture.key("keydown", "KeyZ", { shiftKey: true }); }
+        for (let i = 1; i <= 250; i++) {
+            advance(10);
+            for (const fixture of [f, plain]) {
+                fixture.key("keydown", "KeyZ", { shiftKey: true, repeat: true });
+                fixture.move(100 + i, 100, { shiftKey: true });
+            }
+        }
+        const summaries = messages.filter(row => row.event === "summary");
+        assert.equal(summaries.length, 2);
+        assert.equal(summaries[0].ms, 1000); assert.equal(summaries[1].ms, 2000);
+        assert.ok(messages.filter(row => row.event === "key").length <= 3);
+        assert.equal(f.rotations, plain.rotations); assert.deepEqual(f.camera.position, plain.camera.position);
+        assert.deepEqual(f.camera.quaternion.toArray(), plain.camera.quaternion.toArray());
+        f.emit(f.win, "blur");
+        const final = messages.findLast(row => row.event === "summary");
+        assert.equal(final.reason, "window-blur"); assert.equal(final.rotations, 250); assert.equal(final.frames, 0);
+        assert.equal(final.unpaintedRotation, true); assert.equal(f.controls.enabled, true);
+    } finally { f.close(); plain.close(); }
 });
