@@ -6,6 +6,7 @@ import {
   onMount,
   untrack,
 } from "solid-js";
+import packageMetadata from "../../../package.json";
 
 import {
   instanceVisible,
@@ -22,6 +23,7 @@ import {
   GEOMETRY_CAMERA_COMMANDS,
   geometryCameraFrame,
   createGeometryAxisRotationController,
+  createGeometryAxisRotationDiagnostics,
   normalizeGeometryCameraCommand,
   snapshotGeometryCamera,
   restoreGeometryCamera,
@@ -1229,6 +1231,7 @@ export function ThreeGeometryViewport(props) {
   let pointerNdc;
   let pendingPointer;
   let axisRotationController;
+  let axisDiagnostics;
   let handleControlsStart;
   let handleControlsEnd;
   let renderFrame = 0;
@@ -1308,6 +1311,8 @@ export function ThreeGeometryViewport(props) {
     if (!renderer || !threeScene || !camera || rendering || disposed || contextLost) return;
     if (renderFrame) { cancelAnimationFrame(renderFrame); renderFrame = 0; }
     rendering = true;
+    const diagnosticStart = axisDiagnostics?.beginRender({ geometry: Boolean(pendingGeometry), resize: pendingResize });
+    let diagnosticPainted = false;
     try {
       // Commit the last requested time before drawing; no second RAF latency.
       props.beforeRender?.();
@@ -1331,7 +1336,9 @@ export function ThreeGeometryViewport(props) {
       renderer.setScissorTest(false);
       renderer.setViewport(0, 0, viewportWidth, viewportHeight);
       renderer.clear(true, true, true);
+      axisDiagnostics?.beforeDraw();
       renderer.render(threeScene, camera);
+      diagnosticPainted = true;
       const pickTime = timestamp ?? performance.now();
       if (flightController?.active && !flightController.approaching && pickTime - lastFlightPickTime >= PICK_INTERVAL_MS) {
         lastFlightPickTime = pickTime; pickFlightTarget();
@@ -1367,12 +1374,17 @@ export function ThreeGeometryViewport(props) {
     } catch (renderError) {
       reportError(renderError);
     } finally {
+      axisDiagnostics?.endRender(diagnosticStart, diagnosticPainted);
       rendering = false;
       if (flightController?.needsFrame) requestRender();
     }
   };
   const requestRender = () => {
-    if (!renderer || !threeScene || !camera || renderFrame || rendering || disposed) return;
+    if (!renderer || !threeScene || !camera || renderFrame || rendering || disposed) {
+      axisDiagnostics?.renderRequest(renderFrame ? "already-queued" : rendering ? "rendering" : disposed ? "disposed" : "not-ready");
+      return;
+    }
+    axisDiagnostics?.renderRequest("scheduled");
     renderFrame = requestAnimationFrame(timestamp => { renderFrame = 0; renderNow(timestamp); });
   };
 
@@ -2221,8 +2233,16 @@ export function ThreeGeometryViewport(props) {
       }) : null;
       props.onFlightReady?.(flightController);
 
+      axisDiagnostics = createGeometryAxisRotationDiagnostics({
+        element: renderer.domElement, getCamera: () => camera, getControls: () => controls,
+        version: packageMetadata.version,
+        getContext: () => ({ flight: flightController?.state ?? "disabled", disposed, contextLost, error: error(),
+          pointerLocked: Boolean(renderer.domElement.ownerDocument.pointerLockElement), controlsEnabled: controls?.enabled,
+          projection: activeProjection, width: viewportWidth, height: viewportHeight, renderPending: Boolean(renderFrame), rendering }),
+      });
       axisRotationController = createGeometryAxisRotationController({
         element: renderer.domElement, getCamera: () => camera, getControls: () => controls,
+        diagnostics: axisDiagnostics,
         canStart: () => !disposed && !contextLost && !error() && (flightController?.state ?? "idle") === "idle",
         onStateChange: active => {
           controlsInteracting = active || Boolean(flightController?.active);
