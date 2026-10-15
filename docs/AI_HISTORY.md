@@ -1,6 +1,6 @@
 # История решений web-gui
 
-Обновлено: 2026-10-12 23:18 UTC+3.
+Обновлено: 2026-10-15 19:01 UTC+3.
 
 ## Назначение
 
@@ -9,9 +9,19 @@
 проблемы — [`AI_ARCHITECTURE_AUDIT.md`](AI_ARCHITECTURE_AUDIT.md), порядок
 будущих работ — [`AI_ROADMAP.md`](AI_ROADMAP.md).
 
-Последнее обновление: приложение 4.51.0, [PR 82](https://github.com/y26084670-blip/web-gui/pull/82).
+Последнее обновление: приложение 4.53.6, [6708e3f](https://github.com/y26084670-blip/web-gui/commit/6708e3f04c83a36885611da9e5ef1094c0d26bd1).
 
 ## Основные этапы
+
+### 2026-10-15 — осесимметрия и учёт зарядов, 4.53.6
+
+[6708e3f](https://github.com/y26084670-blip/web-gui/commit/6708e3f04c83a36885611da9e5ef1094c0d26bd1):
+Error для несовместимых AC/useMED, отсутствие общего Warning в корректной
+осесимметричной задаче. Ввод не исправляется автоматически.
+Профильные проверки — 24/24; release-сборка успешна.
+[Правило](AI_DATA_CONTRACTS.md#учёт-зарядов--generalusemed),
+[свидетельства](AI_VERIFICATION.md#verification-ac-usemed).
+
 
 ### 2026-10-12 — crossfade и треугольные отметки, 4.51.0
 
