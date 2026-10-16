@@ -24,6 +24,7 @@ export function OMClientWindow(props) {
   const [pending, setPending] = createSignal(null);
   let fileInput;
   let disposed = false;
+  let loadRevision = 0;
   const dirty = createMemo(() => Boolean(draft() && fingerprint(draft()) !== clean()));
   const locked = () => busy() || props.locked;
   const selectedPreset = () => presets().find(preset => omPresetKey(preset) === presetKey());
@@ -46,10 +47,14 @@ export function OMClientWindow(props) {
   }
 
   async function load(request) {
-    setBusy(true); setError(""); setNotice(initial.notice); setPending(null); setOpen(true);
+    const revision = ++loadRevision;
+    batch(() => {
+      setBusy(true); setError(""); setNotice(initial.notice); setPending(null); setOpen(true);
+      setTarget(request); setDraft(null); setBaseline(null); setClean(""); setActivePreset(null);
+    });
     try {
       const result = await readOMTask(request.handle);
-      if (disposed) return;
+      if (disposed || revision !== loadRevision) return;
       const value = { selection: result.selection, dataText: result.dataText, couplingText: result.couplingText };
       const preset = presets().find(p => p.selection.model === result.selection?.model
         && p.selection.version === result.selection?.version)
@@ -59,16 +64,17 @@ export function OMClientWindow(props) {
         setActivePreset(preset ?? null);
         if (preset) setPresetKey(omPresetKey(preset));
       });
-    } catch (failure) { if (!disposed) setError(`Не удалось открыть «${request.path}»: ${errorText(failure)}`); }
-    finally { if (!disposed) setBusy(false); }
+    } catch (failure) { if (!disposed && revision === loadRevision) setError(`Не удалось открыть «${request.path}»: ${errorText(failure)}`); }
+    finally { if (!disposed && revision === loadRevision) setBusy(false); }
   }
 
   createEffect(() => {
     const request = props.request;
     untrack(() => {
-      if (!request) return;
+      if (!request) { clearWindow(); return; }
       if (target()?.handle === request.handle) { setOpen(true); return; }
-      requestChange("Открыть другое задание без сохранения изменений OM-модели?", () => { void load(request); });
+      // Tasks confirms discarding both field and OM drafts before replacing the loaded task.
+      void load(request);
     });
   });
 
@@ -87,7 +93,7 @@ export function OMClientWindow(props) {
     if (!preset || !target()) return;
     requestChange("Заменить данные в окне выбранным пресетом? Файлы изменятся после сохранения.", () => {
       setDraft({ selection: structuredClone(preset.selection), dataText: formatOMJson(preset.data), couplingText: formatOMJson(preset.coupling) });
-      setActivePreset(preset); setError(""); setNotice("Пресет загружен в окно. Проверьте параметры и индексы каналов, затем сохраните.");
+      setActivePreset(preset); setError(""); setNotice("");
     }, Boolean(draft()?.selection));
   }
 
@@ -128,10 +134,16 @@ export function OMClientWindow(props) {
     setDraft(previous => ({ ...previous, [key]: value })); setNotice("");
   }
 
-  function close() {
-    requestChange("Закрыть окно без сохранения изменений OM-модели?", () => {
-      batch(() => { setOpen(false); setDraft(null); setTarget(null); setBaseline(null); setPending(null); setError(""); setNotice(""); });
+  function clearWindow() {
+    loadRevision += 1;
+    batch(() => {
+      setOpen(false); setDraft(null); setTarget(null); setBaseline(null); setPending(null);
+      setError(""); setNotice(""); setBusy(false); setClean(""); setActivePreset(null);
     });
+  }
+
+  function close() {
+    requestChange("Закрыть окно без сохранения изменений OM-модели?", clearWindow);
   }
 
   function format() {
@@ -144,8 +156,8 @@ export function OMClientWindow(props) {
   }
 
   return (
-    <FloatingWindow open={open()} title={`Клиентская модель OM${dirty() ? " *" : ""}`}
-      initialWidth={700} initialHeight={720} minWidth={420} minHeight={360}
+    <FloatingWindow open={open()} title={`Клиентская модель Open Modelica для редактируемого задания${dirty() ? " *" : ""}`}
+      initialWidth={700} initialHeight={720} fixedWidth={700} minHeight={360} maximizeHeightOnly
       storageKey="web-gui:om-client-window" class="om-client-window" onClose={close}>
       <div class="om-client-body" aria-busy={busy()} onKeyDown={event => {
         if ((event.ctrlKey || event.metaKey) && event.code === "KeyS"
@@ -153,8 +165,6 @@ export function OMClientWindow(props) {
           event.preventDefault(); event.stopPropagation(); void save();
         }
       }}>
-        <p class="om-client-task">Задание: <strong>{target()?.path ?? "Загрузка…"}</strong></p>
-        <p class="om-client-hint">Окно закреплено за этим заданием. Можно переходить на вкладки исходных данных.</p>
         <Show when={pending()}>{request => (
           <div class="om-client-confirm" role="alert">
             <span>{request().message}</span>
@@ -166,38 +176,57 @@ export function OMClientWindow(props) {
         <Show when={notice()}><p class="om-client-notice" role="status">{notice()}</p></Show>
         <fieldset disabled={locked() || Boolean(pending())}>
           <div class="om-client-presets">
-            <label for={`${id}-preset`}>Пресет модели</label>
-            <select id={`${id}-preset`} value={presetKey()} onChange={event => setPresetKey(event.currentTarget.value)}>
-              <For each={presets()}>{preset => <option value={omPresetKey(preset)}>{preset.label}</option>}</For>
+            <label for={`${id}-preset`}>Пресет (шаблон) модели</label>
+            <select id={`${id}-preset`} value={presetKey()}
+              title="Пакет выбранной модели должен быть установлен в Clark."
+              onChange={event => setPresetKey(event.currentTarget.value)}>
+              <For each={presets()}>{preset => <option value={omPresetKey(preset)}>{preset.label.replace(/\s+[—–-]\s*шаблон\s*$/iu, "")}</option>}</For>
             </select>
-            <button type="button" disabled={!target()} onClick={applyPreset}>Применить</button>
+            <button type="button" disabled={!target()} onClick={applyPreset}
+              title="Загрузить пресет в окно. Проверьте параметры и индексы каналов, затем сохраните.">Применить</button>
             <button type="button" title="Загрузить editor-preset.json из пакета OM-модели" onClick={() => fileInput.click()}>Загрузить пресет…</button>
             <input ref={fileInput} hidden type="file" accept=".json,application/json" onChange={importPreset} />
           </div>
           <Show when={draft()?.selection}>
-            <div class="om-client-identity">
-              <span>Модель: <strong>{draft().selection.model}</strong></span>
-              <label>Версия пакета <input type="text" value={draft().selection.version}
-                onInput={event => update("selection", { ...draft().selection, version: event.currentTarget.value })} /></label>
-            </div>
-            <p class="om-client-hint">Пакет выбранной модели и версии должен быть установлен в Clark.</p>
-            <label class="om-client-json-label" for={`${id}-data`}>Данные модели — {draft().selection.dataFile}</label>
-            <Show when={activePreset()?.contract.dataSchema === "clark-circuit/1"}>
-              <p class="om-client-hint">L_H — внешняя индуктивность, Гн; R_Ohm — внешнее сопротивление, Ом. ЭДС: пары [время, с; напряжение, В]. Порядок ветвей: фаза, затем параллельная ветвь.</p>
-            </Show>
-            <textarea id={`${id}-data`} class="om-client-json om-client-data" spellcheck={false}
-              value={draft().dataText} onInput={event => update("dataText", event.currentTarget.value)} />
-            <label class="om-client-json-label" for={`${id}-coupling`}>Обмен клиент — сервер — {draft().selection.couplingFile}</label>
-            <p class="om-client-hint">inputs: клиент → сервер; outputs: сервер → клиент. Индексы начинаются с 1 и следуют порядку переменных модели.</p>
-            <Show when={activePreset()}>
-              <details class="om-client-channels"><summary>Каналы выбранной модели</summary>
-                <For each={["inputs", "outputs"]}>{side => <For each={activePreset().contract[side]}>{group => (
-                  <div>{side} / {group.kind}: {group.variables.join(", ")}</div>
-                )}</For>}</For>
-              </details>
-            </Show>
-            <textarea id={`${id}-coupling`} class="om-client-json om-client-coupling" spellcheck={false}
-              value={draft().couplingText} onInput={event => update("couplingText", event.currentTarget.value)} />
+            <section class="om-client-json-section">
+              <div class="om-client-json-heading">
+                <label class="om-client-json-label" for={`${id}-data`}>Данные модели — {draft().selection.dataFile}</label>
+                <Show when={activePreset()?.contract.dataSchema === "clark-circuit/1"}>
+                  <details class="om-client-help"><summary>Параметры выбранной модели</summary>
+                    <div class="om-client-help-content">
+                      <p>L_H — внешняя индуктивность, Гн.</p>
+                      <p>R_Ohm — внешнее сопротивление, Ом.</p>
+                      <p>ЭДС — пары [время, с; напряжение, В].</p>
+                      <p>Порядок ветвей — фаза, затем параллельная ветвь.</p>
+                    </div>
+                  </details>
+                </Show>
+              </div>
+              <textarea id={`${id}-data`} class="om-client-json om-client-data" spellcheck={false}
+                value={draft().dataText} onInput={event => update("dataText", event.currentTarget.value)} />
+            </section>
+            <section class="om-client-json-section">
+              <div class="om-client-json-heading">
+                <label class="om-client-json-label" for={`${id}-coupling`}
+                  title="inputs: клиент → сервер; outputs: сервер → клиент. Индексы начинаются с 1 и следуют порядку переменных модели.">
+                  Обмен клиент — сервер — {draft().selection.couplingFile}
+                </label>
+                <Show when={activePreset()}>
+                  <details class="om-client-help"><summary
+                    title="inputs: клиент → сервер; outputs: сервер → клиент. Индексы начинаются с 1 и следуют порядку переменных модели.">
+                    Каналы выбранной модели
+                  </summary>
+                    <div class="om-client-help-content">
+                      <For each={["inputs", "outputs"]}>{side => <For each={activePreset().contract[side]}>{group => (
+                        <p>{side} / {group.kind}: {group.variables.join(", ")}</p>
+                      )}</For>}</For>
+                    </div>
+                  </details>
+                </Show>
+              </div>
+              <textarea id={`${id}-coupling`} class="om-client-json om-client-coupling" spellcheck={false}
+                value={draft().couplingText} onInput={event => update("couplingText", event.currentTarget.value)} />
+            </section>
           </Show>
           <Show when={validation()}><p class="om-client-error" role="status">{validation()}</p></Show>
           <div class="om-client-actions">

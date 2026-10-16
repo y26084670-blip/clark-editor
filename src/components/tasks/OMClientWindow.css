@@ -1,41 +1,48 @@
 .om-client-body {
-  box-sizing: border-box; height: 100%; min-height: 0; overflow: auto;
-  padding: 12px; color: #edf2f7; background: #202932; font-size: 13px; color-scheme: dark;
+  box-sizing: border-box; display: flex; flex-direction: column; height: 100%; min-height: 0; overflow: auto;
+  padding: 10px; color: #edf2f7; background: #202932; font-size: 13px; color-scheme: dark;
+  --om-control-columns: repeat(3, minmax(0, 1fr));
 }
-.om-client-body p { margin: 0 0 8px; overflow-wrap: anywhere; }
-.om-client-body fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
-.om-client-hint { color: #b8c6d4; line-height: 1.4; }
-.om-client-task { overflow-wrap: anywhere; }
-.om-client-presets { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 10px; }
-.om-client-presets label { flex-basis: 100%; }
-.om-client-presets select { flex: 1 1 260px; min-width: 0; max-width: 100%; }
+.om-client-body p { margin: 0 0 6px; overflow-wrap: anywhere; }
+.om-client-body fieldset {
+  display: flex; flex-direction: column; flex: 1 1 auto; gap: 8px;
+  border: 0; padding: 0; margin: 0; min-width: 0; min-height: 0;
+}
+.om-client-presets, .om-client-actions {
+  display: grid; grid-template-columns: var(--om-control-columns); gap: 6px; flex: 0 0 auto;
+}
+.om-client-presets { align-items: stretch; }
+.om-client-presets label { grid-column: 1 / -1; }
+.om-client-presets select { min-width: 0; width: 100%; }
 .om-client-body button, .om-client-body input, .om-client-body select {
   box-sizing: border-box; padding: 6px 8px; margin: 0; font: inherit;
   color: #edf2f7; border: 1px solid #667789; border-radius: 4px; background: #334252;
 }
-.om-client-body button { width: auto; cursor: pointer; white-space: normal; }
+.om-client-body button { width: auto; min-width: 0; cursor: pointer; white-space: normal; }
 .om-client-body button:hover:not(:disabled) { background: #41586f; }
 .om-client-body button:disabled { opacity: .5; cursor: default; }
 .om-client-body :focus-visible { outline: 2px solid #8fc7ff; outline-offset: 1px; }
-.om-client-identity { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 8px; overflow-wrap: anywhere; }
-.om-client-identity label { display: flex; gap: 7px; align-items: center; }
-.om-client-identity input { width: 12ch; }
-.om-client-json-label { display: block; margin: 12px 0 6px; font-weight: 600; overflow-wrap: anywhere; }
+.om-client-json-section { display: flex; flex-direction: column; flex: 1 1 0; min-height: 120px; gap: 5px; }
+.om-client-json-heading { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
+.om-client-json-label { font-weight: 600; overflow-wrap: anywhere; }
 .om-client-json {
-  box-sizing: border-box; display: block; width: 100%; min-height: 100px;
-  resize: vertical; white-space: pre; overflow: auto; tab-size: 2; padding: 8px;
+  box-sizing: border-box; display: block; flex: 1 1 auto; width: 100%; min-height: 80px;
+  resize: none; white-space: pre; overflow: auto; tab-size: 2; padding: 8px;
   color: #edf2f7; background: #151a20; border: 1px solid #667789; border-radius: 3px;
   font: 13px/1.45 Consolas, monospace;
 }
-.om-client-data { height: 220px; }
-.om-client-coupling { height: 150px; }
-.om-client-channels { margin: 6px 0; color: #b8c6d4; overflow-wrap: anywhere; }
-.om-client-channels summary { cursor: pointer; }
-.om-client-error { color: #ffb5ae; }
-.om-client-notice { color: #bfe9c6; }
-.om-client-actions { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; }
-.om-client-actions button { flex: 1 1 auto; }
+.om-client-help { position: relative; margin-left: auto; color: #b8c6d4; }
+.om-client-help summary { cursor: pointer; white-space: nowrap; }
+.om-client-help-content {
+  position: absolute; z-index: 2; right: 0; top: calc(100% + 4px);
+  width: max-content; max-width: min(440px, calc(100vw - 52px)); max-height: 240px; overflow: auto;
+  padding: 8px 10px; border: 1px solid #667789; border-radius: 4px; background: #293541;
+  box-shadow: 0 4px 12px #0008; line-height: 1.4;
+}
+.om-client-help-content p:last-child { margin-bottom: 0; }
+.om-client-error { flex: 0 0 auto; color: #ffb5ae; }
+.om-client-notice { flex: 0 0 auto; color: #bfe9c6; }
 .om-client-actions button:last-child { background: #237a3b; }
-.om-client-confirm { padding: 10px; margin-bottom: 10px; border: 1px solid #998151; background: #3d3422; }
+.om-client-confirm { flex: 0 0 auto; padding: 10px; margin-bottom: 8px; border: 1px solid #998151; background: #3d3422; }
 .om-client-confirm span { display: block; margin-bottom: 8px; }
 .om-client-confirm button { margin-right: 7px; }

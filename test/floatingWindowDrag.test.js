@@ -104,6 +104,33 @@ function assertInside(h) {
   assert.ok(r.height >= Math.min(360, (h.window.innerHeight - 16) / divisor));
 }
 
+test("fixed width overrides an old saved width and native resize, but still fits a narrow viewport", () => {
+  const h = runtime({storage: new Map([["om-window", JSON.stringify({x: 80, y: 60, width: 1000, height: 500})]]),
+    props: {fitOnDrag: false, fixedWidth: 700, storageKey: "om-window"}});
+  assert.equal(h.rect().width, 700);
+  h.manualResize(900, 650);
+  assert.equal(h.rect().width, 700); assert.equal(h.rect().height, 650);
+  h.resize(500, 800); assert.equal(h.rect().width, 484); assert.equal(h.rect().x, 8);
+  h.resize(1200, 900); assert.equal(h.rect().width, 700);
+  assertInside(h); h.dispose();
+});
+
+test("height-only maximize preserves width, supports horizontal movement and restores the original size", () => {
+  const h = runtime({props: {fitOnDrag: false, fixedWidth: 700, maximizeHeightOnly: true}});
+  const before = {...h.rect()}; h.toggleMaximized();
+  assert.deepEqual(h.rect(), {...before, y: 8, height: 884});
+  h.down(); h.move(350, 400); h.up();
+  assert.equal(h.maximized(), true); assert.equal(h.rect().x, before.x + 50);
+  assert.equal(h.rect().width, 700); assert.equal(h.rect().y, 8);
+  h.key("ArrowLeft"); assert.equal(h.rect().x, before.x + 40);
+  h.toggleMinimized(); assert.equal(h.minimized(), true);
+  h.toggleMinimized(); assert.equal(h.minimized(), false); assert.equal(h.rect().height, 884);
+  h.resize(650, 700); assert.equal(h.rect().width, 634); assert.equal(h.rect().height, 684);
+  h.resize(1200, 900); assert.equal(h.rect().width, 700);
+  h.toggleMaximized(); assert.deepEqual(h.rect(), before);
+  h.dispose();
+});
+
 test("content height fitting shrinks a tall panel and tracks form changes within viewport bounds", () => {
   const h = runtime({props: {fitOnDrag: false, fitContentHeight: true,
     initialWidth: 600, minWidth: 600, initialHeight: 820, minHeight: 240}});

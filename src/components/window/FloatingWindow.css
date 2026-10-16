@@ -21,6 +21,10 @@
     box-shadow: 0 10px 32px rgba(0, 0, 0, .7);
 }
 
+.floating-window.is-fixed-width {
+    resize: vertical;
+}
+
 .floating-window.is-maximized,
 .floating-window.is-minimized {
     resize: none;
@@ -117,6 +121,7 @@
 }
 
 .task-launch-window.is-minimized .floating-window-titlebar,
+.om-client-window.is-minimized .floating-window-titlebar,
 .geometry-viewer-floating-window.is-minimized .floating-window-titlebar {
     color: #fff;
     background: #b32626;

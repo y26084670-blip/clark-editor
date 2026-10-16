@@ -114,6 +114,8 @@
 .task-list-heading .task-status-refresh[aria-busy="true"] { cursor: progress; }
 
 .task-list-group .listTask {
+  box-sizing: border-box;
+  width: 100%;
   flex: 1 1 auto;
   min-height: 0;
 }
@@ -121,7 +123,7 @@
 .task-browser-actions {
   display: grid;
   grid-template-columns: minmax(0, 1fr) max-content;
-  grid-template-rows: repeat(2, minmax(44px, 1fr));
+  grid-template-rows: repeat(2, 1fr);
   flex: 0 0 auto;
   gap: 10px;
   width: 100%;
@@ -235,6 +237,7 @@
   width: 100%;
   max-width: 600px;
   margin-top: 10px;
+  padding-inline: 8px;
   color: #fff;
   background: #237a3b;
 }

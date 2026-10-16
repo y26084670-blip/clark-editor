@@ -1,7 +1,7 @@
 //
 // вкладка выбора задания
 //
-import { Show, batch, createEffect, createSignal, onCleanup, onMount } from "solid-js";
+import { Show, batch, createEffect, createSignal, onCleanup, onMount, untrack } from "solid-js";
 import { TaskOperationDialog } from "../components/tasks/TaskOperationDialog.jsx";
 import { TaskGifGallery } from "../components/tasks/TaskGifGallery.jsx";
 import { runTaskDirectoryOperation, suggestTaskCopyName } from "../services/taskDirectoryService.js";
@@ -86,6 +86,14 @@ export function Tasks(props) {
   const [selectionNotice, setSelectionNotice] = createSignal("");
   const [selectionError, setSelectionError] = createSignal("");
   let taskListElement;
+
+  createEffect(() => {
+    const handle = loadedTaskHandle(), path = loadedTaskPath();
+    const isDemo = selectionService.loadedTaskIsDemo();
+    untrack(() => {
+      if (omClientState().open) setOMClientRequest(handle && !isDemo ? { handle, path } : null);
+    });
+  });
 
   const galleryDisabled = () => Boolean(operation()) || demoLoading() || bindingBusy()
     || launchBusy() || taskLaunchOpen() || omClientState().busy || props.editorBusy || selectionReceiving();
@@ -299,9 +307,9 @@ export function Tasks(props) {
   }
 
   function openOMClient() {
-    const task = selectedTask();
-    if (!task || task.isDemo || operationsBlocked()) return;
-    setOMClientRequest({ handle: task.handle, path: `${rootHandle().name}/${selectedProject()}/${task.name}` });
+    const handle = loadedTaskHandle();
+    if (!handle || selectionService.loadedTaskIsDemo() || operationsBlocked()) return;
+    setOMClientRequest({ handle, path: loadedTaskPath() });
   }
 
   async function bindWorkspace() {
@@ -518,7 +526,11 @@ export function Tasks(props) {
   };
 
   const offerTaskLoad = (request) => {
-    if (loadedTaskHandle() && unsavedChangesService.hasDirty()) {
+    if (omClientState().busy) {
+      showTaskError("Дождитесь завершения операции с OM-данными, затем загрузите другое задание.");
+      return;
+    }
+    if (loadedTaskHandle() && (unsavedChangesService.hasDirty() || omClientState().dirty)) {
       setPendingTaskLoad(request);
       queueMicrotask(() => {
         if (!unsavedDialog.open) unsavedDialog.showModal();
@@ -772,11 +784,11 @@ export function Tasks(props) {
             disabled={!rootHandle() || operationsBlocked()}
             onClick={openTaskLaunch}
           >
-            Формирование списка заданий и запуск решателей или импорта
+            Формирование списка заданий и запуск приложений
           </button>
           <button type="button" class="task-om-open-button"
-            disabled={!selectedTask() || selectedTask()?.isDemo || operationsBlocked()}
-            title="Выбрать OM-модель, отредактировать её данные и конфигурацию обмена с решателем"
+            disabled={!loadedTaskHandle() || selectionService.loadedTaskIsDemo() || operationsBlocked()}
+            title="Данные OM-модели и конфигурация обмена для загруженного в редактор задания"
             onClick={openOMClient}>Клиентская модель…</button>
         </div>
         <Show when={lastTaskNotice()}><p class="task-last-opened-notice" role="status">{lastTaskNotice()}</p></Show>
@@ -861,7 +873,7 @@ export function Tasks(props) {
       >
         <p>
           В редакторе есть несохранённые изменения. Загрузить другое задание
-          без сохранения текущих данных?
+          без сохранения текущих данных, включая данные клиентской модели OM?
         </p>
         <div class="task-unsaved-actions">
           <button onClick={confirmTaskLoad}>

@@ -19,21 +19,24 @@ const createTaskLoading = new Function("dependencies", `
         readTaskSummary, readTaskResultsSummary, loadedTaskHandle, unsavedChangesService,
         setPendingTaskLoad, pendingTaskLoad, unsavedDialog, returnToEditingButton,
         operation, galleryBusy, selectionReceiving, rootHandle, getFullPath, showLoadError, console,
-        lastTaskHistory, projects, selectedProject, tasks } = dependencies;
+        lastTaskHistory, projects, selectedProject, tasks, omClientState, showTaskError,
+        operationsBlocked, loadedTaskPath, setOMClientRequest } = dependencies;
     let taskLoadRevision = 0, taskInfoRevision = 0;
     ${taskFunctions("  const commitTaskLoad =", "  const handleLaunchComplete =")}
     ${taskFunctions("  const requestTaskLoad =", "  const taskLoaded =")}
-    return { commitTaskLoad, selectTaskCandidate, requestTaskLoad, confirmTaskLoad, returnToEditing };
+    ${taskFunctions("  function openOMClient()", "  async function bindWorkspace()")}
+    return { commitTaskLoad, selectTaskCandidate, requestTaskLoad, confirmTaskLoad, returnToEditing, openOMClient };
 `);
 
 function taskLoadingRuntime() {
     const state = { selected: null, loaded: null, path: "", active: TABS.TASKS.id,
-        pending: null, dirty: false, opened: [], errors: [], returned: 0, galleryBusy: false, remembered: [] };
+        pending: null, dirty: false, opened: [], errors: [], returned: 0, galleryBusy: false, remembered: [],
+        om: { dirty: false, busy: false }, omRequest: null, isDemo: false };
     const api = createTaskLoading({
         batch: callback => callback(),
         clearLoadedTaskState: () => { state.loaded = null; state.path = ""; },
         selectionService: {
-            setLoadedTaskIsDemo() {},
+            setLoadedTaskIsDemo(value) { state.isDemo = value; }, loadedTaskIsDemo: () => state.isDemo,
             setLoadedTaskPath: value => { state.path = value; },
             setLoadedTaskHandle: value => { state.loaded = value; },
         },
@@ -45,6 +48,9 @@ function taskLoadingRuntime() {
         setTaskInfo() {}, setTaskResultsText() {}, EMPTY_TASK_INFO: {},
         readTaskSummary: async () => ({}), readTaskResultsSummary: async () => "",
         loadedTaskHandle: () => state.loaded, unsavedChangesService: { hasDirty: () => state.dirty },
+        omClientState: () => state.om, showTaskError: message => state.errors.push(message),
+        operationsBlocked: () => state.om.busy, loadedTaskPath: () => state.path,
+        setOMClientRequest: value => { state.omRequest = value; },
         setPendingTaskLoad: value => { state.pending = value; }, pendingTaskLoad: () => state.pending,
         unsavedDialog: { open: false, showModal() { this.open = true; }, close() { this.open = false; } },
         returnToEditingButton: null, operation: () => null, rootHandle: () => ({ name: "Projects" }),
@@ -65,6 +71,29 @@ function taskLoadingRuntime() {
 function taskCandidate(name, getDirectoryHandle = async () => ({})) {
     return { name, handle: { name, getDirectoryHandle } };
 }
+
+test("OM editor opens the loaded task regardless of the highlighted row", async () => {
+    const h = taskLoadingRuntime(), loaded = taskCandidate("Loaded"), preview = taskCandidate("Preview");
+    h.openOMClient(); assert.equal(h.state.omRequest, null);
+    h.commitTaskLoad({ task: loaded, fullPath: "Projects/Loaded" });
+    await h.selectTaskCandidate(preview); h.openOMClient();
+    assert.deepEqual(h.state.omRequest, { handle: loaded.handle, path: "Projects/Loaded" });
+    h.state.omRequest = null; h.state.isDemo = true; h.openOMClient();
+    assert.equal(h.state.omRequest, null);
+});
+
+test("OM draft requires task replacement confirmation and an active OM write blocks replacement", async () => {
+    const h = taskLoadingRuntime(), original = taskCandidate("Original"), replacement = taskCandidate("Replacement");
+    h.commitTaskLoad({ task: original, fullPath: "Projects/Original" });
+    await h.selectTaskCandidate(replacement); h.state.om.dirty = true;
+    await h.requestTaskLoad(); assert.ok(h.state.pending); assert.equal(h.state.loaded, original.handle);
+    h.returnToEditing(); assert.equal(h.state.pending, null); assert.equal(h.state.loaded, original.handle);
+    h.state.om.busy = true; await h.requestTaskLoad();
+    assert.equal(h.state.pending, null); assert.equal(h.state.loaded, original.handle);
+    assert.match(h.state.errors.at(-1), /Дождитесь завершения операции с OM-данными/u);
+    h.state.om.busy = false; await h.requestTaskLoad(); h.confirmTaskLoad();
+    assert.equal(h.state.loaded, replacement.handle);
+});
 
 test("task selection is committed only by the explicit load action", async () => {
     const source = await readFile(tasksUrl, "utf8");

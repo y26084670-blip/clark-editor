@@ -50,11 +50,9 @@ function clampRect(rect, options = {}) {
     availableHeight,
     finiteNumber(options.minHeight, DEFAULT_MIN_HEIGHT),
   );
-  const width = clamp(
-    finiteNumber(rect.width, DEFAULT_WIDTH),
-    minimumWidth,
-    availableWidth,
-  );
+  const width = options.fixedWidth > 0
+    ? Math.min(availableWidth, options.fixedWidth)
+    : clamp(finiteNumber(rect.width, DEFAULT_WIDTH), minimumWidth, availableWidth);
   const height = clamp(
     finiteNumber(rect.height, DEFAULT_HEIGHT),
     minimumHeight,
@@ -157,6 +155,7 @@ function initialRect(props) {
     },
     {
       viewport,
+      fixedWidth: props.fixedWidth,
       minWidth: props.minWidth,
       minHeight: props.minHeight,
     },
@@ -215,6 +214,7 @@ export function FloatingWindow(props) {
 
   const rectOptions = (viewport = viewportSize()) => ({
     viewport,
+    fixedWidth: props.fixedWidth,
     fitViewportAspect: props.fitViewportAspect,
     minWidth: props.fitOnDrag
       ? Math.min(minWidth(), Math.max(1, (viewport.width - 2 * VIEWPORT_MARGIN) / 2))
@@ -294,12 +294,12 @@ export function FloatingWindow(props) {
 
   const maximizeRect = () => {
     const viewport = viewportSize();
-    return {
-      x: VIEWPORT_MARGIN,
+    return clampRect({
+      x: props.maximizeHeightOnly ? rect().x : VIEWPORT_MARGIN,
       y: VIEWPORT_MARGIN,
-      width: Math.max(1, viewport.width - 2 * VIEWPORT_MARGIN),
+      width: props.maximizeHeightOnly ? rect().width : Math.max(1, viewport.width - 2 * VIEWPORT_MARGIN),
       height: Math.max(1, viewport.height - 2 * VIEWPORT_MARGIN),
-    };
+    }, rectOptions(viewport));
   };
 
   const syncRectFromElement = (persist = true) => {
@@ -368,7 +368,7 @@ export function FloatingWindow(props) {
     if (
       event.button !== 0 ||
       dragState || resizeState ||
-      (maximized() && !props.fitOnDrag) ||
+      (maximized() && !props.fitOnDrag && !props.maximizeHeightOnly) ||
       event.target.closest("button")
     ) {
       return;
@@ -391,6 +391,10 @@ export function FloatingWindow(props) {
 
     const dx = event.clientX - dragState.startX;
     const dy = event.clientY - dragState.startY;
+    if (maximized() && props.maximizeHeightOnly) {
+      replaceRect({ ...rect(), x: dragState.rect.x + dx, y: VIEWPORT_MARGIN });
+      return;
+    }
     if (dragState.wasMaximized) {
       if (dx === 0 && dy === 0) return;
       // A drag starts from the visible maximized size, not the old restore size.
@@ -463,10 +467,14 @@ export function FloatingWindow(props) {
       ArrowDown: [0, 1],
     };
     const offset = offsets[event.key];
-    if (!offset || maximized()) return;
+    if (!offset || (maximized() && !props.maximizeHeightOnly)) return;
 
     event.preventDefault();
     const step = event.shiftKey ? 1 : 10;
+    if (maximized()) {
+      replaceRect({ ...rect(), x: rect().x + offset[0] * step, y: VIEWPORT_MARGIN }, true);
+      return;
+    }
     if (props.fitOnDrag && !minimized()) {
       moveVisibleRect(offset[0] * step, offset[1] * step, true);
       return;
@@ -476,7 +484,7 @@ export function FloatingWindow(props) {
   };
 
   const toggleMinimized = () => {
-    if (maximized()) return;
+    if (maximized() && !props.maximizeHeightOnly) return;
     setMinimized(!minimized());
     replaceRect(rect(), true);
     if (props.fitContentHeight && !minimized()) scheduleContentFit();
@@ -516,7 +524,7 @@ export function FloatingWindow(props) {
             ref={attachWindowElement}
             class={`floating-window${minimized() ? " is-minimized" : ""}${
               maximized() ? " is-maximized" : ""
-            }${props.class ? ` ${props.class}` : ""}`}
+            }${props.fixedWidth > 0 ? " is-fixed-width" : ""}${props.class ? ` ${props.class}` : ""}`}
             role="dialog"
             aria-modal="false"
             aria-labelledby={titleId()}
@@ -547,14 +555,14 @@ export function FloatingWindow(props) {
               onLostPointerCapture={finishPointerOperation}
               onKeyDown={handleTitleKeyDown}
             >
-              <div id={titleId()} class="floating-window-title">
+              <div id={titleId()} class="floating-window-title" title={props.title}>
                 {props.title ?? "Окно"}
               </div>
               <div class="floating-window-actions">
                 <button
                   type="button"
                   onClick={toggleMinimized}
-                  disabled={maximized()}
+                  disabled={maximized() && !props.maximizeHeightOnly}
                   title={minimized() ? "Развернуть окно" : "Свернуть окно"}
                   aria-label={minimized() ? "Развернуть окно" : "Свернуть окно"}
                 >
@@ -563,8 +571,8 @@ export function FloatingWindow(props) {
                 <button
                   type="button"
                   onClick={toggleMaximized}
-                  title={maximized() ? "Восстановить размер" : "На весь экран"}
-                  aria-label={maximized() ? "Восстановить размер" : "На весь экран"}
+                  title={maximized() ? "Восстановить размер" : props.maximizeHeightOnly ? "На всю высоту" : "На весь экран"}
+                  aria-label={maximized() ? "Восстановить размер" : props.maximizeHeightOnly ? "На всю высоту" : "На весь экран"}
                 >
                   {maximized() ? "❐" : "□"}
                 </button>
