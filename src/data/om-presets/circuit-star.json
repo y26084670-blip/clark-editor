@@ -1,19 +1,18 @@
 {
   "schema": "clark-om-preset/1",
-  "label": "Трёхфазная звезда — шаблон",
+  "label": "Трёхфазная звезда — импульсы",
   "selection": {
     "schema": "clark-om-client/1",
     "model": "circuit-p3-b1-floating",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "dataFile": "circuit-config.json",
     "couplingFile": "server-config.json"
   },
   "data": {
-    "schema": "clark-circuit/1",
+    "schema": "clark-circuit/2",
     "phases": 3,
     "parallel": 1,
     "floatingNeutral": true,
-    "amplitude": 1,
     "acceptanceTolerance": 1e-08,
     "integrationTolerance": 1e-10,
     "branches": [
@@ -32,40 +31,16 @@
     ],
     "emf": [
       {
-        "points": [
-          [
-            0,
-            0
-          ],
-          [
-            1,
-            0
-          ]
-        ]
+        "pulse": 1,
+        "amplitude": 0
       },
       {
-        "points": [
-          [
-            0,
-            0
-          ],
-          [
-            1,
-            0
-          ]
-        ]
+        "pulse": 2,
+        "amplitude": 0
       },
       {
-        "points": [
-          [
-            0,
-            0
-          ],
-          [
-            1,
-            0
-          ]
-        ]
+        "pulse": 3,
+        "amplitude": 0
       }
     ]
   },
@@ -101,7 +76,7 @@
     ]
   },
   "contract": {
-    "dataSchema": "clark-circuit/1",
+    "dataSchema": "clark-circuit/2",
     "structural": {
       "phases": 3,
       "parallel": 1,
@@ -171,38 +146,49 @@
         ],
         "type": "real",
         "minimum": 0
-      },
-      {
-        "parameter": "amplitude",
-        "path": [
-          "amplitude"
-        ],
-        "type": "real"
       }
     ],
     "tables": [
       {
         "name": "emf1",
-        "path": [
+        "source": "task-pulse",
+        "pulsePath": [
           "emf",
           0,
-          "points"
+          "pulse"
+        ],
+        "scalePath": [
+          "emf",
+          0,
+          "amplitude"
         ]
       },
       {
         "name": "emf2",
-        "path": [
+        "source": "task-pulse",
+        "pulsePath": [
           "emf",
           1,
-          "points"
+          "pulse"
+        ],
+        "scalePath": [
+          "emf",
+          1,
+          "amplitude"
         ]
       },
       {
         "name": "emf3",
-        "path": [
+        "source": "task-pulse",
+        "pulsePath": [
           "emf",
           2,
-          "points"
+          "pulse"
+        ],
+        "scalePath": [
+          "emf",
+          2,
+          "amplitude"
         ]
       }
     ],

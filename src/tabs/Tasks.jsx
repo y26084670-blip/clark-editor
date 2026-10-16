@@ -43,6 +43,20 @@ const EMPTY_TASK_INFO = Object.freeze({
   summaryText: "",
 });
 
+function fitBindingLine(container, text) {
+  const available = container?.clientWidth;
+  if (!text || !(available > 1)) return;
+  // Re-measure at the original size so enlarging the panel restores the font.
+  let size = 12;
+  text.style.fontSize = `${size}px`;
+  for (let pass = 0; pass < 3; pass += 1) {
+    const width = text.getBoundingClientRect().width;
+    if (!(width > available - 1)) break;
+    size *= (available - 1) / width;
+    text.style.fontSize = `${size}px`;
+  }
+}
+
 export function Tasks(props) {
   // состояние компонента
   const [rootHandle, setRootHandle] = createSignal(null);
@@ -86,6 +100,33 @@ export function Tasks(props) {
   const [selectionNotice, setSelectionNotice] = createSignal("");
   const [selectionError, setSelectionError] = createSignal("");
   let taskListElement;
+  let bindingHint, bindingHintText, bindingFitFrame = 0, bindingFitDisposed = false;
+  const bindingStatusText = () => rootHandle() ? bindingNotice() || "Каталог не связан с Решателем." : "";
+  const bindingHintTitle = () => "Для подготовки к запуску расчетов выполнить: «Связать с Решателем»"
+    + (bindingStatusText() ? ` ${bindingStatusText()}` : "");
+  const scheduleBindingFit = () => {
+    if (bindingFitDisposed || bindingFitFrame) return;
+    bindingFitFrame = window.requestAnimationFrame(() => {
+      bindingFitFrame = 0;
+      if (!bindingFitDisposed) fitBindingLine(bindingHint, bindingHintText);
+    });
+  };
+  createEffect(() => { bindingStatusText(); props.active; scheduleBindingFit(); });
+  onMount(() => {
+    const observer = new ResizeObserver(scheduleBindingFit);
+    observer.observe(bindingHint);
+    window.addEventListener("resize", scheduleBindingFit);
+    document.fonts?.addEventListener("loadingdone", scheduleBindingFit);
+    document.fonts?.ready.then(scheduleBindingFit);
+    scheduleBindingFit();
+    onCleanup(() => {
+      bindingFitDisposed = true;
+      observer.disconnect();
+      window.removeEventListener("resize", scheduleBindingFit);
+      document.fonts?.removeEventListener("loadingdone", scheduleBindingFit);
+      if (bindingFitFrame) window.cancelAnimationFrame(bindingFitFrame);
+    });
+  });
 
   createEffect(() => {
     const handle = loadedTaskHandle(), path = loadedTaskPath();
@@ -307,8 +348,14 @@ export function Tasks(props) {
   }
 
   function openOMClient() {
+    if (operationsBlocked()) return;
     const handle = loadedTaskHandle();
-    if (!handle || selectionService.loadedTaskIsDemo() || operationsBlocked()) return;
+    if (!handle || selectionService.loadedTaskIsDemo()) {
+      showTaskError(selectionService.loadedTaskIsDemo()
+        ? "Для клиентской модели нужно обычное задание, сохранённое в каталоге проекта. Выберите его в списке и нажмите «Загрузить для редактирования», затем откройте «Клиентская модель». Демо не имеет каталога для сохранения OM-данных."
+        : "Задание для редактирования не загружено. Выберите задание в списке и нажмите «Загрузить для редактирования» или дважды щёлкните по заданию. Затем откройте «Клиентская модель».");
+      return;
+    }
     setOMClientRequest({ handle, path: loadedTaskPath() });
   }
 
@@ -671,15 +718,17 @@ export function Tasks(props) {
                     ? "Решатель доступен" : "Связать с Решателем"}
                 </button>
               </div>
-              <p class="task-directory-hint">
-                Для подготовки к запуску расчетов выполнить: «Связать с Решателем»
+              <p class="task-directory-hint" ref={bindingHint} title={bindingHintTitle()}>
+                <span class="task-directory-hint-text" ref={bindingHintText}>
+                  Для подготовки к запуску расчетов выполнить: «Связать с Решателем»
+                  <Show when={rootHandle()}>
+                    {" "}<span class="task-binding-status" role="status"
+                      classList={{ "is-unbound": workspaceBinding()?.bindingState !== "bound" }}>
+                      {bindingStatusText()}
+                    </span>
+                  </Show>
+                </span>
               </p>
-              <Show when={rootHandle()}>
-                <p class="task-binding-status" role="status"
-                  classList={{ "is-unbound": workspaceBinding()?.bindingState !== "bound" }}>
-                  {bindingNotice() || "Каталог не связан с Решателем."}
-                </p>
-              </Show>
             </div>
             <span id="rootName">{rootName()}</span>
           </div>
@@ -787,7 +836,7 @@ export function Tasks(props) {
             Формирование списка заданий и запуск приложений
           </button>
           <button type="button" class="task-om-open-button"
-            disabled={!loadedTaskHandle() || selectionService.loadedTaskIsDemo() || operationsBlocked()}
+            disabled={operationsBlocked()}
             title="Данные OM-модели и конфигурация обмена для загруженного в редактор задания"
             onClick={openOMClient}>Клиентская модель…</button>
         </div>
@@ -847,6 +896,7 @@ export function Tasks(props) {
       />
 
       <OMClientWindow request={omClientRequest()} onStateChange={setOMClientState}
+        amplitudes={modelService.getModel().amps ?? []} amplitudesDirty={unsavedChangesService.isDirty("amps")}
         locked={launchBusy() || bindingBusy() || operationBusy()} />
 
       <TaskOperationDialog request={operation()} busy={operationBusy()} error={operationError()}

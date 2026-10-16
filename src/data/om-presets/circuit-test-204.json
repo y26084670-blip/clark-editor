@@ -1,0 +1,224 @@
+{
+  "schema": "clark-om-preset/1",
+  "label": "Тест электрической цепи 204 — три фазы, соединённая нейтраль",
+  "selection": {
+    "schema": "clark-om-client/1",
+    "model": "circuit-p3-b1-grounded",
+    "version": "1.1.0",
+    "dataFile": "circuit-config.json",
+    "couplingFile": "server-config.json"
+  },
+  "data": {
+    "schema": "clark-circuit/2",
+    "phases": 3,
+    "parallel": 1,
+    "floatingNeutral": false,
+    "acceptanceTolerance": 1,
+    "integrationTolerance": 1e-10,
+    "branches": [
+      {
+        "L_H": 100,
+        "R_Ohm": 1
+      },
+      {
+        "L_H": 100,
+        "R_Ohm": 1
+      },
+      {
+        "L_H": 100,
+        "R_Ohm": 1
+      }
+    ],
+    "emf": [
+      {
+        "pulse": 8,
+        "amplitude": 100
+      },
+      {
+        "pulse": 9,
+        "amplitude": 100
+      },
+      {
+        "pulse": 10,
+        "amplitude": 100
+      }
+    ]
+  },
+  "coupling": {
+    "schema": "clark-server/1",
+    "inputs": [
+      {
+        "kind": "AMP",
+        "indices": [
+          1,
+          2,
+          3
+        ]
+      }
+    ],
+    "outputs": [
+      {
+        "kind": "PSI",
+        "indices": [
+          1,
+          2,
+          3
+        ]
+      },
+      {
+        "kind": "RSP",
+        "indices": [
+          1,
+          2,
+          3
+        ]
+      }
+    ]
+  },
+  "contract": {
+    "dataSchema": "clark-circuit/2",
+    "structural": {
+      "phases": 3,
+      "parallel": 1,
+      "floatingNeutral": false
+    },
+    "arraySizes": {
+      "branches": 3,
+      "emf": 3
+    },
+    "parameterBindings": [
+      {
+        "parameter": "L[1]",
+        "path": [
+          "branches",
+          0,
+          "L_H"
+        ],
+        "type": "real",
+        "minimum": 0
+      },
+      {
+        "parameter": "R[1]",
+        "path": [
+          "branches",
+          0,
+          "R_Ohm"
+        ],
+        "type": "real",
+        "minimum": 0
+      },
+      {
+        "parameter": "L[2]",
+        "path": [
+          "branches",
+          1,
+          "L_H"
+        ],
+        "type": "real",
+        "minimum": 0
+      },
+      {
+        "parameter": "R[2]",
+        "path": [
+          "branches",
+          1,
+          "R_Ohm"
+        ],
+        "type": "real",
+        "minimum": 0
+      },
+      {
+        "parameter": "L[3]",
+        "path": [
+          "branches",
+          2,
+          "L_H"
+        ],
+        "type": "real",
+        "minimum": 0
+      },
+      {
+        "parameter": "R[3]",
+        "path": [
+          "branches",
+          2,
+          "R_Ohm"
+        ],
+        "type": "real",
+        "minimum": 0
+      }
+    ],
+    "tables": [
+      {
+        "name": "emf1",
+        "source": "task-pulse",
+        "pulsePath": [
+          "emf",
+          0,
+          "pulse"
+        ],
+        "scalePath": [
+          "emf",
+          0,
+          "amplitude"
+        ]
+      },
+      {
+        "name": "emf2",
+        "source": "task-pulse",
+        "pulsePath": [
+          "emf",
+          1,
+          "pulse"
+        ],
+        "scalePath": [
+          "emf",
+          1,
+          "amplitude"
+        ]
+      },
+      {
+        "name": "emf3",
+        "source": "task-pulse",
+        "pulsePath": [
+          "emf",
+          2,
+          "pulse"
+        ],
+        "scalePath": [
+          "emf",
+          2,
+          "amplitude"
+        ]
+      }
+    ],
+    "inputs": [
+      {
+        "kind": "AMP",
+        "variables": [
+          "fieldPort.current[1]",
+          "fieldPort.current[2]",
+          "fieldPort.current[3]"
+        ]
+      }
+    ],
+    "outputs": [
+      {
+        "kind": "PSI",
+        "variables": [
+          "fieldPort.flux[1]",
+          "fieldPort.flux[2]",
+          "fieldPort.flux[3]"
+        ]
+      },
+      {
+        "kind": "RSP",
+        "variables": [
+          "fieldPort.resistance[1]",
+          "fieldPort.resistance[2]",
+          "fieldPort.resistance[3]"
+        ]
+      }
+    ]
+  }
+}

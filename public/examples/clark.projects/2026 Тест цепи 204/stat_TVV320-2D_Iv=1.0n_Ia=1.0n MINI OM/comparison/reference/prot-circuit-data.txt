@@ -1,0 +1,11 @@
+CircuitClient: field server
+phases=3 parallel_subbranches=1
+phase	subbranch	pulse	coil	L_H	R_Ohm
+1	1	1	1	100	1
+2	1	2	2	100	1
+3	1	3	3	100	1
+floating_neutral=false material=0
+amplitude_V=100.0 tolerance=1.0 current_increment_A=10.0 neutral_increment_V=10.0
+NDTK=20 DTK_s=0.0005000000237487257 D7=-1 D9=-1
+NLESolver: constant alpha=1; Broyden=true; norm=2; max_iter=1000
+Initial E=0; trapezoidal EMF/resistive/neutral voltages; flux in mWb.

@@ -66,9 +66,26 @@ function number(value, label, minimum = -Infinity) {
   if (value < minimum) fail(`${label}: требуется число >= ${minimum}.`);
 }
 
-export function validateOMInputs(selection, data, coupling, preset) {
+export const usesTaskPulses = preset => preset?.contract?.tables?.some(table => table.source === "task-pulse") ?? false;
+
+function validatePoints(points, label, scale = 1) {
+  if (!Array.isArray(points) || points.length < 2) fail(`${label}: нужны хотя бы две точки [время, значение].`);
+  let previous = -Infinity;
+  for (const point of points) {
+    if (!Array.isArray(point) || point.length !== 2) fail(`${label}: точка должна содержать два числа.`);
+    number(point[0], `${label}: время`); number(point[1], `${label}: значение`);
+    if (point[0] <= previous) fail(`${label}: время должно строго возрастать.`);
+    number(point[1] * scale, `${label}: значение после масштабирования`);
+    previous = point[0];
+  }
+}
+
+// The optional context is the task's read-only BaseModel.amps representation.
+// A standalone preset can validate references before a particular task is known.
+export function validateOMInputs(selection, data, coupling, preset, amplitudes) {
   validateOMSelection(selection);
-  if (!preset || preset.selection.model !== selection.model) fail("Загрузите пресет выбранной OM-модели.");
+  if (data?.schema === "clark-circuit/1") fail("Формат clark-circuit/1 больше не поддерживается. Выберите новый пресет с импульсами и заполните данные модели в формате clark-circuit/2.");
+  if (!preset || preset.selection.model !== selection.model || preset.selection.version !== selection.version) fail("Загрузите пресет выбранной OM-модели и версии.");
   const contract = preset.contract;
   if (!record(data) || data.schema !== contract.dataSchema) fail(`${selection.dataFile}: требуется схема ${contract.dataSchema}.`);
   for (const [key, expected] of Object.entries(contract.structural)) {
@@ -94,15 +111,19 @@ export function validateOMInputs(selection, data, coupling, preset) {
       if (typeof value !== "string" || /[\x00-\x1f]/.test(value)) fail(`${label}: требуется однострочный текст.`);
     } else fail(`Неизвестный тип параметра пресета: ${binding.type}.`);
   }
+  if (usesTaskPulses(preset) && amplitudes !== undefined) {
+    if (!Array.isArray(amplitudes)) fail("Некорректный список импульсов задания.");
+    amplitudes.forEach((amplitude, index) => validatePoints(amplitude?.impuls, `Импульс №${index + 1}`));
+  }
   for (const table of contract.tables) {
-    const points = valueAt(data, table.path), label = table.path.join("/");
-    if (!Array.isArray(points) || points.length < 2) fail(`${label}: нужны хотя бы две точки [время, значение].`);
-    let previous = -Infinity;
-    for (const point of points) {
-      if (!Array.isArray(point) || point.length !== 2) fail(`${label}: точка должна содержать два числа.`);
-      number(point[0], `${label}: время`); number(point[1], `${label}: значение`);
-      if (point[0] <= previous) fail(`${label}: время должно строго возрастать.`);
-      previous = point[0];
+    if (table.source !== "task-pulse") fail("Пресет: временные зависимости должны ссылаться на импульсы задания (source: task-pulse).");
+    const pulse = valueAt(data, table.pulsePath), scale = valueAt(data, table.scalePath);
+    const label = table.pulsePath.join("/");
+    if (!Number.isInteger(pulse) || pulse < 1 || pulse > 2147483647) fail(`${label}: номер импульса должен быть положительным целым числом Int32.`);
+    number(scale, table.scalePath.join("/"));
+    if (amplitudes !== undefined) {
+      if (!Array.isArray(amplitudes) || !amplitudes[pulse - 1]) fail(`${label}: импульс №${pulse} отсутствует во вкладке «Амплитуды».`);
+      validatePoints(amplitudes[pulse - 1].impuls, `Импульс №${pulse}`, scale);
     }
   }
   if (!record(coupling) || coupling.schema !== "clark-server/1") fail(`${selection.couplingFile}: требуется схема clark-server/1.`);
@@ -176,6 +197,27 @@ export async function readOMTask(task) {
   return { selection, dataText: values[0] ?? "", couplingText: values[1] ?? "", baseline };
 }
 
+export async function readOMTaskPulses(input) {
+  let text;
+  try { text = await (await (await input.getFileHandle("amplitudes.txt")).getFile()).text(); }
+  catch (error) {
+    if (error.name === "NotFoundError") fail("Сохраните импульсы вкладки «Амплитуды»: файл amplitudes.txt отсутствует.");
+    throw error;
+  }
+  const lines = text.replace(/^\uFEFF/, "").split(/\r\n|\r|\n/);
+  if (lines.at(-1) === "") lines.pop();
+  const amplitudes = lines.map((line, index) => {
+    if (!line.trim()) fail(`amplitudes.txt: пустая запись №${index + 1}.`);
+    const item = parseOMJson(line, `amplitudes.txt, импульс №${index + 1}`);
+    if (!record(item) || !Number.isInteger(item.n) || item.n < 2 || item.n > 2147483647 || !Array.isArray(item.impuls)
+      || item.impuls.length !== 2 * item.n) fail(`amplitudes.txt: неверный размер импульса №${index + 1}.`);
+    const impuls = Array.from({ length: item.n }, (_, i) => [item.impuls[i], item.impuls[i + item.n]]);
+    validatePoints(impuls, `Импульс №${index + 1}`);
+    return { impuls };
+  });
+  return { amplitudes, text };
+}
+
 async function writeText(directory, name, text) {
   const stream = await (await directory.getFileHandle(name, { create: true })).createWritable();
   try { await stream.write(text); await stream.close(); }
@@ -186,8 +228,9 @@ export async function saveOMTask(task, draft, preset, baseline) {
   const selection = draft.selection;
   const data = parseOMJson(draft.dataText, selection.dataFile);
   const coupling = parseOMJson(draft.couplingText, selection.couplingFile);
-  validateOMInputs(selection, data, coupling, preset);
   const input = await task.getDirectoryHandle("input3XX");
+  const pulses = usesTaskPulses(preset) ? await readOMTaskPulses(input) : null;
+  validateOMInputs(selection, data, coupling, preset, pulses?.amplitudes);
   // Check the original files and every new target before any write.
   const values = { [selection.dataFile]: formatOMJson(data), [selection.couplingFile]: formatOMJson(coupling),
     [OM_SELECTION_FILE]: formatOMJson(selection) };
@@ -204,6 +247,7 @@ export async function saveOMTask(task, draft, preset, baseline) {
   try {
     // The selector is committed last. On an I/O error restore our own writes.
     for (const [name, text] of Object.entries(values)) {
+      if (pulses && (await readOMTaskPulses(input)).text !== pulses.text) fail("amplitudes.txt изменён во время сохранения. Перечитайте импульсы и повторите сохранение OM-данных.");
       if (await readText(input, name) !== previous[name]) fail(`${name} изменён во время сохранения.`);
       attempted.push(name);
       await writeText(input, name, text);

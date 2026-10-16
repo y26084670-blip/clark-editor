@@ -82,6 +82,21 @@ test("OM editor opens the loaded task regardless of the highlighted row", async 
     assert.equal(h.state.omRequest, null);
 });
 
+test("opening OM without an editable task explains how to load one", () => {
+    const h = taskLoadingRuntime();
+    h.openOMClient();
+    assert.match(h.state.errors.at(-1), /не загружено.*Загрузить для редактирования.*дважды/);
+    assert.equal(h.state.omRequest, null);
+    h.state.isDemo = true;
+    h.openOMClient();
+    assert.match(h.state.errors.at(-1), /обычное задание.*Демо/);
+    h.state.om.busy = true;
+    const count = h.state.errors.length;
+    h.openOMClient();
+    assert.equal(h.state.errors.length, count);
+    assert.match(tasksSource, /class="task-om-open-button"\s+disabled=\{operationsBlocked\(\)\}/u);
+});
+
 test("OM draft requires task replacement confirmation and an active OM write blocks replacement", async () => {
     const h = taskLoadingRuntime(), original = taskCandidate("Original"), replacement = taskCandidate("Replacement");
     h.commitTaskLoad({ task: original, fullPath: "Projects/Original" });

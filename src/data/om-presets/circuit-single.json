@@ -1,19 +1,18 @@
 {
   "schema": "clark-om-preset/1",
-  "label": "Однофазная цепь — шаблон",
+  "label": "Однофазная цепь — импульсы",
   "selection": {
     "schema": "clark-om-client/1",
     "model": "circuit-p1-b1-grounded",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "dataFile": "circuit-config.json",
     "couplingFile": "server-config.json"
   },
   "data": {
-    "schema": "clark-circuit/1",
+    "schema": "clark-circuit/2",
     "phases": 1,
     "parallel": 1,
     "floatingNeutral": false,
-    "amplitude": 1,
     "acceptanceTolerance": 1e-08,
     "integrationTolerance": 1e-10,
     "branches": [
@@ -24,16 +23,8 @@
     ],
     "emf": [
       {
-        "points": [
-          [
-            0,
-            0
-          ],
-          [
-            1,
-            0
-          ]
-        ]
+        "pulse": 1,
+        "amplitude": 0
       }
     ]
   },
@@ -63,7 +54,7 @@
     ]
   },
   "contract": {
-    "dataSchema": "clark-circuit/1",
+    "dataSchema": "clark-circuit/2",
     "structural": {
       "phases": 1,
       "parallel": 1,
@@ -93,22 +84,21 @@
         ],
         "type": "real",
         "minimum": 0
-      },
-      {
-        "parameter": "amplitude",
-        "path": [
-          "amplitude"
-        ],
-        "type": "real"
       }
     ],
     "tables": [
       {
         "name": "emf1",
-        "path": [
+        "source": "task-pulse",
+        "pulsePath": [
           "emf",
           0,
-          "points"
+          "pulse"
+        ],
+        "scalePath": [
+          "emf",
+          0,
+          "amplitude"
         ]
       }
     ],

@@ -1,7 +1,7 @@
 import { For, Show, batch, createEffect, createMemo, createSignal, createUniqueId, onCleanup, onMount, untrack } from "solid-js";
 import { FloatingWindow } from "../window/FloatingWindow.jsx";
 import { omPresetKey, readOMPresets, rememberOMPreset } from "../../services/omClientPresets.js";
-import { formatOMJson, parseOMJson, readOMPresetFile, readOMTask, saveOMTask, validateOMInputs } from "../../services/omClientService.js";
+import { formatOMJson, parseOMJson, readOMPresetFile, readOMTask, saveOMTask, usesTaskPulses, validateOMInputs } from "../../services/omClientService.js";
 import "./OMClientWindow.css";
 
 const fingerprint = draft => JSON.stringify(draft);
@@ -33,7 +33,10 @@ export function OMClientWindow(props) {
     if (!value?.selection) return "Выберите пресет и нажмите «Применить».";
     try {
       validateOMInputs(value.selection, parseOMJson(value.dataText, value.selection.dataFile),
-        parseOMJson(value.couplingText, value.selection.couplingFile), activePreset());
+        parseOMJson(value.couplingText, value.selection.couplingFile), activePreset(), props.amplitudes ?? []);
+      if (usesTaskPulses(activePreset()) && props.amplitudesDirty) {
+        return "Сначала сохраните изменения вкладки «Амплитуды», затем сохраните данные клиентской модели.";
+      }
       return "";
     } catch (failure) { return errorText(failure); }
   });
@@ -57,8 +60,7 @@ export function OMClientWindow(props) {
       if (disposed || revision !== loadRevision) return;
       const value = { selection: result.selection, dataText: result.dataText, couplingText: result.couplingText };
       const preset = presets().find(p => p.selection.model === result.selection?.model
-        && p.selection.version === result.selection?.version)
-        ?? presets().find(p => p.selection.model === result.selection?.model);
+        && p.selection.version === result.selection?.version);
       batch(() => {
         setTarget(request); setDraft(value); setBaseline(result.baseline); setClean(fingerprint(value));
         setActivePreset(preset ?? null);
@@ -197,12 +199,13 @@ export function OMClientWindow(props) {
             <section class="om-client-json-section">
               <div class="om-client-json-heading">
                 <label class="om-client-json-label" for={`${id}-data`}>Данные модели — {draft().selection.dataFile}</label>
-                <Show when={activePreset()?.contract.dataSchema === "clark-circuit/1"}>
+                <Show when={activePreset()?.contract.dataSchema === "clark-circuit/2"}>
                   <details class="om-client-help"><summary>Параметры выбранной модели</summary>
                     <div class="om-client-help-content">
                       <p>L_H — внешняя индуктивность, Гн.</p>
                       <p>R_Ohm — внешнее сопротивление, Ом.</p>
-                      <p>emf — ЭДС по фазам; points — пары [время, с; напряжение, В].</p>
+                      <p>emf — ЭДС по фазам: pulse — номер импульса во вкладке «Амплитуды», начиная с 1; amplitude — масштаб ЭДС, В.</p>
+                      <p>ЭДС(t) = amplitude × импульс(t). Для нормированного импульса amplitude задаёт амплитуду ЭДС. Время — в секундах.</p>
                       <p>Порядок ветвей — фаза, затем параллельная ветвь.</p>
                     </div>
                   </details>

@@ -8,6 +8,37 @@ const taskInfoBarUrl = new URL("../src/TaskInfoBar.jsx", import.meta.url);
 const taskInfoBarStylesUrl = new URL("../src/TaskInfoBar.css", import.meta.url);
 const tasksStylesUrl = new URL("../src/tabs/Tasks.css", import.meta.url);
 
+const taskSource = await readFile(tasksUrl, "utf8");
+const fittingSource = taskSource.slice(taskSource.indexOf("function fitBindingLine("), taskSource.indexOf("export function Tasks("));
+const fitBindingLine = new Function(`${fittingSource}; return fitBindingLine;`)();
+
+test("binding hint and complete status fit one line and restore their font on widening", () => {
+    const container = { clientWidth: 400 };
+    const text = { style: {}, getBoundingClientRect() { return { width: 1000 * parseFloat(this.style.fontSize) / 12 }; } };
+    fitBindingLine(container, text);
+    assert.ok(parseFloat(text.style.fontSize) < 12);
+    assert.ok(text.getBoundingClientRect().width <= container.clientWidth);
+    container.clientWidth = 1200;
+    fitBindingLine(container, text);
+    assert.equal(text.style.fontSize, "12px");
+    container.clientWidth = 0;
+    fitBindingLine(container, text);
+    assert.equal(text.style.fontSize, "12px");
+    container.clientWidth = 230;
+    fitBindingLine(container, text);
+    assert.ok(text.getBoundingClientRect().width <= container.clientWidth);
+});
+
+test("binding status remains in the fixed-height hint row while the task list expands", async () => {
+    const styles = await readFile(tasksStylesUrl, "utf8");
+    assert.match(taskSource, /<p class="task-directory-hint"[\s\S]*?<span class="task-binding-status"[\s\S]*?<\/p>/u);
+    assert.doesNotMatch(taskSource, /<p class="task-binding-status"/u);
+    assert.match(styles, /\.task-directory-hint\s*\{[^}]*height: 17px;[^}]*white-space: nowrap;/su);
+    assert.match(styles, /\.task-list-group\s*\{[^}]*flex: 1 1 auto;/su);
+    assert.match(styles, /\.task-browser-actions\s*\{[^}]*flex: 0 0 auto;/su);
+    assert.doesNotMatch(styles.match(/\.task-directory-hint[^{}]*\{[^{}]*\}/gu)?.join(""), /ellipsis|overflow:\s*hidden/u);
+});
+
 test("loaded task path reaches the task bar", async () => {
     const [tasksSource, appSource] = await Promise.all([
         readFile(tasksUrl, "utf8"),

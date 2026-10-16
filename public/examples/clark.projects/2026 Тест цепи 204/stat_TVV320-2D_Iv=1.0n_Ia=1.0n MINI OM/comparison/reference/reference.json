@@ -1,0 +1,136 @@
+{
+  "schema": "clark-om-reference/1",
+  "sourceArchive": {
+    "name": "stat_TVV320-2D_Iv=1.0n_Ia=1.0n MINI.zip",
+    "sha256": "58a7bfa7227d03df027f7d7857cd36b480bd93df26130e8e3182d6d5d40590c9"
+  },
+  "sourceTask": "stat_TVV320-2D_Iv=1.0n_Ia=1.0n MINI",
+  "provenance": "User-supplied reference archive. prot-circuit-data.txt identifies CircuitClient / NLESolver; this record does not claim a native OpenModelica run.",
+  "sourceInputs": [
+    {
+      "path": "input3XX/general.txt",
+      "sha256": "6df37832c52de4da286aecaadaca9af5a062e164eb8b40a96a199cf543f1b52a",
+      "bytes": 252
+    },
+    {
+      "path": "input3XX/amplitudes.txt",
+      "sha256": "a5a393251845bc03eed2cbff51df9806a8ef6abdc73010a64a9a750bbf33ab80",
+      "bytes": 4322
+    },
+    {
+      "path": "input3XX/conrab.txt",
+      "sha256": "af15dd15c23ae79580b55585bfd2d4d20af3b81ad1c93a94fe86a10f92e40ebb",
+      "bytes": 518
+    },
+    {
+      "path": "input3XX/kvs.txt",
+      "sha256": "b6c0c0d37237d63be6e7c13c10c375497e26e36d7f8da63d28d25ffa23333db8",
+      "bytes": 14654
+    },
+    {
+      "path": "input3XX/mhj.txt",
+      "sha256": "e56bf2d82c3977b2bf95ad0074311b62ad8b88451da0928aeac29eddcf0f08b0",
+      "bytes": 1609
+    },
+    {
+      "path": "input3XX/moves.txt",
+      "sha256": "2e2dcdb3c73c4310bbd40c00f24b40e64e4d80223e2c90d268ebd156d062de21",
+      "bytes": 102
+    },
+    {
+      "path": "input3XX/tks.txt",
+      "sha256": "3b91cd9d9a2fb85662715ecc7caf7864fee2df315b6ec9ab90dcc752001dbc27",
+      "bytes": 254
+    },
+    {
+      "path": "input3XX/xapLibFMM/E33.txt",
+      "sha256": "5c171ad47f19caba08f728f395879ac7e70a0be72224a126dc00d6409ff624be",
+      "bytes": 212
+    },
+    {
+      "path": "input3XX/xapLibFMM/STAL10.txt",
+      "sha256": "446690fa2a3aa9b05510fd20a9a7fb057684099dd8125e3947736c528b22e777",
+      "bytes": 312
+    },
+    {
+      "path": "input3XX/_nogo.e3d",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    }
+  ],
+  "referenceFiles": [
+    {
+      "path": "1.txt",
+      "sourcePath": "1.txt",
+      "sha256": "25584153f6ad99ff22cf9aa2fd5dfd3221a50cf989760e3860de0d0ed85b1cc3",
+      "bytes": 4014
+    },
+    {
+      "path": "2.txt",
+      "sourcePath": "2.txt",
+      "sha256": "d1fda9ee2e724af01641ec4a811db01c45dfd07f2cbbaf8c7eb287fe0f8004e3",
+      "bytes": 4014
+    },
+    {
+      "path": "3.txt",
+      "sourcePath": "3.txt",
+      "sha256": "e7e2d62f9704ce25b4922f4890843693f01a011cf40fe9f0ea844f2e3b8f5294",
+      "bytes": 4014
+    },
+    {
+      "path": "amplitudes.txt",
+      "sourcePath": "input3XX/amplitudes.txt",
+      "sha256": "a5a393251845bc03eed2cbff51df9806a8ef6abdc73010a64a9a750bbf33ab80",
+      "bytes": 4322
+    },
+    {
+      "path": "prot-addon-out.txt",
+      "sourcePath": "prot-addon-out.txt",
+      "sha256": "8db3914feaf88d8ae502adfc38e3730205a333a97ed7b718befcb6401aeffd38",
+      "bytes": 17332
+    },
+    {
+      "path": "prot-circuit-data.txt",
+      "sourcePath": "prot-circuit-data.txt",
+      "sha256": "57963b7ce029886b0994a427a563cf4977237a01fe239b4bbc7f7fd745e161c6",
+      "bytes": 438
+    }
+  ],
+  "conversion": {
+    "originalPulseCount": 7,
+    "emfPulses": [
+      8,
+      9,
+      10
+    ],
+    "amplitudes_V": [
+      100,
+      100,
+      100
+    ],
+    "preserveOriginalPulseValues": true,
+    "timeGrid": "Use the original input3XX/general.txt without numerical changes",
+    "approval": "The copied _nogo.e3d is retained. Open the task in the editor, review model diagnostics and complete the normal save/validation action before native OM launch; do not delete the marker manually."
+  },
+  "derivedReference": {
+    "path": "currents.tsv",
+    "from": "prot-addon-out.txt",
+    "sha256": "d4d9f19323dfc8252568cda5caf1a7fe0d5a9a0f9158f719dc4abac1da03a8c5",
+    "records": 21,
+    "positiveStepStatus": 1,
+    "maxPositiveResidualNorm_V": 4.879428288920897e-05,
+    "numericText": "step, time_s and Current_A tokens copied verbatim without numeric reformatting"
+  },
+  "editorValidation": {
+    "scope": "Read-only load using real dataService.load, tabRegistry, modelValidator, material reference catalog and schema constraint checks. This does not perform a save or certify an OM numerical run.",
+    "loadWarnings": [
+      "general.txt: legacy input omits useMED; the editor supplies its schema default in memory.",
+      "conrab.txt: legacy input omits GEO_ANGLE, CF_FMMEPS, CF_HTSEPS, fullJNewton; the editor supplies schema defaults in memory."
+    ],
+    "modelWarnings": [
+      "Element rows 8 and 9: a local symmetry angle is redundant when no local images are enabled."
+    ],
+    "errors": 0,
+    "originalFilePolicy": "Keep original field inputs byte-for-byte. Editor save uses current schemas and may normalize legacy aliases, remove obsolete keys and persist defaults; retain this reference and inspect the saved inputs before comparison."
+  }
+}

@@ -174,7 +174,15 @@
   margin: 0;
   color: #c0ccd6;
   font-size: 12px;
-  line-height: 1.4;
+  height: 17px;
+  line-height: 17px;
+  white-space: nowrap;
+}
+
+.task-directory-hint-text {
+  display: inline-block;
+  width: max-content;
+  white-space: nowrap;
 }
 
 .task-directory-actions #pickDir {
@@ -209,9 +217,9 @@
 }
 
 .task-binding-status {
-  flex: 1 0 100%;
+  display: inline;
   margin: 0;
-  font-size: 12px;
+  font-size: inherit;
   color: #c0ccd6;
 }
 

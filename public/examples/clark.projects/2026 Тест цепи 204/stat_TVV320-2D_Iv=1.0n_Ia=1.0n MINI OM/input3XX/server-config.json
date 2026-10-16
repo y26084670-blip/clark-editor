@@ -1,0 +1,31 @@
+{
+  "schema": "clark-server/1",
+  "inputs": [
+    {
+      "kind": "AMP",
+      "indices": [
+        1,
+        2,
+        3
+      ]
+    }
+  ],
+  "outputs": [
+    {
+      "kind": "PSI",
+      "indices": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "kind": "RSP",
+      "indices": [
+        1,
+        2,
+        3
+      ]
+    }
+  ]
+}
