@@ -1,0 +1,138 @@
+{
+  "schema": "clark-om-preset/1",
+  "label": "Однофазная цепь — шаблон",
+  "selection": {
+    "schema": "clark-om-client/1",
+    "model": "circuit-p1-b1-grounded",
+    "version": "1.0.0",
+    "dataFile": "circuit-config.json",
+    "couplingFile": "server-config.json"
+  },
+  "data": {
+    "schema": "clark-circuit/1",
+    "phases": 1,
+    "parallel": 1,
+    "floatingNeutral": false,
+    "amplitude": 1,
+    "acceptanceTolerance": 1e-08,
+    "integrationTolerance": 1e-10,
+    "branches": [
+      {
+        "L_H": 0,
+        "R_Ohm": 1
+      }
+    ],
+    "emf": [
+      {
+        "points": [
+          [
+            0,
+            0
+          ],
+          [
+            1,
+            0
+          ]
+        ]
+      }
+    ]
+  },
+  "coupling": {
+    "schema": "clark-server/1",
+    "inputs": [
+      {
+        "kind": "AMP",
+        "indices": [
+          1
+        ]
+      }
+    ],
+    "outputs": [
+      {
+        "kind": "PSI",
+        "indices": [
+          1
+        ]
+      },
+      {
+        "kind": "RSP",
+        "indices": [
+          1
+        ]
+      }
+    ]
+  },
+  "contract": {
+    "dataSchema": "clark-circuit/1",
+    "structural": {
+      "phases": 1,
+      "parallel": 1,
+      "floatingNeutral": false
+    },
+    "arraySizes": {
+      "branches": 1,
+      "emf": 1
+    },
+    "parameterBindings": [
+      {
+        "parameter": "L[1]",
+        "path": [
+          "branches",
+          0,
+          "L_H"
+        ],
+        "type": "real",
+        "minimum": 0
+      },
+      {
+        "parameter": "R[1]",
+        "path": [
+          "branches",
+          0,
+          "R_Ohm"
+        ],
+        "type": "real",
+        "minimum": 0
+      },
+      {
+        "parameter": "amplitude",
+        "path": [
+          "amplitude"
+        ],
+        "type": "real"
+      }
+    ],
+    "tables": [
+      {
+        "name": "emf1",
+        "path": [
+          "emf",
+          0,
+          "points"
+        ]
+      }
+    ],
+    "inputs": [
+      {
+        "kind": "AMP",
+        "variables": [
+          "fieldPort.current[1]"
+        ]
+      }
+    ],
+    "outputs": [
+      {
+        "kind": "PSI",
+        "variables": [
+          "fieldPort.flux[1]"
+        ]
+      },
+      {
+        "kind": "RSP",
+        "variables": [
+          "fieldPort.resistance[1]"
+        ]
+      }
+    ]
+  }
+}

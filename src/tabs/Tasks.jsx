@@ -14,6 +14,7 @@ import { DEMO_TASK_NAME, loadDemoTask } from "../services/demoTaskService.js";
 import { DIRECTORIES, TABS } from "../services/schemas/common/constants";
 import { TaskGeometryPreview } from "../components/geometry/TaskGeometryPreview.jsx";
 import { TaskLaunchWindow } from "../components/tasks/TaskLaunchWindow.jsx";
+import { OMClientWindow } from "../components/tasks/OMClientWindow.jsx";
 import { TaskStatusCells } from "../components/tasks/TaskStatusCells.jsx";
 import { LastOpenedTaskMarker, ProjectSelectValue } from "../components/tasks/LastOpenedTaskMarker.jsx";
 import { useTaskStatuses } from "../services/taskStatusMonitor.js";
@@ -66,6 +67,8 @@ export function Tasks(props) {
   const [taskResultsText, setTaskResultsText] = createSignal("");
   const [demoLoading, setDemoLoading] = createSignal(false);
   const [taskLaunchOpen, setTaskLaunchOpen] = createSignal(false);
+  const [omClientRequest, setOMClientRequest] = createSignal(null);
+  const [omClientState, setOMClientState] = createSignal({ open: false, dirty: false, busy: false, path: "" });
   const [settingsRequest, setSettingsRequest] = createSignal(null);
   const [previewRevision, setPreviewRevision] = createSignal(1);
   const [workspaceBinding, setWorkspaceBinding] = createSignal(null);
@@ -85,16 +88,16 @@ export function Tasks(props) {
   let taskListElement;
 
   const galleryDisabled = () => Boolean(operation()) || demoLoading() || bindingBusy()
-    || launchBusy() || taskLaunchOpen() || props.editorBusy || selectionReceiving();
+    || launchBusy() || taskLaunchOpen() || omClientState().busy || props.editorBusy || selectionReceiving();
   const operationsBlocked = () => galleryDisabled() || galleryBusy();
   createEffect(() => props.onTaskActionsChange?.({
-    createEnabled: Boolean(selectedProject()) && !operationsBlocked(),
-    selectedEnabled: Boolean(selectedTask()) && !operationsBlocked(),
+    createEnabled: Boolean(selectedProject()) && !operationsBlocked() && !omClientState().open,
+    selectedEnabled: Boolean(selectedTask()) && !operationsBlocked() && !omClientState().open,
     run: openTaskOperation,
   }));
 
   function openTaskOperation(kind) {
-    if (operationsBlocked() || !selectedProject() || (kind !== "create" && !selectedTask())) return;
+    if (operationsBlocked() || omClientState().open || !selectedProject() || (kind !== "create" && !selectedTask())) return;
     const parent = projects().find(project => project.name === selectedProject())?.handle;
     if (!parent) return;
     invalidateBrowserSelection();
@@ -293,6 +296,12 @@ export function Tasks(props) {
     setTaskLaunchOpen(true);
     // A direct click retains browser permission to open the protocol handler.
     if (request) window.location.href = request.uri;
+  }
+
+  function openOMClient() {
+    const task = selectedTask();
+    if (!task || task.isDemo || operationsBlocked()) return;
+    setOMClientRequest({ handle: task.handle, path: `${rootHandle().name}/${selectedProject()}/${task.name}` });
   }
 
   async function bindWorkspace() {
@@ -728,7 +737,6 @@ export function Tasks(props) {
           </div>
         </div>
         <div class="task-browser-actions">
-          <div class="task-load-row">
           <button
             class="task-load-button"
             disabled={!selectedTask() || taskLoaded() || galleryBusy() || selectionReceiving()}
@@ -758,7 +766,6 @@ export function Tasks(props) {
             aria-busy={selectionSending()}
             title="Выбрать проект и выделить это задание в открытом Viewer с тем же базовым каталогом"
             onClick={showInViewer}>Показать в Viewer</button>
-          </div>
           <button
             type="button"
             class="task-launch-open-button"
@@ -767,6 +774,10 @@ export function Tasks(props) {
           >
             Формирование списка заданий и запуск решателей или импорта
           </button>
+          <button type="button" class="task-om-open-button"
+            disabled={!selectedTask() || selectedTask()?.isDemo || operationsBlocked()}
+            title="Выбрать OM-модель, отредактировать её данные и конфигурацию обмена с решателем"
+            onClick={openOMClient}>Клиентская модель…</button>
         </div>
         <Show when={lastTaskNotice()}><p class="task-last-opened-notice" role="status">{lastTaskNotice()}</p></Show>
         <Show when={selectionError()}><p class="task-selection-error" role="alert">{selectionError()}</p></Show>
@@ -812,6 +823,8 @@ export function Tasks(props) {
         binding={workspaceBinding()}
         settingsRequest={settingsRequest()}
         bindingBusy={bindingBusy()}
+        blockedMessage={omClientState().busy ? "Дождитесь завершения операции с OM-данными."
+          : omClientState().dirty ? `Сохраните или отмените изменения OM-модели: ${omClientState().path}.` : ""}
         onBusyChange={setLaunchBusy}
         onClose={() => setTaskLaunchOpen(false)}
         onSave={props.onSave}
@@ -820,6 +833,9 @@ export function Tasks(props) {
         }}
         onLaunchComplete={handleLaunchComplete}
       />
+
+      <OMClientWindow request={omClientRequest()} onStateChange={setOMClientState}
+        locked={launchBusy() || bindingBusy() || operationBusy()} />
 
       <TaskOperationDialog request={operation()} busy={operationBusy()} error={operationError()}
         failed={operationFailed()} onSubmit={submitTaskOperation} onClose={() => setOperation(null)} />

@@ -1,0 +1,238 @@
+{
+  "schema": "clark-om-preset/1",
+  "label": "Трёхфазная звезда — шаблон",
+  "selection": {
+    "schema": "clark-om-client/1",
+    "model": "circuit-p3-b1-floating",
+    "version": "1.0.0",
+    "dataFile": "circuit-config.json",
+    "couplingFile": "server-config.json"
+  },
+  "data": {
+    "schema": "clark-circuit/1",
+    "phases": 3,
+    "parallel": 1,
+    "floatingNeutral": true,
+    "amplitude": 1,
+    "acceptanceTolerance": 1e-08,
+    "integrationTolerance": 1e-10,
+    "branches": [
+      {
+        "L_H": 0,
+        "R_Ohm": 1
+      },
+      {
+        "L_H": 0,
+        "R_Ohm": 1
+      },
+      {
+        "L_H": 0,
+        "R_Ohm": 1
+      }
+    ],
+    "emf": [
+      {
+        "points": [
+          [
+            0,
+            0
+          ],
+          [
+            1,
+            0
+          ]
+        ]
+      },
+      {
+        "points": [
+          [
+            0,
+            0
+          ],
+          [
+            1,
+            0
+          ]
+        ]
+      },
+      {
+        "points": [
+          [
+            0,
+            0
+          ],
+          [
+            1,
+            0
+          ]
+        ]
+      }
+    ]
+  },
+  "coupling": {
+    "schema": "clark-server/1",
+    "inputs": [
+      {
+        "kind": "AMP",
+        "indices": [
+          1,
+          2,
+          3
+        ]
+      }
+    ],
+    "outputs": [
+      {
+        "kind": "PSI",
+        "indices": [
+          1,
+          2,
+          3
+        ]
+      },
+      {
+        "kind": "RSP",
+        "indices": [
+          1,
+          2,
+          3
+        ]
+      }
+    ]
+  },
+  "contract": {
+    "dataSchema": "clark-circuit/1",
+    "structural": {
+      "phases": 3,
+      "parallel": 1,
+      "floatingNeutral": true
+    },
+    "arraySizes": {
+      "branches": 3,
+      "emf": 3
+    },
+    "parameterBindings": [
+      {
+        "parameter": "L[1]",
+        "path": [
+          "branches",
+          0,
+          "L_H"
+        ],
+        "type": "real",
+        "minimum": 0
+      },
+      {
+        "parameter": "R[1]",
+        "path": [
+          "branches",
+          0,
+          "R_Ohm"
+        ],
+        "type": "real",
+        "minimum": 0
+      },
+      {
+        "parameter": "L[2]",
+        "path": [
+          "branches",
+          1,
+          "L_H"
+        ],
+        "type": "real",
+        "minimum": 0
+      },
+      {
+        "parameter": "R[2]",
+        "path": [
+          "branches",
+          1,
+          "R_Ohm"
+        ],
+        "type": "real",
+        "minimum": 0
+      },
+      {
+        "parameter": "L[3]",
+        "path": [
+          "branches",
+          2,
+          "L_H"
+        ],
+        "type": "real",
+        "minimum": 0
+      },
+      {
+        "parameter": "R[3]",
+        "path": [
+          "branches",
+          2,
+          "R_Ohm"
+        ],
+        "type": "real",
+        "minimum": 0
+      },
+      {
+        "parameter": "amplitude",
+        "path": [
+          "amplitude"
+        ],
+        "type": "real"
+      }
+    ],
+    "tables": [
+      {
+        "name": "emf1",
+        "path": [
+          "emf",
+          0,
+          "points"
+        ]
+      },
+      {
+        "name": "emf2",
+        "path": [
+          "emf",
+          1,
+          "points"
+        ]
+      },
+      {
+        "name": "emf3",
+        "path": [
+          "emf",
+          2,
+          "points"
+        ]
+      }
+    ],
+    "inputs": [
+      {
+        "kind": "AMP",
+        "variables": [
+          "fieldPort.current[1]",
+          "fieldPort.current[2]",
+          "fieldPort.current[3]"
+        ]
+      }
+    ],
+    "outputs": [
+      {
+        "kind": "PSI",
+        "variables": [
+          "fieldPort.flux[1]",
+          "fieldPort.flux[2]",
+          "fieldPort.flux[3]"
+        ]
+      },
+      {
+        "kind": "RSP",
+        "variables": [
+          "fieldPort.resistance[1]",
+          "fieldPort.resistance[2]",
+          "fieldPort.resistance[3]"
+        ]
+      }
+    ]
+  }
+}

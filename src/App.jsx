@@ -95,7 +95,8 @@ export default function App() {
     onCleanup(installHorizontalDragScroll(tabsViewport));
     onCleanup(installModelSaveShortcut({
       target: window,
-      isEnabled: () => activeTab() !== TABS.TASKS.id,
+      isEnabled: () => activeTab() !== TABS.TASKS.id
+        && !document.activeElement?.closest(".om-client-window"),
       onSave: async () => {
         const task = selectionService.loadedTaskHandle();
         const version = selectionService.taskDataVersion();

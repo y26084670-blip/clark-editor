@@ -68,6 +68,7 @@ export function TaskLaunchWindow(props) {
   const awaitingAcceptance = () => pending()?.state === "waiting";
   const locked = () => busy() || awaitingAcceptance() || props.bindingBusy;
   const canLaunch = () => !locked() && !resolvingLoaded() && !loadedPathError() && !includedDirty()
+    && !props.blockedMessage
     && listExists() && listValid() && enabledEntries().length > 0
     && binding()?.bindingState === "bound" && Boolean(proof());
 
@@ -507,6 +508,7 @@ export function TaskLaunchWindow(props) {
         </div>
         <Show when={error()}><div class="task-launch-error" role="alert">{error()}</div></Show>
         <Show when={notice()}><div class="task-launch-notice" role="status">{notice()}</div></Show>
+        <Show when={props.blockedMessage}><div class="task-launch-notice" role="status">{props.blockedMessage}</div></Show>
         <Show when={importMessages().length}>
           <details open>
             <summary>Импорт характеристик: сообщения ({importMessages().length})</summary>
@@ -582,9 +584,6 @@ export function TaskLaunchWindow(props) {
           <button type="button" disabled={!canLaunch() || Boolean(mpiError())}
             title="Запустить расчёт всех подключённых заданий независимо от выделения строк."
             onClick={() => launch("solver")}>Запустить расчёт</button>
-          <button type="button" disabled={!canLaunch() || Boolean(mpiError()) || enabledEntries().length !== 1}
-            title="Запустить клиента электрической цепи. Требуется ровно одно подключённое задание REAL64 с конфигурацией цепи."
-            onClick={() => launch("circuit")}>Запустить клиента — эл. цепь</button>
           <button type="button" disabled={!canLaunch() || Boolean(mpiError()) || enabledEntries().length !== 1}
             title="Запустить установленную OM-модель для одного задания REAL64. Модель выбирается в input3XX/om-client.json."
             onClick={() => launch("modelica")}>Запустить OM-клиент</button>

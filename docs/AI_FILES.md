@@ -1,6 +1,6 @@
 # Карта файлов и компонентов web-gui
 
-Обновлено: 2026-10-12 23:18 UTC+3.
+Обновлено: 2026-10-16 02:57 UTC+3.
 
 ## Назначение
 
@@ -110,6 +110,9 @@
 | Подтверждение задания | `src/services/taskApprovalService.js` | Маркер разрешения расчёта и его файловый жизненный цикл. |
 | Список и запуск | `src/services/taskLaunchService.js` | `clark.tasks.txt`, связь с обработчиком `clark://` и формирование команд запуска. |
 | Окно запуска | `src/components/tasks/TaskLaunchWindow.jsx` | Представление списка и операций; предметный файловый контракт остаётся у сервиса. |
+| Редактор OM | `src/components/tasks/OMClientWindow.jsx`, `.css`; подключение — `src/tabs/Tasks.jsx`/`.css` | Немодальное окно выбранного задания; данные модели и обмена, пресеты, защита черновика. `App.jsx` уступает ему Ctrl+S при фокусе внутри окна. [UI](AI_UI_CONTRACTS.md#om-client-editor). |
+| JSON OM | `src/services/omClientService.js` | Чтение, валидация по контракту пресета, проверка внешних изменений и запись трёх JSON. [Контракт](AI_CLARK_INTEGRATION.md#om-client-input-editor). |
+| Пресеты OM | `src/services/omClientPresets.js`, `src/data/om-presets/*.json` | Встроенные JSON-шаблоны и запоминаемые браузером импортированные `editor-preset.json`. Контракт расширяется данными, без диспетчера по имени модели. |
 | Предпросмотр | `src/services/taskGeometryPreviewService.js`, `src/components/geometry/TaskGeometryPreview.jsx` | Подготовка и показ геометрии выбранного, но ещё не загруженного задания. |
 | Галерея GIF | `src/components/tasks/TaskGifGallery.jsx`, `TaskGifGallery.css` | Сетка, действия миниатюр и модальное окно; подключение к выбранному заданию в `src/tabs/Tasks.jsx`. [Контракт](AI_UI_CONTRACTS.md#task-gif-gallery). |
 | Жизненный цикл GIF | `src/services/taskGifGalleryController.js` | Список, очередь видимых миниатюр и предпросмотра, отмена устаревших запросов и освобождение URL. |
