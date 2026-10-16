@@ -12,7 +12,13 @@
   display: grid; grid-template-columns: var(--om-control-columns); gap: 6px; flex: 0 0 auto;
 }
 .om-client-presets { align-items: stretch; }
-.om-client-presets label { grid-column: 1 / -1; }
+.om-client-presets-heading { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; }
+.om-client-guide-link {
+  display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; margin-left: auto;
+  box-sizing: border-box; width: 18px; height: 18px; border: 1px solid #667789; border-radius: 50%;
+  color: #edf2f7; background: #334252; font-weight: bold; line-height: 1; text-decoration: none;
+}
+.om-client-guide-link:hover { background: #41586f; }
 .om-client-presets select { min-width: 0; width: 100%; }
 .om-client-body button, .om-client-body input, .om-client-body select {
   box-sizing: border-box; padding: 6px 8px; margin: 0; font: inherit;

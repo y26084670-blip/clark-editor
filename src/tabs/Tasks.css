@@ -83,7 +83,6 @@
   align-items: center;
   flex: 0 0 auto;
   gap: 10px;
-  max-width: 600px;
   margin-bottom: 10px;
 }
 
@@ -116,18 +115,19 @@
 .task-list-group .listTask {
   box-sizing: border-box;
   width: 100%;
+  max-width: none;
   flex: 1 1 auto;
   min-height: 0;
 }
 
 .task-browser-actions {
+  box-sizing: border-box;
   display: grid;
   grid-template-columns: minmax(0, 1fr) max-content;
   grid-template-rows: repeat(2, 1fr);
   flex: 0 0 auto;
   gap: 10px;
   width: 100%;
-  max-width: 600px;
 }
 
 .task-browser-actions > button {
@@ -235,7 +235,6 @@
 .task-launch-open-button {
   display: block;
   width: 100%;
-  max-width: 600px;
   margin-top: 10px;
   padding-inline: 8px;
   color: #fff;
@@ -247,10 +246,11 @@
 }
 
 .task-browser-panel .box {
+  box-sizing: border-box;
+  width: 100%;
   background: #2a3540;
   padding: 10px;
   border-radius: 10px;
-  max-width: 600px;
   margin-bottom: 0;
 }
 
@@ -261,6 +261,8 @@
 }
 
 .task-browser-panel .box select {
+  box-sizing: border-box;
+  max-width: none;
   margin-top: 5px;
   /* отступ сверху от select */
   width: 100%;

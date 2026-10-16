@@ -176,7 +176,13 @@ export function OMClientWindow(props) {
         <Show when={notice()}><p class="om-client-notice" role="status">{notice()}</p></Show>
         <fieldset disabled={locked() || Boolean(pending())}>
           <div class="om-client-presets">
-            <label for={`${id}-preset`}>Пресет (шаблон) модели</label>
+            <div class="om-client-presets-heading">
+              <label for={`${id}-preset`}>Пресет (шаблон) модели</label>
+              <a class="om-client-guide-link" href={`${import.meta.env.BASE_URL}user-guide/index.html#om-client`}
+                target="_blank" rel="noopener noreferrer"
+                aria-label="Справка по клиентской модели OpenModelica"
+                title="Открыть справку по клиентской модели OpenModelica в новой вкладке">?</a>
+            </div>
             <select id={`${id}-preset`} value={presetKey()}
               title="Пакет выбранной модели должен быть установлен в Clark."
               onChange={event => setPresetKey(event.currentTarget.value)}>
@@ -196,7 +202,7 @@ export function OMClientWindow(props) {
                     <div class="om-client-help-content">
                       <p>L_H — внешняя индуктивность, Гн.</p>
                       <p>R_Ohm — внешнее сопротивление, Ом.</p>
-                      <p>ЭДС — пары [время, с; напряжение, В].</p>
+                      <p>emf — ЭДС по фазам; points — пары [время, с; напряжение, В].</p>
                       <p>Порядок ветвей — фаза, затем параллельная ветвь.</p>
                     </div>
                   </details>
