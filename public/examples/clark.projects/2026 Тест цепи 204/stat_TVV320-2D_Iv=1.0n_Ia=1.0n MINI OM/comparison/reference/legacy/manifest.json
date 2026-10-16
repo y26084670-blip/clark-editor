@@ -1,0 +1,127 @@
+{
+  "schema": "clark-historical-reference/1",
+  "purpose": "Immutable historical sources and the user-supplied reference task; not inputs or dependencies of the current OM workflow.",
+  "sourceRepository": "https://github.com/y26084670-blip/solver",
+  "sourceCommit": "e1322e97fbed30e395fd01594b00f57db06f35a2",
+  "resultProvenance": "The supplied protocol identifies CircuitClient / NLESolver. Native OpenModelica results are not present; no association of these results with the archived FMI snapshot is asserted.",
+  "archives": [
+    {
+      "path": "original-task.zip",
+      "bytes": 8134698,
+      "sha256": "58a7bfa7227d03df027f7d7857cd36b480bd93df26130e8e3182d6d5d40590c9"
+    },
+    {
+      "path": "historical-code.zip",
+      "bytes": 73582,
+      "sha256": "3c02d5f7d9d749312ec3d2bd6700281f67f22810345c3178c25eee8c2bff3a5f"
+    }
+  ],
+  "originalArchiveName": "stat_TVV320-2D_Iv=1.0n_Ia=1.0n MINI.zip",
+  "historicalSourceFiles": [
+    {
+      "path": "components/FMI/AI_COUPLING.md",
+      "bytes": 50327,
+      "sha256": "44eb8cff97869b5962f06a3e82065d6fe4c3415a8c4c07a682fa5b710bd204a9"
+    },
+    {
+      "path": "components/FMI/ClarkFMI.psm1",
+      "bytes": 14650,
+      "sha256": "e0e9b64142d0769f7087806f748ddaea8ff3f8e4528dc902229431b17cffbb2c"
+    },
+    {
+      "path": "components/FMI/Initialize-ClarkFMI.ps1",
+      "bytes": 4080,
+      "sha256": "76a757927c78fa826e90e26a44594e87b3cb102f2f4b7cac03f1a120bcc5d3d2"
+    },
+    {
+      "path": "components/FMI/Invoke-ClarkFMI.ps1",
+      "bytes": 1960,
+      "sha256": "7267164d8b20e4898b59e1d817c747a40d6f79ccbd93181e3352a89c36b4a168"
+    },
+    {
+      "path": "components/FMI/Prepare-ClarkOM.ps1",
+      "bytes": 822,
+      "sha256": "52022688a0ad5d128a62d5b3528e4d37f9aff12be47d655be20846369ff44a53"
+    },
+    {
+      "path": "components/FMI/README.md",
+      "bytes": 27382,
+      "sha256": "165cc77a39f88a4ed59a52ba6877293f3e82a5c4adef197aef079de4d02f2985"
+    },
+    {
+      "path": "components/FMI/Run-ClarkFMI.ps1",
+      "bytes": 5196,
+      "sha256": "8cdde96064dfe34c9976b491da13d232dd089a0184ba71682969b9975319ec4f"
+    },
+    {
+      "path": "components/FMI/clark_fmi/__init__.py",
+      "bytes": 100,
+      "sha256": "a813dfa81db8dc9858821feab10c54cf863c2f28ca6f58ee77605882edfc93f0"
+    },
+    {
+      "path": "components/FMI/clark_fmi/__main__.py",
+      "bytes": 2640,
+      "sha256": "df84985c8a380e5b8f0356130e863bb7ebb3f3ebe1bc4beada55dc05e561233e"
+    },
+    {
+      "path": "components/FMI/clark_fmi/configuration.py",
+      "bytes": 6243,
+      "sha256": "8a206cc7d9921505843d818b403870bfe0f4106436bfea4999b8f0a2cc6d77a8"
+    },
+    {
+      "path": "components/FMI/clark_fmi/model.py",
+      "bytes": 4147,
+      "sha256": "cb2fae821a8373b3e15de933c280975b4dc363acf2471871b5580a540bb9fcde"
+    },
+    {
+      "path": "components/FMI/clark_fmi/protocol.py",
+      "bytes": 8277,
+      "sha256": "2ad8b6ba078260dc8004c0ae94c8e67992c6822297d26208ccbce61d70936b99"
+    },
+    {
+      "path": "components/FMI/clark_fmi/simulation.py",
+      "bytes": 4557,
+      "sha256": "5048983e50592d5bb9ffb437f0123c6265f54738ddac0f2d74d2dad66963a30d"
+    },
+    {
+      "path": "components/FMI/clark_fmi/transports.py",
+      "bytes": 8987,
+      "sha256": "7bf4efb22b5517ba06393d62022ee43982e06022db97767807ea6bb07ec42bf2"
+    },
+    {
+      "path": "components/FMI/clark_fmi/workflow.py",
+      "bytes": 10016,
+      "sha256": "13cf8e9ee051568e0a51edfe269840caa2b8e57211b5dc08c66c3c881deb5db6"
+    },
+    {
+      "path": "components/FMI/clark_om/build.py",
+      "bytes": 21288,
+      "sha256": "e2b50fae8e6e21d84d502423d1e7797cdb198a99029e5218d3da35eb61cb97ec"
+    },
+    {
+      "path": "components/FMI/clark_om/prepare.py",
+      "bytes": 6033,
+      "sha256": "1e08f733cf1256caf5484f397184689efb4a56df3b647937bce5996c523bd554"
+    },
+    {
+      "path": "components/FMI/modelica/ClarkCircuit.mo",
+      "bytes": 1959,
+      "sha256": "d7a9bd8fc9af6cd158567fbfdaccdc6a3a8559994490d71e4a042b4a5850ccd4"
+    },
+    {
+      "path": "components/FMI/programmer/README.md",
+      "bytes": 28732,
+      "sha256": "24831eff810c1ffea443fed9406fde0fa13a9a2bc15ecc97af77a6ebbe7f7385"
+    },
+    {
+      "path": "components/FMI/requirements.txt",
+      "bytes": 40,
+      "sha256": "e4608c04e8824e6e6e66ec0792db6c011dc7d218e5479ee4fb3d3904e085aa54"
+    },
+    {
+      "path": "test/test_om_pulses.py",
+      "bytes": 8250,
+      "sha256": "2bd90f2ce20b495972ede5e556941ea4f97d69d766160b5b63e560436d9e3cfd"
+    }
+  ]
+}
