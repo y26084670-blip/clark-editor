@@ -39,6 +39,7 @@ import { createError } from "./tabulator/validators/common/createDiagnostic.js";
 import { assertJweakLocalUnchanged, createJweakLocalLoader } from "./services/jweakLocalService.js";
 import { installModelSaveShortcut } from "./services/modelSaveShortcut.js";
 import { installHorizontalDragScroll } from "./services/horizontalDragScroll.js";
+import { installBrowserContextMenuSuppression } from "./services/browserContextMenu.js";
 
 import "./App.css";
 
@@ -92,6 +93,7 @@ export default function App() {
   });
 
   onMount(() => {
+    onCleanup(installBrowserContextMenuSuppression(document));
     onCleanup(installHorizontalDragScroll(tabsViewport));
     onCleanup(installModelSaveShortcut({
       target: window,

@@ -1,6 +1,6 @@
 # Карта файлов и компонентов web-gui
 
-Обновлено: 2026-10-16 17:00 UTC+3.
+Обновлено: 2026-10-18 00:57 UTC+3.
 
 ## Назначение
 
@@ -24,6 +24,7 @@
 | `src/App.css` | Общая компоновка приложения и глобальное оформление. |
 | `src/services/horizontalDragScroll.js` | DOM-адаптер горизонтальной прокрутки существующих областей вкладок правой кнопкой мыши; подключается в `App`. |
 | `test/horizontalDragScroll.test.js` | Проверки событий, выбора области прокрутки и освобождения обработчиков адаптера. |
+| `src/services/browserContextMenu.js`, `test/browserContextMenu.test.js` | Подавление штатного меню браузера на уровне документа; подключение и очистка в `App`, сохранение событий приложения. [Контракт](AI_UI_CONTRACTS.md#browser-context-menu). |
 | `src/TaskInfoBar.jsx`, `src/TaskInfoBar.css` | Верхняя строка сведений о выбранном задании и состоянии данных. |
 | `package.json` | Версия приложения, зависимости и канонические npm-команды. |
 | `vite.config.js` | Конфигурация Vite, раздача примеров и включение third-party-notices в сборку. |
@@ -72,7 +73,7 @@
 
 | Область | Пути и владельцы |
 |---|---|
-| Построение | `src/tabulator/builders/TableBuilder.js` создаёт таблицы по схеме; `src/tabulator/tableOptions.js` владеет общими инвариантными опциями. |
+| Построение | `src/tabulator/builders/TableBuilder.js` создаёт таблицы по схеме и подсказки номеров записей при `rowNumberTooltip`; `src/services/schemaFactory.js` передаёт настройку. `test/recordRowTooltip.test.js` проверяет реальные схемы и построитель. `src/tabulator/tableOptions.js` владеет общими инвариантными опциями. |
 | Ширина подписей конфигурации | `src/services/schemas/conrab.schema.js` выбирает `rowLabelWidth: "auto"`; `TableBuilder.js` передаёт измерение колонки штатной раскладке Tabulator. |
 | Разрешение свойств | `src/tabulator/schema/propertyResolver.js` — единственная точка получения эффективного дескриптора свойства для ячейки. |
 | Преобразования | `src/tabulator/converters/` содержит ARRAY/RECORDS/CLUSTER-кодеки, вычисляемые представления, подписи строк и geo-варианты. |

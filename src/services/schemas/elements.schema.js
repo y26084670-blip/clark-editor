@@ -73,6 +73,7 @@ export default createSchema({
     required: true,
     obsoleteStoragePaths: ["xapType"],
     columnHeaderWordLines: true,
+    rowNumberTooltip: true,
 
     properties: {
         name: {

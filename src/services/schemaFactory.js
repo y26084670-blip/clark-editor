@@ -55,6 +55,8 @@ export function createSchema({
     rowLabelWidth = 250,
     // RECORDS: отображать каждое слово заголовка свойства на отдельной строке.
     columnHeaderWordLines = false,
+    // RECORDS: номер исходной записи в подсказках основной таблицы.
+    rowNumberTooltip = false,
     // Растянуть последнюю видимую колонку основной таблицы до свободного края.
     stretchLastColumn = false,
     // Описание полей
@@ -91,6 +93,7 @@ export function createSchema({
             valueTitle,
             rowLabelWidth,
             columnHeaderWordLines,
+            rowNumberTooltip,
             stretchLastColumn,
 
             summaryMaxLength,
