@@ -80,14 +80,58 @@ function validatePoints(points, label, scale = 1) {
   }
 }
 
+// Expand only the active prefix. This contract language has no model-name dispatch.
+export function expandOMContract(contract, data) {
+  const dimensions = contract.dimensions ?? {};
+  for (const [name, rule] of Object.entries(dimensions)) {
+    const value = data[name];
+    if (!Number.isInteger(value) || value < rule.minimum || value > 10000) fail(`${name}: требуется целое число от ${rule.minimum} до 10000.`);
+    if (rule.maximum !== undefined && value > rule.maximum) fail(`${name}: задано ${value}, пакет допускает не более ${rule.maximum}.`);
+  }
+  const sizes = Object.fromEntries(Object.entries(contract.arraySizes).map(([name, expression]) => {
+    const size = typeof expression === "number" ? expression : expression.split("*").reduce((value, key) => {
+      if (!own(dimensions, key)) fail(`Неописанная размерность «${key}».`);
+      return value * data[key];
+    }, 1);
+    if (!Number.isInteger(size) || size < 0 || size > 10000) fail(`${name}: недопустимое число элементов (предел 10000).`);
+    return [name, size];
+  }));
+  let variant;
+  if (contract.variants) {
+    const selected = contract.variants.filter(item => Object.entries(item.when).every(([key, value]) => data[key] === value));
+    if (selected.length !== 1) fail("Данные должны однозначно выбирать вариант модели; floatingNeutral должен быть true или false.");
+    [variant] = selected;
+    for (const [name, minimum] of Object.entries(variant.minimumSizes)) {
+      if (!own(sizes, name) || sizes[name] < minimum) fail(`${variant.key}: требуется минимум ${minimum} элементов ${name}.`);
+    }
+  }
+  const substitute = (value, index) => {
+    if (typeof value === "string") return value === "$index" ? index : value.replaceAll("{i}", String(index + 1));
+    if (Array.isArray(value)) return value.map(item => substitute(item, index));
+    if (record(value)) return Object.fromEntries(Object.entries(value).filter(([key]) => key !== "repeat")
+      .map(([key, item]) => [key, substitute(item, index)]));
+    return value;
+  };
+  const rows = values => values.flatMap(value => {
+    if (!record(value) || !own(value, "repeat")) return [value];
+    if (!own(sizes, value.repeat)) fail(`Неизвестный массив repeat: ${value.repeat}.`);
+    return Array.from({ length: sizes[value.repeat] }, (_, index) => substitute(value, index));
+  });
+  const names = values => rows(values).map(value => typeof value === "string" ? value : value.variable);
+  return { ...contract, arraySizes: sizes, selectedVariant: variant?.key,
+    parameterBindings: rows(contract.parameterBindings), tables: rows(contract.tables),
+    inputs: contract.inputs.map(group => ({ ...group, variables: names(group.variables) })),
+    outputs: contract.outputs.map(group => ({ ...group, variables: names(group.variables) })) };
+}
+
 // The optional context is the task's read-only BaseModel.amps representation.
 // A standalone preset can validate references before a particular task is known.
 export function validateOMInputs(selection, data, coupling, preset, amplitudes) {
   validateOMSelection(selection);
   if (data?.schema === "clark-circuit/1") fail("Формат clark-circuit/1 больше не поддерживается. Выберите новый пресет с импульсами и заполните данные модели в формате clark-circuit/2.");
   if (!preset || preset.selection.model !== selection.model || preset.selection.version !== selection.version) fail("Загрузите пресет выбранной OM-модели и версии.");
-  const contract = preset.contract;
-  if (!record(data) || data.schema !== contract.dataSchema) fail(`${selection.dataFile}: требуется схема ${contract.dataSchema}.`);
+  if (!record(data) || data.schema !== preset.contract.dataSchema) fail(`${selection.dataFile}: требуется схема ${preset.contract.dataSchema}.`);
+  const contract = expandOMContract(preset.contract, data);
   for (const [key, expected] of Object.entries(contract.structural)) {
     if (data[key] !== expected) fail(`${key}: значение закреплено при сборке модели (${JSON.stringify(expected)}). Выберите соответствующий пресет.`);
   }
@@ -143,16 +187,28 @@ export function validateOMInputs(selection, data, coupling, preset, amplitudes) 
 }
 
 export function validateOMPreset(preset) {
-  if (!record(preset) || preset.schema !== "clark-om-preset/1" || typeof preset.label !== "string" || !preset.label.trim()) fail("Ожидается editor-preset.json со схемой clark-om-preset/1 и названием label.");
+  if (!record(preset) || preset.schema !== "clark-om-preset/2" || typeof preset.label !== "string" || !preset.label.trim()) fail("Ожидается editor-preset.json со схемой clark-om-preset/2 и названием label.");
   validateOMSelection(preset.selection);
   const contract = preset.contract;
   if (!record(contract) || typeof contract.dataSchema !== "string" || !record(contract.structural)
-    || !record(contract.arraySizes) || !Array.isArray(contract.parameterBindings) || !Array.isArray(contract.tables)) fail("Пресет не содержит полного описания параметров модели.");
+    || !record(contract.dimensions) || !record(contract.arraySizes) || !Array.isArray(contract.parameterBindings) || !Array.isArray(contract.tables)) fail("Пресет не содержит полного описания параметров модели.");
   for (const value of Object.values(contract.structural)) {
     if (!["string", "number", "boolean"].includes(typeof value)) fail("Структурный параметр пресета должен быть скалярным.");
   }
   for (const size of Object.values(contract.arraySizes)) {
-    if (!Number.isInteger(size) || size < 0) fail("Некорректный размер массива в пресете.");
+    if (!(Number.isInteger(size) && size >= 0 && size <= 10000)
+      && !(typeof size === "string" && /^[A-Za-z_]\w*(\*[A-Za-z_]\w*)*$/.test(size))) fail("Некорректный размер массива в пресете.");
+  }
+  for (const rule of Object.values(contract.dimensions)) {
+    if (!record(rule) || !Number.isInteger(rule.minimum) || rule.minimum < 1
+      || (rule.maximum !== undefined && (!Number.isInteger(rule.maximum) || rule.maximum < rule.minimum || rule.maximum > 10000))) fail("Некорректный предел размерности пресета.");
+  }
+  if (contract.variants !== undefined) {
+    if (!Array.isArray(contract.variants) || !contract.variants.length) fail("В пресете отсутствуют варианты модели.");
+    for (const variant of contract.variants) {
+      if (!record(variant) || !token(variant.key) || !record(variant.when) || !Object.keys(variant.when).length
+        || !record(variant.minimumSizes) || Object.values(variant.minimumSizes).some(value => !Number.isInteger(value) || value < 1 || value > 10000)) fail("Некорректный вариант модели.");
+    }
   }
   for (const binding of contract.parameterBindings) {
     if (!record(binding)) fail("Некорректное описание параметра в пресете.");
@@ -163,7 +219,8 @@ export function validateOMPreset(preset) {
     if (!Array.isArray(contract[side])) fail(`В пресете отсутствует ${side}.`);
     for (const group of contract[side]) {
       if (!record(group) || !kinds.includes(group.kind) || !Array.isArray(group.variables)
-        || !group.variables.length || group.variables.some(name => typeof name !== "string" || !name)) fail(`Некорректная группа ${side} в пресете.`);
+        || !group.variables.length || group.variables.some(name => !(typeof name === "string" && name)
+          && !(record(name) && typeof name.variable === "string" && name.variable && typeof name.repeat === "string"))) fail(`Некорректная группа ${side} в пресете.`);
     }
   }
   validateOMInputs(preset.selection, preset.data, preset.coupling, preset);

@@ -41,8 +41,8 @@ test("OM example retains the supplied numerical inputs and their provenance", as
 test("three phase sources reference appended exact waveforms without double scaling", async () => {
     const client = await json("input3XX/om-client.json");
     assert.equal(client.schema, "clark-om-client/1");
-    assert.equal(client.model, "circuit-p3-b1-grounded");
-    assert.equal(client.version, "1.1.0");
+    assert.equal(client.model, "circuit");
+    assert.equal(client.version, "2.0.0");
     const circuit = await json(`input3XX/${client.dataFile}`);
     assert.equal(circuit.schema, "clark-circuit/2");
     assert.equal(circuit.phases, 3);

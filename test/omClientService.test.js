@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { formatOMJson, parseOMJson, readOMTaskPulses, saveOMTask, usesTaskPulses, validateOMInputs, validateOMPreset } from "../src/services/omClientService.js";
+import { expandOMContract, formatOMJson, parseOMJson, readOMTaskPulses, saveOMTask, usesTaskPulses, validateOMInputs, validateOMPreset } from "../src/services/omClientService.js";
 
 const presets = {};
 for (const name of ["circuit-single", "circuit-star", "circuit-test-204"]) {
@@ -47,7 +47,7 @@ const draft = p => ({ selection: p.selection, dataText: formatOMJson(p.data), co
 test("model presets validate without requiring a task pulse bank", () => {
     for (const preset of Object.values(presets)) assert.equal(validateOMPreset(preset), preset);
     assert.equal(usesTaskPulses(presets["circuit-single"]), true);
-    assert.equal(presets["circuit-test-204"].selection.model, "circuit-p3-b1-grounded");
+    assert.equal(presets["circuit-test-204"].selection.model, "circuit");
     assert.deepEqual(presets["circuit-test-204"].data.emf, [8, 9, 10].map(pulse => ({ pulse, amplitude: 100 })));
 });
 
@@ -163,4 +163,40 @@ test("actual editor validation blocks OM save until changed amplitudes are saved
     assert.equal(run(...args), "");
     args[0].amplitudes = [];
     assert.match(run(...args), /импульс №1 отсутствует/);
+});
+
+for (const [phases, parallel, floating] of [[1,1,false],[3,2,false],[1,2,true],[3,1,true],[6,4,true]]) {
+  test(`one preset accepts active ${phases}x${parallel}, floating=${floating}`, () => {
+    const p = fresh(), n = phases * parallel;
+    p.contract.dimensions.phases.maximum = 6;
+    p.contract.dimensions.parallel.maximum = 4;
+    Object.assign(p.data, { phases, parallel, floatingNeutral: floating,
+      branches: Array.from({ length: n }, () => ({ L_H: 0, R_Ohm: 1 })),
+      emf: Array.from({ length: phases }, () => ({ pulse: 1, amplitude: 0 })) });
+    for (const side of ["inputs", "outputs"]) for (const group of p.coupling[side]) group.indices = Array.from({ length: n }, (_, i) => i + 1);
+    validate(p);
+    const contract = expandOMContract(p.contract, p.data);
+    assert.equal(contract.selectedVariant, floating ? "floating" : "grounded");
+    assert.equal(contract.inputs[0].variables.length, n);
+    assert.equal(contract.inputs[0].variables.at(-1), `fieldPort.current[${n}]`);
+    assert.equal(contract.tables.length, phases);
+    assert.equal(contract.parameterBindings.length, 2 + 2 * n);
+    assert.equal(p.contract.inputs[0].variables.length, 1);
+  });
+}
+
+test("capacity overflow, ambiguous neutral, unused entries and isolated single branch are rejected", () => {
+  const p = fresh();
+  p.contract.dimensions.phases.maximum = 6;
+  p.data.phases = 7;
+  assert.throws(() => validate(p), /пакет допускает не более 6/);
+  p.data.phases = 1; p.data.floatingNeutral = true;
+  assert.throws(() => validate(p), /минимум 2/);
+  p.data.floatingNeutral = "false";
+  assert.throws(() => validate(p), /однозначно/);
+  p.data.floatingNeutral = false;
+  p.data.branches.push({ L_H: 0, R_Ohm: 0 });
+  assert.throws(() => validate(p), /branches: требуется 1/);
+  p.schema = "clark-om-preset/1";
+  assert.throws(() => validateOMPreset(p), /clark-om-preset\/2/);
 });

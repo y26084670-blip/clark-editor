@@ -1,10 +1,10 @@
 {
-  "schema": "clark-om-preset/1",
+  "schema": "clark-om-preset/2",
   "label": "Однофазная цепь — импульсы",
   "selection": {
     "schema": "clark-om-client/1",
-    "model": "circuit-p1-b1-grounded",
-    "version": "1.1.0",
+    "model": "circuit",
+    "version": "2.0.0",
     "dataFile": "circuit-config.json",
     "couplingFile": "server-config.json"
   },
@@ -55,31 +55,73 @@
   },
   "contract": {
     "dataSchema": "clark-circuit/2",
-    "structural": {
-      "phases": 1,
-      "parallel": 1,
-      "floatingNeutral": false
+    "structural": {},
+    "dimensions": {
+      "phases": {
+        "minimum": 1
+      },
+      "parallel": {
+        "minimum": 1
+      }
     },
     "arraySizes": {
-      "branches": 1,
-      "emf": 1
+      "branches": "phases*parallel",
+      "emf": "phases"
     },
+    "variants": [
+      {
+        "key": "grounded",
+        "when": {
+          "floatingNeutral": false
+        },
+        "minimumSizes": {
+          "branches": 1
+        }
+      },
+      {
+        "key": "floating",
+        "when": {
+          "floatingNeutral": true
+        },
+        "minimumSizes": {
+          "branches": 2
+        }
+      }
+    ],
     "parameterBindings": [
       {
-        "parameter": "L[1]",
+        "parameter": "nPhase",
+        "path": [
+          "phases"
+        ],
+        "type": "integer",
+        "minimum": 1
+      },
+      {
+        "parameter": "nParallel",
+        "path": [
+          "parallel"
+        ],
+        "type": "integer",
+        "minimum": 1
+      },
+      {
+        "repeat": "branches",
+        "parameter": "L[{i}]",
         "path": [
           "branches",
-          0,
+          "$index",
           "L_H"
         ],
         "type": "real",
         "minimum": 0
       },
       {
-        "parameter": "R[1]",
+        "repeat": "branches",
+        "parameter": "R[{i}]",
         "path": [
           "branches",
-          0,
+          "$index",
           "R_Ohm"
         ],
         "type": "real",
@@ -88,16 +130,17 @@
     ],
     "tables": [
       {
-        "name": "emf1",
+        "repeat": "emf",
+        "name": "emf{i}",
         "source": "task-pulse",
         "pulsePath": [
           "emf",
-          0,
+          "$index",
           "pulse"
         ],
         "scalePath": [
           "emf",
-          0,
+          "$index",
           "amplitude"
         ]
       }
@@ -106,7 +149,10 @@
       {
         "kind": "AMP",
         "variables": [
-          "fieldPort.current[1]"
+          {
+            "repeat": "branches",
+            "variable": "fieldPort.current[{i}]"
+          }
         ]
       }
     ],
@@ -114,13 +160,19 @@
       {
         "kind": "PSI",
         "variables": [
-          "fieldPort.flux[1]"
+          {
+            "repeat": "branches",
+            "variable": "fieldPort.flux[{i}]"
+          }
         ]
       },
       {
         "kind": "RSP",
         "variables": [
-          "fieldPort.resistance[1]"
+          {
+            "repeat": "branches",
+            "variable": "fieldPort.resistance[{i}]"
+          }
         ]
       }
     ]

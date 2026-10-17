@@ -1,7 +1,7 @@
 import { For, Show, batch, createEffect, createMemo, createSignal, createUniqueId, onCleanup, onMount, untrack } from "solid-js";
 import { FloatingWindow } from "../window/FloatingWindow.jsx";
 import { omPresetKey, readOMPresets, rememberOMPreset } from "../../services/omClientPresets.js";
-import { formatOMJson, parseOMJson, readOMPresetFile, readOMTask, saveOMTask, usesTaskPulses, validateOMInputs } from "../../services/omClientService.js";
+import { expandOMContract, formatOMJson, parseOMJson, readOMPresetFile, readOMTask, saveOMTask, usesTaskPulses, validateOMInputs } from "../../services/omClientService.js";
 import "./OMClientWindow.css";
 
 const fingerprint = draft => JSON.stringify(draft);
@@ -39,6 +39,11 @@ export function OMClientWindow(props) {
       }
       return "";
     } catch (failure) { return errorText(failure); }
+  });
+
+  const activeContract = createMemo(() => {
+    try { return expandOMContract(activePreset().contract, parseOMJson(draft().dataText)); }
+    catch { return null; }
   });
 
   createEffect(() => props.onStateChange?.({ open: open(), dirty: dirty(), busy: busy(), path: target()?.path ?? "" }));
@@ -202,11 +207,16 @@ export function OMClientWindow(props) {
                 <Show when={activePreset()?.contract.dataSchema === "clark-circuit/2"}>
                   <details class="om-client-help"><summary>Параметры выбранной модели</summary>
                     <div class="om-client-help-content">
+                      <p>phases — число фаз; parallel — число параллельных ветвей в каждой фазе. Меняются перед запуском без пересборки.</p>
+                      <p>floatingNeutral: false — заземлённая нейтраль; true — изолированная. Нужный вариант выбирается автоматически.</p>
+                      <For each={Object.entries(activePreset().contract.dimensions)}>{([name, rule]) => <p>{name}: {rule.maximum === undefined
+                        ? "предел определяется установленным пакетом; загрузите его editor-preset.json для проверки в редакторе"
+                        : `максимум ${rule.maximum}` }.</p>}</For>
                       <p>L_H — внешняя индуктивность, Гн.</p>
                       <p>R_Ohm — внешнее сопротивление, Ом.</p>
                       <p>emf — ЭДС по фазам: pulse — номер импульса во вкладке «Амплитуды», начиная с 1; amplitude — масштаб ЭДС, В.</p>
                       <p>ЭДС(t) = amplitude × импульс(t). Для нормированного импульса amplitude задаёт амплитуду ЭДС. Время — в секундах.</p>
-                      <p>Порядок ветвей — фаза, затем параллельная ветвь.</p>
+                      <p>Порядок ветвей — фаза, затем параллельная ветвь. branches и индексы AMP/PSI/RSP содержат ровно phases × parallel записей; emf — ровно phases. Резервные записи не добавляются.</p>
                     </div>
                   </details>
                 </Show>
@@ -220,13 +230,13 @@ export function OMClientWindow(props) {
                   title="inputs: клиент → сервер; outputs: сервер → клиент. Индексы начинаются с 1 и следуют порядку переменных модели.">
                   Обмен клиент — сервер — {draft().selection.couplingFile}
                 </label>
-                <Show when={activePreset()}>
+                <Show when={activeContract()}>
                   <details class="om-client-help"><summary
                     title="inputs: клиент → сервер; outputs: сервер → клиент. Индексы начинаются с 1 и следуют порядку переменных модели.">
                     Каналы выбранной модели
                   </summary>
                     <div class="om-client-help-content">
-                      <For each={["inputs", "outputs"]}>{side => <For each={activePreset().contract[side]}>{group => (
+                      <For each={["inputs", "outputs"]}>{side => <For each={activeContract()[side]}>{group => (
                         <p>{side} / {group.kind}: {group.variables.join(", ")}</p>
                       )}</For>}</For>
                     </div>
