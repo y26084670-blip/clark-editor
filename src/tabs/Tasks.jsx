@@ -98,7 +98,6 @@ export function Tasks(props) {
   const [selectionReceiving, setSelectionReceiving] = createSignal(false);
   const [selectionSending, setSelectionSending] = createSignal(false);
   const [selectionNotice, setSelectionNotice] = createSignal("");
-  const [selectionError, setSelectionError] = createSignal("");
   let taskListElement;
   let bindingHint, bindingHintText, bindingFitFrame = 0, bindingFitDisposed = false;
   const bindingStatusText = () => rootHandle() ? bindingNotice() || "Каталог не связан с Решателем." : "";
@@ -230,6 +229,7 @@ export function Tasks(props) {
 
   let taskErrorDialog;
   let taskErrorCloseButton;
+  let taskErrorReturnFocus;
   let unsavedDialog;
   let returnToEditingButton;
   let selectionRevision = 0;
@@ -250,7 +250,7 @@ export function Tasks(props) {
     const revision = invalidateBrowserSelection();
     directoryPickRevision += 1;
     setSelectionReceiving(true);
-    setSelectionNotice(""); setSelectionError("");
+    setSelectionNotice("");
     try {
       const selected = await readTaskSelection(root, request, {
         isCurrent: () => !disposed && root === rootHandle() && revision === selectionRevision && !props.editorBusy,
@@ -272,14 +272,15 @@ export function Tasks(props) {
     } finally { setSelectionReceiving(false); }
   }
 
-  async function showInViewer() {
+  async function showInViewer(event) {
     if (!selectedTask() || selectedTask().isDemo || operationsBlocked() || selectionSending()) return;
+    const sourceButton = event.currentTarget;
     const task = selectedTask(), project = selectedProject(), root = rootHandle();
-    setSelectionSending(true); setSelectionNotice(""); setSelectionError("");
+    setSelectionSending(true); setSelectionNotice("");
     try {
       await selectionChannel.select({ baseHandle: root, projectName: project, taskName: task.name });
       if (!disposed) setSelectionNotice(`В Viewer выделено задание: ${project}/${task.name}`);
-    } catch (error) { if (!disposed) setSelectionError(error.message); }
+    } catch (error) { if (!disposed) showTaskError(error.message, sourceButton); }
     finally { if (!disposed) setSelectionSending(false); }
   }
 
@@ -300,9 +301,11 @@ export function Tasks(props) {
     return selectionRevision;
   };
 
-  const showTaskError = (message) => {
+  const showTaskError = (message, returnFocus = null) => {
+    taskErrorReturnFocus = returnFocus;
     setTaskErrorMessage(message);
     queueMicrotask(() => {
+      if (disposed || !taskErrorDialog?.isConnected) return;
       if (!taskErrorDialog.open) {
         taskErrorDialog.showModal();
       }
@@ -841,7 +844,6 @@ export function Tasks(props) {
             onClick={openOMClient}>Клиентская модель…</button>
         </div>
         <Show when={lastTaskNotice()}><p class="task-last-opened-notice" role="status">{lastTaskNotice()}</p></Show>
-        <Show when={selectionError()}><p class="task-selection-error" role="alert">{selectionError()}</p></Show>
         <div class="task-panel-caption">выбор задания</div>
       </div>
       <div class="task-summary-panel">
@@ -904,11 +906,18 @@ export function Tasks(props) {
 
       <dialog
         class="task-load-error-dialog"
+        aria-label="Ошибка выполнения действия"
+        aria-describedby="task-error-message"
         ref={(el) => (taskErrorDialog = el)}
-        onClose={() => setTaskErrorMessage("")}
+        onClose={() => {
+          setTaskErrorMessage("");
+          taskErrorReturnFocus?.focus();
+          taskErrorReturnFocus = null;
+        }}
       >
-        <p>{taskErrorMessage()}</p>
+        <p id="task-error-message">{taskErrorMessage()}</p>
         <button
+          type="button"
           ref={(el) => (taskErrorCloseButton = el)}
           onClick={() => taskErrorDialog.close()}
         >

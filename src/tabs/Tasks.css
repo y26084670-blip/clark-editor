@@ -26,15 +26,13 @@
   background: #bed6e8;
 }
 
-.task-selection-notice,
-.task-selection-error {
+.task-selection-notice {
   margin: 0;
   font-size: .875rem;
   overflow-wrap: anywhere;
 }
 
 .task-selection-notice { color: #92e0ac; }
-.task-selection-error { color: #ffc4c0; }
 
 .task-browser-panel,
 .task-summary-panel,
@@ -551,12 +549,17 @@ button:hover {
 }
 
 .task-load-error-dialog {
-  max-width: 440px;
+  box-sizing: border-box;
+  width: min(440px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
   padding: 18px;
-  border: 1px solid #888;
+  border: 1px solid #697c8b;
   border-radius: 6px;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, .3);
-  background: white;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, .5);
+  background: #202932;
+  color: #eef3f7;
+  color-scheme: dark;
 }
 
 .task-load-error-dialog[open] {
@@ -568,12 +571,31 @@ button:hover {
 
 .task-load-error-dialog p {
   margin: 0;
-  color: #000;
+  color: inherit;
+  line-height: 1.5;
   text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.task-load-error-dialog button {
+  padding: 8px 16px;
+  border: 1px solid #697c8b;
+  border-radius: 4px;
+  background: #334454;
+  color: #eef3f7;
+}
+
+.task-load-error-dialog button:hover {
+  background: #43596b;
+}
+
+.task-load-error-dialog button:focus-visible {
+  outline: 2px solid #73beef;
+  outline-offset: 2px;
 }
 
 .task-load-error-dialog::backdrop {
-  background: rgba(0, 0, 0, .35);
+  background: rgba(0, 0, 0, .6);
 }
 
 .task-load-button {
