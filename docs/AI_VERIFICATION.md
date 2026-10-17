@@ -1,6 +1,36 @@
 # Проверка web-gui
 
-Обновлено: 2026-10-17 15:59 UTC+3.
+Обновлено: 2026-10-18 00:58 UTC+3.
+
+<a id="verification-record-row-tooltips"></a>
+## Подсказки номеров записей и штатное меню браузера — 4.57.2
+
+База main: `d7dcdb3`. Реальные TableBuilder, schemaFactory и схемы вкладок
+проверены через Vite SSR. Профильная команда:
+
+```sh
+node --test test/browserContextMenu.test.js test/horizontalDragScroll.test.js test/graphContextMenuContract.test.js test/recordRowTooltip.test.js test/enumPresentationContract.test.js test/tableViewLifecycle.test.js test/schemaFactory.test.js test/userGuideAssets.test.js
+npm run build:pages
+```
+
+Выполнено на Linux/Node.js: **53/53 PASS**, включая **12** проверок
+руководства; production/Pages-сборка версии 4.57.2 — **PASS**.
+Проверены оба типа записей, колонка # и обычные ячейки, исходная нумерация
+и её пересчёт после перемещения и удаления, сохранение полного обрезанного
+текста, безопасный DOM-текст, скрытие подсказки во время ввода и прежнее
+поведение других схем.
+
+Проверки EventTarget подтверждают отмену штатного `contextmenu`, выполнение
+соседних обработчиков приложения, отсутствие отмены pointer/keyboard/clipboard
+и освобождение подписки. Существующие проверки правой прокрутки и контрактов
+собственных меню графиков прошли. Сборка сверила 185 файлов библиотеки и
+9 файлов руководства по SHA-256. Предупреждение Vite о крупных JS-частях
+не препятствовало сборке.
+
+Полный unit-набор, живой браузерный hover/ПКМ и новая публикация сайта
+не выполнялись; EventTarget не подтверждает фактическое поведение меню браузера.
+[Подсказки](AI_UI_CONTRACTS.md#record-row-tooltips) ·
+[Меню](AI_UI_CONTRACTS.md#browser-context-menu).
 
 <a id="verification-om-capacity-457"></a>
 ## Активная размерность OM и общий пакет — 4.57.0

@@ -64,6 +64,7 @@ export default createSchema({
     storage: STORAGE_TYPES.RECORDS,
     required: true,
     columnHeaderWordLines: true,
+    rowNumberTooltip: true,
 
     properties: {
         name: {

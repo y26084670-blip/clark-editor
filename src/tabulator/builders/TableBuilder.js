@@ -105,6 +105,14 @@ function overflowCellTooltip(cell) {
     return textTooltip(fullText);
 }
 
+function recordRowTooltip(schema, cell, tooltip = "") {
+    if (!schema.config.rowNumberTooltip) return tooltip;
+    const number = cell.getRow().getData().rowLabel;
+    if (!Number.isSafeInteger(number) || number < 1) return tooltip;
+    const details = tooltip ? `\n${tooltip.textContent ?? tooltip}` : "";
+    return textTooltip(`Строка №${number}${details}`);
+}
+
 export const TableBuilder = {
 
     // Единый источник конфигурации ячейки-значения.
@@ -132,7 +140,7 @@ export const TableBuilder = {
                     schema.config.storage === STORAGE_TYPES.RECORDS &&
                     !hasRecordColumnsView(schema)
                 ) {
-                    return overflowCellTooltip(cell);
+                    return recordRowTooltip(schema, cell, overflowCellTooltip(cell));
                 }
                 return imageEnumTooltip(property, cell.getValue())
                     ?? property?.description
@@ -205,6 +213,9 @@ export const TableBuilder = {
                 title: "#",
                 field: "rowLabel",
                 width: 70,
+                ...(schema.config.rowNumberTooltip
+                    ? { tooltip: (e, cell) => recordRowTooltip(schema, cell) }
+                    : {}),
             },
         ];
         for (const [name, property] of Object.entries(schema.properties)) {
