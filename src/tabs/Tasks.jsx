@@ -829,7 +829,7 @@ export function Tasks(props) {
             disabled={!selectedTask() || selectedTask()?.isDemo || !selectionChannel.supported || operationsBlocked() || selectionSending()}
             aria-busy={selectionSending()}
             title="Выбрать проект и выделить это задание в открытом Viewer с тем же базовым каталогом"
-            onClick={showInViewer}>Показать в Viewer</button>
+            onClick={showInViewer}>Выбрать в Viewer</button>
           <button
             type="button"
             class="task-launch-open-button"
