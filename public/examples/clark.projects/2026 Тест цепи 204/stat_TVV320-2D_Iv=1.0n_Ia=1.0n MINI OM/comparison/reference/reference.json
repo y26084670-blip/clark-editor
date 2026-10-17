@@ -108,7 +108,13 @@
       100,
       100
     ],
-    "preserveOriginalPulseValues": true,
+    "preserveOriginalPulseValues": false,
+    "zeroedAmpPulses": [
+      1,
+      2,
+      3
+    ],
+    "initializationPolicy": "Zero only ordinates in AMP pulses 1-3; preserve their time tokens and node counts. Pulses 4-10 and comparison/reference/amplitudes.txt remain unchanged.",
     "timeGrid": "Use the original input3XX/general.txt without numerical changes",
     "approval": "The copied _nogo.e3d is retained. Open the task in the editor, review model diagnostics and complete the normal save/validation action before native OM launch; do not delete the marker manually."
   },
@@ -131,6 +137,6 @@
       "Element rows 8 and 9: a local symmetry angle is redundant when no local images are enabled."
     ],
     "errors": 0,
-    "originalFilePolicy": "Keep original field inputs byte-for-byte. Editor save uses current schemas and may normalize legacy aliases, remove obsolete keys and persist defaults; retain this reference and inspect the saved inputs before comparison."
+    "originalFilePolicy": "Keep original field inputs byte-for-byte except for the working pulse preparation recorded under conversion; preserve comparison/reference/amplitudes.txt as the source. Editor save uses current schemas and may normalize legacy aliases, remove obsolete keys and persist defaults; retain this reference and inspect the saved inputs before comparison."
   }
 }

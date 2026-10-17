@@ -16,7 +16,7 @@ const json = async relativePath => JSON.parse(await read(relativePath));
 const sha256 = bytes => createHash("sha256").update(bytes).digest("hex");
 const reference = await json("comparison/reference/reference.json");
 
-test("OM example retains the supplied numerical inputs and their provenance", async () => {
+test("OM example retains reference inputs and zeroes only controlled pulse values", async () => {
     assert.equal(reference.sourceArchive.sha256,
         "58a7bfa7227d03df027f7d7857cd36b480bd93df26130e8e3182d6d5d40590c9");
     assert.equal(reference.sourceInputs.length, 10);
@@ -28,7 +28,25 @@ test("OM example retains the supplied numerical inputs and their provenance", as
     }
     const originalPulses = await read("comparison/reference/amplitudes.txt");
     const workingPulses = await read("input3XX/amplitudes.txt");
-    assert.deepEqual(workingPulses.subarray(0, originalPulses.length), originalPulses);
+    const originalLines = originalPulses.toString("utf8").trimEnd().split(/\r?\n/u);
+    const workingLines = workingPulses.toString("utf8").trimEnd().split(/\r?\n/u);
+    assert.equal(originalLines.length, 7);
+    assert.equal(workingLines.length, 10);
+    assert.equal(reference.conversion.preserveOriginalPulseValues, false);
+    assert.deepEqual(reference.conversion.zeroedAmpPulses, [1, 2, 3]);
+    for (let index = 0; index < originalLines.length; index += 1) {
+        if (index >= 3) {
+            assert.equal(workingLines[index], originalLines[index], `pulse ${index + 1}`);
+            continue;
+        }
+        const original = JSON.parse(originalLines[index]);
+        const working = JSON.parse(workingLines[index]);
+        assert.equal(working.n, original.n);
+        assert.equal(working.impuls.length, 2 * original.n);
+        assert.deepEqual(working.impuls.slice(0, original.n), original.impuls.slice(0, original.n));
+        assert.ok(working.impuls.slice(original.n).every(value => value === 0));
+        assert.ok(original.impuls.slice(original.n).some(value => value !== 0));
+    }
     // The supplied material is authoritative; reimporting XAP.lib changes this node.
     const e33 = await json("input3XX/xapLibFMM/E33.txt");
     assert.equal(e33.tabl[3], 0.95095);
