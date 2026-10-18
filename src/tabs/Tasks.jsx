@@ -828,7 +828,7 @@ export function Tasks(props) {
           <button type="button" class="task-cross-open-button"
             disabled={!selectedTask() || selectedTask()?.isDemo || !selectionChannel.supported || operationsBlocked() || selectionSending()}
             aria-busy={selectionSending()}
-            title="Выбрать проект и выделить это задание в открытом Viewer с тем же базовым каталогом"
+            title="Выделить задание и перейти на вкладку открытого Viewer с тем же базовым каталогом; браузер может ограничить переключение"
             onClick={showInViewer}>Выбрать в Viewer</button>
           <button
             type="button"

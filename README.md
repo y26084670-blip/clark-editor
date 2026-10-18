@@ -1,8 +1,11 @@
 # Clark E3D Editor
 
-Обновлено: 2026-10-19 01:25 UTC+3.
+Обновлено: 2026-10-19 02:21 UTC+3.
 
-Версия исходников: **4.60.0**.
+Кнопка «Выбрать в Viewer» также запрашивает переход на вкладку Viewer.
+[Выбор и переход](docs/user-guide/index.html#task-cross-selection).
+
+Версия исходников: **4.61.0**.
 
 На вкладках «Амплитуды» и «Траектории» левое меню заменяет таблицу выбранной
 записи числовыми значениями из буфера Excel; доступны отмена и повтор.
@@ -51,7 +54,7 @@
 с номером элемента и полем «Название». Смена типа геометрии заменяет прежние параметры 
 корректным примером выбранного типа; Undo/Redo восстанавливает тип вместе с геометрией. 
 Панель катушки имеет ширину 600 px и подбирает высоту по содержимому.
-[Задать геометрию](https://y26084670-blip.github.io/web-gui/user-guide/index.html#geometry-box).
+[Задать геометрию](https://y26084670-blip.github.io/clark-editor/user-guide/index.html#geometry-box).
 
 Панель «Катушка однородного поля» показывает углы локальной СК, использует
 L=100 мм по умолчанию. «Раскрытие» задаёт dvi базового сектора (20.0°);
@@ -63,7 +66,7 @@ Ctrl+A в 3D возвращает начальный наклонный вид �
 «Характеристики ФММ» доступен генератор таблицы μ=const из 12 точек.
 [Создать характеристику](docs/user-guide/index.html#constant-mu-fmm) ·
 [Горячие клавиши](docs/user-guide/index.html#reference).
-[Создать катушку](https://y26084670-blip.github.io/web-gui/user-guide/index.html#uniform-field-coil).
+[Создать катушку](https://y26084670-blip.github.io/clark-editor/user-guide/index.html#uniform-field-coil).
 
 В максимизированном кнопкой □ окне GIF соседние кадры плавно смешиваются
 в пределах исходных задержек. «Стоп» удерживает текущий переход; восстановление
@@ -77,12 +80,12 @@ Ctrl+A в 3D возвращает начальный наклонный вид �
 На вкладке выбора задания имеется галерея сохранённых GIF: просмотр в
 плавающем окне и удаление после подтверждения. Она показывает файлы выбранного
 в списке задания, которое может отличаться от открытого для редактирования.
-[Просмотр GIF](https://y26084670-blip.github.io/web-gui/user-guide/index.html#task-gifs).
+[Просмотр GIF](https://y26084670-blip.github.io/clark-editor/user-guide/index.html#task-gifs).
 
 Плавающее 3D-окно расширяется от границ до половины доступного размера,
 поддерживает ручное изменение размера за все четыре стороны. В меню
 элементов и областей добавлен показ «Кроме выделенных».
-[Работа с 3D](https://y26084670-blip.github.io/web-gui/user-guide/index.html#geometry).
+[Работа с 3D](https://y26084670-blip.github.io/clark-editor/user-guide/index.html#geometry).
 
 Браузерный редактор исходных данных Clark: таблицы, геометрия и материалы,
 проверка и сохранение `input3XX`, подготовка списка и запрос запуска локального
@@ -90,8 +93,8 @@ Ctrl+A в 3D возвращает начальный наклонный вид �
 
 ## Открыть приложение
 
-[Clark E3D Editor](https://y26084670-blip.github.io/web-gui/) ·
-[Руководство пользователя](https://y26084670-blip.github.io/web-gui/user-guide/index.html).
+[Clark E3D Editor](https://y26084670-blip.github.io/clark-editor/) ·
+[Руководство пользователя](https://y26084670-blip.github.io/clark-editor/user-guide/index.html).
 
 ## Требования
 
@@ -105,19 +108,19 @@ File System Access API и разрешение на выбранный ката�
 Практические инструкции с иллюстрациями находятся в **HTML-руководстве**;
 оно открывается также синей кнопкой «Документация» на основной панели.
 
-[Проекты и задания](https://y26084670-blip.github.io/web-gui/user-guide/index.html#tasks) ·
-[Библиотеки](https://y26084670-blip.github.io/web-gui/user-guide/index.html#material-source) ·
-[Контакты MED](https://y26084670-blip.github.io/web-gui/user-guide/index.html#med) ·
-[Проверка и сохранение](https://y26084670-blip.github.io/web-gui/user-guide/index.html#validation) ·
-[Запуск](https://y26084670-blip.github.io/web-gui/user-guide/index.html#launch).
+[Проекты и задания](https://y26084670-blip.github.io/clark-editor/user-guide/index.html#tasks) ·
+[Библиотеки](https://y26084670-blip.github.io/clark-editor/user-guide/index.html#material-source) ·
+[Контакты MED](https://y26084670-blip.github.io/clark-editor/user-guide/index.html#med) ·
+[Проверка и сохранение](https://y26084670-blip.github.io/clark-editor/user-guide/index.html#validation) ·
+[Запуск](https://y26084670-blip.github.io/clark-editor/user-guide/index.html#launch).
 
 В левой шторке вкладки «Выбор задания» доступны создание, копирование,
 переименование, перенос и удаление задания после подтверждения. 
-[Порядок работы](https://y26084670-blip.github.io/web-gui/user-guide/index.html#tasks).
+[Порядок работы](https://y26084670-blip.github.io/clark-editor/user-guide/index.html#tasks).
 «Сохранить как» в этот набор не входит.
 
 Горизонтальная прокрутка правой кнопкой мыши: 
-[порядок работы](https://y26084670-blip.github.io/web-gui/user-guide/index.html#edit-horizontal-scroll).
+[порядок работы](https://y26084670-blip.github.io/clark-editor/user-guide/index.html#edit-horizontal-scroll).
 
 ## Разработка и сборка
 

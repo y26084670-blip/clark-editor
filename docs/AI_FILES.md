@@ -1,6 +1,6 @@
 # Карта файлов и компонентов web-gui
 
-Обновлено: 2026-10-19 01:25 UTC+3.
+Обновлено: 2026-10-19 02:25 UTC+3.
 
 ## Назначение
 
@@ -400,3 +400,11 @@ TaskLaunchWindow показывает тёмную модальную ошибк
 App/jweakLocalService перечитывают readonly-иерархию для проверки/MED без запрета
 внешнего редактирования; taskMaterialLibraryService допускает явное сохранение
 после внешних изменений. [Контракт данных](AI_DATA_CONTRACTS.md#jweak-local-input).
+
+
+## Переход к выбранному заданию в Viewer
+
+`src/services/taskSelectionChannel.js` и `test/taskSelectionChannel.test.js` общие
+с Viewer. `scripts/check-task-selection-browser.mjs` проверяет два настоящих
+BroadcastChannel/OPFS контекста; headless-фокус не подтверждает переключение
+вкладок пользовательского окна. [Контракт](AI_UI_CONTRACTS.md#выбор-задания-в-другом-приложении).

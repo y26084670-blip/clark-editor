@@ -32,7 +32,7 @@ bundle = OUT/'bundle'
 build_script = OUT/'build-fixture.mjs'
 build_script.write_text(f"""import {{ build }} from {json.dumps((ROOT/'node_modules/vite/dist/node/index.js').as_uri())};
 import solid from {json.dumps((ROOT/'node_modules/vite-plugin-solid/dist/esm/index.mjs').as_uri())};
-await build({{ configFile:false, root:{json.dumps(str(ROOT))}, publicDir:false, plugins:[solid()], base:'/web-gui/',
+await build({{ configFile:false, root:{json.dumps(str(ROOT))}, publicDir:false, plugins:[solid()], base:'/clark-editor/',
  build:{{outDir:{json.dumps(str(bundle))},emptyOutDir:true,minify:false,
  lib:{{entry:'test/browser/guideMaterials.fixture.jsx',name:'GuideMaterialsFixture',formats:['iife'],fileName:()=> 'fixture.js'}}}} }});
 """, encoding='utf-8')
@@ -113,7 +113,7 @@ with sync_playwright() as pw:
             page=context.new_page(); errors=[]
             page.on('pageerror',lambda e:errors.append(str(e)))
             page.expose_function('__sha256', lambda data:list(hashlib.sha256(bytes(data)).digest()))
-            page.set_content('<html><head><base href="https://fixture.invalid/web-gui/"><style>'+css+'</style></head><body><div id="root"></div></body></html>')
+            page.set_content('<html><head><base href="https://fixture.invalid/clark-editor/"><style>'+css+'</style></head><body><div id="root"></div></body></html>')
             page.evaluate("""() => {
                 Object.defineProperty(crypto,'subtle',{value:{digest:async(_algorithm,bytes)=>new Uint8Array(await window.__sha256(Array.from(new Uint8Array(bytes)))).buffer}});
                 window.fetch=async url=> { if(String(url).endsWith('examples-config.json')) return new Response(JSON.stringify({manifestUrl:'examples-manifest.json',solverInstallerUrl:'https://example.invalid/installer'}),{status:200}); throw Error('Unexpected fixture fetch '+url); };
