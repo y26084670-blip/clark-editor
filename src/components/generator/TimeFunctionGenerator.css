@@ -8,8 +8,8 @@
   overflow: hidden;
   padding: 6px;
   box-sizing: border-box;
-  background: #20262d;
-  color: #dce4ec;
+  background: #e5eaee;
+  color: #334552;
 }
 
 .time-generator-layout {
@@ -25,8 +25,8 @@
   position: relative;
   flex: 0 0 auto;
   min-height: 72px;
-  border: 1px solid #59636d;
-  background: #1b2026;
+  border: 1px solid #b3bec7;
+  background: #f2f5f7;
 }
 
 .time-generator-graph canvas {
@@ -39,7 +39,7 @@
   inset: 0;
   display: grid;
   place-items: center;
-  color: #9eabb6;
+  color: #596b78;
   pointer-events: none;
 }
 
@@ -54,13 +54,13 @@
   position: absolute;
   inset: 2px 0;
   border-radius: 2px;
-  background: #59636d;
+  background: #aab6c0;
   content: "";
 }
 
 .time-generator-splitter:hover::after,
 .time-generator-splitter:focus-visible::after {
-  background: #e59a3a;
+  background: #64859b;
 }
 
 .time-generator-workspace {
@@ -113,15 +113,16 @@
   flex: 1 1 auto;
   min-height: 0;
   width: 100%;
-  background: #e7e7e7;
-  color: #111;
+  background: #f2f5f7;
+  color: #253642;
+  border: 1px solid #a7b3bd;
   font-family: Consolas, "Courier New", monospace;
   font-size: 14px;
 }
 
 .time-generator-history-hint {
   font-size: 11px;
-  color: #aeb9c3;
+  color: #596b78;
 }
 
 .time-generator-editor textarea {
@@ -133,8 +134,16 @@
   box-sizing: border-box;
   font-family: Consolas, "Courier New", monospace;
   font-size: 14px;
-  background: #f7f7f7;
-  color: #111;
+  background: #f7f9fa;
+  color: #253642;
+  border: 1px solid #a7b3bd;
+}
+
+.time-generator-target select,
+.time-generator-range input {
+  background: #f7f9fa;
+  color: #253642;
+  border: 1px solid #a7b3bd;
 }
 
 .time-generator-target,
@@ -197,7 +206,7 @@
   grid-template-columns: 1fr 1fr;
   gap: 6px;
   padding-top: 2px;
-  background: #20262d;
+  background: #e5eaee;
 }
 
 .time-generator-actions button {

@@ -49,6 +49,24 @@ export default function App() {
   const [taskSummaryBounds, setTaskSummaryBounds] = createSignal(null);
   const tabButtons = new Map();
   const editorControllers = new Map();
+  const [clipboardBusy, setClipboardBusy] = createSignal(false);
+  const [clipboardError, setClipboardError] = createSignal("");
+  let clipboardErrorDialog;
+
+  const clipboardTableActions = () => tabRegistry.find(schema => schema.id === activeTab())?.views?.clipboardTables ?? [];
+  async function replaceTableFromClipboard(property) {
+    if (clipboardBusy()) return;
+    setSidePanelOpen(false);
+    setClipboardBusy(true);
+    try {
+      const editor = editorControllers.get(activeTab());
+      if (!editor) throw new Error("Редактор ещё не готов.");
+      await editor.replaceTableFromClipboard(property);
+    } catch (error) {
+      setClipboardError(error instanceof Error ? error.message : String(error));
+      if (clipboardErrorDialog?.isConnected && !clipboardErrorDialog.open) clipboardErrorDialog.showModal();
+    } finally { setClipboardBusy(false); }
+  }
   let openConstantMuGenerator;
   let tabsViewport;
   let tabsHeader;
@@ -760,6 +778,9 @@ export default function App() {
         }}
       />
       <SidePanel
+        clipboardTableActions={clipboardTableActions()}
+        clipboardTableEnabled={Boolean(selectionService.loadedTaskHandle()) && !clipboardBusy()}
+        onReplaceTableFromClipboard={replaceTableFromClipboard}
         taskActions={activeTab() === TABS.TASKS.id ? taskActions() : null}
         onTaskAction={kind => { setSidePanelOpen(false); taskActions()?.run(kind); }}
         open={sidePanelOpen()}
@@ -857,6 +878,11 @@ export default function App() {
         onCancel={() => setMaterialRequest(null)}
         onApply={handleMaterialSelectionApply}
       />
+      <dialog ref={clipboardErrorDialog} class="clipboard-table-error" aria-label="Ошибка вставки таблицы">
+        <h2>Вставка не выполнена</h2>
+        <p role="alert">{clipboardError()}</p>
+        <button onClick={() => clipboardErrorDialog.close()}>Закрыть</button>
+      </dialog>
       <GeometryViewerWindow
         open={geometryViewerOpen()}
         model={geometryModel()}

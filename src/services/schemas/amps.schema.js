@@ -57,6 +57,11 @@ export default createSchema({
     stretchLastColumn: true,
 
     views: {
+        clipboardTables: [{
+            property: "impuls",
+            label: "Заменить амплитуды значениями из буфера",
+            title: "Выделите одну строку амплитуды. Скопируйте из Excel две числовые колонки без заголовка: время, амплитуда. Вся таблица будет заменена; доступна отмена.",
+        }],
         references: {
             usedByElements: {
                 type: FIELD_TYPES.ARRAY,

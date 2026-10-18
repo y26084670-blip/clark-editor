@@ -69,6 +69,7 @@ import {
   resizedEditorTableRatio,
 } from "../../services/dataEditorLayout.js";
 import { applyGeneratedSeries } from "../../services/generator/timeFunctionModel.js";
+import { timeTableClipboardPatch } from "../../services/timeTableClipboard.js";
 import {
   materializeReferenceViewRows,
   referenceViewDependencies,
@@ -445,6 +446,49 @@ export function DataEditor(props) {
 
     pendingCellChange = null;
     const update = publishTableChanged(false);
+    detailRegion.refresh();
+    return update;
+  }
+
+  async function replaceTableFromClipboard(propertyName) {
+    if (!hasActiveTask() || !props.active) throw new Error("Сначала загрузите задание и откройте нужную вкладку.");
+    const selected = table?.getSelectedRows?.() ?? [];
+    if (selected.length !== 1) throw new Error("Выделите ровно одну строку основной таблицы.");
+    if (!schema.views?.clipboardTables?.some(item => item.property === propertyName)) {
+      throw new Error("Таблица не поддерживает замену из буфера.");
+    }
+    if (typeof navigator.clipboard?.readText !== "function") {
+      throw new Error("Браузер не предоставляет чтение буфера. Откройте Editor в Chrome или Edge по HTTPS либо localhost.");
+    }
+    const originalTable = table, row = selected[0];
+    const task = selectionService.loadedTaskHandle(), version = selectionService.taskDataVersion(), load = loadRevision;
+    const isCurrent = () => props.active && hasActiveTask() && table === originalTable
+      && task === selectionService.loadedTaskHandle() && version === selectionService.taskDataVersion()
+      && load === loadRevision && table.getRows().includes(row)
+      && table.getSelectedRows().length === 1 && table.getSelectedRows()[0] === row;
+    // Begin clipboard access in the click gesture, before awaiting the active
+    // cell's commit. Handle rejection immediately while that commit completes.
+    const reading = navigator.clipboard.readText().then(text => ({ text }), error => ({ error }));
+    await flushMedEdits();
+    const revision = modelService.getModelPartUpdate(schema.id)?.revision;
+    const result = await reading;
+    if (!isCurrent() || revision !== modelService.getModelPartUpdate(schema.id)?.revision) {
+      throw new Error("Во время чтения буфера изменились задание, вкладка, выделение или данные. Повторите команду.");
+    }
+    if (result.error) {
+      throw new Error(result.error.name === "NotAllowedError"
+        ? "Браузер не разрешил прочитать буфер обмена. Разрешите доступ и повторите команду."
+        : `Не удалось прочитать буфер обмена: ${result.error.message || result.error}`);
+    }
+    const patch = timeTableClipboardPatch(schema, propertyName, result.text);
+    applyingModel = true;
+    try { await row.update(patch); }
+    finally { applyingModel = false; }
+    if (!isCurrent() || revision !== modelService.getModelPartUpdate(schema.id)?.revision) {
+      throw new Error("Данные изменились во время вставки. Повторите команду.");
+    }
+    pendingCellChange = null;
+    const update = publishTableChanged(true);
     detailRegion.refresh();
     return update;
   }
@@ -1026,7 +1070,7 @@ export function DataEditor(props) {
   //==========================================================================
   onMount(() => {
     createMainTable();
-    props.onEditorReady?.({ flush: flushMedEdits });
+    props.onEditorReady?.({ flush: flushMedEdits, replaceTableFromClipboard });
     onCleanup(() => props.onEditorReady?.(null));
 
     if (hasDetailRegion) {

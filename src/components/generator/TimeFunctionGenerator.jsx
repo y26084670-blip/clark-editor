@@ -74,8 +74,8 @@ function GeneratorPreviewGraph(props) {
           datasets: [{
             label: props.label || "Предпросмотр",
             data: points.map(([x, y]) => ({ x, y })),
-            borderColor: "#e59a3a",
-            backgroundColor: "#e59a3a",
+            borderColor: "#426e8c",
+            backgroundColor: "#426e8c",
             borderWidth: 2,
             pointRadius: 2,
             pointHoverRadius: 4,
@@ -89,7 +89,7 @@ function GeneratorPreviewGraph(props) {
           animation: false,
           normalized: true,
           plugins: {
-            legend: { labels: { color: "#dce4ec" } },
+            legend: { labels: { color: "#334552" } },
           },
           scales: {
             x: {
@@ -97,20 +97,20 @@ function GeneratorPreviewGraph(props) {
               title: {
                 display: true,
                 text: "Время",
-                color: "#dce4ec",
+                color: "#334552",
               },
-              ticks: { color: "#b8c3cd" },
-              grid: { color: "rgba(180, 195, 208, .16)" },
+              ticks: { color: "#596b78" },
+              grid: { color: "rgba(90, 112, 128, .16)" },
             },
             y: {
               type: "linear",
               title: {
                 display: true,
                 text: props.label || "Значение",
-                color: "#dce4ec",
+                color: "#334552",
               },
-              ticks: { color: "#b8c3cd" },
-              grid: { color: "rgba(180, 195, 208, .16)" },
+              ticks: { color: "#596b78" },
+              grid: { color: "rgba(90, 112, 128, .16)" },
             },
           },
         },

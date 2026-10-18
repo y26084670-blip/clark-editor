@@ -59,16 +59,16 @@
   flex-direction: column;
   min-width: 280px;
   min-height: 0;
-  border: 1px solid #666;
-  background: #fafafa;
+  border: 1px solid #aab6c0;
+  background: #e5eaee;
   box-sizing: border-box;
 }
 
 .data-editor-generator-title {
   padding: 5px 8px;
-  border-bottom: 1px solid #777;
-  background: #d0d0d0;
-  color: #000;
+  border-bottom: 1px solid #aab6c0;
+  background: #d6dfe6;
+  color: #334552;
   font-size: 13px;
   font-weight: 600;
 }

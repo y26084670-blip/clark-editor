@@ -9,6 +9,21 @@ body,
   background: #fafafa;
 }
 
+.clipboard-table-error {
+  width: min(540px, calc(100vw - 48px));
+  box-sizing: border-box;
+  border: 1px solid #5f6b77;
+  border-radius: 8px;
+  padding: 20px;
+  background: #1d2228;
+  color: #edf2f7;
+  color-scheme: dark;
+}
+.clipboard-table-error::backdrop { background: rgb(0 0 0 / 58%); }
+.clipboard-table-error h2 { margin-top: 0; font-size: 19px; }
+.clipboard-table-error p { line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; }
+.clipboard-table-error button { display: block; margin-left: auto; padding: 6px 18px; }
+
 .app-container {
   display: flex;
   flex-direction: column;

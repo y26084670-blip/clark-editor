@@ -8,6 +8,7 @@ import { selectionService } from '../../src/services/selectionService.js';
 import { unsavedChangesService } from '../../src/services/unsavedChangesService.js';
 import { tabRegistry } from '../../src/services/tabRegistry.js';
 import { TabulatorFull } from 'tabulator-tables';
+import Chart from 'chart.js/auto';
 import { createConstantMuFmm } from '../../src/services/materials/constantMuFmm.js';
 import { createFmmMaterialFile } from '../../src/services/materialImport/xapLibImporter.js';
 const opfs = await navigator.storage.getDirectory();
@@ -40,6 +41,7 @@ window.editorFixture={read,put,writes,
   dirty:()=>unsavedChangesService.hasDirty(),
   setDirty:()=>{const schema=tabRegistry.find(v=>v.id==='general');modelService.setModelPart(schema,{...modelService.getModel().general,timeStep:Math.random()+1});unsavedChangesService.setExplicitDirty('general',true);},
   tables:selector=>TabulatorFull.findTable(selector),
+  chart:canvas=>Chart.getChart(canvas),
   setLoaded:loaded=>{selectionService.setLoadedTaskHandle(loaded?task:null);},
 };
 render(()=><App/>,document.getElementById('root'));

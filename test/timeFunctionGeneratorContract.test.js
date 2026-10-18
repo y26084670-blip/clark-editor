@@ -116,6 +116,6 @@ test("generator keeps its action row reachable when the panel is resized", async
     );
     assert.match(
         styles,
-        /\.time-generator-history select\s*\{[^}]*background:\s*#e7e7e7;/u,
+        /\.time-generator-history select\s*\{[^}]*background:\s*#f2f5f7;/u,
     );
 });
