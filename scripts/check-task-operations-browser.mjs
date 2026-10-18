@@ -9,7 +9,7 @@ const root = fileURLToPath(new URL('../', import.meta.url));
 const out = path.resolve(process.env.CHECK_OUTPUT ?? '/tmp/clark-task-browser');
 await mkdir(out, { recursive: true });
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE ?? 'playwright');
-const server = await createServer({ root, server: { host: '127.0.0.1', port: 0 }, base: '/web-gui/',
+const server = await createServer({ root, server: { host: '127.0.0.1', port: 0 }, base: '/clark-editor/',
   plugins: [{ name: 'task-fixture-route', configureServer(server) {
     server.middlewares.use(async (req, res, next) => {
       if (!req.url?.split('?')[0].endsWith('/__task-fixture')) return next();
@@ -37,7 +37,7 @@ const done = async () => { await dialog.waitFor({ state: 'hidden' }); };
 const state = () => page.evaluate(() => taskFixture.snapshot());
 const read = value => page.evaluate(value => taskFixture.read(value), value);
 try {
-  await page.goto(base + '/web-gui/__task-fixture');
+  await page.goto(base + '/clark-editor/__task-fixture');
   await page.waitForFunction(() => window.taskFixture?.ready);
   await button('Открыть дополнительные функции').click();
   check('commands disabled without project', await page.locator('.side-panel').getByRole('button', { name: 'Создать задание', exact: true }).isDisabled());
@@ -48,9 +48,9 @@ try {
   check('documentation width matches validation', size.width === validation.width);
   const help = await button('Общая информация').boundingBox(), about = await button('О программе').boundingBox();
   check('documentation is between two rightmost buttons', help.x < size.x && size.x < about.x);
-  check('documentation is blue and BASE_URL-aware', await documentation.evaluate(e => getComputedStyle(e).backgroundColor === 'rgb(37, 99, 235)' && e.getAttribute('href') === '/web-gui/user-guide/index.html'));
+  check('documentation is blue and BASE_URL-aware', await documentation.evaluate(e => getComputedStyle(e).backgroundColor === 'rgb(37, 99, 235)' && e.getAttribute('href') === '/clark-editor/user-guide/index.html'));
   const popupPromise = page.waitForEvent('popup'); await documentation.click(); const popup = await popupPromise; await popup.waitForLoadState();
-  check('documentation opens new tab', popup.url() === base + '/web-gui/user-guide/index.html');
+  check('documentation opens new tab', popup.url() === base + '/clark-editor/user-guide/index.html');
   check('guide explains JWeak1 and names both HTS approximations', await popup.locator('#jweak1').count() === 1
     && (await popup.locator('#title-model-hts').textContent()) === '16.5. Аппроксимация для токовой подсистемы ВТСП'
     && await popup.locator('#model-hts-power').count() === 1 && await popup.locator('#model-hts-tanh').count() === 1);
