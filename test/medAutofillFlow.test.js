@@ -17,8 +17,9 @@ assert.ok(start>=0&&end>start);
 const controller=new Function("dependencies",`
     const {createSignal,createEffect,createMemo,onCleanup,selectionService,modelService,
         createMedRequest,medRequestIsCurrent,medRequestCanNavigate,applyMedResult,
-        assertJweakLocalUnchanged,Worker,tabRegistry,TABS,performModelValidation,
+        loadJweakLocal,Worker,tabRegistry,TABS,performModelValidation,
         setSidePanelOpen,setActiveTab}=dependencies;
+    ${source.slice(source.indexOf("  async function refreshJweakForMed()"),source.indexOf("  const [sidePanelOpen"))}
     ${source.slice(start,end).replaceAll("import.meta.url",JSON.stringify(appUrl.href))}
     return {analyzeCurrentMed,applyCurrentMed,navigateCurrentMed,closeMed,
         medResult,medRequest,medBusy,medError,medNotice,medStale,medCanNavigate,medOpen,
@@ -45,8 +46,8 @@ async function runtime() {
             terminate(){this.terminated=true;}
         }
         api=controller({createSignal,createEffect,createMemo,onCleanup,modelService:service,
-            selectionService:{loadedTaskHandle:task},createMedRequest,medRequestIsCurrent,
-            medRequestCanNavigate,applyMedResult,assertJweakLocalUnchanged:async()=>{},Worker,
+            selectionService:{loadedTaskHandle:task,taskDataVersion:()=>0},createMedRequest,medRequestIsCurrent,
+            medRequestCanNavigate,applyMedResult,loadJweakLocal:async()=>model().jweakLocal,Worker,
             tabRegistry:[{id:"elements"}],TABS:{ELEMENTS:{id:"elements"}},
             performModelValidation:async()=>{state.validations++;},setSidePanelOpen(){},setActiveTab(){}});
         api.setEditor({rows:()=>state.rows,flush:async()=>{await state.flush?.();}});

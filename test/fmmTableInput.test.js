@@ -150,7 +150,7 @@ test("clipboard autosave uses column-major storage, preserves metadata and leave
   assert.deepEqual(reloaded[0].data, stored);
 });
 
-test("invalid paste, disk conflict and write failure retain the current characteristic", async () => {
+test("invalid paste and failed writes preserve data; explicit save accepts external edits", async () => {
   const { taskHandle, service, record, dir } = await setup();
   const file = dir.files.get("Новая.txt"), before = file.bytes.slice(), model = structuredClone(record);
   const rows = parseFmmClipboardText(tsv());
@@ -163,7 +163,7 @@ test("invalid paste, disk conflict and write failure retain the current characte
   assert.deepEqual(file.bytes, before);
   file.fail = false;
   file.bytes = new TextEncoder().encode('{"external":true}\n');
-  await assert.rejects(saveFmmClipboardBlock({ taskHandle, service, record, rows, startRow: 1 }), /изменён|конфликт|изменил/u);
-  assert.equal(payload(file).external, true);
+  await saveFmmClipboardBlock({ taskHandle, service, record, rows, startRow: 1 });
+  assert.equal(payload(file).external, undefined);
   assert.deepEqual(record, model);
 });

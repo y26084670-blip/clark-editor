@@ -1,6 +1,6 @@
 # Карта файлов и компонентов web-gui
 
-Обновлено: 2026-10-18 13:33 UTC+3.
+Обновлено: 2026-10-18 15:57 UTC+3.
 
 ## Назначение
 
@@ -389,3 +389,12 @@ kvs.txt, выбор записей локальной XAP.lib и пакетна�
 
 [UI-контракты](AI_UI_CONTRACTS.md#model-save-shortcut) ·
 [Методика](AI_VERIFICATION.md#verification-editor-445).
+
+## Примеры ОМ и открытое редактирование — 4.59.0
+
+`data/om-examples.json` — сформированная поставка канонических входов clark.tests;
+`scripts/om-examples-bundle.mjs` проверяет пути/хеши перед объединением примеров.
+TaskLaunchWindow показывает тёмную модальную ошибку количества подключённых заданий.
+App/jweakLocalService перечитывают readonly-иерархию для проверки/MED без запрета
+внешнего редактирования; taskMaterialLibraryService допускает явное сохранение
+после внешних изменений. [Контракт данных](AI_DATA_CONTRACTS.md#jweak-local-input).

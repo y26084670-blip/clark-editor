@@ -26,19 +26,6 @@ export async function loadJweakLocal(taskHandle) {
     }
 }
 
-// Called only at explicit validation/save/MED boundaries; no filesystem poll.
-// Compare bytes, not timestamps: external edits with identical metadata count.
-export async function assertJweakLocalUnchanged(taskHandle, section) {
-    if (!section || !["absent", "ready"].includes(section.status)) {
-        throw new Error(section?.error || `${JWEAK_LOCAL_FILE}: загрузка описания не завершена.`);
-    }
-    const bytes = await readBytes(taskHandle);
-    if (section.status === "absent" && bytes === null) return;
-    if (section.status === "ready" && bytes !== null && section.bytes instanceof Uint8Array
-        && section.bytes.length === bytes.length && bytes.every((x, i) => x === section.bytes[i])) return;
-    throw new Error(`${JWEAK_LOCAL_FILE}: файл изменён, добавлен или удалён извне. Перезагрузите задание.`);
-}
-
 // One load ticket per task/reload, independent of edits in unrelated tabs.
 // Publishing an attachment never creates history, dirty state or disk writes.
 export function createJweakLocalLoader(publish, read = loadJweakLocal) {

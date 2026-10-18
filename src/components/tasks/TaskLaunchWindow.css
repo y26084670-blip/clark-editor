@@ -249,3 +249,16 @@
 .iteration-control-fields input:disabled { color: #7d8791; border-color: #464f59; }
 .iteration-control-fields input[type="checkbox"] { margin: 0; }
 .iteration-control-message { grid-column: 1 / -1; }
+.task-launch-modal {
+    width: min(500px, calc(100vw - 48px));
+    box-sizing: border-box;
+    padding: 20px;
+    border: 1px solid #687b8c;
+    border-radius: 8px;
+    background: #1d252d;
+    color: #edf2f7;
+    color-scheme: dark;
+}
+.task-launch-modal::backdrop { background: rgb(0 0 0 / 60%); }
+.task-launch-modal h2 { margin-top: 0; font-size: 18px; }
+.task-launch-modal p { line-height: 1.5; }

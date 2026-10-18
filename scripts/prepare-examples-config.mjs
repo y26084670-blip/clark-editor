@@ -1,6 +1,7 @@
 import { copyFile, lstat, mkdir, readFile, readdir, realpath, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { readOMExamplesBundle } from "./om-examples-bundle.mjs";
 
 const projectRoot = fileURLToPath(new URL("../", import.meta.url));
 const defaultSourceRoot = path.join(projectRoot, "public", "examples", "clark.projects");
@@ -42,6 +43,7 @@ export async function prepareExamplesAssets({
     outputRoot = defaultOutputRoot,
     configPath = defaultConfigPath,
     allowMissingSource = path.resolve(sourceRoot) === path.resolve(defaultSourceRoot),
+    omBundle = path.resolve(sourceRoot) === path.resolve(defaultSourceRoot) ? path.join(projectRoot, "data", "om-examples.json") : null,
 } = {}) {
     const source = path.resolve(sourceRoot);
     const output = path.resolve(outputRoot);
@@ -113,6 +115,20 @@ export async function prepareExamplesAssets({
         }
     }
     if (sourceAvailable) await visit(source);
+    const bundledFiles = omBundle ? await readOMExamplesBundle(omBundle) : new Map();
+    for (const [relativePath, data] of bundledFiles) {
+        const segments = relativePath.split('/');
+        for (let i = 1; i < segments.length; i++) {
+            const directory = segments.slice(0, i).join('/');
+            const key = directory.normalize('NFC').toUpperCase();
+            if (!names.has(key)) { names.set(key, directory); entries.push({path:directory,type:'directory'}); directoryCount++; }
+            else if (!entries.some(e => e.path === directory && e.type === 'directory')) throw new Error(`Конфликт каталога ${directory}`);
+        }
+        const key = relativePath.normalize('NFC').toUpperCase();
+        if (names.has(key)) throw new Error(`Внешний пример дублирует локальный файл: ${relativePath}`);
+        names.set(key, relativePath); entries.push({path:relativePath,type:'file',size:data.length});
+        totalBytes += data.length; fileCount++;
+    }
 
     // Validation completes before replacing only the assets owned by this script.
     await mkdir(output, { recursive: true });
@@ -128,6 +144,10 @@ export async function prepareExamplesAssets({
             await mkdir(outputPath, { recursive: true });
         }
         else {
+            if (bundledFiles.has(entry.path)) {
+                await writeFile(outputPath, bundledFiles.get(entry.path));
+                continue;
+            }
             const sourcePath = path.join(source, ...segments);
             const stat = await lstat(sourcePath);
             if (!stat.isFile() || stat.isSymbolicLink() || stat.size !== entry.size) {

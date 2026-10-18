@@ -615,7 +615,7 @@ test("task-local materials are loaded from directories inside input3XX", async (
     assert.equal(records[0].sha256, sha256(second));
 });
 
-test("explicit local edit and delete use the loaded SHA as a concurrency guard", async () => {
+test("explicit local edit and delete accept changes since loading", async () => {
     const root = await taskRoot();
     const library = await taskLibraryDirectory(
         root,
@@ -640,19 +640,7 @@ test("explicit local edit and delete use the loaded SHA as a concurrency guard",
     assert.equal(result.status, "replaced");
     assert.equal(new TextDecoder().decode(file.bytes), editedText);
 
-    await assert.rejects(
-        service.deleteMaterials({ taskHandle: root, records: [loaded] }),
-        error => error instanceof MaterialFileConflictError,
-    );
-
-    const [reloaded] = await service.loadMaterials({
-        taskHandle: root,
-        kind: "FMM",
-    });
-    const deleted = await service.deleteMaterials({
-        taskHandle: root,
-        records: [reloaded],
-    });
+    const deleted = await service.deleteMaterials({ taskHandle: root, records: [loaded] });
     assert.deepEqual(deleted, [{
         status: "deleted",
         path: "input3XX/xapLibFMM/Сталь.txt",
@@ -782,34 +770,29 @@ for (const rename of [false, true]) {
     });
 }
 
-test("save and delete both guard changed legacy material snapshots", async () => {
+test("save and delete accept externally changed legacy materials", async () => {
     const root = await taskRoot();
     const { service } = serviceFor(new Uint8Array());
     const { file } = await putMaterial(root, "xapLibHTC", "A.txt", '{}\n');
     const [record] = await service.loadMaterials({ taskHandle: root, kind: "HTS" });
     file.bytes = Buffer.from('{"comment":"external"}\n');
-    await assert.rejects(service.saveMaterial({
-        taskHandle: root,
-        material: importedMaterial("A", '{"comment":"edited"}\n', "HTS"),
-        sourceRecord: record,
-    }), MaterialFileConflictError);
-    await assert.rejects(service.deleteMaterials({ taskHandle: root, records: [record] }), MaterialFileConflictError);
-    assert.equal((await taskInputDirectory(root)).directories.has("xapLibHTS"), false);
-    assert.equal(new TextDecoder().decode(file.bytes), '{"comment":"external"}\n');
+    await service.saveMaterial({ taskHandle: root,
+        material: importedMaterial("A", '{"comment":"edited"}\n', "HTS"), sourceRecord: record });
+    const canonical = await taskLibraryDirectory(root, "xapLibHTS");
+    assert.equal(new TextDecoder().decode(canonical.files.get("A.txt").bytes), '{"comment":"edited"}\n');
+    await service.deleteMaterials({ taskHandle: root, records: [record] });
+    assert.equal(canonical.files.has("A.txt"), false);
 });
 
-test("a canonical file appearing after legacy load requires reloading before save", async () => {
+test("explicit save replaces a canonical file that appeared after legacy load", async () => {
     const root = await taskRoot();
     const { service } = serviceFor(new Uint8Array());
     await putMaterial(root, "xapLibHTC", "A.txt", '{}\n');
     const [record] = await service.loadMaterials({ taskHandle: root, kind: "HTS" });
     const { file } = await putMaterial(root, "xapLibHTS", "A.txt", '{"comment":"external"}\n');
-    await assert.rejects(service.saveMaterial({
-        taskHandle: root,
-        material: importedMaterial("A", '{"comment":"edited"}\n', "HTS"),
-        sourceRecord: record,
-    }), MaterialFileConflictError);
-    assert.equal(new TextDecoder().decode(file.bytes), '{"comment":"external"}\n');
+    await service.saveMaterial({ taskHandle: root,
+        material: importedMaterial("A", '{"comment":"edited"}\n', "HTS"), sourceRecord: record });
+    assert.equal(new TextDecoder().decode(file.bytes), '{"comment":"edited"}\n');
 });
 
 test("editing canonical HTS removes its validated legacy duplicate", async () => {
@@ -854,7 +837,7 @@ test("deleting a legacy-only HTS material uses its original path", async () => {
 });
 
 for (const action of ["save", "delete"]) {
-    test(`${action} refuses a changed shadowed legacy duplicate before mutations`, async () => {
+    test(`${action} accepts a shadowed legacy duplicate changed before the operation`, async () => {
         const root = await taskRoot();
         const { service } = serviceFor(new Uint8Array());
         const { file: legacy } = await putMaterial(root, "xapLibHTC", "A.txt", '{"comment":"legacy"}\n');
@@ -868,9 +851,10 @@ for (const action of ["save", "delete"]) {
                 sourceRecord: records[0],
             })
             : service.deleteMaterials({ taskHandle: root, records });
-        await assert.rejects(promise, MaterialFileConflictError);
-        assert.equal(canonical.writeCount, 0);
-        assert.equal(new TextDecoder().decode(legacy.bytes), '{"comment":"external"}\n');
+        await promise;
+        const directory = await taskLibraryDirectory(root, "xapLibHTS");
+        assert.equal(directory.files.has("A.txt"), action === "save");
+        if (action === "save") assert.equal(new TextDecoder().decode(canonical.bytes), '{"comment":"edited"}\n');
     });
 }
 
@@ -1043,15 +1027,15 @@ test("ambiguous normalized filenames within one library are rejected before chan
     assert.ok([...directory.files.values()].every(file => file.writeCount === 0));
 });
 
-test("a differently named legacy shadow disappearing still invalidates its snapshot", async () => {
+test("deleting a material tolerates an already removed legacy shadow", async () => {
     const root = await taskRoot();
     const { service } = serviceFor(new Uint8Array());
     const { directory: legacy } = await putMaterial(root, "xapLibHTC", "a.txt", '{}\n');
     const { directory: canonical } = await putMaterial(root, "xapLibHTS", "A.txt", '{}\n');
     const records = await service.loadMaterials({ taskHandle: root, kind: "HTS" });
     legacy.files.delete("a.txt");
-    await assert.rejects(service.deleteMaterials({ taskHandle: root, records }), MaterialFileConflictError);
-    assert.equal(canonical.files.has("A.txt"), true);
+    await service.deleteMaterials({ taskHandle: root, records });
+    assert.equal(canonical.files.has("A.txt"), false);
 });
 
 test("canonical copy overwrites an existing normalized filename without creating an alias", async () => {

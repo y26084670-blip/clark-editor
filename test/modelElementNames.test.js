@@ -25,7 +25,7 @@ function region(startText, endText) {
 // Only file/catalog access is doubled; no constraint-summary refresh is used.
 const buttonRuntime = new Function("deps", `
     const {createSignal, createEffect, onCleanup, selectionService, modelService,
-        diagnosticService, loadMaterialReferenceCatalog, assertJweakLocalUnchanged,
+        diagnosticService, loadMaterialReferenceCatalog, loadJweakLocal,
         modelValidator, createError, TABS, setTimeout, clearTimeout, console} = deps;
     let modelValidationRevision = 0;
     ${region("  const [validationPending, setValidationPending]", "  const [savePending, setSavePending]")}
@@ -80,7 +80,7 @@ test("Check model button publishes name ERROR and clears it after correction wit
             modelService: {getModel: () => snapshot}, modelValidator, createError,
             TABS,
             loadMaterialReferenceCatalog: async () => ({catalog: {FMM: [], HTS: []}, errors: []}),
-            assertJweakLocalUnchanged: async () => {}, setTimeout: () => 1, clearTimeout: () => {}, console});
+            loadJweakLocal: async () => {}, setTimeout: () => 1, clearTimeout: () => {}, console});
     });
     t.after(() => {diagnosticService.clearDiagnostics(); diagnosticService.clearLoadResult();});
     for (const name of ["", " ", "\t\u00a0"]) {

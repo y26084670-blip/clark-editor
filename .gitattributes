@@ -2,8 +2,6 @@
 * text=auto eol=lf
 
 # Исходные таблицы и эталон цепи OM сохраняются побайтно из архива владельца.
-"public/examples/clark.projects/Open Modelica/test_circuit_with_neutral_1/**" -text
-"public/examples/clark.projects/Open Modelica/test_circuit_without_neutral_1/**" -text
 
 # Командные файлы Windows
 *.cmd text eol=crlf
