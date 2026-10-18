@@ -38,7 +38,7 @@ export function parseOMJson(text, name = "JSON") {
 
 export function validateOMSelection(selection) {
   if (!record(selection) || selection.schema !== "clark-om-client/1") fail("Неподдерживаемый om-client.json.");
-  for (const name of ["model", "version", "dataFile", "couplingFile"]) {
+  for (const name of ["model", "dataFile", "couplingFile"]) {
     if (!token(selection[name])) fail(`om-client.json: недопустимое значение «${name}».`);
   }
   const names = [OM_SELECTION_FILE, selection.dataFile, selection.couplingFile].map(name => name.toLowerCase());
@@ -129,7 +129,7 @@ export function expandOMContract(contract, data) {
 export function validateOMInputs(selection, data, coupling, preset, amplitudes) {
   validateOMSelection(selection);
   if (data?.schema === "clark-circuit/1") fail("Формат clark-circuit/1 больше не поддерживается. Выберите новый пресет с импульсами и заполните данные модели в формате clark-circuit/2.");
-  if (!preset || preset.selection.model !== selection.model || preset.selection.version !== selection.version) fail("Загрузите пресет выбранной OM-модели и версии.");
+  if (!preset || preset.selection.model !== selection.model) fail("Загрузите пресет выбранной OM-модели.");
   if (!record(data) || data.schema !== preset.contract.dataSchema) fail(`${selection.dataFile}: требуется схема ${preset.contract.dataSchema}.`);
   const contract = expandOMContract(preset.contract, data);
   for (const [key, expected] of Object.entries(contract.structural)) {
@@ -143,7 +143,8 @@ export function validateOMInputs(selection, data, coupling, preset, amplitudes) 
     if (data[name] === 0) fail(`${name}: допуск должен быть больше нуля.`);
   }
   for (const binding of contract.parameterBindings) {
-    const value = valueAt(data, binding.path), label = binding.path.join("/");
+    const value = own(binding, "default") && binding.path.length === 1 && !own(data, binding.path[0])
+      ? binding.default : valueAt(data, binding.path), label = binding.path.join("/");
     if (binding.type === "real" || binding.type === "integer") {
       number(value, label);
       if (binding.type === "integer" && (!Number.isInteger(value) || Math.abs(value) > 2147483647)) fail(`${label}: требуется целое число в диапазоне Int32.`);
