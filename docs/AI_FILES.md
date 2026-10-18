@@ -1,6 +1,6 @@
 # Карта файлов и компонентов web-gui
 
-Обновлено: 2026-10-18 15:57 UTC+3.
+Обновлено: 2026-10-19 01:25 UTC+3.
 
 ## Назначение
 
@@ -147,10 +147,12 @@
 
 | Область | Владелец |
 |---|---|
+| Замена таблиц из буфера | `src/services/timeTableClipboard.js`; действия `views.clipboardTables` в `amps.schema.js`/`moves.schema.js`; координация `DataEditor.jsx`, `App.jsx`, `SidePanel.jsx` |
+| Проверка вставки TSV | `test/timeTableClipboard.test.js`, `scripts/check-time-table-clipboard-browser.mjs`; реальное приложение через `test/browser/editorFeatures.fixture.jsx` |
 | Формулы времени | `src/services/generator/timeFunctionExpression.js` |
 | Временная сетка и применение | `src/services/generator/timeFunctionModel.js` |
 | Файловая история формул | `src/services/generator/timeFunctionHistoryService.js` |
-| Окно генератора | `src/components/generator/TimeFunctionGenerator.jsx` |
+| Окно генератора | `src/components/generator/TimeFunctionGenerator.jsx` и `.css`, контейнер `src/components/editors/DataEditor.css` |
 | Модель графика RECORDS | `src/services/graphs/recordGraphModel.js` |
 | Копирование графиков | `src/services/graphs/graphClipboard.js` |
 | Контекстное меню/область | `src/components/graphs/GraphContextMenu.jsx`, `RecordGraphRegion.jsx` |

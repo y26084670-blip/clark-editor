@@ -1,6 +1,53 @@
 # Проверка web-gui
 
-Обновлено: 2026-10-18 16:08 UTC+3.
+Обновлено: 2026-10-19 01:27 UTC+3.
+
+<a id="verification-time-table-clipboard"></a>
+## Буфер таблиц и оформление генераторов — 4.60.0
+
+Проверено 2026-10-19, Linux, Node.js 24.19.0, Chromium headless.
+База `main`: `f98052577898fd8222dfa6ec6e8113c845b0693a` (4.59.2).
+[Контракт](AI_UI_CONTRACTS.md#time-table-clipboard).
+
+```sh
+npm run assets:prepare
+node --test test/timeTableClipboard.test.js test/timeFunctionGeneratorContract.test.js test/timeFunctionModel.test.js test/recordGraphModel.test.js test/recordGraphSchema.test.js test/modelSerializer.test.js test/arrayShape.test.js test/userGuideAssets.test.js
+PLAYWRIGHT_MODULE=/absolute/path/to/playwright/index.mjs CHROMIUM_EXECUTABLE=/absolute/path/to/chromium CHECK_OUTPUT=/tmp/editor-clipboard-browser node scripts/check-time-table-clipboard-browser.mjs
+npm run build:pages
+```
+
+`PLAYWRIGHT_MODULE` и `CHROMIUM_EXECUTABLE` задаются для уже установленного
+Playwright/Chromium. При обычной установке в проекте их можно не задавать.
+Сценарий сам запускает Vite с отдельным кэшем зависимостей и реальное приложение
+через `test/browser/editorFeatures.fixture.jsx`.
+
+Фактический результат:
+
+- **44/44 профильных проверок PASS**, включая 6 новых проверок TSV, прежние
+  контракты генератора, графиков, формы массивов, сериализации и HTML-справки.
+- **10/10 браузерных сценариев PASS**: одна основная строка; реальные чтение и
+  запись системного буфера; замена только адресата; точность чисел и десятичная
+  запятая; обновление `n`, dirty и данных Chart.js; одна операция Undo/Redo;
+  ошибочные/пустые данные без частичной записи; модальная ошибка доступа;
+  смена выделения во время чтения; независимые углы/положения; открытая вложенная
+  таблица; общий Ctrl+S и реальные файлы OPFS в прежнем column-major формате.
+- Вручную просмотрены снимки обеих вкладок и меню. Фон генератора, подписи,
+  числовые поля и preview соответствуют новой палитре; меню полностью видно.
+  `browser.json`, `trajectory-menu.png`, `trajectory-generator.png` и
+  `amplitude-generator.png` сохраняются в `CHECK_OUTPUT`.
+- `npm run build:pages` — **PASS**, 185 библиотечных и 9 файлов руководства
+  проверены по SHA-256. Существующее предупреждение о крупных JS-частях
+  не препятствует сборке.
+
+Полный `npm test`: **942/964 PASS, 22 FAIL**. На неизменённом `main` в той же
+среде: **936/958 PASS, те же 22 FAIL**; наборы имён неуспешных проверок совпадают.
+Это прежние проверки layout/diagnostic/geometry, снимка библиотеки и HTS-импорта;
+новых неуспешных проверок нет. Полный набор не объявляется успешным.
+
+Обычный clipboard и файловая запись проверены средствами Chromium; отказ
+разрешения и задержка чтения намеренно подменены только для негативных сценариев.
+Проводник ОС заменён выбором подготовленного каталога OPFS.
+Проверка с настольным Excel/Windows и запуск решателя в этот объём не входили.
 
 <a id="verification-record-row-tooltips"></a>
 ## Подсказки номеров записей и штатное меню браузера — 4.57.2

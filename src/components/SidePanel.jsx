@@ -87,6 +87,15 @@ export function SidePanel(props) {
           </div>
         </section>}
 
+        {props.clipboardTableActions?.length > 0 && <section class="side-panel-section">
+          <div class="side-panel-section-title">Таблицы из буфера обмена</div>
+          <div class="side-panel-options">
+            {props.clipboardTableActions.map(action => <button class="side-panel-option"
+              disabled={!props.open || !props.clipboardTableEnabled} title={action.title}
+              onClick={() => props.onReplaceTableFromClipboard?.(action.property)}>{action.label}</button>)}
+          </div>
+        </section>}
+
         <section class="side-panel-section">
           <div
             class="side-panel-section-title"
