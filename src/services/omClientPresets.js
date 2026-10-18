@@ -4,7 +4,7 @@ import { parseOMJson, validateOMPreset } from "./omClientService.js";
 // A developer's editor-preset.json can also be loaded directly in the window.
 const files = import.meta.glob("../data/om-presets/*.json", { eager: true, import: "default" });
 export const omClientPresets = Object.values(files).map(validateOMPreset);
-export const omPresetKey = preset => `${preset.selection.model}/${preset.selection.version}/${preset.label}`;
+export const omPresetKey = preset => `${preset.selection.model}/${preset.label}`;
 const STORAGE_KEY = "web-gui:om-client-presets";
 
 export function readOMPresets() {
@@ -13,8 +13,15 @@ export function readOMPresets() {
     const imported = text ? parseOMJson(text, "Сохранённые пресеты") : [];
     if (!Array.isArray(imported)) throw new Error("Некорректный список пресетов.");
     imported.forEach(validateOMPreset);
-    const keys = new Set(imported.map(omPresetKey));
-    return { presets: [...imported, ...omClientPresets.filter(p => !keys.has(omPresetKey(p)))], notice: "" };
+    // Old browser entries may differ only by their informational build version.
+    const keys = new Set();
+    const unique = imported.filter(preset => {
+      const key = omPresetKey(preset);
+      if (keys.has(key)) return false;
+      keys.add(key);
+      return true;
+    });
+    return { presets: [...unique, ...omClientPresets.filter(p => !keys.has(omPresetKey(p)))], notice: "" };
   } catch {
     return { presets: omClientPresets, notice: "Не удалось прочитать сохранённые пресеты браузера. При необходимости загрузите editor-preset.json повторно." };
   }

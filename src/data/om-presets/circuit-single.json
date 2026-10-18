@@ -26,7 +26,8 @@
         "pulse": 1,
         "amplitude": 0
       }
-    ]
+    ],
+    "currentIncrement": 10
   },
   "coupling": {
     "schema": "clark-server/1",
@@ -126,6 +127,15 @@
         ],
         "type": "real",
         "minimum": 0
+      },
+      {
+        "parameter": "currentIncrement",
+        "path": [
+          "currentIncrement"
+        ],
+        "type": "real",
+        "minimum": 1e-15,
+        "default": 10
       }
     ],
     "tables": [

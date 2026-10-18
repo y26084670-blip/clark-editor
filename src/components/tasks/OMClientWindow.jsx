@@ -64,8 +64,7 @@ export function OMClientWindow(props) {
       const result = await readOMTask(request.handle);
       if (disposed || revision !== loadRevision) return;
       const value = { selection: result.selection, dataText: result.dataText, couplingText: result.couplingText };
-      const preset = presets().find(p => p.selection.model === result.selection?.model
-        && p.selection.version === result.selection?.version);
+      const preset = presets().find(p => p.selection.model === result.selection?.model);
       batch(() => {
         setTarget(request); setDraft(value); setBaseline(result.baseline); setClean(fingerprint(value));
         setActivePreset(preset ?? null);
@@ -115,7 +114,7 @@ export function OMClientWindow(props) {
       const storageNotice = rememberOMPreset(preset, presets());
       setPresets(previous => [preset, ...previous.filter(p => omPresetKey(p) !== omPresetKey(preset))]);
       setPresetKey(omPresetKey(preset));
-      if (draft()?.selection?.model === preset.selection.model && draft()?.selection?.version === preset.selection.version) {
+      if (draft()?.selection?.model === preset.selection.model) {
         setActivePreset(preset);
         setNotice("Описание текущей модели загружено. Данные задания сохранены в окне без замены. " + storageNotice);
       } else setNotice("Пресет добавлен в список. Нажмите «Применить», чтобы использовать его данные. " + storageNotice);

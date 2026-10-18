@@ -100,7 +100,7 @@ test("old circuit schema and inline table presets are rejected without conversio
     const q = fresh(); q.contract.tables = [{ name: "emf1", path: ["emf", 0, "points"] }];
     assert.throws(() => validateOMPreset(q), /source: task-pulse/);
     const r = fresh(); r.selection.version = "1.0.0";
-    assert.throws(() => validateOMInputs(r.selection, r.data, r.coupling, presets["circuit-single"], amplitudes), /модели и версии/);
+    validateOMInputs(r.selection, r.data, r.coupling, presets["circuit-single"], amplitudes);
 });
 
 test("saved pulse bank uses JSON Lines and column-major [all times, all values]", async () => {
@@ -180,7 +180,7 @@ for (const [phases, parallel, floating] of [[1,1,false],[3,2,false],[1,2,true],[
     assert.equal(contract.inputs[0].variables.length, n);
     assert.equal(contract.inputs[0].variables.at(-1), `fieldPort.current[${n}]`);
     assert.equal(contract.tables.length, phases);
-    assert.equal(contract.parameterBindings.length, 2 + 2 * n);
+    assert.equal(contract.parameterBindings.length, 3 + 2 * n);
     assert.equal(p.contract.inputs[0].variables.length, 1);
   });
 }
@@ -199,4 +199,23 @@ test("capacity overflow, ambiguous neutral, unused entries and isolated single b
   assert.throws(() => validate(p), /branches: требуется 1/);
   p.schema = "clark-om-preset/1";
   assert.throws(() => validateOMPreset(p), /clark-om-preset\/2/);
+});
+
+test("model version is optional information and does not select a preset", () => {
+    const p = fresh();
+    for (const version of [undefined, "old-build", "2.0.0", "../informational text"]) {
+        const selection = { ...p.selection, version };
+        if (version === undefined) delete selection.version;
+        validateOMInputs(selection, p.data, p.coupling, p, amplitudes);
+    }
+    assert.throws(() => validateOMInputs({ ...p.selection, model: "different" }, p.data, p.coupling, p, amplitudes), /пресет/);
+});
+
+test("Newton increment defaults for existing tasks and rejects invalid values", () => {
+    const p = fresh(); delete p.data.currentIncrement;
+    validate(p);
+    for (const value of [0, -1, NaN, "10"]) {
+        p.data.currentIncrement = value;
+        assert.throws(() => validate(p));
+    }
 });
