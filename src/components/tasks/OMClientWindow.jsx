@@ -26,6 +26,19 @@ export function OMClientWindow(props) {
   let disposed = false;
   let loadRevision = 0;
   const dirty = createMemo(() => Boolean(draft() && fingerprint(draft()) !== clean()));
+  const currentModelSummary = createMemo(() => {
+    const value = draft();
+    if (!value?.selection) return busy() ? "чтение…" : error() ? "не удалось прочитать" : "не задана";
+    const name = value.selection.model;
+    try {
+      const data = parseOMJson(value.dataText, value.selection.dataFile);
+      if (data?.schema !== "clark-circuit/2") return name;
+      const count = value => Number.isInteger(value) && value > 0 ? value : "не задано";
+      const neutral = data.floatingNeutral === true ? "без нулевого провода"
+        : data.floatingNeutral === false ? "с нулевым проводом" : "нейтраль не задана";
+      return `${name} · фаз: ${count(data.phases)} · ветвей на фазу: ${count(data.parallel)} · ${neutral}`;
+    } catch { return `${name} · данные JSON требуют исправления`; }
+  });
   const locked = () => busy() || props.locked;
   const selectedPreset = () => presets().find(preset => omPresetKey(preset) === presetKey());
   const validation = createMemo(() => {
@@ -171,6 +184,11 @@ export function OMClientWindow(props) {
           event.preventDefault(); event.stopPropagation(); void save();
         }
       }}>
+        <p class="om-client-current-model" role="status"
+          title="Модель и параметры из данных задания в этом окне. Изменения вступят в силу после сохранения.">
+          <strong>Текущая модель задания:</strong> {currentModelSummary()}
+          <Show when={dirty()}><span class="om-client-unsaved"> · не сохранено</span></Show>
+        </p>
         <Show when={pending()}>{request => (
           <div class="om-client-confirm" role="alert">
             <span>{request().message}</span>
@@ -183,14 +201,14 @@ export function OMClientWindow(props) {
         <fieldset disabled={locked() || Boolean(pending())}>
           <div class="om-client-presets">
             <div class="om-client-presets-heading">
-              <label for={`${id}-preset`}>Пресет (шаблон) модели</label>
+              <label for={`${id}-preset`}>Шаблон для применения</label>
               <a class="om-client-guide-link" href={`${import.meta.env.BASE_URL}user-guide/index.html#om-client`}
                 target="_blank" rel="noopener noreferrer"
                 aria-label="Справка по клиентской модели OpenModelica"
                 title="Открыть справку по клиентской модели OpenModelica в новой вкладке">?</a>
             </div>
             <select id={`${id}-preset`} value={presetKey()}
-              title="Пакет выбранной модели должен быть установлен в Clark."
+              title="Выбор в списке не меняет модель задания. Нажмите «Применить», чтобы заменить данные в окне выбранным шаблоном."
               onChange={event => setPresetKey(event.currentTarget.value)}>
               <For each={presets()}>{preset => <option value={omPresetKey(preset)}>{preset.label.replace(/\s+[—–-]\s*шаблон\s*$/iu, "")}</option>}</For>
             </select>
