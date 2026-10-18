@@ -49,6 +49,8 @@ export function TaskLaunchWindow(props) {
   const [loadedPath, setLoadedPath] = createSignal(null);
   const [resolvingLoaded, setResolvingLoaded] = createSignal(false);
   const [loadedPathError, setLoadedPathError] = createSignal(false);
+  const [modelicaError, setModelicaError] = createSignal("");
+  let modelicaDialog, modelicaButton;
   let listElement;
   let anchorIndex = 0;
   let rootRevision = 0;
@@ -67,12 +69,14 @@ export function TaskLaunchWindow(props) {
   const includedDirty = createMemo(() => unsavedChangesService.hasDirty() && loadedIncluded());
   const awaitingAcceptance = () => pending()?.state === "waiting";
   const locked = () => busy() || awaitingAcceptance() || props.bindingBusy;
-  const canLaunch = () => !locked() && !resolvingLoaded() && !loadedPathError() && !includedDirty()
+  const launchReady = () => !locked() && !resolvingLoaded() && !loadedPathError() && !includedDirty()
     && !props.blockedMessage
-    && listExists() && listValid() && enabledEntries().length > 0
+    && listExists() && listValid()
     && binding()?.bindingState === "bound" && Boolean(proof());
+  const canLaunch = () => launchReady() && enabledEntries().length > 0;
 
   createEffect(() => props.onBusyChange?.(busy() || awaitingAcceptance()));
+  createEffect(() => { if (!props.open) modelicaDialog?.close(); });
 
   async function armLaunch(root, revision, marker = binding()) {
     setProof(null);
@@ -105,6 +109,7 @@ export function TaskLaunchWindow(props) {
   createEffect(() => {
     const root = props.rootHandle;
     const revision = ++rootRevision;
+    modelicaDialog?.close();
     untrack(() => {
       batch(() => {
         setEntries([]);
@@ -255,7 +260,12 @@ export function TaskLaunchWindow(props) {
   }
 
   function launch(action) {
-    if (!canLaunch() || (["circuit", "modelica"].includes(action) && enabledEntries().length !== 1)) return;
+    if (action === "modelica" && launchReady() && enabledEntries().length !== 1) {
+      setModelicaError(`Для запуска ОМ-клиента подключите ровно одно задание. Сейчас подключено: ${enabledEntries().length}.`);
+      if (!modelicaDialog.open) modelicaDialog.showModal();
+      return;
+    }
+    if (!canLaunch() || (action === "circuit" && enabledEntries().length !== 1)) return;
     const prepared = proof();
     const snapshot = entries().map(entry => ({ ...entry }));
     try {
@@ -584,13 +594,19 @@ export function TaskLaunchWindow(props) {
           <button type="button" disabled={!canLaunch() || Boolean(mpiError())}
             title="Запустить расчёт всех подключённых заданий независимо от выделения строк."
             onClick={() => launch("solver")}>Запустить расчёт</button>
-          <button type="button" disabled={!canLaunch() || Boolean(mpiError()) || enabledEntries().length !== 1}
+          <button ref={modelicaButton} type="button" disabled={!launchReady() || Boolean(mpiError())}
             title="Запустить установленную OM-модель для одного задания REAL64. Модель выбирается в input3XX/om-client.json."
             onClick={() => launch("modelica")}>Запустить OM-клиент</button>
           <button type="button" disabled={!canLaunch()}
             title="Открыть подтверждение импорта для всех подключённых заданий. Импорт заменит их исходные данные."
             onClick={() => setConfirmImport(true)}>Запустить импорт данных</button>
         </div>
+        <dialog ref={modelicaDialog} class="task-launch-modal" aria-labelledby={`${listId}-om-error`}
+          onClose={() => modelicaButton?.focus()}>
+          <h2 id={`${listId}-om-error`}>Запуск ОМ-клиента</h2>
+          <p role="alert">{modelicaError()}</p>
+          <form method="dialog"><button type="submit" autofocus>Закрыть</button></form>
+        </dialog>
       </div>
     </FloatingWindow>
   );

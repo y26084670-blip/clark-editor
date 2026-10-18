@@ -474,25 +474,10 @@ test("failed input write cannot replace the old summary", async t => {
 });
 
 
-test("companion preflight failure keeps marker and prevents every task write", async t => {
-  const h = createHarness(t, { companion: async () => { throw new Error("jweak_local.json changed"); } });
+test("external companion changes no longer block an explicit save", async t => {
+  const h = createHarness(t, { companion: async () => { throw new Error("obsolete byte comparison called"); } });
   await h.handleSave();
-  assert.equal(h.calls("mark").length, 1);
-  assert.equal(h.calls("write").length, 0);
-  assert.equal(h.calls("clear").length, 0);
-  assertFeedback(h, "error");
-});
-
-test("companion changed during saving cannot remove approval marker", async t => {
-  let checks = 0;
-  const h = createHarness(t, { companion: async () => {
-    if (++checks > 1) throw new Error("jweak_local.json changed");
-  } });
-  await h.handleSave();
-  assert.equal(checks, 2);
-  assertFeedback(h, "error");
-  assert.equal(h.calls("diagnostics").at(-1).diagnostics[0].level, "error");
   assert.equal(h.calls("write").length, 3);
-  assert.equal(h.calls("validate").length, 1);
-  assert.equal(h.calls("clear").length, 0);
+  assert.equal(h.calls("clear").length, 1);
+  assertFeedback(h, "success");
 });

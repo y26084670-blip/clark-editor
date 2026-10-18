@@ -419,32 +419,6 @@ export function createTaskMaterialLibraryService({
         return { exists: false, fileHandle: null };
     }
 
-    function checkSnapshot(kind, record, copies) {
-        const expected = new Map();
-        for (const item of [record, ...(record.shadowedRecords ?? [])]) {
-            if (materialFileKey(item.fileName) !== materialFileKey(record.fileName)
-                || typeof item.sha256 !== "string"
-                || !SHA256_PATTERN.test(item.sha256)) {
-                throw new Error("Исходная характеристика не содержит корректный SHA-256.");
-            }
-            expected.set(sourcePathFor(kind, item), item.sha256);
-        }
-        for (const copy of copies) {
-            const expectedSha256 = expected.get(copy.path) ?? null;
-            expected.delete(copy.path);
-            if (copy.sha256 !== expectedSha256) {
-                throw new MaterialFileConflictError({
-                    path: copy.path,
-                    existingSha256: copy.sha256,
-                    expectedSha256,
-                });
-            }
-        }
-        for (const [path, expectedSha256] of expected) {
-            throw new MaterialFileConflictError({ path, existingSha256: null, expectedSha256 });
-        }
-    }
-
     async function removeVerifiedCopy(copy) {
         const existing = await findFileHandle(copy.directoryHandle, copy.fileName);
         const actualSha256 = existing.exists
@@ -850,7 +824,6 @@ export function createTaskMaterialLibraryService({
     async function saveMaterial({
         taskHandle,
         material,
-        expectedSha256,
         sourceRecord,
     } = {}) {
         requireTaskHandle(taskHandle);
@@ -868,33 +841,10 @@ export function createTaskMaterialLibraryService({
         assertSafeFileName(sourceFileName);
         const sourcePath = sourcePathFor(kind, sourceRecord ?? { fileName: sourceFileName });
         const copies = await materialCopies(inputDirectory, kind, sourceFileName);
-        const source = sourceRecord
-            ? copies.find(copy => copy.path === sourcePath) : copies[0];
-        if (sourceRecord) {
-            // Снимок включает скрытую старую копию: её изменение также
-            // запрещает сохранение и удаление без повторной загрузки.
-            checkSnapshot(kind, sourceRecord, copies);
-        } else if (expectedSha256 !== undefined) {
-            if (typeof expectedSha256 !== "string" || !SHA256_PATTERN.test(expectedSha256)) {
-                throw new Error("Исходная характеристика не содержит корректный SHA-256.");
-            }
-            if (source.sha256 !== expectedSha256) {
-                throw new MaterialFileConflictError({
-                    path: source.path,
-                    existingSha256: source.sha256,
-                    expectedSha256,
-                });
-            }
-            if (copies.some(copy => copy.exists && copy.path !== source.path)) {
-                throw new Error("Для сохранения старой копии повторите загрузку библиотеки.");
-            }
-        } else if (copies.some(copy => copy.exists && copy.path !== source.path)) {
-            throw new MaterialFileConflictError({
-                path: copies.find(copy => copy.exists && copy.path !== source.path).path,
-                existingSha256: copies.find(copy => copy.exists && copy.path !== source.path).sha256,
-                expectedSha256: null,
-            });
-        }
+        // Explicit Save replaces the current file, including edits made in a
+        // text editor since loading. Only changes during this operation are
+        // guarded while removing legacy copies or rolling back a failed write.
+        const source = copies.find(copy => copy.path === sourcePath) ?? copies[0];
 
         const renamed = sourceFileName !== prepared.fileName;
         if (renamed && materialFileKey(sourceFileName) === materialFileKey(prepared.fileName)) {
@@ -976,8 +926,8 @@ export function createTaskMaterialLibraryService({
                 throw new Error("Один пакет удаления не может содержать характеристики разных видов.");
             }
             assertSafeFileName(record.fileName);
+            sourcePathFor(kind, record);
             const copies = await materialCopies(inputDirectory, kind, record.fileName);
-            checkSnapshot(kind, record, copies);
             prepared.push({ record, copies });
         }
         for (const { copies } of prepared) {

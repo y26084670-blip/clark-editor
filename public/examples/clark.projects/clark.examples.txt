@@ -7,6 +7,8 @@
 *  D:\clark.projects\2026 User Manual examples 204\Example #3
 *  D:\clark.projects\2026 Тест цепи 204\stat_TVV320-2D_Iv=1.0n_Ia=1.0n
 *  D:\clark.projects\2026 Тест цепи 204\stat_TVV320-2D_Iv=1.0n_Ia=1.0n MINI
+*  D:\clark.projects\Open Modelica\test_circuit_with_neutral_1
+*  D:\clark.projects\Open Modelica\test_circuit_without_neutral_1
 *  D:\clark.projects\2026 Тесты 204\Coil+HTS disk M
 *  D:\clark.projects\2026 Тесты 204\COMSOL 3D тест силы, mu const
 *  D:\clark.projects\2026 Тесты 204\ДИАСКАН Движение пп МС внутренний 10х10х2

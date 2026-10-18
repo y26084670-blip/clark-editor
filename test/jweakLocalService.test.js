@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { loadJweakLocal, assertJweakLocalUnchanged, createJweakLocalLoader } from "../src/services/jweakLocalService.js";
+import { loadJweakLocal, createJweakLocalLoader } from "../src/services/jweakLocalService.js";
 const spec = { version: 1, coarse_divisions: [[1, 1, 4]] };
 const bytes = value => new TextEncoder().encode(JSON.stringify(value));
 const namedError = name => Object.assign(new Error(name), { name });
@@ -24,24 +24,21 @@ function directory(initial = bytes(spec)) {
     return { handle, calls, set: next => { value = next; } };
 }
 
-test("companion load/check reads only, retains exact bytes and never creates files", async () => {
+test("companion load reads only, retains exact bytes and never creates files", async () => {
     const fs = directory();
     const section = await loadJweakLocal(fs.handle);
     assert.equal(section.status, "ready");
     assert.deepEqual(section.data, spec);
     assert.deepEqual(section.bytes, bytes(spec));
-    await assertJweakLocalUnchanged(fs.handle, section);
     assert.ok(fs.calls.filter(c => c[0] !== "read").every(c => c[2] === undefined));
-    assert.deepEqual(fs.calls.filter(c => c[0] === "file").map(c => c[1]), ["jweak_local.json", "jweak_local.json"]);
+    assert.deepEqual(fs.calls.filter(c => c[0] === "file").map(c => c[1]), ["jweak_local.json"]);
 });
 test("only a missing companion, not a missing input directory, means ordinary mode", async () => {
     const fs = directory(null);
     const absent = await loadJweakLocal(fs.handle);
     assert.deepEqual(absent, { status: "absent" });
-    await assertJweakLocalUnchanged(fs.handle, absent);
     fs.handle.directoryError = namedError("NotFoundError");
     assert.equal((await loadJweakLocal(fs.handle)).status, "error");
-    await assert.rejects(assertJweakLocalUnchanged(fs.handle, absent));
 });
 test("permission errors, malformed JSON, unsupported version and invalid UTF-8 do not fall back", async () => {
     const fs = directory();
@@ -52,27 +49,18 @@ test("permission errors, malformed JSON, unsupported version and invalid UTF-8 d
         fs.set(value);
         const result = await loadJweakLocal(fs.handle);
         assert.equal(result.status, "error");
-        await assert.rejects(assertJweakLocalUnchanged(fs.handle, result));
     }
 });
-test("external addition/deletion/byte changes invalidate the snapshot even with equal timestamps", async () => {
-    const fs = directory(null), absent = await loadJweakLocal(fs.handle);
-    fs.set(bytes(spec));
-    await assert.rejects(assertJweakLocalUnchanged(fs.handle, absent), /Перезагрузите/u);
-    const ready = await loadJweakLocal(fs.handle);
-    fs.set(null);
-    await assert.rejects(assertJweakLocalUnchanged(fs.handle, ready), /Перезагрузите/u);
-    fs.set(new TextEncoder().encode(JSON.stringify(spec) + "\n"));
-    await assert.rejects(assertJweakLocalUnchanged(fs.handle, ready), /Перезагрузите/u);
-    fs.set(bytes(spec));
-    await assertJweakLocalUnchanged(fs.handle, ready);
-});
-test("a pending or missing attachment cannot approve an actual task", async () => {
+test("external addition, editing and removal are read as current input without a conflict", async () => {
     const fs = directory(null);
-    for (const section of [undefined, null, { status: "loading" }]) {
-        await assert.rejects(assertJweakLocalUnchanged(fs.handle, section), /не завершена/u);
-    }
-    assert.equal(fs.calls.length, 0);
+    assert.equal((await loadJweakLocal(fs.handle)).status, "absent");
+    fs.set(bytes(spec));
+    assert.deepEqual((await loadJweakLocal(fs.handle)).data, spec);
+    const edited = { ...spec, coarse_divisions: [[1, 1, 8]] };
+    fs.set(bytes(edited));
+    assert.deepEqual((await loadJweakLocal(fs.handle)).data, edited);
+    fs.set(null);
+    assert.equal((await loadJweakLocal(fs.handle)).status, "absent");
 });
 function deferred() { let resolve; const promise = new Promise(r => { resolve = r; }); return { resolve, promise }; }
 test("task replacement, reload and disposal discard late companion reads", async () => {
