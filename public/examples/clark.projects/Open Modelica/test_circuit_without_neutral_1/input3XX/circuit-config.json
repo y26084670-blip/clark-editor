@@ -1,0 +1,36 @@
+{
+  "schema": "clark-circuit/2",
+  "phases": 3,
+  "parallel": 1,
+  "floatingNeutral": true,
+  "acceptanceTolerance": 1.0,
+  "integrationTolerance": 1e-10,
+  "branches": [
+    {
+      "L_H": 100.0,
+      "R_Ohm": 1.0
+    },
+    {
+      "L_H": 100.0,
+      "R_Ohm": 1.0
+    },
+    {
+      "L_H": 100.0,
+      "R_Ohm": 1.0
+    }
+  ],
+  "emf": [
+    {
+      "pulse": 8,
+      "amplitude": 100.0
+    },
+    {
+      "pulse": 9,
+      "amplitude": 100.0
+    },
+    {
+      "pulse": 10,
+      "amplitude": 100.0
+    }
+  ]
+}

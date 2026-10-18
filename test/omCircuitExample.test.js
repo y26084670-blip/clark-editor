@@ -5,14 +5,19 @@ import path from "node:path";
 import test, { after } from "node:test";
 import { fileURLToPath } from "node:url";
 import { createServer } from "vite";
+import { expandOMContract, validateOMInputs } from "../src/services/omClientService.js";
 
 const root = fileURLToPath(new URL(
-    "../public/examples/clark.projects/2026 Тест цепи 204/stat_TVV320-2D_Iv=1.0n_Ia=1.0n MINI OM/",
+    "../public/examples/clark.projects/Open Modelica/test_circuit_with_neutral_1/",
     import.meta.url,
 ));
+const examples = [
+    { root, floatingNeutral: false, variant: "grounded" },
+    { root: path.join(root, "../test_circuit_without_neutral_1"), floatingNeutral: true, variant: "floating" },
+];
 const referenceRoot = path.join(root, "comparison/reference");
-const read = relativePath => readFile(path.join(root, relativePath));
-const json = async relativePath => JSON.parse(await read(relativePath));
+const read = (relativePath, taskRoot = root) => readFile(path.join(taskRoot, relativePath));
+const json = async (relativePath, taskRoot = root) => JSON.parse(await read(relativePath, taskRoot));
 const sha256 = bytes => createHash("sha256").update(bytes).digest("hex");
 const reference = await json("comparison/reference/reference.json");
 
@@ -26,6 +31,12 @@ test("OM example retains reference inputs and zeroes only controlled pulse value
         assert.equal(bytes.length, input.bytes, input.path);
         assert.equal(sha256(bytes), input.sha256, input.path);
     }
+    for (const input of reference.sourceInputs) {
+        assert.deepEqual(await read(input.path, examples[1].root), await read(input.path), input.path);
+    }
+    const listedTasks = await readFile(path.join(root, "../../clark.examples.txt"), "utf8");
+    for (const example of examples) assert.ok(listedTasks.includes(`\\Open Modelica\\${path.basename(example.root)}`));
+    await assert.rejects(stat(path.join(examples[1].root, "comparison")), { code: "ENOENT" });
     const originalPulses = await read("comparison/reference/amplitudes.txt");
     const workingPulses = await read("input3XX/amplitudes.txt");
     const originalLines = originalPulses.toString("utf8").trimEnd().split(/\r?\n/u);
@@ -158,14 +169,14 @@ const server = await createServer({ configFile: false, appType: "custom",
     server: { middlewareMode: true, hmr: false }, optimizeDeps: { noDiscovery: true, include: [] } });
 after(() => server.close());
 
-test("complete OM example loads in the editor without model, material or constraint errors", async () => {
+for (const example of examples) test(`${path.basename(example.root)} loads and selects the correct OM variant`, async () => {
     const [{ dataService }, { tabRegistry }, { modelValidator },
         { loadMaterialReferenceCatalog }, { collectModelConstraintDiagnostics }] = await Promise.all([
         "/src/services/dataService.js", "/src/services/tabRegistry.js",
         "/src/tabulator/validators/types/modelValidator.js",
         "/src/services/materialReferenceValidation.js", "/src/services/modelConstraintDiagnostics.js",
     ].map(name => server.ssrLoadModule(name)));
-    const task = new ReadOnlyHandle(root);
+    const task = new ReadOnlyHandle(example.root);
     const model = {};
     const loadDiagnostics = [];
     for (const schema of tabRegistry) {
@@ -180,4 +191,13 @@ test("complete OM example loads in the editor without model, material or constra
         .filter(item => item.level === "error"), []);
     assert.equal(model.amps.length, 10);
     assert.equal(model.elements.length, 24);
+    const selection = await json("input3XX/om-client.json", example.root);
+    const circuit = await json(`input3XX/${selection.dataFile}`, example.root);
+    const coupling = await json(`input3XX/${selection.couplingFile}`, example.root);
+    const preset = JSON.parse(await readFile(new URL("../src/data/om-presets/circuit-test-204.json", import.meta.url)));
+    assert.equal(circuit.floatingNeutral, example.floatingNeutral);
+    validateOMInputs(selection, circuit, coupling, preset, model.amps);
+    const contract = expandOMContract(preset.contract, circuit);
+    assert.equal(contract.selectedVariant, example.variant);
+    assert.deepEqual(contract.arraySizes, { branches: 3, emf: 3 });
 });

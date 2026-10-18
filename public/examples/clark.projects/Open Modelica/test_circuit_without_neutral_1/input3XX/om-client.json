@@ -1,0 +1,7 @@
+{
+  "schema": "clark-om-client/1",
+  "model": "circuit",
+  "version": "2.0.0",
+  "dataFile": "circuit-config.json",
+  "couplingFile": "server-config.json"
+}
