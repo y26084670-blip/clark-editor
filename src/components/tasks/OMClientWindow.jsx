@@ -52,7 +52,7 @@ export function OMClientWindow(props) {
       validateOMInputs(value.selection, parseOMJson(value.dataText, value.selection.dataFile),
         parseOMJson(value.couplingText, value.selection.couplingFile), activePreset(), props.amplitudes ?? [], props.taskModel);
       if (usesTaskPulses(activePreset()) && props.amplitudesDirty) {
-        return "Сначала сохраните изменения вкладки «Амплитуды», затем сохраните данные клиентской модели.";
+        return "Сначала сохраните изменения вкладки «Импульсы», затем сохраните данные клиентской модели.";
       }
       if (props.dirtyParts?.some(part => omBindingParts(activePreset().contract).includes(part))) {
         return "Сначала сохраните изменения исходных данных Clark, от которых зависят привязки модели.";
@@ -310,7 +310,7 @@ export function OMClientWindow(props) {
                         : `максимум ${rule.maximum}` }.</p>}</For>
                       <p>L_H — внешняя индуктивность, Гн.</p>
                       <p>R_Ohm — внешнее сопротивление, Ом.</p>
-                      <p>emf — ЭДС по фазам: pulse — номер импульса во вкладке «Амплитуды», начиная с 1; amplitude — амплитуда ЭДС, В.</p>
+                      <p>emf — ЭДС по фазам: pulse — номер импульса во вкладке «Импульсы», начиная с 1; amplitude — амплитуда ЭДС, В.</p>
                       <p>ЭДС(t) = amplitude × импульс(t). Для нормированного импульса amplitude задаёт амплитуду ЭДС. Время — в секундах.</p>
                       <p>Порядок ветвей — фаза, затем параллельная ветвь. branches и индексы AMP/PSI/RSP содержат ровно phases × parallel записей; emf — ровно phases. Резервные записи не добавляются.</p>
                     </div>

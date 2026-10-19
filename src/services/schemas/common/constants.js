@@ -53,7 +53,7 @@ export const TABS = {
 
     AMPS: {
         id: "amps",
-        label: "Амплитуды",
+        label: "Импульсы",
     },
 
     MOVES: {

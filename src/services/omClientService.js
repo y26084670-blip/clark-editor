@@ -169,7 +169,7 @@ export function validateOMInputs(selection, data, coupling, preset, amplitudes, 
     if (!Number.isInteger(pulse) || pulse < 1 || pulse > 2147483647) fail(`${label}: номер импульса должен быть положительным целым числом Int32.`);
     number(scale, table.scalePath.join("/"));
     if (amplitudes !== undefined) {
-      if (!Array.isArray(amplitudes) || !amplitudes[pulse - 1]) fail(`${label}: импульс №${pulse} отсутствует во вкладке «Амплитуды».`);
+      if (!Array.isArray(amplitudes) || !amplitudes[pulse - 1]) fail(`${label}: импульс №${pulse} отсутствует во вкладке «Импульсы».`);
       validatePoints(amplitudes[pulse - 1].impuls, `Импульс №${pulse}`, scale);
     }
   }
@@ -367,7 +367,7 @@ export async function readOMTaskPulses(input) {
   let text;
   try { text = await (await (await input.getFileHandle("amplitudes.txt")).getFile()).text(); }
   catch (error) {
-    if (error.name === "NotFoundError") fail("Сохраните импульсы вкладки «Амплитуды»: файл amplitudes.txt отсутствует.");
+    if (error.name === "NotFoundError") fail("Сохраните импульсы вкладки «Импульсы»: файл amplitudes.txt отсутствует.");
     throw error;
   }
   const lines = text.replace(/^\uFEFF/, "").split(/\r\n|\r|\n/);

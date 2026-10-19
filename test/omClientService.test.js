@@ -231,7 +231,7 @@ test("actual editor validation blocks OM save until changed amplitudes are saved
       const createMemo = fn => fn, errorText = error => error.message; ${body}; return validation();`);
     const p = fresh();
     const args = [{ amplitudes, amplitudesDirty: true }, () => draft(p), () => p, parseOMJson, validateOMInputs, usesTaskPulses];
-    assert.match(run(...args), /Сначала сохраните изменения вкладки «Амплитуды»/);
+    assert.match(run(...args), /Сначала сохраните изменения вкладки «Импульсы»/);
     args[0].amplitudesDirty = false;
     assert.equal(run(...args), "");
     args[0].amplitudes = [];
