@@ -39,6 +39,7 @@ import { createError } from "./tabulator/validators/common/createDiagnostic.js";
 import { loadJweakLocal, createJweakLocalLoader } from "./services/jweakLocalService.js";
 import { installModelSaveShortcut } from "./services/modelSaveShortcut.js";
 import { installHorizontalDragScroll } from "./services/horizontalDragScroll.js";
+import { installLinkedHorizontalScrollbar } from "./services/linkedHorizontalScrollbar.js";
 import { installBrowserContextMenuSuppression } from "./services/browserContextMenu.js";
 
 import "./App.css";
@@ -70,12 +71,16 @@ export default function App() {
   let openConstantMuGenerator;
   let tabsViewport;
   let tabsHeader;
+  let tabsScrollbar;
+  let tabsScrollTrack;
+  let linkedTabsScrollbar;
   let tasksContent;
   let taskPanelMeasurementFrame;
   let taskPanelMeasurementDisposed = false;
 
   function measureTaskSummaryBounds() {
     taskPanelMeasurementFrame = undefined;
+    linkedTabsScrollbar?.refresh();
     if (activeTab() !== TABS.TASKS.id || !tasksContent) return;
 
     const regionsButton = tabButtons.get(TABS.REGIONS.id);
@@ -113,6 +118,13 @@ export default function App() {
   onMount(() => {
     onCleanup(installBrowserContextMenuSuppression(document));
     onCleanup(installHorizontalDragScroll(tabsViewport));
+    linkedTabsScrollbar = installLinkedHorizontalScrollbar({
+      viewport: tabsViewport,
+      scrollbar: tabsScrollbar,
+      track: tabsScrollTrack,
+      isEnabled: () => activeTab() === TABS.TASKS.id,
+    });
+    onCleanup(() => linkedTabsScrollbar.dispose());
     onCleanup(installModelSaveShortcut({
       target: window,
       isEnabled: () => activeTab() !== TABS.TASKS.id
@@ -131,6 +143,7 @@ export default function App() {
       },
     }));
     const observer = new ResizeObserver(scheduleTaskPanelMeasurement);
+    observer.observe(tabsViewport);
     observer.observe(tabsHeader);
     observer.observe(tasksContent);
     tabButtons.forEach((button) => observer.observe(button));
@@ -844,6 +857,17 @@ export default function App() {
                 </button>
               )}
             </For>
+          </div>
+
+          <div
+            class="tabs-scrollbar"
+            ref={tabsScrollbar}
+            hidden
+            tabIndex="0"
+            role="region"
+            aria-label="Горизонтальная прокрутка вкладок и панелей задания"
+          >
+            <div class="tabs-scroll-track" ref={tabsScrollTrack} aria-hidden="true" />
           </div>
 
           <For each={tabs}>
