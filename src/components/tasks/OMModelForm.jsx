@@ -60,7 +60,8 @@ export function OMModelForm(props) {
   return <div class="om-model-form">
     <p class="om-model-grid">Шаг времени задания: <strong>{props.models?.general?.timeStep ?? "—"} с</strong>
       <span> · Число шагов: {props.models?.general?.countTimeSteps ?? "—"}</span></p>
-    <Index each={groups()}>{group => <section class="om-model-group" aria-label={group().label}>
+    <Index each={groups()}>{group => <fieldset class="om-model-group" aria-label={group().label}
+      disabled={props.disconnected && group().id === "numerics"}>
       <h3>{group().label}</h3>
       <Index each={group().rows}>{row => <div class="om-model-row">
         <Show when={row().label}><p class="om-model-row-label">{row().label}</p></Show>
@@ -69,8 +70,8 @@ export function OMModelForm(props) {
             rowLabel={row().label} catalog={catalog()} onChange={props.onFieldChange} />}</Index>
         </div>
       </div>}</Index>
-    </section>}</Index>
-    <section class="om-model-group" aria-label="Связи с Clark">
+    </fieldset>}</Index>
+    <fieldset class="om-model-group" aria-label="Связи с Clark" disabled={props.disconnected}>
       <h3>Связи с Clark</h3>
       <Index each={bindings()}>{group => <div class="om-model-binding-group">
         <h4>{OM_CLARK_TYPES[group().kind]?.label ?? group().kind} <small>· {OM_CLARK_TYPES[group().kind]?.direction}</small></h4>
@@ -84,6 +85,6 @@ export function OMModelForm(props) {
             onChange={value => props.onBindingChange(group().side, group().index, index, value)} />
         </label>}</Index>
       </div>}</Index>
-    </section>
+    </fieldset>
   </div>;
 }

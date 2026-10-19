@@ -1,6 +1,8 @@
 import { createSignal } from "solid-js";
 import { render } from "solid-js/web";
 import { OMClientWindow } from "../../src/components/tasks/OMClientWindow.jsx";
+import { TaskStatusCells } from "../../src/components/tasks/TaskStatusCells.jsx";
+import { useTaskStatuses } from "../../src/services/taskStatusMonitor.js";
 import source from "../../src/data/om-presets/circuit-star.json";
 
 const preset = structuredClone(source);
@@ -10,6 +12,9 @@ preset.coupling.outputs[0].indices = [2, 7, 9];
 const root = await navigator.storage.getDirectory();
 const task = await root.getDirectoryHandle("om-panel-check", { create: true });
 const input = await task.getDirectoryHandle("input3XX", { create: true });
+try { await input.removeEntry("_om-client.json"); } catch (error) { if (error.name !== "NotFoundError") throw error; }
+const output = await task.getDirectoryHandle("output3XX", { create: true });
+await output.getFileHandle("_summary_out.txt", { create: true });
 const pulses = Array.from({ length: 6 }, () => ({ impuls: [[0, 0], [1, 1]] }));
 async function write(name, value) {
   const stream = await (await input.getFileHandle(name, { create: true })).createWritable();
@@ -31,6 +36,12 @@ window.omPanelFixture = {
   state: () => state,
   async read(name) { return (await (await input.getFileHandle(name)).getFile()).text(); },
 };
-render(() => <OMClientWindow request={{ handle: task, path: "check/OM" }}
+render(() => {
+  const statuses = useTaskStatuses(() => [{ key: task, handle: task }]);
+  return <><div id="task-status-fixture" style="position:fixed;left:8px;top:8px;display:grid;grid-template-columns:42px 30px 18px">
+    <TaskStatusCells status={statuses(task)} />
+  </div><OMClientWindow request={{ handle: task, path: "check/OM" }}
+  onFilesChange={() => { void statuses.refresh(); }}
   taskModel={models()} amplitudes={models().amps} amplitudesDirty={dirtyParts().includes("amps")}
-  dirtyParts={dirtyParts()} onStateChange={value => { state = value; }} />, document.getElementById("root"));
+  dirtyParts={dirtyParts()} onStateChange={value => { state = value; }} /></>;
+}, document.getElementById("root"));
