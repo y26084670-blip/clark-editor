@@ -688,7 +688,7 @@ export function Tasks(props) {
       class="tasks-layout"
       style={{
         "grid-template-columns": props.summaryBounds
-          ? `calc(${props.summaryBounds.left}px - var(--tasks-panel-gap)) minmax(${props.summaryBounds.width}px, 1fr) `
+          ? `${props.summaryBounds.browserWidth}px minmax(320px, 1fr) `
             + `calc(${props.summaryBounds.left}px - var(--tasks-panel-gap))`
           : undefined,
       }}
