@@ -36,6 +36,6 @@
 .task-status-name { min-width: 0; }
 
 .task-status-om-active { background: #d8efda; border-radius: 2px; }
-.task-status-om-disabled { background: #f5d6e0; border-radius: 2px; }
+.task-status-om-disabled { background: #c49aa8; border-radius: 2px; }
 .task-status-om-active .task-status-solution,
 .task-status-om-disabled .task-status-solution { color: #226c37; }

@@ -93,12 +93,13 @@ export default function App() {
     // Grid coordinates start inside the content border, unlike viewport rects.
     const left = regionsRect.left - contentRect.left - tasksContent.clientLeft;
     const width = movesRect.right - regionsRect.left;
+    const browserWidth = regionsRect.right - contentRect.left - tasksContent.clientLeft;
     if (left <= 0 || width <= 0) return;
 
     setTaskSummaryBounds((previous) =>
-      previous?.left === left && previous?.width === width
+      previous?.left === left && previous?.width === width && previous?.browserWidth === browserWidth
         ? previous
-        : { left, width },
+        : { left, width, browserWidth },
     );
   }
 
