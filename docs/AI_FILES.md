@@ -1,6 +1,6 @@
 # Карта файлов и компонентов web-gui
 
-Обновлено: 2026-10-19 20:02 UTC+3.
+Обновлено: 2026-10-20 00:49 UTC+3.
 
 ## Назначение
 
@@ -409,3 +409,6 @@ App/jweakLocalService перечитывают readonly-иерархию для 
 с Viewer. `scripts/check-task-selection-browser.mjs` проверяет два настоящих
 BroadcastChannel/OPFS контекста; headless-фокус не подтверждает переключение
 вкладок пользовательского окна. [Контракт](AI_UI_CONTRACTS.md#выбор-задания-в-другом-приложении).
+
+`src/services/installerDownloadService.js` — команда прямой загрузки и проверка метаданных;
+`ExamplesInstaller.jsx/.css` — переключатель режима. Проверка: `test/installerDownloadService.test.js`.

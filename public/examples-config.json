@@ -1,5 +1,7 @@
 {
   "manifestUrl": "examples-manifest.json",
   "examplesArchiveUrl": "https://cloud.mail.ru/public/MNdx/g7aV3x7jr",
-  "solverInstallerUrl": "https://cloud.mail.ru/public/1ugC/yyDJcyLdw"
+  "solverInstallerUrl": "https://cloud.mail.ru/public/1ugC/yyDJcyLdw",
+  "solverInstallerSize": 752657701,
+  "solverInstallerSha256": "532046eb97db50b5214da54a52fa6afc27712dd1cb20fb4fddf04d23a7429d8b"
 }
