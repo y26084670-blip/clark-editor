@@ -75,6 +75,28 @@ body,
   overflow-x: auto;
 }
 
+/* Keep a second native scrollbar directly below the task tab headings. */
+.tabs-scrollbar {
+  position: sticky;
+  left: 0;
+  flex: 0 0 auto;
+  min-width: 0;
+  height: 18px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  background: #e7ebef;
+  scrollbar-color: #74899a #e7ebef;
+}
+
+.tabs-scrollbar[hidden] {
+  display: none;
+}
+
+.tabs-scroll-track {
+  height: 1px;
+  pointer-events: none;
+}
+
 /* Панель вкладок: */
 .tabs-header {
   display: flex;
