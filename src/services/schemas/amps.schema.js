@@ -59,15 +59,15 @@ export default createSchema({
     views: {
         clipboardTables: [{
             property: "impuls",
-            label: "Заменить амплитуды значениями из буфера",
-            title: "Выделите одну строку амплитуды. Скопируйте из Excel две числовые колонки без заголовка: время, амплитуда. Вся таблица будет заменена; доступна отмена.",
+            label: "Заменить импульс значениями из буфера",
+            title: "Выделите одну строку импульса. Скопируйте из Excel две числовые колонки без заголовка: время, амплитуда. Вся таблица будет заменена; доступна отмена.",
         }],
         references: {
             usedByElements: {
                 type: FIELD_TYPES.ARRAY,
                 view: VIEW_TYPES.TABLE,
                 label: "Элементы",
-                description: "Элементы модели, использующие данную амплитуду",
+                description: "Элементы модели, использующие данный импульс",
                 readonly: true,
                 rowsMutable: false,
                 nColumns: 2,
@@ -95,8 +95,8 @@ export default createSchema({
             }],
         },
         graph: {
-            title: "Графики амплитуд",
-            recordLabel: "Амплитуда",
+            title: "Графики импульсов",
+            recordLabel: "Импульс",
             defaultMode: "amplitude",
             modes: [{
                 value: "amplitude",
@@ -114,7 +114,7 @@ export default createSchema({
         impuls: {
             type: FIELD_TYPES.ARRAY,
             view: VIEW_TYPES.TABLE,
-            label: "Амплитуда",
+            label: "Импульс",
             description: "Узловые значения временной зависимости векторов заданных источников",
             default: [],
             digits: 6,
@@ -132,7 +132,7 @@ export default createSchema({
         n: {
             type: FIELD_TYPES.INTEGER,
             label: "Число узлов",
-            description: "Число строк таблицы амплитуды",
+            description: "Число строк таблицы импульса",
             default: 0,
             readonly: true,
             hidden: true,

@@ -56,7 +56,7 @@ export function uniformFieldCoilParameters(params,model) {
   const factor0=coilAxialFactor(0,r1,r2,length),factorR=coilAxialFactor(radius,r1,r2,length),j0=H0/factor0;
   if(!Number.isFinite(j0)||!(factor0>0)||!Number.isFinite(factorR))fail("Не удалось вычислить плотность тока катушки.");
   const amplitude=Number(params.amplitude??0),move=Number(params.move??0);
-  for(const [value,records,label] of [[amplitude,model?.amps,"амплитуды"],[move,model?.moves,"траектории"]])
+  for(const [value,records,label] of [[amplitude,model?.amps,"импульса"],[move,model?.moves,"траектории"]])
     if(!Number.isSafeInteger(value)||value<0||value>(records?.length??0))fail(`Недопустимый номер ${label}: 0 или номер существующей записи.`);
   const relativeDeviation=H0===0?null:(factorR/factor0-1)*100;
   return {H0,radius,r1,r2,thickness,length,opening,segments,sectorAngle,coveredAngle,j0,axis,angles,amplitude,move,

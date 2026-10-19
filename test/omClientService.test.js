@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { expandOMContract, formatOMJson, parseOMJson, readOMTaskPulses, saveOMTask, usesTaskPulses, validateOMInputs, validateOMPreset } from "../src/services/omClientService.js";
+import { expandOMContract, formatOMJson, parseOMJson, readOMTask, readOMTaskPulses, saveOMTask, setOMTaskEnabled, usesTaskPulses, validateOMInputs, validateOMPreset } from "../src/services/omClientService.js";
 
 const presets = {};
-for (const name of ["circuit-single", "circuit-star", "circuit-test-204"]) {
+for (const name of ["circuit-single", "circuit-star"]) {
     presets[name] = JSON.parse(await readFile(new URL(`../src/data/om-presets/${name}.json`, import.meta.url), "utf8"));
 }
 const fresh = (name = "circuit-single") => structuredClone(presets[name]);
@@ -36,7 +36,7 @@ function filesystem(initial = {}) {
                 },
             };
         },
-        async removeEntry(name) { files.delete(name); },
+        async removeEntry(name) { fs.beforeRemove?.(name); files.delete(name); },
     };
     fs.task = { async getDirectoryHandle(name) { assert.equal(name, "input3XX"); return fs.input; } };
     return fs;
@@ -44,11 +44,82 @@ function filesystem(initial = {}) {
 const diskPulse = (times = [0, 1, 2], values = [0, 1, -1]) => JSON.stringify({ n: times.length, impuls: [...times, ...values] }) + "\n";
 const draft = p => ({ selection: p.selection, dataText: formatOMJson(p.data), couplingText: formatOMJson(p.coupling) });
 
+function storedModel(enabled = true) {
+    const p = fresh();
+    return filesystem({ [enabled ? "om-client.json" : "_om-client.json"]: JSON.stringify(p.selection),
+        [p.selection.dataFile]: formatOMJson(p.data), [p.selection.couplingFile]: formatOMJson(p.coupling),
+        "amplitudes.txt": diskPulse() });
+}
+
+test("missing, active and disabled models read distinctly; duplicate selectors are a conflict", async () => {
+    const none = await readOMTask(filesystem().task);
+    assert.equal(none.selection, null);
+    for (const enabled of [true, false]) {
+        const fs = storedModel(enabled), result = await readOMTask(fs.task);
+        assert.equal(result.enabled, enabled);
+        assert.equal(result.selection.model, "circuit");
+        assert.equal(result.baseline[enabled ? "_om-client.json" : "om-client.json"], null);
+        fs.files.set(enabled ? "_om-client.json" : "om-client.json", JSON.stringify(fresh().selection));
+        await assert.rejects(readOMTask(fs.task), /одновременно/);
+    }
+});
+
+test("disconnect and reconnect preserve selector bytes, parameters, links and pulses", async () => {
+    const fs = storedModel(), original = new Map(fs.files);
+    let snapshot = await readOMTask(fs.task);
+    snapshot = await setOMTaskEnabled(fs.task, false, snapshot.baseline);
+    assert.equal(snapshot.enabled, false);
+    assert.equal(fs.files.has("om-client.json"), false);
+    assert.equal(fs.files.get("_om-client.json"), original.get("om-client.json"));
+    snapshot = await setOMTaskEnabled(fs.task, true, snapshot.baseline);
+    assert.equal(snapshot.enabled, true);
+    assert.deepEqual(fs.files, original);
+});
+
+test("saving disabled model data never reconnects it", async () => {
+    const fs = storedModel(false), snapshot = await readOMTask(fs.task), p = fresh();
+    const data = parseOMJson(snapshot.dataText); data.branches[0].L_H = 7;
+    const saved = await saveOMTask(fs.task, { ...snapshot, dataText: formatOMJson(data) }, p, snapshot.baseline);
+    assert.equal(saved.enabled, false);
+    assert.equal(fs.files.has("om-client.json"), false);
+    assert.equal(parseOMJson(fs.files.get(p.selection.dataFile)).branches[0].L_H, 7);
+    await setOMTaskEnabled(fs.task, true, saved.baseline);
+    assert.equal(fs.files.has("_om-client.json"), false);
+});
+
+test("toggle rejects stale data or an occupied destination before writing", async () => {
+    for (const name of ["_om-client.json", "circuit-config.json", "om-client.json"]) {
+        const fs = storedModel(), snapshot = await readOMTask(fs.task);
+        fs.files.set(name, "external");
+        const before = new Map(fs.files);
+        await assert.rejects(setOMTaskEnabled(fs.task, false, snapshot.baseline), /изменён/);
+        assert.deepEqual(fs.files, before);
+        assert.deepEqual(fs.writes, []);
+    }
+});
+
+test("failed removal rolls back the copied selector without changing model data", async () => {
+    const fs = storedModel(), snapshot = await readOMTask(fs.task), before = new Map(fs.files);
+    fs.beforeRemove = name => { if (name === "om-client.json") throw new Error("Denied"); };
+    await assert.rejects(setOMTaskEnabled(fs.task, false, snapshot.baseline), /Denied/);
+    assert.deepEqual(fs.files, before);
+});
+
+test("external edits during toggle are preserved; an external destination is never removed", async () => {
+    for (const name of ["om-client.json", "_om-client.json"]) {
+        const fs = storedModel(), snapshot = await readOMTask(fs.task);
+        fs.afterWrite = () => fs.files.set(name, "external");
+        await assert.rejects(setOMTaskEnabled(fs.task, false, snapshot.baseline));
+        assert.equal(fs.files.get(name), "external");
+        if (name === "om-client.json") assert.equal(fs.files.has("_om-client.json"), false);
+        else assert.equal(fs.files.get("om-client.json"), snapshot.baseline["om-client.json"]);
+    }
+});
+
 test("model presets validate without requiring a task pulse bank", () => {
     for (const preset of Object.values(presets)) assert.equal(validateOMPreset(preset), preset);
     assert.equal(usesTaskPulses(presets["circuit-single"]), true);
-    assert.equal(presets["circuit-test-204"].selection.model, "circuit");
-    assert.deepEqual(presets["circuit-test-204"].data.emf, [8, 9, 10].map(pulse => ({ pulse, amplitude: 100 })));
+    assert.equal(Object.keys(presets).length, 2);
 });
 
 test("pulse references validate the original read-only task table and allow signed scaling", () => {
@@ -160,7 +231,7 @@ test("actual editor validation blocks OM save until changed amplitudes are saved
       const createMemo = fn => fn, errorText = error => error.message; ${body}; return validation();`);
     const p = fresh();
     const args = [{ amplitudes, amplitudesDirty: true }, () => draft(p), () => p, parseOMJson, validateOMInputs, usesTaskPulses];
-    assert.match(run(...args), /Сначала сохраните изменения вкладки «Амплитуды»/);
+    assert.match(run(...args), /Сначала сохраните изменения вкладки «Импульсы»/);
     args[0].amplitudesDirty = false;
     assert.equal(run(...args), "");
     args[0].amplitudes = [];

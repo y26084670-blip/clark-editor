@@ -9,7 +9,7 @@
   border: 1px solid #667789; border-radius: 3px; background: #253340; color: #edf2f7;
 }
 .om-client-unsaved { color: #ffd48a; white-space: nowrap; }
-.om-client-body fieldset {
+.om-client-body > fieldset {
   display: flex; flex-direction: column; flex: 1 1 auto; gap: 8px;
   border: 0; padding: 0; margin: 0; min-width: 0; min-height: 0;
 }
@@ -17,6 +17,9 @@
   display: grid; grid-template-columns: var(--om-control-columns); gap: 6px; flex: 0 0 auto;
 }
 .om-client-presets { align-items: stretch; }
+.om-client-toggle { grid-column: 2; }
+.om-client-disconnected { color: #f4df96; }
+.om-model-group:disabled { opacity: .55; }
 .om-client-presets-heading { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; }
 .om-client-guide-link {
   display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; margin-left: auto;
@@ -62,7 +65,7 @@
 .om-client-mode button[aria-pressed="true"] { background: #355f82; border-color: #9bc7ed; }
 .om-model-form { flex: 1 1 auto; min-height: 160px; overflow: auto; padding-right: 4px; }
 .om-model-grid, .om-model-note { color: #bbcbd9; font-size: 12px; line-height: 1.4; }
-.om-model-group { margin: 0 0 10px; padding: 8px; border: 1px solid #526779; border-radius: 4px; background: #253340; }
+.om-model-group { margin: 0 0 10px; min-width: 0; padding: 8px; border: 1px solid #526779; border-radius: 4px; background: #253340; }
 .om-model-group h3 { margin: 0 0 7px; color: #c9e4fa; font-size: 14px; }
 .om-model-group h4 { margin: 10px 0 6px; font-size: 13px; font-weight: 600; }
 .om-model-group small { color: #bbcbd9; font-weight: normal; }

@@ -40,7 +40,7 @@ export function UniformFieldCoilDialog(props) {
         </div>
       </fieldset>
       <div class="coil-input-row">
-        <label>Номер амплитуды <input type="number" min="0" step="1" value={params().amplitude} onInput={e=>change("amplitude",e.currentTarget.valueAsNumber)} disabled={props.busy}/></label>
+        <label>Номер импульса <input type="number" min="0" step="1" value={params().amplitude} onInput={e=>change("amplitude",e.currentTarget.valueAsNumber)} disabled={props.busy}/></label>
         <label>Номер траектории <input type="number" min="0" step="1" value={params().move} onInput={e=>change("move",e.currentTarget.valueAsNumber)} disabled={props.busy}/></label>
       </div>
       <p>Центр — (0, 0, 0). Номер 0: постоянная амплитуда / без движения.</p>

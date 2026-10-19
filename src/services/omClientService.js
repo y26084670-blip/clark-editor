@@ -1,6 +1,7 @@
 // Task-owned OM input files. No solver, compiler or model state lives here.
 import { validateOMClarkBindings } from "./omClarkBindings.js";
 export const OM_SELECTION_FILE = "om-client.json";
+export const OM_DISABLED_SELECTION_FILE = "_om-client.json";
 const MAX_JSON_BYTES = 4 * 1024 * 1024;
 const own = (value, key) => Object.hasOwn(value, key);
 const record = value => value !== null && typeof value === "object" && !Array.isArray(value);
@@ -168,7 +169,7 @@ export function validateOMInputs(selection, data, coupling, preset, amplitudes, 
     if (!Number.isInteger(pulse) || pulse < 1 || pulse > 2147483647) fail(`${label}: номер импульса должен быть положительным целым числом Int32.`);
     number(scale, table.scalePath.join("/"));
     if (amplitudes !== undefined) {
-      if (!Array.isArray(amplitudes) || !amplitudes[pulse - 1]) fail(`${label}: импульс №${pulse} отсутствует во вкладке «Амплитуды».`);
+      if (!Array.isArray(amplitudes) || !amplitudes[pulse - 1]) fail(`${label}: импульс №${pulse} отсутствует во вкладке «Импульсы».`);
       validatePoints(amplitudes[pulse - 1].impuls, `Импульс №${pulse}`, scale);
     }
   }
@@ -313,20 +314,60 @@ async function readText(directory, name) {
 
 export async function readOMTask(task) {
   const input = await task.getDirectoryHandle("input3XX");
-  const raw = await readText(input, OM_SELECTION_FILE);
-  const baseline = { [OM_SELECTION_FILE]: raw };
-  if (raw === null) return { selection: null, dataText: "", couplingText: "", baseline };
-  const selection = validateOMSelection(parseOMJson(raw, OM_SELECTION_FILE));
+  const [active, disabled] = await Promise.all([OM_SELECTION_FILE, OM_DISABLED_SELECTION_FILE].map(name => readText(input, name)));
+  if (active !== null && disabled !== null) fail("Найдены om-client.json и _om-client.json одновременно. Оставьте один селектор и перечитайте файлы.");
+  const baseline = { [OM_SELECTION_FILE]: active, [OM_DISABLED_SELECTION_FILE]: disabled };
+  const enabled = active !== null, raw = active ?? disabled;
+  if (raw === null) return { selection: null, enabled: false, dataText: "", couplingText: "", baseline };
+  const selection = validateOMSelection(parseOMJson(raw, enabled ? OM_SELECTION_FILE : OM_DISABLED_SELECTION_FILE));
   const values = await Promise.all([selection.dataFile, selection.couplingFile].map(name => readText(input, name)));
   baseline[selection.dataFile] = values[0]; baseline[selection.couplingFile] = values[1];
-  return { selection, dataText: values[0] ?? "", couplingText: values[1] ?? "", baseline };
+  return { selection, enabled, dataText: values[0] ?? "", couplingText: values[1] ?? "", baseline };
+}
+
+// FileSystemFileHandle.move is not available for all user-selected directories.
+// Copy the selector verbatim, verify it, then remove its old name; model data stays intact.
+export async function setOMTaskEnabled(task, enabled, baseline) {
+  const input = await task.getDirectoryHandle("input3XX");
+  const source = enabled ? OM_DISABLED_SELECTION_FILE : OM_SELECTION_FILE;
+  const destination = enabled ? OM_SELECTION_FILE : OM_DISABLED_SELECTION_FILE;
+  const original = baseline?.[source];
+  if (typeof original !== "string" || baseline[destination] !== null) fail("Перечитайте файлы перед переключением модели.");
+  validateOMSelection(parseOMJson(original, source));
+  const checkSnapshot = async () => {
+    for (const [name, expected] of Object.entries(baseline)) {
+      if (await readText(input, name) !== expected) fail(`${name} изменён вне этого окна. Перечитайте файлы.`);
+    }
+  };
+  await checkSnapshot();
+  let committed = false;
+  try {
+    await writeText(input, destination, original);
+    if (await readText(input, destination) !== original) fail(`${destination}: запись не подтверждена.`);
+    for (const [name, expected] of Object.entries(baseline)) {
+      if (name !== destination && await readText(input, name) !== expected) fail(`${name} изменён во время переключения.`);
+    }
+    await input.removeEntry(source);
+    committed = true;
+  } catch (error) {
+    let rollback = "";
+    try {
+      const currentSource = await readText(input, source), currentDestination = await readText(input, destination);
+      // Keep the only complete copy even if removal succeeded before an I/O error.
+      if (currentSource !== null && (currentDestination === original || currentDestination === "")) {
+        await input.removeEntry(destination);
+      } else if (currentDestination !== null) rollback = " Проверьте оба файла селектора перед повтором.";
+    } catch { rollback = " Проверьте оба файла селектора перед повтором."; }
+    fail(`Не удалось переключить модель: ${error.message}${rollback}`);
+  }
+  if (committed) return readOMTask(task);
 }
 
 export async function readOMTaskPulses(input) {
   let text;
   try { text = await (await (await input.getFileHandle("amplitudes.txt")).getFile()).text(); }
   catch (error) {
-    if (error.name === "NotFoundError") fail("Сохраните импульсы вкладки «Амплитуды»: файл amplitudes.txt отсутствует.");
+    if (error.name === "NotFoundError") fail("Сохраните импульсы вкладки «Импульсы»: файл amplitudes.txt отсутствует.");
     throw error;
   }
   const lines = text.replace(/^\uFEFF/, "").split(/\r\n|\r|\n/);
@@ -357,13 +398,16 @@ export async function saveOMTask(task, draft, preset, baseline) {
   const pulses = usesTaskPulses(preset) ? await readOMTaskPulses(input) : null;
   validateOMInputs(selection, data, coupling, preset, pulses?.amplitudes);
   // Check the original files and every new target before any write.
+  const selector = draft.enabled === false ? OM_DISABLED_SELECTION_FILE : OM_SELECTION_FILE;
+  const otherSelector = selector === OM_SELECTION_FILE ? OM_DISABLED_SELECTION_FILE : OM_SELECTION_FILE;
   const values = { [selection.dataFile]: formatOMJson(data), [selection.couplingFile]: formatOMJson(coupling),
-    [OM_SELECTION_FILE]: formatOMJson(selection) };
+    [selector]: formatOMJson(selection) };
+  if (await readText(input, otherSelector) !== null) fail(`${otherSelector} существует. Перечитайте файлы перед сохранением.`);
   for (const [name, text] of Object.entries(values)) {
     if (new TextEncoder().encode(text).byteLength > MAX_JSON_BYTES) fail(`${name}: форматированный JSON превышает 4 МиБ.`);
   }
   const previous = {};
-  for (const name of new Set([...Object.keys(baseline), ...Object.keys(values)])) {
+  for (const name of new Set([...Object.keys(baseline), ...Object.keys(values), otherSelector])) {
     const actual = await readText(input, name);
     if (actual !== (own(baseline, name) ? baseline[name] : null)) fail(`${name} изменён вне этого окна. Перечитайте файлы перед сохранением.`);
     previous[name] = actual;
@@ -372,6 +416,7 @@ export async function saveOMTask(task, draft, preset, baseline) {
   try {
     // The selector is committed last. On an I/O error restore our own writes.
     for (const [name, text] of Object.entries(values)) {
+      if (await readText(input, otherSelector) !== null) fail(`${otherSelector} появился во время сохранения.`);
       if (pulses && (await readOMTaskPulses(input)).text !== pulses.text) fail("amplitudes.txt изменён во время сохранения. Перечитайте импульсы и повторите сохранение OM-данных.");
       if (await readText(input, name) !== previous[name]) fail(`${name} изменён во время сохранения.`);
       attempted.push(name);
@@ -391,5 +436,6 @@ export async function saveOMTask(task, draft, preset, baseline) {
     fail(`Не удалось сохранить OM-данные: ${error.message}` + (unrestored.length
       ? ` Проверьте файлы перед запуском: ${unrestored.join(", ")}.` : " Исходные файлы сохранены."));
   }
-  return { selection, dataText: values[selection.dataFile], couplingText: values[selection.couplingFile], baseline: values };
+  return { selection, enabled: draft.enabled !== false, dataText: values[selection.dataFile], couplingText: values[selection.couplingFile],
+    baseline: { ...values, [otherSelector]: null } };
 }

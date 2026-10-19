@@ -80,7 +80,7 @@ for (const example of examples) test(`${path.basename(example.root)} loads and s
     const selection = await json("input3XX/om-client.json", example.root);
     const circuit = await json(`input3XX/${selection.dataFile}`, example.root);
     const coupling = await json(`input3XX/${selection.couplingFile}`, example.root);
-    const preset = JSON.parse(await readFile(new URL("../src/data/om-presets/circuit-test-204.json", import.meta.url)));
+    const preset = JSON.parse(await readFile(new URL("../src/data/om-presets/circuit-star.json", import.meta.url)));
     assert.equal(circuit.floatingNeutral, example.floatingNeutral);
     validateOMInputs(selection, circuit, coupling, preset, model.amps);
     const contract = expandOMContract(preset.contract, circuit);

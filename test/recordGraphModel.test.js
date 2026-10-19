@@ -13,8 +13,8 @@ const ampsSchema = {
     },
     views: {
         graph: {
-            title: "Графики амплитуд",
-            recordLabel: "Амплитуда",
+            title: "Графики импульсов",
+            recordLabel: "Импульс",
             defaultMode: "amplitude",
             modes: [{
                 value: "amplitude",
@@ -74,7 +74,7 @@ test("selected amplitudes become one time-value dataset each", () => {
     const datasets = recordGraphDatasets(ampsSchema, records);
 
     assert.equal(datasets.length, 1);
-    assert.equal(datasets[0].label, "Амплитуда 2");
+    assert.equal(datasets[0].label, "Импульс 2");
     assert.deepEqual(datasets[0].data, [
         { x: 0, y: 10 },
         { x: 1, y: 20 },

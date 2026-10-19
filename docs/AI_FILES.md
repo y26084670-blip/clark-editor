@@ -1,6 +1,6 @@
 # Карта файлов и компонентов web-gui
 
-Обновлено: 2026-10-19 17:39 UTC+3.
+Обновлено: 2026-10-19 20:02 UTC+3.
 
 ## Назначение
 
@@ -113,8 +113,8 @@
 | Окно запуска | `src/components/tasks/TaskLaunchWindow.jsx` | Представление списка и операций; предметный файловый контракт остаётся у сервиса. |
 | Редактор OM | `src/components/tasks/OMClientWindow.jsx`, `.css`; подключение — `src/tabs/Tasks.jsx`/`.css` | Немодальное окно загруженного задания; данные модели и обмена, пресеты, защита черновика при загрузке другой задачи. `App.jsx` уступает ему Ctrl+S при фокусе внутри окна. [UI](AI_UI_CONTRACTS.md#om-client-editor). |
 | Форма OM | `src/components/tasks/OMModelForm.jsx`, `src/services/omModelForm.js`, `src/services/omClarkBindings.js`; `test/omModelForm.test.js`, `test/omClarkBindings.test.js` | Отображение contract.ui, координатное изменение размеров массивов, readonly-каталог Clark. [Контракт](AI_CLARK_INTEGRATION.md#om-client-input-editor). |
-| JSON OM | `src/services/omClientService.js`; `test/omClientService.test.js` | Чтение, валидация по контракту пресета и readonly импульсам, проверка сохранённого `amplitudes.txt` и внешних изменений, запись трёх JSON. [Контракт](AI_CLARK_INTEGRATION.md#om-client-input-editor). |
-| Пресеты OM | `src/data/om-presets/circuit-single.json`, `circuit-star.json`, `circuit-test-204.json` | Единый `/2` и пакеты 1.1.0, ссылки на импульсы. Тестовый пресет — подключённая нейтраль, 3 ветви. Прежних `/1`-вариантов нет. [Формат](AI_CLARK_INTEGRATION.md#om-pulse-inputs). |
+| JSON OM | `src/services/omClientService.js`; `test/omClientService.test.js` | Чтение, валидация по контракту пресета и readonly импульсам, проверка сохранённого `amplitudes.txt` и внешних изменений, запись трёх JSON, переключение `om-client.json`/`_om-client.json` с восстановлением при ошибке. [Контракт](AI_CLARK_INTEGRATION.md#om-client-input-editor). |
+| Пресеты OM | `src/data/om-presets/circuit-single.json`, `circuit-star.json` | Единый `/2` и пакет 2.0.0, ссылки на импульсы. Частного пресета 204 нет; существующие задания используют общий контракт цепи. [Формат](AI_CLARK_INTEGRATION.md#om-pulse-inputs). |
 | Примеры цепи OM | `data/om-examples.json` → `.generated/examples/clark.projects/Open Modelica/test_circuit_*`; `test/omCircuitExample.test.js` | Самостоятельные постановки с подключённой и свободной нейтралью; второй вариант — Fortran, 220 В, L/R=0. Источники сравнения хранятся только в clark.tests. [Происхождение](AI_CLARK_INTEGRATION.md#om-test-204-example). |
 | Пресеты OM | `src/services/omClientPresets.js`, `src/data/om-presets/*.json` | Встроенные JSON-шаблоны и запоминаемые браузером импортированные `editor-preset.json`. Контракт расширяется данными, без диспетчера по имени модели. |
 | Предпросмотр | `src/services/taskGeometryPreviewService.js`, `src/components/geometry/TaskGeometryPreview.jsx` | Подготовка и показ геометрии выбранного, но ещё не загруженного задания. |

@@ -98,7 +98,7 @@ test("editor summary matches solver counters, independent images and original ro
   const original=structuredClone(summaryModel);
   const text=formatTaskSummary(summaryModel,savedAt);
   for (const line of ["Сохранено редактором: 2026-09-20T12:00:00.000Z", "Число элементов: 3",
-    "Число областей: 1", "Число изм катушек: 7", "Число амплитуд: 2", "Число траекторий: 1",
+    "Число областей: 1", "Число изм катушек: 7", "Число импульсов: 2", "Число траекторий: 1",
     "Число компонент плотн тока J (PPJ): 150", "Число компонент намагниченности M (PPM): 147",
     "ВТСП: Режим ZFC", "Число интервалов по времени: 4", "Разрядность вычислений - Double Float"]) assert.ok(text.includes(line),line);
   assert.doesNotMatch(text,/Старт расчета|Полное время/);
@@ -130,7 +130,7 @@ test("summary accepts absent optional time tables represented by null", async ()
   const model = {general:{doubleFloat:true,timeStep:1,countTimeSteps:0},elements:[],regions:[],amps:null,moves:null};
   const before = structuredClone(model);
   const text = formatTaskSummary(model, new Date("2026-09-20T00:00:00Z"));
-  assert.match(text, /Число амплитуд: 0/);
+  assert.match(text, /Число импульсов: 0/);
   assert.match(text, /Число траекторий: 0/);
   assert.deepEqual(model, before);
 });

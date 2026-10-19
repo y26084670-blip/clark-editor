@@ -898,6 +898,7 @@ export function Tasks(props) {
       />
 
       <OMClientWindow request={omClientRequest()} onStateChange={setOMClientState}
+        onFilesChange={() => { void taskStatus.refresh(); }}
         amplitudes={modelService.getModel().amps ?? []} amplitudesDirty={unsavedChangesService.isDirty("amps")}
         taskModel={modelService.getModel()}
         dirtyParts={["amps", "elements", "regions", "moves", "general"].filter(part => unsavedChangesService.isDirty(part))}

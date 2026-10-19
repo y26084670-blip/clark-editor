@@ -29,7 +29,7 @@ export function validateElementReferences(model, diagnostics) {
             }
         } else if (record?.targ === 1 || record?.targ === 2) {
             timeReference(record.indAmp, model.amps, TABS.ELEMENTS, row,
-                "indAmp", "амплитуды", diagnostics);
+                "indAmp", "импульса", diagnostics);
         }
     });
 }

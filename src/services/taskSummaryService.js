@@ -75,7 +75,7 @@ export function formatTaskSummary(model, savedAt = new Date()) {
     `Число элементов: ${elements.filter(row => [0, 1, 2].includes(row.targ)).length}`,
     `Число областей: ${regions.length}`,
     `Число изм катушек: ${coils}`,
-    `Число амплитуд: ${amps?.length ?? 0}`,
+    `Число импульсов: ${amps?.length ?? 0}`,
     `Число траекторий: ${moves?.length ?? 0}`,
   ];
   if (elements.some(row => row.model === 2)) {

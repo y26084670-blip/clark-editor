@@ -1,7 +1,7 @@
 import { For, Show, batch, createEffect, createMemo, createSignal, createUniqueId, onCleanup, onMount, untrack } from "solid-js";
 import { FloatingWindow } from "../window/FloatingWindow.jsx";
 import { findOMPreset, omPresetKey, readOMPresets, rememberOMPreset } from "../../services/omClientPresets.js";
-import { expandOMContract, formatOMJson, parseOMJson, readOMPresetFile, readOMTask, saveOMTask, usesTaskPulses, validateOMInputs } from "../../services/omClientService.js";
+import { expandOMContract, formatOMJson, parseOMJson, readOMPresetFile, readOMTask, saveOMTask, setOMTaskEnabled, usesTaskPulses, validateOMInputs } from "../../services/omClientService.js";
 import "./OMClientWindow.css";
 import { OMModelForm } from "./OMModelForm.jsx";
 import { changeOMField, changeOMBinding } from "../../services/omModelForm.js";
@@ -52,7 +52,7 @@ export function OMClientWindow(props) {
       validateOMInputs(value.selection, parseOMJson(value.dataText, value.selection.dataFile),
         parseOMJson(value.couplingText, value.selection.couplingFile), activePreset(), props.amplitudes ?? [], props.taskModel);
       if (usesTaskPulses(activePreset()) && props.amplitudesDirty) {
-        return "Сначала сохраните изменения вкладки «Амплитуды», затем сохраните данные клиентской модели.";
+        return "Сначала сохраните изменения вкладки «Импульсы», затем сохраните данные клиентской модели.";
       }
       if (props.dirtyParts?.some(part => omBindingParts(activePreset().contract).includes(part))) {
         return "Сначала сохраните изменения исходных данных Clark, от которых зависят привязки модели.";
@@ -122,7 +122,7 @@ export function OMClientWindow(props) {
     try {
       const result = await readOMTask(request.handle);
       if (disposed || revision !== loadRevision) return;
-      const value = { selection: result.selection, dataText: result.dataText, couplingText: result.couplingText };
+      const value = { selection: result.selection, enabled: result.enabled, dataText: result.dataText, couplingText: result.couplingText };
       let data;
       try { data = parseOMJson(result.dataText); } catch { /* JSON remains editable. */ }
       const preset = findOMPreset(presets(), result.selection, data);
@@ -159,7 +159,8 @@ export function OMClientWindow(props) {
     const preset = selectedPreset();
     if (!preset || !target()) return;
     requestChange("Заменить данные в окне выбранным пресетом? Файлы изменятся после сохранения.", () => {
-      setDraft({ selection: structuredClone(preset.selection), dataText: formatOMJson(preset.data), couplingText: formatOMJson(preset.coupling) });
+      setDraft({ selection: structuredClone(preset.selection), enabled: draft()?.selection ? draft().enabled : true,
+        dataText: formatOMJson(preset.data), couplingText: formatOMJson(preset.coupling) });
       setActivePreset(preset); setJsonMode(false); setError(""); setNotice("");
     }, Boolean(draft()?.selection));
   }
@@ -192,11 +193,24 @@ export function OMClientWindow(props) {
     try {
       const result = await saveOMTask(request.handle, snapshot, activePreset(), baseline());
       if (disposed) return;
-      const value = { selection: result.selection, dataText: result.dataText, couplingText: result.couplingText };
+      const value = { selection: result.selection, enabled: result.enabled, dataText: result.dataText, couplingText: result.couplingText };
       batch(() => { setDraft(value); setBaseline(result.baseline); setClean(fingerprint(value)); });
-      setNotice(`Сохранено: om-client.json, ${value.selection.dataFile}, ${value.selection.couplingFile}.`);
+      setNotice(`Сохранено: ${value.enabled ? "om-client.json" : "_om-client.json"}, ${value.selection.dataFile}, ${value.selection.couplingFile}.`);
     } catch (failure) { if (!disposed) setError(errorText(failure)); }
-    finally { if (!disposed) setBusy(false); }
+    finally { if (!disposed) { setBusy(false); props.onFilesChange?.(); } }
+  }
+
+  async function toggleEnabled() {
+    if (locked() || pending() || dirty() || !draft()?.selection || !target()) return;
+    setBusy(true); setError(""); setNotice("");
+    try {
+      const result = await setOMTaskEnabled(target().handle, !draft().enabled, baseline());
+      if (disposed) return;
+      const value = { selection: result.selection, enabled: result.enabled, dataText: result.dataText, couplingText: result.couplingText };
+      batch(() => { setDraft(value); setBaseline(result.baseline); setClean(fingerprint(value)); });
+      setNotice(value.enabled ? "Модель подключена к заданию." : "Модель отключена. Параметры и связи сохранены.");
+    } catch (failure) { if (!disposed) setError(errorText(failure)); }
+    finally { if (!disposed) { setBusy(false); props.onFilesChange?.(); } }
   }
 
   function update(key, value) {
@@ -238,6 +252,7 @@ export function OMClientWindow(props) {
           title="Модель и параметры из данных задания в этом окне. Изменения вступят в силу после сохранения.">
           <strong>Текущая модель задания:</strong> {currentModelSummary()}
           <Show when={dirty()}><span class="om-client-unsaved"> · не сохранено</span></Show>
+          <Show when={draft()?.selection && draft().enabled === false}><span class="om-client-disconnected"> · отключена</span></Show>
         </p>
         <Show when={pending()}>{request => (
           <div class="om-client-confirm" role="alert">
@@ -265,6 +280,9 @@ export function OMClientWindow(props) {
             <button type="button" disabled={!target()} onClick={applyPreset}
               title="Загрузить пресет в окно. Проверьте параметры и индексы каналов, затем сохраните.">Применить</button>
             <button type="button" title="Загрузить editor-preset.json из пакета OM-модели" onClick={() => fileInput.click()}>Загрузить пресет…</button>
+            <button type="button" class="om-client-toggle" disabled={!draft()?.selection || dirty()}
+              title={dirty() ? "Сначала сохраните изменения или перечитайте файлы." : "Переключить подключение модели, сохранив её параметры и связи."}
+              onClick={toggleEnabled}>{draft()?.enabled ? "Отключить" : "Подключить"}</button>
             <input ref={fileInput} hidden type="file" accept=".json,application/json" onChange={importPreset} />
           </div>
           <Show when={draft()?.selection}>
@@ -274,6 +292,7 @@ export function OMClientWindow(props) {
             </div>
             <Show when={!jsonMode() && formData()}>
               <OMModelForm preset={activePreset()} data={formData().data} coupling={formData().coupling}
+                disconnected={draft().enabled === false}
                 contract={activeContract()} models={props.taskModel ?? { amps: props.amplitudes ?? [] }}
                 onFieldChange={changeField} onBindingChange={changeBinding} />
             </Show>
@@ -291,7 +310,7 @@ export function OMClientWindow(props) {
                         : `максимум ${rule.maximum}` }.</p>}</For>
                       <p>L_H — внешняя индуктивность, Гн.</p>
                       <p>R_Ohm — внешнее сопротивление, Ом.</p>
-                      <p>emf — ЭДС по фазам: pulse — номер импульса во вкладке «Амплитуды», начиная с 1; amplitude — масштаб ЭДС, В.</p>
+                      <p>emf — ЭДС по фазам: pulse — номер импульса во вкладке «Импульсы», начиная с 1; amplitude — амплитуда ЭДС, В.</p>
                       <p>ЭДС(t) = amplitude × импульс(t). Для нормированного импульса amplitude задаёт амплитуду ЭДС. Время — в секундах.</p>
                       <p>Порядок ветвей — фаза, затем параллельная ветвь. branches и индексы AMP/PSI/RSP содержат ровно phases × parallel записей; emf — ровно phases. Резервные записи не добавляются.</p>
                     </div>
@@ -299,6 +318,7 @@ export function OMClientWindow(props) {
                 </Show>
               </div>
               <textarea id={`${id}-data`} class="om-client-json om-client-data" spellcheck={false}
+                readOnly={draft().enabled === false}
                 value={draft().dataText} onInput={event => update("dataText", event.currentTarget.value)} />
             </section>
             <section class="om-client-json-section">
@@ -321,13 +341,14 @@ export function OMClientWindow(props) {
                 </Show>
               </div>
               <textarea id={`${id}-coupling`} class="om-client-json om-client-coupling" spellcheck={false}
+                readOnly={draft().enabled === false}
                 value={draft().couplingText} onInput={event => update("couplingText", event.currentTarget.value)} />
             </section>
             </Show>
           </Show>
           <Show when={validation()}><p class="om-client-error" role="status">{validation()}</p></Show>
           <div class="om-client-actions">
-            <button type="button" disabled={!draft()?.selection} onClick={format}>Форматировать JSON</button>
+            <button type="button" disabled={!draft()?.selection || draft().enabled === false} onClick={format}>Форматировать JSON</button>
             <button type="button" disabled={!target()} onClick={() => requestChange("Перечитать файлы без сохранения изменений в окне?", () => { void load(target()); })}>Перечитать</button>
             <button type="button" disabled={!dirty() || Boolean(validation())} onClick={save}>Сохранить</button>
           </div>
