@@ -92,7 +92,7 @@ try {
   await page.waitForFunction(() => !omPanelFixture.state().busy && document.querySelector("#task-status-fixture .task-status-state")?.dataset.omState === "disabled");
   assert.equal(await read("_om-client.json"), selectorBefore);
   await assert.rejects(read("om-client.json"));
-  assert.equal(await indicator.evaluate(el => getComputedStyle(el).backgroundColor), "rgb(196, 154, 168)");
+  assert.equal(await indicator.evaluate(el => getComputedStyle(el).backgroundColor), "rgb(233, 113, 50)");
   assert.equal(await indicator.locator(".task-status-solution").count(), 1);
   assert.equal(await field("Допуск невязки уравнений").isDisabled(), true);
   assert.equal(await coil.isDisabled(), true);
