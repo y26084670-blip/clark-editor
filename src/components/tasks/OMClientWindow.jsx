@@ -280,15 +280,15 @@ export function OMClientWindow(props) {
             <button type="button" disabled={!target()} onClick={applyPreset}
               title="Загрузить пресет в окно. Проверьте параметры и индексы каналов, затем сохраните.">Применить</button>
             <button type="button" title="Загрузить editor-preset.json из пакета OM-модели" onClick={() => fileInput.click()}>Загрузить пресет…</button>
-            <button type="button" class="om-client-toggle" disabled={!draft()?.selection || dirty()}
-              title={dirty() ? "Сначала сохраните изменения или перечитайте файлы." : "Переключить подключение модели, сохранив её параметры и связи."}
-              onClick={toggleEnabled}>{draft()?.enabled ? "Отключить" : "Подключить"}</button>
             <input ref={fileInput} hidden type="file" accept=".json,application/json" onChange={importPreset} />
           </div>
           <Show when={draft()?.selection}>
             <div class="om-client-mode" role="group" aria-label="Представление данных модели">
               <button type="button" disabled={!formData()} aria-pressed={!jsonMode() && Boolean(formData())} onClick={() => setJsonMode(false)}>Параметры и связи</button>
               <button type="button" aria-pressed={jsonMode() || !formData()} onClick={() => setJsonMode(true)}>JSON</button>
+              <button type="button" class="om-client-toggle" disabled={!draft()?.selection || dirty()}
+                title={dirty() ? "Сначала сохраните изменения или перечитайте файлы." : "Переключить подключение модели, сохранив её параметры и связи."}
+                onClick={toggleEnabled}>{draft()?.enabled ? "Отключить" : "Подключить"}</button>
             </div>
             <Show when={!jsonMode() && formData()}>
               <OMModelForm preset={activePreset()} data={formData().data} coupling={formData().coupling}
