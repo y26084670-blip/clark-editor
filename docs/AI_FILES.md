@@ -1,6 +1,6 @@
 # Карта файлов и компонентов web-gui
 
-Обновлено: 2026-10-19 02:25 UTC+3.
+Обновлено: 2026-10-19 17:39 UTC+3.
 
 ## Назначение
 
@@ -112,6 +112,7 @@
 | Список и запуск | `src/services/taskLaunchService.js` | `clark.tasks.txt`, связь с обработчиком `clark://` и формирование команд запуска. |
 | Окно запуска | `src/components/tasks/TaskLaunchWindow.jsx` | Представление списка и операций; предметный файловый контракт остаётся у сервиса. |
 | Редактор OM | `src/components/tasks/OMClientWindow.jsx`, `.css`; подключение — `src/tabs/Tasks.jsx`/`.css` | Немодальное окно загруженного задания; данные модели и обмена, пресеты, защита черновика при загрузке другой задачи. `App.jsx` уступает ему Ctrl+S при фокусе внутри окна. [UI](AI_UI_CONTRACTS.md#om-client-editor). |
+| Форма OM | `src/components/tasks/OMModelForm.jsx`, `src/services/omModelForm.js`, `src/services/omClarkBindings.js`; `test/omModelForm.test.js`, `test/omClarkBindings.test.js` | Отображение contract.ui, координатное изменение размеров массивов, readonly-каталог Clark. [Контракт](AI_CLARK_INTEGRATION.md#om-client-input-editor). |
 | JSON OM | `src/services/omClientService.js`; `test/omClientService.test.js` | Чтение, валидация по контракту пресета и readonly импульсам, проверка сохранённого `amplitudes.txt` и внешних изменений, запись трёх JSON. [Контракт](AI_CLARK_INTEGRATION.md#om-client-input-editor). |
 | Пресеты OM | `src/data/om-presets/circuit-single.json`, `circuit-star.json`, `circuit-test-204.json` | Единый `/2` и пакеты 1.1.0, ссылки на импульсы. Тестовый пресет — подключённая нейтраль, 3 ветви. Прежних `/1`-вариантов нет. [Формат](AI_CLARK_INTEGRATION.md#om-pulse-inputs). |
 | Примеры цепи OM | `data/om-examples.json` → `.generated/examples/clark.projects/Open Modelica/test_circuit_*`; `test/omCircuitExample.test.js` | Самостоятельные постановки с подключённой и свободной нейтралью; второй вариант — Fortran, 220 В, L/R=0. Источники сравнения хранятся только в clark.tests. [Происхождение](AI_CLARK_INTEGRATION.md#om-test-204-example). |

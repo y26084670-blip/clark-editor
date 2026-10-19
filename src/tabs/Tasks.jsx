@@ -899,6 +899,8 @@ export function Tasks(props) {
 
       <OMClientWindow request={omClientRequest()} onStateChange={setOMClientState}
         amplitudes={modelService.getModel().amps ?? []} amplitudesDirty={unsavedChangesService.isDirty("amps")}
+        taskModel={modelService.getModel()}
+        dirtyParts={["amps", "elements", "regions", "moves", "general"].filter(part => unsavedChangesService.isDirty(part))}
         locked={launchBusy() || bindingBusy() || operationBusy()} />
 
       <TaskOperationDialog request={operation()} busy={operationBusy()} error={operationError()}

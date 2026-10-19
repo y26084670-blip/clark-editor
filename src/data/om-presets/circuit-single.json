@@ -185,6 +185,153 @@
           }
         ]
       }
-    ]
+    ],
+    "ui": {
+      "schema": "clark-om-panel/1",
+      "groups": [
+        {
+          "id": "structure",
+          "label": "Структура цепи",
+          "fields": [
+            {
+              "path": [
+                "phases"
+              ],
+              "label": "Число фаз"
+            },
+            {
+              "path": [
+                "parallel"
+              ],
+              "label": "Ветвей на фазу"
+            },
+            {
+              "path": [
+                "floatingNeutral"
+              ],
+              "label": "Нейтраль",
+              "type": "boolean",
+              "options": [
+                {
+                  "value": false,
+                  "label": "С нулевым проводом"
+                },
+                {
+                  "value": true,
+                  "label": "Без нулевого провода"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "branches",
+          "label": "Параметры ветвей",
+          "repeat": "branches",
+          "rowLabels": [
+            "Фаза",
+            "Ветвь"
+          ],
+          "fields": [
+            {
+              "path": [
+                "branches",
+                "$index",
+                "L_H"
+              ],
+              "label": "Индуктивность",
+              "unit": "Гн"
+            },
+            {
+              "path": [
+                "branches",
+                "$index",
+                "R_Ohm"
+              ],
+              "label": "Сопротивление",
+              "unit": "Ом"
+            }
+          ]
+        },
+        {
+          "id": "emf",
+          "label": "Источники ЭДС",
+          "repeat": "emf",
+          "rowLabels": [
+            "Фаза"
+          ],
+          "fields": [
+            {
+              "path": [
+                "emf",
+                "$index",
+                "pulse"
+              ],
+              "label": "Заданный импульс"
+            },
+            {
+              "path": [
+                "emf",
+                "$index",
+                "amplitude"
+              ],
+              "label": "Масштаб ЭДС",
+              "unit": "В",
+              "description": "ЭДС(t) = масштаб × импульс(t). Время импульса — в секундах."
+            }
+          ]
+        },
+        {
+          "id": "numerics",
+          "label": "Параметры вычислений",
+          "fields": [
+            {
+              "path": [
+                "acceptanceTolerance"
+              ],
+              "label": "Допуск невязки уравнений",
+              "type": "real",
+              "minimum": 0,
+              "unit": "В"
+            },
+            {
+              "path": [
+                "integrationTolerance"
+              ],
+              "label": "Допуск OpenModelica",
+              "type": "real",
+              "minimum": 0
+            },
+            {
+              "path": [
+                "currentIncrement"
+              ],
+              "label": "Приращение тока",
+              "unit": "А"
+            }
+          ]
+        }
+      ],
+      "ports": [
+        {
+          "side": "inputs",
+          "kind": "AMP",
+          "label": "Ток ветви {i}",
+          "unit": "А"
+        },
+        {
+          "side": "outputs",
+          "kind": "PSI",
+          "label": "Потокосцепление ветви {i}",
+          "unit": "Вб"
+        },
+        {
+          "side": "outputs",
+          "kind": "RSP",
+          "label": "Сопротивление ветви {i}",
+          "unit": "Ом"
+        }
+      ]
+    }
   }
 }

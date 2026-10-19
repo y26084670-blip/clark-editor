@@ -87,6 +87,7 @@ test("overflow after scaling is rejected even when inputs are individually finit
 
 test("task-pulse descriptors support future model input paths without an emf special case", () => {
     const p = fresh();
+    delete p.contract.ui; // Legacy/custom descriptor without a presentation extension.
     p.data.drive = { signal: 1, gain: 10 };
     p.contract.tables = [{ name: "drive", source: "task-pulse", pulsePath: ["drive", "signal"], scalePath: ["drive", "gain"] }];
     validate(p);
@@ -98,6 +99,7 @@ test("old circuit schema and inline table presets are rejected without conversio
     const p = fresh(); p.data.schema = p.contract.dataSchema = "clark-circuit/1";
     assert.throws(() => validate(p), /больше не поддерживается/);
     const q = fresh(); q.contract.tables = [{ name: "emf1", path: ["emf", 0, "points"] }];
+    delete q.contract.ui;
     assert.throws(() => validateOMPreset(q), /source: task-pulse/);
     const r = fresh(); r.selection.version = "1.0.0";
     validateOMInputs(r.selection, r.data, r.coupling, presets["circuit-single"], amplitudes);

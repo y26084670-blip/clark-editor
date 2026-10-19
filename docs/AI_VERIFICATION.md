@@ -1,6 +1,42 @@
 # Проверка web-gui
 
-Обновлено: 2026-10-19 02:25 UTC+3.
+Обновлено: 2026-10-19 17:41 UTC+3.
+
+<a id="verification-om-model-panel"></a>
+## Форма клиентской модели — 4.63.0
+
+База Editor: `b880308`; проверено в Linux, Node.js 24.19.0 и Chromium.
+[Контракт формы](AI_UI_CONTRACTS.md#om-client-editor),
+[описание пресета и привязок](AI_CLARK_INTEGRATION.md#om-client-input-editor).
+
+```sh
+node --test test/omModelForm.test.js test/omClarkBindings.test.js test/omClientService.test.js test/omClientPresets.test.js test/omCircuitExample.test.js test/modelReferenceViews.test.js test/taskUnsavedChangesContract.test.js test/taskLaunchService.test.js test/modelSaveShortcut.test.js test/floatingWindowContract.test.js test/floatingWindowDrag.test.js test/userGuideAssets.test.js
+PLAYWRIGHT_MODULE=/absolute/path/to/playwright/index.mjs CHROMIUM_EXECUTABLE=/absolute/path/to/chromium node scripts/check-om-model-panel-browser.mjs
+npm run build:pages
+```
+
+- Профильный набор: **105/105 PASS**. Проверены сохранение неизвестных свойств,
+  координатное изменение массивов и каналов, пустые новые связи, ограничения,
+  небезопасные пути метаданных, несовместимые схемы, старые пресеты без UI,
+  агрегация катушек по номеру и именам, существующие сохранение/загрузка и окна.
+- Браузер: **7/7 PASS**, настоящий Solid-компонент и OPFS при 1100×600.
+  Проверены форма/JSON, ввод и отмена сокращения, сохранение имён катушек,
+  отсутствующая ссылка, dirty зависимых вкладок, сохранение/перечитывание без
+  изменения импульсов, импорт другой модели с иной формой, старый JSON-пресет.
+  Просмотрены снимки; команды доступны, форма прокручивается отдельно.
+  `result.json`, `circuit-panel.png`, `bindings-panel.png` — в CHECK_OUTPUT
+  (по умолчанию `/tmp/editor-om-panel`).
+- `npm run build:pages`: PASS; проверены 185 файлов библиотеки и 9 файлов справки
+  по SHA-256. Предупреждение о существующих крупных JS-частях сохраняется.
+- В solver прошли **11/11** `python -m unittest discover -s test -p test_om_build.py`.
+  Метаданные всех трёх встроенных пресетов равны `circuit.panel()` сборщика.
+
+Полный набор прежних тестов не запускался. Нативная сборка OpenModelica и
+Windows/MPI-расчёт не выполнялись: менялись описание панели и экспорт пресета,
+не расчётный код. Обычная браузерная приёмка: открыть существующее OM-задание,
+проверить имена катушек, изменить параметр, сохранить и перечитать; для новой
+модели импортировать её editor-preset.json и явно применить шаблон.
+
 
 <a id="verification-time-table-clipboard"></a>
 ## Буфер таблиц и оформление генераторов — 4.60.0
