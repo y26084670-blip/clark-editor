@@ -29,6 +29,8 @@ try {
   const edit = async (name, value) => { await field(name).fill(String(value)); await field(name).blur(); };
   const read = name => page.evaluate(name => omPanelFixture.read(name), name);
   await field("Число фаз").waitFor();
+  const modeButtons = await Promise.all(["Параметры и связи", "JSON", "Отключить"].map(name => button(name).boundingBox()));
+  assert.ok(modeButtons.every(box => box && Math.abs(box.y - modeButtons[0].y) < 1), "Mode and connection buttons share a row");
   assert.doesNotMatch((await page.getByRole("combobox", { name: "Шаблон для применения" }).locator("option").allTextContents()).join("|"), /204/);
   assert.equal(await field("Число фаз").inputValue(), "3");
   const coil = page.getByRole("combobox", { name: "PSI · fieldPort.flux[1]", exact: true });
@@ -85,14 +87,12 @@ try {
   await page.waitForFunction(() => document.querySelector("#task-status-fixture .task-status-state")?.dataset.omState === "active");
   assert.equal(await indicator.evaluate(el => getComputedStyle(el).backgroundColor), "rgb(216, 239, 218)");
   assert.equal(await indicator.locator(".task-status-solution").count(), 1);
-  const applyBox = await button("Применить").boundingBox(), toggleBox = await button("Отключить").boundingBox();
-  assert.equal(Math.round(applyBox.x), Math.round(toggleBox.x)); assert.ok(toggleBox.y > applyBox.y);
   const selectorBefore = await read("om-client.json"), linksBefore = await read("server-config.json");
   await button("Отключить").click();
   await page.waitForFunction(() => !omPanelFixture.state().busy && document.querySelector("#task-status-fixture .task-status-state")?.dataset.omState === "disabled");
   assert.equal(await read("_om-client.json"), selectorBefore);
   await assert.rejects(read("om-client.json"));
-  assert.equal(await indicator.evaluate(el => getComputedStyle(el).backgroundColor), "rgb(255, 240, 179)");
+  assert.equal(await indicator.evaluate(el => getComputedStyle(el).backgroundColor), "rgb(245, 214, 224)");
   assert.equal(await indicator.locator(".task-status-solution").count(), 1);
   assert.equal(await field("Допуск невязки уравнений").isDisabled(), true);
   assert.equal(await coil.isDisabled(), true);

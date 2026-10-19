@@ -17,8 +17,8 @@
   display: grid; grid-template-columns: var(--om-control-columns); gap: 6px; flex: 0 0 auto;
 }
 .om-client-presets { align-items: stretch; }
-.om-client-toggle { grid-column: 2; }
-.om-client-disconnected { color: #f4df96; }
+.om-client-mode .om-client-toggle { margin-left: auto; }
+.om-client-disconnected { color: #f3c4d4; }
 .om-model-group:disabled { opacity: .55; }
 .om-client-presets-heading { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; }
 .om-client-guide-link {
