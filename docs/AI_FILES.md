@@ -1,6 +1,6 @@
 # Карта файлов и компонентов web-gui
 
-Обновлено: 2026-10-20 00:49 UTC+3.
+Обновлено: 2026-10-20 01:16 UTC+3.
 
 ## Назначение
 
@@ -410,5 +410,5 @@ App/jweakLocalService перечитывают readonly-иерархию для 
 BroadcastChannel/OPFS контекста; headless-фокус не подтверждает переключение
 вкладок пользовательского окна. [Контракт](AI_UI_CONTRACTS.md#выбор-задания-в-другом-приложении).
 
-`src/services/installerDownloadService.js` — команда прямой загрузки и проверка метаданных;
+`src/services/installerDownloadService.js` — команда прямой загрузки и проверка HTTPS-настройки;
 `ExamplesInstaller.jsx/.css` — переключатель режима. Проверка: `test/installerDownloadService.test.js`.

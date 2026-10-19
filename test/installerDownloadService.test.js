@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createInstallerDownloadUri, validateInstallerMetadata } from "../src/services/installerDownloadService.js";
+import { createInstallerDownloadUri, validateInstallerDownloadConfiguration } from "../src/services/installerDownloadService.js";
 
 test("installer command has a fresh request and no workspace, URL or executable arguments", () => {
   const a = new URL(createInstallerDownloadUri()), b = new URL(createInstallerDownloadUri());
@@ -11,13 +11,11 @@ test("installer command has a fresh request and no workspace, URL or executable 
   assert.notEqual(a.href, b.href);
 });
 
-test("direct download requires complete HTTPS metadata; ordinary configuration stays compatible", () => {
-  const valid = { solverInstallerUrl: "https://cloud.mail.ru/public/1ugC/yyDJcyLdw", solverInstallerSize: 752657701, solverInstallerSha256: "a".repeat(64) };
-  assert.equal(validateInstallerMetadata(valid), valid);
-  for (const patch of [{ solverInstallerUrl: "http://host/file.exe" }, { solverInstallerUrl: "https://user:pass@host/file" },
-    { solverInstallerUrl: "https://host/file#fragment" }, { solverInstallerSize: 0 }, { solverInstallerSize: 1.5 },
-    { solverInstallerSize: "752657701" }, { solverInstallerSha256: "" }, { solverInstallerSha256: "z".repeat(64) }]) {
-    assert.throws(() => validateInstallerMetadata({ ...valid, ...patch }));
+test("direct download needs only HTTPS URL; stale optional size/hash are ignored", () => {
+  const valid = { solverInstallerUrl: "https://cloud.mail.ru/public/1ugC/yyDJcyLdw" };
+  assert.equal(validateInstallerDownloadConfiguration(valid), valid);
+  assert.doesNotThrow(() => validateInstallerDownloadConfiguration({ ...valid, solverInstallerSize: 0, solverInstallerSha256: "obsolete" }));
+  for (const url of ["http://host/file.exe", "https://user:pass@host/file", "https://host/file#fragment", "https://host:8443/file", "", undefined]) {
+    assert.throws(() => validateInstallerDownloadConfiguration({ solverInstallerUrl: url }));
   }
-  assert.throws(() => validateInstallerMetadata({ solverInstallerUrl: valid.solverInstallerUrl }));
 });
