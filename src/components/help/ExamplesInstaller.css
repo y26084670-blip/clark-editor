@@ -18,7 +18,7 @@
 .examples-installer-actions {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    align-items: stretch;
+    align-items: end;
     gap: 10px;
     width: 100%;
 }
@@ -60,4 +60,23 @@
 
 .examples-installer-error {
     color: #ffb3aa;
+}
+
+.examples-installer-download {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+
+.examples-installer-direct {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+}
+
+.examples-installer-direct input {
+    margin: 0;
+    width: auto;
 }
