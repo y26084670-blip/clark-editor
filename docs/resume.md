@@ -1,13 +1,13 @@
 # Резюме проекта E3D Editor
 
-Обновлено: 2026-10-19 02:58 UTC+3.
+Обновлено: 2026-10-19 09:43 UTC+3.
 
 В `main` и GitHub Pages опубликована **4.61.0**
 ([PR #103](https://github.com/y26084670-blip/clark-editor/pull/103), `eecfb05`).
 Репозиторий переименован в `clark-editor`; новый
 [адрес Editor](https://y26084670-blip.github.io/clark-editor/) работает.
 После выбора задания принимающий Editor запрашивает переход на свою вкладку;
-парная правка Viewer подготовлена в
+парная правка опубликована в Viewer **4.40.0**:
 [PR #80](https://github.com/y26084670-blip/clark-viewer/pull/80).
 CI Windows/Linux и Pages успешны. В Chromium на опубликованном сайте проверены
 версия 4.61.0, загрузка ресурсов и HTML-справка без ошибок HTTP/JavaScript.
