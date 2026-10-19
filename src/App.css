@@ -79,7 +79,8 @@ body,
 .tabs-header {
   display: flex;
   flex-direction: row;
-  flex: 0 0 40px;
+  flex: 0 0 auto;
+  min-height: 40px;
   border-bottom: 1px solid #ccc;
 }
 
@@ -93,7 +94,8 @@ body,
   margin-bottom: 4px;
   cursor: pointer;
   color: rgb(0, 0, 0);
-  flex: 1;
+  flex: 1 0 auto;
+  white-space: nowrap;
   display: flex;
   align-items: center;
   justify-content: center;

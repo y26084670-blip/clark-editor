@@ -18,26 +18,18 @@
 .examples-installer-actions {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    align-items: start;
+    align-items: stretch;
     gap: 10px;
     width: 100%;
 }
 
-.examples-installer-action {
-    display: grid;
-    gap: 6px;
-    min-width: 0;
-    overflow-wrap: anywhere;
-}
-
-.examples-installer-action > button:first-child {
-    min-height: 2.5em;
-}
-
-.examples-installer-actions button,
-.examples-installer-cancel {
+.examples-installer-actions a {
+    display: flex;
+    align-items: center;
+    justify-content: center;
     box-sizing: border-box;
     min-width: 0;
+    min-height: 2.5em;
     margin: 0;
     padding: 5px 10px;
     border: 1px solid transparent;
@@ -46,56 +38,26 @@
     color: #fff;
     font: inherit;
     line-height: 1.25;
+    text-align: center;
+    text-decoration: none;
+    overflow-wrap: anywhere;
     cursor: pointer;
 }
 
-.examples-installer-actions button {
-    width: 100%;
-    overflow-wrap: anywhere;
-}
-
-.examples-installer-actions button:hover:not(:disabled) {
+.examples-installer-actions a:hover:not([aria-disabled="true"]) {
     background: #1d4ed8;
 }
 
-.examples-installer-cancel {
-    border-color: #8a9ba9;
-    background: #3a4650;
-}
-
-.examples-installer-cancel:hover:not(:disabled) {
-    background: #4a5965;
-}
-
-.examples-installer button:focus-visible {
+.examples-installer-actions a:focus-visible {
     outline: 2px solid #a9cfff;
     outline-offset: 2px;
 }
 
-.examples-installer button:disabled {
+.examples-installer-actions a[aria-disabled="true"] {
     cursor: default;
     opacity: .6;
 }
 
 .examples-installer-error {
     color: #ffb3aa;
-}
-
-.examples-installer-download,
-.examples-installer-progress {
-    display: grid;
-    gap: 6px;
-    min-width: 0;
-    width: 100%;
-    overflow-wrap: anywhere;
-}
-
-.examples-installer-progress {
-    align-self: stretch;
-}
-
-.examples-installer-progress progress {
-    width: 100%;
-    height: 12px;
-    accent-color: #75a9ff;
 }

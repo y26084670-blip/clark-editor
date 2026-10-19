@@ -1,7 +1,11 @@
-/* @refresh reload */
-import { render } from 'solid-js/web'
-import App from './App.jsx'
+import { installViewportGate } from "./viewportGate.js";
+import "./viewportGate.css";
 
-const root = document.getElementById('root')
+const root = document.getElementById("root");
+const dispose = installViewportGate({
+  root,
+  applicationName: "E3D Editor",
+  load: () => import("./startApp.jsx").then(({ startApp }) => () => startApp(root)),
+});
 
-render(() => <App />, root)
+if (import.meta.hot) import.meta.hot.dispose(dispose);
