@@ -2,7 +2,6 @@ import { copyFile, lstat, mkdir, readFile, readdir, realpath, rm, writeFile } fr
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { readOMExamplesBundle } from "./om-examples-bundle.mjs";
-import { validateInstallerMetadata } from "../src/services/installerDownloadService.js";
 
 const projectRoot = fileURLToPath(new URL("../", import.meta.url));
 const defaultSourceRoot = path.join(projectRoot, "public", "examples", "clark.projects");
@@ -58,9 +57,6 @@ export async function prepareExamplesAssets({
     }
     const configText = await readFile(path.resolve(configPath), "utf8");
     const config = JSON.parse(configText);
-    if (config?.solverInstallerSize !== undefined || config?.solverInstallerSha256 !== undefined) {
-        validateInstallerMetadata(config);
-    }
     if (!config || typeof config !== "object" || Array.isArray(config)
         || typeof config.manifestUrl !== "string" || !config.manifestUrl.trim()
         || typeof config.solverInstallerUrl !== "string") {

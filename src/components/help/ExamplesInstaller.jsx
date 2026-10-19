@@ -1,6 +1,6 @@
 import { Show, createEffect, createSignal, onCleanup } from "solid-js";
 import { validateDownloadUrl } from "../../services/examplesService";
-import { createInstallerDownloadUri, validateInstallerMetadata } from "../../services/installerDownloadService";
+import { createInstallerDownloadUri, validateInstallerDownloadConfiguration } from "../../services/installerDownloadService";
 import "./ExamplesInstaller.css";
 
 export function ExamplesInstaller(props) {
@@ -30,7 +30,7 @@ export function ExamplesInstaller(props) {
       const config = await response.json();
       if (controller.signal.aborted || disposed) return;
       let directAvailable = false;
-      try { validateInstallerMetadata(config); directAvailable = true; } catch { /* The ordinary link remains usable. */ }
+      try { validateInstallerDownloadConfiguration(config); directAvailable = true; } catch { /* The ordinary link remains usable. */ }
       setLinks({
         examples: validateDownloadUrl(config?.examplesArchiveUrl, baseUrl),
         installer: validateDownloadUrl(config?.solverInstallerUrl, baseUrl),
