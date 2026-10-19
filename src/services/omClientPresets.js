@@ -4,7 +4,11 @@ import { parseOMJson, validateOMPreset } from "./omClientService.js";
 // A developer's editor-preset.json can also be loaded directly in the window.
 const files = import.meta.glob("../data/om-presets/*.json", { eager: true, import: "default" });
 export const omClientPresets = Object.values(files).map(validateOMPreset);
-export const omPresetKey = preset => `${preset.selection.model}/${preset.label}`;
+export const omPresetKey = preset => `${preset.selection.model}/${preset.contract.dataSchema}/${preset.label}`;
+export function findOMPreset(presets, selection, data) {
+  return presets.find(preset => preset.selection.model === selection?.model
+    && preset.contract.dataSchema === data?.schema) ?? null;
+}
 const STORAGE_KEY = "web-gui:om-client-presets";
 
 export function readOMPresets() {

@@ -57,3 +57,21 @@
 .om-client-confirm { flex: 0 0 auto; padding: 10px; margin-bottom: 8px; border: 1px solid #998151; background: #3d3422; }
 .om-client-confirm span { display: block; margin-bottom: 8px; }
 .om-client-confirm button { margin-right: 7px; }
+
+.om-client-mode { display: flex; gap: 6px; flex: 0 0 auto; }
+.om-client-mode button[aria-pressed="true"] { background: #355f82; border-color: #9bc7ed; }
+.om-model-form { flex: 1 1 auto; min-height: 160px; overflow: auto; padding-right: 4px; }
+.om-model-grid, .om-model-note { color: #bbcbd9; font-size: 12px; line-height: 1.4; }
+.om-model-group { margin: 0 0 10px; padding: 8px; border: 1px solid #526779; border-radius: 4px; background: #253340; }
+.om-model-group h3 { margin: 0 0 7px; color: #c9e4fa; font-size: 14px; }
+.om-model-group h4 { margin: 10px 0 6px; font-size: 13px; font-weight: 600; }
+.om-model-group small { color: #bbcbd9; font-weight: normal; }
+.om-model-row + .om-model-row { border-top: 1px solid #415367; margin-top: 8px; padding-top: 8px; }
+.om-model-row-label { color: #c9d7e3; font-weight: 600; }
+.om-model-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px 10px; }
+.om-model-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.om-model-field input, .om-model-field select, .om-model-binding select { width: 100%; max-width: none; min-width: 0; }
+.om-model-field output { padding: 6px 8px; }
+.om-model-binding { display: grid; grid-template-columns: minmax(140px, 2fr) minmax(0, 3fr); gap: 8px; align-items: center; margin-bottom: 5px; }
+.om-model-binding span { overflow-wrap: anywhere; }
+.om-model-form select[aria-invalid="true"] { border-color: #f39c92; background: #4b3032; }

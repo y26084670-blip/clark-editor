@@ -1,4 +1,5 @@
 // Task-owned OM input files. No solver, compiler or model state lives here.
+import { validateOMClarkBindings } from "./omClarkBindings.js";
 export const OM_SELECTION_FILE = "om-client.json";
 const MAX_JSON_BYTES = 4 * 1024 * 1024;
 const own = (value, key) => Object.hasOwn(value, key);
@@ -126,7 +127,7 @@ export function expandOMContract(contract, data) {
 
 // The optional context is the task's read-only BaseModel.amps representation.
 // A standalone preset can validate references before a particular task is known.
-export function validateOMInputs(selection, data, coupling, preset, amplitudes) {
+export function validateOMInputs(selection, data, coupling, preset, amplitudes, taskModel) {
   validateOMSelection(selection);
   if (data?.schema === "clark-circuit/1") fail("Формат clark-circuit/1 больше не поддерживается. Выберите новый пресет с импульсами и заполните данные модели в формате clark-circuit/2.");
   if (!preset || preset.selection.model !== selection.model) fail("Загрузите пресет выбранной OM-модели.");
@@ -171,6 +172,21 @@ export function validateOMInputs(selection, data, coupling, preset, amplitudes) 
       validatePoints(amplitudes[pulse - 1].impuls, `Импульс №${pulse}`, scale);
     }
   }
+  if (preset.contract.ui) for (const group of preset.contract.ui.groups) {
+    const count = group.repeat ? contract.arraySizes[group.repeat] : 1;
+    for (let index = 0; index < count; index++) for (const field of group.fields) {
+      const rule = omFieldDescriptor(preset.contract, field);
+      const path = field.path.map(key => key === "$index" ? index : key);
+      const value = path.length === 1 && !own(data, path[0]) && own(rule, "default") ? rule.default : valueAt(data, path);
+      if (["real", "integer"].includes(rule.type)) {
+        number(value, field.label);
+        if (rule.type === "integer" && !Number.isSafeInteger(value)) fail(`${field.label}: требуется целое число.`);
+        if (rule.minimum !== undefined && value < rule.minimum) fail(`${field.label}: минимум ${rule.minimum}.`);
+        if (rule.maximum !== undefined && value > rule.maximum) fail(`${field.label}: максимум ${rule.maximum}.`);
+      } else if (typeof value !== rule.type) fail(`${field.label}: неверный тип значения.`);
+      if (rule.options && !rule.options.some(option => option.value === value)) fail(`${field.label}: выберите значение из списка.`);
+    }
+  }
   if (!record(coupling) || coupling.schema !== "clark-server/1") fail(`${selection.couplingFile}: требуется схема clark-server/1.`);
   for (const side of ["inputs", "outputs"]) {
     const actual = coupling[side], expected = contract[side];
@@ -184,7 +200,57 @@ export function validateOMInputs(selection, data, coupling, preset, amplitudes) 
       }
     });
   }
+  if (taskModel !== undefined) validateOMClarkBindings(coupling, taskModel);
   return { selection, data, coupling };
+}
+
+export function omFieldDescriptor(contract, field) {
+  const samePath = path => JSON.stringify(path) === JSON.stringify(field.path);
+  const binding = contract.parameterBindings.find(item => samePath(item.path));
+  const pulse = contract.tables.find(item => samePath(item.pulsePath));
+  const scale = contract.tables.find(item => samePath(item.scalePath));
+  const dimension = field.path.length === 1 ? contract.dimensions[field.path[0]] : null;
+  const result = { ...field, ...binding, ...(pulse ? { type: "integer", minimum: 1, source: "task-pulse" } : {}),
+    ...(scale ? { type: "real" } : {}), ...dimension };
+  if (dimension) result.type = "integer";
+  result.readonly = field.path.length === 1 && own(contract.structural, field.path[0]);
+  return result;
+}
+
+function validateOMPanel(contract) {
+  const ui = contract.ui;
+  if (ui === undefined) return;
+  if (!record(ui) || ui.schema !== "clark-om-panel/1" || !Array.isArray(ui.groups) || !ui.groups.length) fail("Неподдерживаемое описание панели модели.");
+  const groups = new Set(), paths = new Set();
+  const text = value => typeof value === "string" && value.trim();
+  for (const group of ui.groups) {
+    if (!record(group) || !token(group.id) || groups.has(group.id) || !text(group.label) || !Array.isArray(group.fields)
+      || !group.fields.length || (group.repeat !== undefined && !own(contract.arraySizes, group.repeat))) fail("Некорректная группа панели модели.");
+    groups.add(group.id);
+    if (group.rowLabels !== undefined && (!Array.isArray(group.rowLabels) || !group.rowLabels.every(text))) fail("Некорректные подписи строк панели.");
+    for (const field of group.fields) {
+      if (!record(field) || !text(field.label) || !Array.isArray(field.path) || !field.path.length
+        || field.path.some(key => !(typeof key === "string" || (Number.isInteger(key) && key >= 0))
+          || ["__proto__", "constructor", "prototype"].includes(key))
+        || (field.path.includes("$index") && (!group.repeat || field.path[0] !== group.repeat))
+        || (group.repeat && (field.path[0] !== group.repeat || field.path[1] !== "$index"))) fail("Некорректный путь поля панели.");
+      const key = JSON.stringify(field.path);
+      for (const name of ["unit", "description"]) if (own(field, name) && typeof field[name] !== "string") fail("Подпись поля панели должна быть текстом.");
+      if (paths.has(key)) fail("Поле панели описано несколько раз.");
+      paths.add(key);
+      const rule = omFieldDescriptor(contract, field);
+      if (!["real", "integer", "boolean", "string"].includes(rule.type)) fail(`Не указан тип поля «${field.label}».`);
+      for (const bound of ["minimum", "maximum"]) if (own(rule, bound)) number(rule[bound], field.label);
+      if (rule.options !== undefined && (!Array.isArray(rule.options) || !rule.options.length
+        || rule.options.some(option => !record(option) || !text(option.label)
+          || typeof option.value !== (["real", "integer"].includes(rule.type) ? "number" : rule.type))
+        || new Set(rule.options.map(option => JSON.stringify(option.value))).size !== rule.options.length)) fail("Некорректные варианты поля панели.");
+    }
+  }
+  if (ui.ports !== undefined && (!Array.isArray(ui.ports) || ui.ports.some(port => !record(port)
+    || !["inputs", "outputs"].includes(port.side) || !text(port.label)
+    || (own(port, "unit") && typeof port.unit !== "string")
+    || !contract[port.side].some(group => group.kind === port.kind)))) fail("Некорректные подписи портов модели.");
 }
 
 export function validateOMPreset(preset) {
@@ -224,6 +290,7 @@ export function validateOMPreset(preset) {
           && !(record(name) && typeof name.variable === "string" && name.variable && typeof name.repeat === "string"))) fail(`Некорректная группа ${side} в пресете.`);
     }
   }
+  validateOMPanel(contract);
   validateOMInputs(preset.selection, preset.data, preset.coupling, preset);
   return preset;
 }
