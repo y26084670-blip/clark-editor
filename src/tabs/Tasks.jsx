@@ -3,7 +3,7 @@
 //
 import { Show, batch, createEffect, createSignal, onCleanup, onMount, untrack } from "solid-js";
 import { TaskOperationDialog } from "../components/tasks/TaskOperationDialog.jsx";
-import { TaskGifGallery } from "../components/tasks/TaskGifGallery.jsx";
+import { TaskMediaPanel } from "../components/tasks/TaskMediaPanel.jsx";
 import { runTaskDirectoryOperation, suggestTaskCopyName } from "../services/taskDirectoryService.js";
 import { initializeTaskDirectory } from "../services/taskTemplateService.js";
 import { selectionService } from "../services/selectionService";
@@ -866,19 +866,9 @@ export function Tasks(props) {
         <div class="task-panel-caption">исходные данные</div>
       </div>
 
-      <section class="task-results-panel" aria-label="Результаты расчёта">
-        <TaskGifGallery taskHandle={selectedTask()?.handle} active={props.active}
-          disabled={galleryDisabled()} refreshKey={previewRevision()} onBusyChange={setGalleryBusy} />
-        <textarea
-          class="task-results-text"
-          aria-label="Сводка результатов расчёта выбранного задания"
-          readOnly
-          wrap="off"
-          spellcheck={false}
-          value={taskResultsText()}
-        />
-        <div class="task-panel-caption">результаты</div>
-      </section>
+      <TaskMediaPanel taskHandle={selectedTask()?.handle} active={props.active}
+        disabled={galleryDisabled()} refreshKey={previewRevision()} onBusyChange={setGalleryBusy}
+        resultsSummary={taskResultsText()} />
 
       <TaskLaunchWindow
         open={taskLaunchOpen() && props.active !== false}

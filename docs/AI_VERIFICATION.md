@@ -1,6 +1,61 @@
 # Проверка web-gui
 
-Обновлено: 2026-10-20 01:16 UTC+3.
+Обновлено: 2026-10-21 02:08 UTC+3.
+
+<a id="verification-task-docs"></a>
+## Локальные вкладки GIF/DOCS — 4.67.0 / Viewer 4.46.0
+
+Проверено 21.10.2026 на Node.js 24.19.0/Linux и headless Chromium, от баз
+Editor `91cf1ff` и Viewer `5032196`. [Контракт](AI_UI_CONTRACTS.md#task-docs-gallery).
+
+Целевой Editor — **91/91**:
+
+```sh
+node --test test/taskGifService.test.js test/taskGifGallery.test.js test/taskGifPlayback.test.js test/taskGifDecoder.test.js test/taskDocs.test.js test/taskDirectoryPermissions.test.js test/taskUnsavedChangesContract.test.js test/taskSummaryService.test.js test/taskGeometryPreviewContract.test.js test/taskPathFeedbackContract.test.js
+```
+
+Целевой Viewer — **91/91** (общие пять GIF/DOCS-наборов плюс
+`taskDirectoryPermissions`, `viewerToolsMenu`, `movieFilename`).
+Полный Viewer `npm test` — **714/714**. Полный Editor — **986/1008**:
+те же **22** сбоя воспроизведены в пяти соответствующих файлах тестов на
+чистом архиве исходного `91cf1ff`, множества имён совпадают, новых сбоев нет.
+Это прежние appLayout/defaultLibrary/diagnosticPopup/geometryViewer/HTS-контракты;
+их реализация в данную правку не входит.
+
+`taskDocs.test.js` проверяет непосредственные файлы DOCS, фильтр и порядок,
+README по умолчанию, отсутствие записи, отсутствие папки и отказ доступа,
+сигнатуры/MIME PNG/JPEG/WebP, пределы 64/2 МиБ, строгий UTF-8/BOM, буквальный
+Markdown, один слот чтения текста, смену выбора/контекста, отмену и поздние
+ответы. Общие проверки галереи сохраняют подтверждение удаления и busy,
+навигацию, два слота чтения, независимый URL и освобождение ресурсов.
+
+Браузерный сценарий запускается одинаково в обоих репозиториях:
+
+```sh
+PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs CHROMIUM_EXECUTABLE=/path/to/chromium CHECK_OUTPUT=/tmp/task-media-check node scripts/check-task-media-browser.mjs
+```
+
+**8/8** в каждом приложении, без `pageerror`. Использованы реальные Solid,
+нативные OPFS File/Blob, PNG/JPEG/WebP-декодирование и GIF canvas/Worker.
+Проверены счётчики без чтения скрытой DOCS; ленивые миниатюры; разворот,
+стрелки/границы списка, восстановление, drag, Escape/возврат фокуса;
+независимая прокрутка README; буквальный MD и разворот текста; повреждённое
+изображение; текст без изображений, пустая папка и ошибка доступа; обновление
+кнопкой/повторным выбором/focus; прежний GIF-плеер, отмена/подтверждение удаления,
+синхронный запрос записи и busy; клавиатурные вкладки, макеты 1100×600 и
+1440×900, освобождение всех URL при деактивации/cleanup.
+`CHECK_OUTPUT` содержит JSON результата и снимки обеих ширин.
+
+Это проверка общей панели с настоящими стилями каждого приложения и OPFS.
+Нативный системный выбор каталога, окно разрешений Windows/Edge и полный
+экран приложения с загруженной расчётной моделью этим сценарием не проверяются.
+Старые сценарии `Tasks` подтверждены целевыми тестами выше.
+
+`npm run build:pages` — успешно в обоих проектах. В Editor сборка также
+проверяет 185 файлов библиотеки и 9 файлов руководства по SHA-256.
+Проверены `git diff --check`, локальные ссылки изменённых документов,
+уникальность HTML-якорей, совпадение общей реализации между проектами и
+неизменность раздела «Неформальные замечания» в обоих `resume.md`.
 
 ## Проверка прямой загрузки без ручных метаданных 4.66.1
 

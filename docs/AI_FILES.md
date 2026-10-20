@@ -1,6 +1,6 @@
 # Карта файлов и компонентов web-gui
 
-Обновлено: 2026-10-20 01:16 UTC+3.
+Обновлено: 2026-10-21 02:06 UTC+3.
 
 ## Назначение
 
@@ -118,16 +118,21 @@
 | Примеры цепи OM | `data/om-examples.json` → `.generated/examples/clark.projects/Open Modelica/test_circuit_*`; `test/omCircuitExample.test.js` | Самостоятельные постановки с подключённой и свободной нейтралью; второй вариант — Fortran, 220 В, L/R=0. Источники сравнения хранятся только в clark.tests. [Происхождение](AI_CLARK_INTEGRATION.md#om-test-204-example). |
 | Пресеты OM | `src/services/omClientPresets.js`, `src/data/om-presets/*.json` | Встроенные JSON-шаблоны и запоминаемые браузером импортированные `editor-preset.json`. Контракт расширяется данными, без диспетчера по имени модели. |
 | Предпросмотр | `src/services/taskGeometryPreviewService.js`, `src/components/geometry/TaskGeometryPreview.jsx` | Подготовка и показ геометрии выбранного, но ещё не загруженного задания. |
-| Галерея GIF | `src/components/tasks/TaskGifGallery.jsx`, `TaskGifGallery.css` | Сетка, действия миниатюр и модальное окно; подключение к выбранному заданию в `src/tabs/Tasks.jsx`. [Контракт](AI_UI_CONTRACTS.md#task-gif-gallery). |
-| Жизненный цикл GIF | `src/services/taskGifGalleryController.js` | Список, очередь видимых миниатюр и предпросмотра, отмена устаревших запросов и освобождение URL. |
+| Вкладки GIF/DOCS | `src/components/tasks/TaskMediaPanel.jsx`, `TaskMediaPanel.css` | Локальные вкладки и счётчики, отдельные области изображений/текста; подключение к выбранному заданию в `src/tabs/Tasks.jsx`. [Контракт](AI_UI_CONTRACTS.md#task-docs-gallery). |
+| Галереи и окно | `src/components/tasks/TaskImageGallery.jsx`, `TaskMediaDialog.jsx`, `TaskGifGallery.css` | Общая сетка, действия, видимость миниатюр, модальное окно изображений и текста. Префикс CSS `task-gif-` сохранён для общей оболочки. |
+| Специализация галерей | `src/components/tasks/TaskGifGallery.jsx`, `TaskDocsGallery.jsx` | GIF подключает плеер и удаление; DOCS — изображения и текст только для чтения. |
+| Жизненный цикл изображений | `src/services/taskImageGalleryController.js`, `taskGifGalleryController.js` | Общая ограниченная очередь, счётчик скрытой галереи, отмена и освобождение URL; GIF-обёртка задаёт файловый сервис и удаление. |
+| Документация задания | `src/services/taskDocsService.js`, `taskDocsTextController.js` | Чтение DOCS, форматы, порядок и выбор README; отдельная очередь и защита актуальности выбранного текста. |
 | Файлы GIF | `src/services/taskGifService.js` | File System Access API для списка, чтения, записи, удаления и уведомлений об изменении. Editor использует просмотр и удаление; сохранение фильма вызывает Viewer. |
 | Проверки GIF | `test/taskGifGallery.test.js`, `test/taskGifService.test.js` | Проверки контроллера, обработчиков компонента и файлового сервиса. [Методика](AI_VERIFICATION.md#verification-task-gifs-441). |
+| Проверки DOCS и общей панели | `test/taskDocs.test.js`, `test/browser/taskMedia.html`, `test/browser/taskMedia.fixture.jsx`, `scripts/check-task-media-browser.mjs` | Файловый сервис и контроллер текста; браузерные сценарии с реальным Solid, OPFS, изображениями и диалогами. [Методика](AI_VERIFICATION.md#verification-task-docs). |
 | Сводки | `src/services/taskSummaryService.js` | Формирование и запись `input3XX/_summary.txt` из снимка сохраняемой модели; чтение обеих сводок без разбора результатов. Вызов записи — `App.handleSave`. [Контракт](AI_CLARK_INTEGRATION.md#task-summaries). |
 | Демо | `src/services/demoTaskService.js` | Загружаемая копия демонстрационного задания в памяти браузера. |
 | Примеры | `src/services/examplesService.js`, `src/components/help/ExamplesInstaller.jsx` | Установка дерева примеров из HTTP-источника. |
 
-Компонент галереи, его CSS, контроллер, файловый сервис и профильные тесты
-поддерживаются одинаковыми в `web-gui` и `clark-viewer`. Это общая реализация
+Компоненты GIF/DOCS, их CSS, контроллеры, файловые сервисы и профильные тесты,
+включая браузерный сценарий, поддерживаются одинаковыми в `clark-editor`
+и `clark-viewer`. Это общая реализация
 двух репозиториев; её подробный контракт в Editor —
 [AI_UI_CONTRACTS](AI_UI_CONTRACTS.md#task-gif-gallery).
 
