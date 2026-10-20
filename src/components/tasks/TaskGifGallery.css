@@ -43,7 +43,7 @@
 .task-gif-navigation-button.is-next { right: 12px; }
 .task-gif-navigation-button:hover:not(:disabled) { background: #303b45e0; }
 .task-gif-navigation-button:disabled { background: #20262d80; opacity: .3; cursor: default; }
-.task-gif-preview-body > img { display: block; max-width: 100%; max-height: calc(92dvh - 45px); object-fit: contain; }
+.task-gif-preview-body > img { display: block; width: 100%; height: 100%; max-width: 100%; max-height: 100%; object-fit: contain; }
 .task-gif-preview-body > p { padding: 20px; overflow-wrap: anywhere; }
 .task-gif-preview-body { flex: 1 1 0; min-height: 0; }
 .task-gif-player { display: flex; flex-direction: column; width: 100%; height: 100%; min-height: 0; }
