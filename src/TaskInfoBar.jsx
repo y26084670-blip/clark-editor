@@ -252,11 +252,11 @@ export function TaskInfoBar(props) {
           type="button"
           class="general-information-button"
           onClick={() => setGeneralInformationOpen(true)}
-          title="Общая информация"
-          aria-label="Общая информация"
+          title="Быстрый старт"
+          aria-label="Быстрый старт"
           aria-haspopup="dialog"
         >
-          <span aria-hidden="true">?</span>
+          Быстрый старт
         </button>
 
         <a class="documentation-button"

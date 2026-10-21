@@ -46,7 +46,7 @@ try {
   const documentation = page.locator('.documentation-button');
   const size = await documentation.boundingBox(), validation = await button('Проверить модель').boundingBox();
   check('documentation width matches validation', size.width === validation.width);
-  const help = await button('Общая информация').boundingBox(), about = await button('О программе').boundingBox();
+  const help = await button('Быстрый старт').boundingBox(), about = await button('О программе').boundingBox();
   check('documentation is between two rightmost buttons', help.x < size.x && size.x < about.x);
   check('documentation is blue and BASE_URL-aware', await documentation.evaluate(e => getComputedStyle(e).backgroundColor === 'rgb(37, 99, 235)' && e.getAttribute('href') === '/clark-editor/user-guide/index.html'));
   const popupPromise = page.waitForEvent('popup'); await documentation.click(); const popup = await popupPromise; await popup.waitForLoadState();
@@ -62,7 +62,7 @@ try {
     await popup.screenshot({ path: path.join(out, `hts-approximations-${width}.png`) });
   }
   await popup.close();
-  await button('Общая информация').click();
+  await button('Быстрый старт').click();
   check('old dialog link removed', await page.locator('.general-information-guide-link').count() === 0);
   await page.locator('.general-information-dialog').getByRole('button', { name: 'Закрыть', exact: true }).click();
   await button('Выбрать каталог с проектами').click();
