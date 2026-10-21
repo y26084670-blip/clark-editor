@@ -97,9 +97,9 @@ export const recordsActions = {
 
         await runStructureChange(
             table,
-            () => Promise.all(
-                rows.map(row => row.delete()),
-            ),
+            () => table._gui.structure.removeRows
+                ? table._gui.structure.removeRows(rows)
+                : Promise.all(rows.map(row => row.delete())),
         );
     },
 

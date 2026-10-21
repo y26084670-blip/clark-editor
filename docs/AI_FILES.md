@@ -1,6 +1,6 @@
 # Карта файлов и компонентов web-gui
 
-Обновлено: 2026-10-21 02:06 UTC+3.
+Обновлено: 2026-10-21 03:41 UTC+3.
 
 ## Назначение
 
@@ -227,6 +227,10 @@ universalEditor / editorRegistry / editorFactory, constraintValidator /
 
 Представления: ViewRegistry, ViewAdapter, View (TableView), DetailRegion и
 основная View-проекция свойства вкладки.
+`recordsActions.removeRecord` использует `TableView`-обработчик пакетного
+удаления ARRAY; реальные таблицы/история/сохранение проверяются сценарием
+`scripts/check-bulk-delete-browser.mjs` на общей `editorFeatures.fixture.jsx`.
+[Контракт](AI_UI_CONTRACTS.md#bulk-array-delete).
 Представление 3D-геометрии: GeometryViewerWindow,
 ThreeGeometryViewport и общий UI-компонент FloatingWindow.
 

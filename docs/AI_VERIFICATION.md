@@ -1,6 +1,50 @@
 # Проверка web-gui
 
-Обновлено: 2026-10-21 02:08 UTC+3.
+Обновлено: 2026-10-21 03:43 UTC+3.
+
+<a id="verification-bulk-delete"></a>
+## Пакетное удаление строк ARRAY — 4.67.1
+
+Проверено 21.10.2026 от `main` `3eba1dc`, Node.js 24.19.0/Linux,
+headless Chromium и Tabulator 6.5.0.
+[Контракт](AI_UI_CONTRACTS.md#bulk-array-delete).
+
+Целевой Node-набор — **47/47**:
+
+```sh
+node --test test/tableViewLifecycle.test.js test/modelHistoryService.test.js test/modelSerializer.test.js test/modelReferenceViews.test.js test/mhjLayout.test.js test/selectionContextService.test.js test/dataEditorToolbarContract.test.js test/modelCompute.test.js test/timeFunctionModel.test.js test/arrayShape.test.js
+```
+
+Браузерный сценарий — **13/13**, без `pageerror`:
+
+```sh
+PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs CHROMIUM_EXECUTABLE=/path/to/chromium CHECK_OUTPUT=/tmp/editor-bulk-delete node scripts/check-bulk-delete-browser.mjs
+```
+
+Использованы настоящие App, Tabulator, история модели, Chart.js, сериализатор
+и OPFS; подменён только выбор каталога и явно введена ошибка `replaceData`.
+Загружаются 24 048 различных векторов: несмежное выделение оставляет 144 строки,
+отдельный случай удаляет только первые две строки. Проверены точные значения
+и порядок, одна публикация/замена, отсутствие `row.update` для перенумерации,
+Undo/Redo с обновлением интерфейса, сохранение геометрии и её диагностики,
+пустое выделение, структурная блокировка, запрет очистки обязательной таблицы,
+очистка необязательной MHJ, восстановление строк/выделения после ошибки и
+следующая успешная операция. Вложенные импульсы обновляют n и график;
+траектория сохраняет четыре колонки и независимую таблицу поворотов.
+RECORDS-удаление закрывает представление удалённого владельца. Штатное
+сохранение пишет только значения в прежнем column-major формате.
+
+Один контрольный замер полного приложения: 24 048 → 144 — **226 мс**,
+24 048 → 24 046 — **332 мс**; это не норматив для компьютера пользователя.
+Сценарий ограничивает каждую из этих операций 5 секундами и сохраняет
+результаты/снимок в `CHECK_OUTPUT`. Нативные диалоги Windows и Firefox
+не проверялись. Полный `npm test` для этой правки не запускался; выбран
+профильный набор выше и проверка фактического браузерного поведения.
+
+`npm run build:pages` выполнена успешно: проверены 185 файлов базовых
+характеристик и 9 файлов руководства по SHA-256. `git diff --check`, версии
+манифестов, новые документационные ссылки и неизменность раздела
+«Неформальные замечания» в `resume.md` проверены.
 
 <a id="verification-task-docs"></a>
 ## Локальные вкладки GIF/DOCS — 4.67.0 / Viewer 4.46.0
