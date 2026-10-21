@@ -21,9 +21,10 @@
 .task-access-dialog .task-access-bind--bound { background: #98e5b5; color: #063b1f; }
 .task-access-location, .task-access-notice { overflow-wrap: anywhere; }
 .task-access-notice:empty { margin: 0; }
-.task-access-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; }
+.task-access-actions { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; margin-left: 226px; padding-right: 3px; }
 .task-access-actions > button { width: 120px; box-sizing: border-box; }
 @media (max-width: 560px) {
   .task-access-row { grid-template-columns: minmax(0, 1fr); gap: 8px; }
   .task-access-row > button { width: min(210px, 100%); }
+  .task-access-actions { margin-left: 0; }
 }
