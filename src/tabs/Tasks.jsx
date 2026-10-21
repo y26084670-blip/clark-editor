@@ -36,6 +36,7 @@ import {
 
 import { TaskAccessDialog } from "../components/tasks/TaskAccessDialog.jsx";
 import { pickProjectDisk, prepareCatalogBinding, readCatalogBindingResult } from "../services/taskAccessService.js";
+import { saveProjectDisk } from "../services/projectDiskAccessService.js";
 
 import "./Tasks.css";
 
@@ -425,6 +426,12 @@ export function Tasks(props) {
         setBindingRequest(null); setBindingNotice("");
       });
       await selectCatalog(selected.catalogs.find(item => item.name === previousName) ?? selected.catalogs[0]);
+      try { await saveProjectDisk(selected.handle); }
+      catch {
+        if (!disposed && pickRevision === directoryPickRevision) {
+          setBindingNotice("Диск открыт. Не удалось сохранить доступ для Viewer; в Viewer выберите диск отдельно.");
+        }
+      }
     } catch (error) {
       if (disposed || pickRevision !== directoryPickRevision || isFilePickerCancellation(error)) return;
       setBindingNotice(getFilePickerErrorMessage(error, "выбрать диск с проектами"));
