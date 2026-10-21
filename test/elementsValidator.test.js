@@ -78,6 +78,7 @@ function element({
         targ: 0,
         model: 0,
         rv: 0,
+        xapName: "Сталь",
         ...overrides,
     };
 }
@@ -341,6 +342,74 @@ test("elements rejects negative movement and conductivity", () => {
             },
         ],
     );
+});
+
+test("Unknown without magnetic material and with zero conductivity reports ERROR at its original row", () => {
+    for (const model of [0, 1, 2]) {
+        for (const xapName of ["", " \t\r\n", "\u00a0\u2003", null, undefined]) {
+            const elements = [element({ model }), element({ model, xapName, rv: 0 })];
+            const before = structuredClone(elements);
+            const diagnostics = validate(elements);
+            assert.deepEqual(diagnostics.map(({ level, tab, row, property, message }) =>
+                ({ level, tab: tab.id, row, property, message })), [{
+                level: "error", tab: "elements", row: 2, property: "targ",
+                message: "элемент с назначением Unknown не может быть немагнитным при нулевой электропроводности",
+            }]);
+            assert.deepEqual(elements, before);
+        }
+    }
+});
+
+test("Unknown may be magnetic, conducting or both; prescribed and virtual sources are exempt", () => {
+    const model = { general: { countTimeSteps: 0 } };
+    for (const fields of [
+        { xapName: "Сталь", rv: 0 },
+        { xapName: "", rv: 1 },
+        { xapName: "", rv: Number.MIN_VALUE },
+        { xapName: "Сталь", rv: 1 },
+        ...[1, 2, 3].map(targ => ({ targ, xapName: "", rv: 0 })),
+    ]) assert.deepEqual(validate([element(fields)], model), []);
+});
+
+test("Unknown source rule uses original material fields and also applies in static and HTS modes", () => {
+    for (const countTimeSteps of [0, 20]) {
+        const model = { general: { countTimeSteps, useMED: false, htsMu: false, htsRo: false } };
+        const invalid = element({ model: 2, xapName: "", rv: -0, isMagnetic: true, isConductive: true });
+        assert.equal(validate([invalid], model).filter(d => d.property === "targ").length, 1);
+        assert.deepEqual(validate([element({ isMagnetic: false, isConductive: false })], model), []);
+    }
+});
+
+test("Unknown source rule does not duplicate invalid conductivity diagnostics", () => {
+    for (const rv of [-1, NaN, Infinity, undefined, null, "0"]) {
+        const diagnostics = validate([element({ xapName: "", rv })]);
+        assert.ok(!diagnostics.some(d => d.property === "targ"));
+        if (rv === -1) assert.deepEqual(diagnostics.map(d => [d.level, d.property]), [["error", "rv"]]);
+    }
+});
+
+test("full model validation reports and clears the Unknown material error using the current snapshot", async () => {
+    const { createServer } = await import("vite");
+    const server = await createServer({ configFile: false, appType: "custom",
+        server: { middlewareMode: true, hmr: false }, optimizeDeps: { noDiscovery: true, include: [] } });
+    try {
+        const { modelValidator } = await server.ssrLoadModule("/src/tabulator/validators/types/modelValidator.js");
+        const model = { general: { countTimeSteps: 0, useMED: true },
+            elements: [element({ xapName: "", rv: 0 })], amps: [], moves: [], mhj: null };
+        const check = () => modelValidator({ getModel: () => model }).filter(d => d.level === "error");
+        const before = structuredClone(model);
+        assert.deepEqual(check().map(d => [d.tab.id, d.row, d.property]), [["elements", 1, "targ"]]);
+        assert.deepEqual(model, before);
+        model.elements[0].rv = 1;
+        assert.deepEqual(check(), []);
+        model.elements[0].rv = 0;
+        model.elements[0].xapName = "Сталь";
+        assert.deepEqual(check(), []);
+        model.elements[0].xapName = "";
+        assert.equal(check().length, 1);
+    } finally {
+        await server.close();
+    }
 });
 
 test("elements validates every discretization direction", () => {

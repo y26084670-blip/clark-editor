@@ -34,8 +34,8 @@ const buttonRuntime = new Function("deps", `
 `);
 
 function model(names) {
-    return {general: {useMED: false}, amps: [], moves: [], regions: [], mhj: null,
-        elements: names.map(name => ({...dataService.createDefaultRecord(schema), name}))};
+    return {general: {useMED: true, countTimeSteps: 0}, amps: [], moves: [], regions: [], mhj: null,
+        elements: names.map(name => ({...dataService.createDefaultRecord(schema), name, rv: 1}))};
 }
 
 function nameDiagnostics(snapshot) {

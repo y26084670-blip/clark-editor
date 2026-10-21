@@ -1,4 +1,5 @@
 import { modelGeometrySettings } from "../../../../services/solver/geometryValidationSettings.js";
+import { kvFlags } from "../../../../services/solver/kvDerived.js";
 import { validateElementReferences } from "../../../../services/modelReferenceValidation.js";
 import {
     createError,
@@ -151,6 +152,17 @@ function validateRecordRules(elements, diagnostics) {
                 property: "rv",
                 message:
                     "электропроводность не может быть отрицательной",
+            }));
+        }
+
+        if (record?.targ === 0 && record.rv === 0 && !kvFlags(record).mv) {
+            diagnostics.push(createError({
+                tab: TABS.ELEMENTS,
+                row: index + 1,
+                property: "targ",
+                message:
+                    "элемент с назначением Unknown не может быть "
+                    + "немагнитным при нулевой электропроводности",
             }));
         }
 

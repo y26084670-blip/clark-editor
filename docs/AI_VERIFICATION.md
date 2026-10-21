@@ -1,6 +1,36 @@
 # Проверка web-gui
 
-Обновлено: 2026-10-21 03:43 UTC+3.
+Обновлено: 2026-10-21 04:07 UTC+3.
+
+<a id="verification-unknown-element-sources"></a>
+## Немагнитный Unknown с нулевой проводимостью — 4.67.2
+
+Проверено 21.10.2026 от `main` `a006f4b`, Node.js 24.19.0/Linux.
+[Контракт](AI_DATA_CONTRACTS.md#unknown-element-sources).
+Целевой набор — **96/96**:
+
+```sh
+node --test --test-concurrency=1 test/elementsValidator.test.js test/modelElementNames.test.js test/kvDerived.test.js test/materialReferenceValidation.test.js test/useMed.test.js test/modelReferenceValidation.test.js test/omCircuitExample.test.js test/uniformFieldCoil.test.js test/taskApprovalContract.test.js test/modelSaveFeedback.test.js
+```
+
+Новые случаи проверяют ERROR в исходной строке/поле `targ`, пустую и пробельную
+(включая Unicode) характеристику, все три модели материала, статический и
+динамический режимы, отключённые ВТСП-подсистемы и устаревшие вычисленные
+флаги. Подтверждены допустимость магнитного Unknown при GAM=0, немагнитного
+при GAM>0 (включая малое положительное значение), обоих свойств и назначений
+M-const/J-const/Virtual. Отрицательная и некорректная GAM не дублируются новой
+диагностикой. Проверки не изменяют исходный снимок.
+
+Через Vite SSR выполнен настоящий `modelValidator`: ошибка появляется и
+исчезает при коррекции текущей модели. Существующий сценарий общей команды
+проверки имён сохранён на корректных проводящих статических элементах.
+Пройдены проверки ссылок материалов, MED, обмена и загрузки двух примеров ОМ,
+генерации катушки, сохранения и защитного маркера задания.
+
+`npm run build:pages` успешна, проверены SHA-256 185 файлов библиотеки и
+9 файлов руководства. Проверены diff, версии, ссылки и неизменность
+«Неформальных замечаний». Полный `npm test` и отдельный браузерный прогон
+для этой правки не выполнялись.
 
 <a id="verification-bulk-delete"></a>
 ## Пакетное удаление строк ARRAY — 4.67.1
