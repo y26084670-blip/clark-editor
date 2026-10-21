@@ -1,6 +1,6 @@
 # Карта файлов и компонентов web-gui
 
-Обновлено: 2026-10-21 03:41 UTC+3.
+Обновлено: 2026-10-21 04:06 UTC+3.
 
 ## Назначение
 
@@ -89,6 +89,7 @@
 |---|---|---|
 | Ограничения значения | `src/tabulator/validators/types/constraintValidator.js` и `src/tabulator/validators/constraints/` | Диспетчер и зарегистрированные проверки дескрипторных ограничений отдельной ячейки. |
 | Модельные ограничения | `src/tabulator/validators/types/modelValidator.js`, `src/tabulator/validators/models/modelRegistry.js` и профильные каталоги `models/*/` | Условные, межполевые и предметные проверки BaseModel. |
+| Unknown без свойств материала | `src/tabulator/validators/models/elements/elementsValidator.js`, `src/services/solver/kvDerived.js`; `test/elementsValidator.test.js` | ERROR для немагнитного Unknown с GAM=0, исходный номер строки; проверка через общий modelValidator. [Контракт](AI_DATA_CONTRACTS.md#unknown-element-sources). |
 | Название элемента | `src/services/schemas/common/elementNameConstraints.js`, `src/services/schemas/elements.schema.js`, `src/tabulator/validators/models/elements/elementsValidator.js`; `test/modelElementNames.test.js` | Единый дескриптор для схемы и модельного ERROR; тест общей команды проверки с фактическими обработчиками App. [Контракт](AI_DATA_CONTRACTS.md#element-names). |
 | Сводка ограничений | `src/services/modelConstraintDiagnostics.js` | Подсчёт нарушений независимо от наличия экземпляров таблиц. |
 | Готовая иерархия JWeak1 | `src/services/jweakLocalService.js`, `src/services/solver/jweakLocalValidation.js` | Readonly-загрузка, проверка неизменности файла, допустимость родителей; публикация в `modelService.setJweakLocal`, координация в `App`. [Контракт](AI_DATA_CONTRACTS.md#jweak-local-input). |
