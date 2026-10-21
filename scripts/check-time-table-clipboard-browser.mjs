@@ -1,3 +1,4 @@
+import { chooseProjectDisk } from "./browser-project-access.mjs";
 // Actual App, Tabulator, Chart.js, system clipboard and native OPFS in Chromium.
 // The existing fixture controls only the directory picker; permission failures
 // and delayed reads below are injected explicitly as separate failure cases.
@@ -91,7 +92,7 @@ try {
       { angle: [0, 1, 7, 8, 9, 10, 11, 12], position: [0, 1, 17, 18, 19, 20, 21, 22], n: 2 },
     ].map(JSON.stringify).join("\n"));
   });
-  await page.getByRole("button", { name: "Выбрать каталог с проектами", exact: true }).click();
+  await chooseProjectDisk(page);
   await page.locator("#listProject").selectOption("Project");
   await page.locator("#listTask .listTask-item").filter({ hasText: /^Task$/ }).dblclick();
   await page.waitForFunction(() => editorFixture.model().amps?.length === 2 && editorFixture.model().moves?.length === 2);

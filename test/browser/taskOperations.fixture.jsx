@@ -49,8 +49,9 @@ await put(original, 'input3XX/formulas-user.json', '{"formula":"sin(t)"}');
 await put(original, 'input3XX/FMM/custom.json', '{"unchanged":true}');
 await put(root, 'clark.tasks.txt', 'Project/Original\n');
 let picker = 'root';
-window.showDirectoryPicker = async () => {
+window.showDirectoryPicker = async options => {
   if (picker === 'cancel') throw new DOMException('Cancelled', 'AbortError');
+  if (options?.id === 'clark-project-disk') return opfs;
   return picker === 'root' ? root : picker === 'wrong' ? original : destination;
 };
 localStorage.setItem('e3d.generalInformation.openAtStartup', 'false');

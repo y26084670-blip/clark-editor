@@ -1,0 +1,20 @@
+.task-access-dialog {
+  width: min(560px, calc(100vw - 48px));
+  max-height: calc(100dvh - 48px);
+  box-sizing: border-box;
+  overflow: auto;
+  padding: 24px;
+  color: #e6edf3;
+  background: #202c38;
+  border: 1px solid #637589;
+  border-radius: 10px;
+}
+.task-access-dialog::backdrop { background: rgb(0 0 0 / 55%); }
+.task-access-dialog h2 { margin: 0 0 16px; font-size: 20px; }
+.task-access-dialog p { line-height: 1.5; }
+.task-access-dialog button { padding: 9px 14px; border-radius: 5px; cursor: pointer; }
+.task-access-dialog button:disabled { cursor: default; opacity: .55; }
+.task-access-bind { background: #ffdf55; color: #791b0d; }
+.task-access-location, .task-access-notice { overflow-wrap: anywhere; }
+.task-access-notice { min-height: 3em; }
+.task-access-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; }

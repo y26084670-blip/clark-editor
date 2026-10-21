@@ -1,3 +1,4 @@
+import { chooseProjectDisk } from "./browser-project-access.mjs";
 // Requires npm ci, Playwright and Chromium. No production entrypoint is changed.
 // PLAYWRIGHT_MODULE and CHROMIUM_EXECUTABLE optionally locate external tooling.
 import { createServer } from 'vite';
@@ -31,7 +32,7 @@ const check = (name, condition) => { assert.ok(condition, name); checks.push(nam
 const button = name => page.getByRole('button', { name, exact: true });
 const dialog = page.locator('.task-operation-dialog');
 const choose = async name => { await page.locator('#listTask .listTask-item').filter({ hasText: new RegExp(`^${name}$`) }).click(); };
-const open = async name => { await button('Открыть дополнительные функции').click(); await page.locator('.side-panel').getByRole('button', { name, exact: true }).click(); await dialog.waitFor({ state: 'visible' }); };
+const open = async name => { await button('Выбор задания').click(); await button('Открыть дополнительные функции').click(); await page.locator('.side-panel').getByRole('button', { name, exact: true }).click(); await dialog.waitFor({ state: 'visible' }); };
 const submit = async name => { await dialog.getByRole('button', { name, exact: true }).click(); };
 const done = async () => { await dialog.waitFor({ state: 'hidden' }); };
 const state = () => page.evaluate(() => taskFixture.snapshot());
@@ -39,6 +40,7 @@ const read = value => page.evaluate(value => taskFixture.read(value), value);
 try {
   await page.goto(base + '/clark-editor/__task-fixture');
   await page.waitForFunction(() => window.taskFixture?.ready);
+  await page.locator(".task-access-dialog").getByRole("button", { name: "Закрыть", exact: true }).click();
   await button('Открыть дополнительные функции').click();
   check('commands disabled without project', await page.locator('.side-panel').getByRole('button', { name: 'Создать задание', exact: true }).isDisabled());
   check('delete disabled without a selected task', await page.locator('.side-panel').getByRole('button', { name: 'Удалить задание', exact: true }).isDisabled());
@@ -52,20 +54,20 @@ try {
   const popupPromise = page.waitForEvent('popup'); await documentation.click(); const popup = await popupPromise; await popup.waitForLoadState();
   check('documentation opens new tab', popup.url() === base + '/clark-editor/user-guide/index.html');
   check('guide explains JWeak1 and names both HTS approximations', await popup.locator('#jweak1').count() === 1
-    && (await popup.locator('#title-model-hts').textContent()) === '16.5. Аппроксимация для токовой подсистемы ВТСП'
+    && (await popup.locator('#model-hts').textContent()).replace(/\s+/g, ' ').includes('Материальные законы токовой подсистемы ВТСП')
     && await popup.locator('#model-hts-power').count() === 1 && await popup.locator('#model-hts-tanh').count() === 1);
   for (const width of [390, 768, 1440]) {
     await popup.setViewportSize({ width, height: 1000 });
     await popup.locator('#model-hts-tanh').scrollIntoViewIfNeeded();
     check(`HTS formulas stay inside guide page at ${width}px`, await popup.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
-    await popup.locator('#model-hts .equation').last().scrollIntoViewIfNeeded();
+    await popup.locator('#model-hts-tanh ~ .equation').first().scrollIntoViewIfNeeded();
     await popup.screenshot({ path: path.join(out, `hts-approximations-${width}.png`) });
   }
   await popup.close();
   await button('Быстрый старт').click();
   check('old dialog link removed', await page.locator('.general-information-guide-link').count() === 0);
   await page.locator('.general-information-dialog').getByRole('button', { name: 'Закрыть', exact: true }).click();
-  await button('Выбрать каталог с проектами').click();
+  await chooseProjectDisk(page);
   await page.locator('#listProject').selectOption('Project');
   await open('Создать задание');
   await dialog.locator('input[name="taskName"]').fill('Created'); await submit('Создать задание'); await done();
@@ -145,7 +147,7 @@ try {
   await open('Удалить задание'); await dialog.locator('input[type="checkbox"]').check(); await submit('Удалить задание');
   await page.waitForFunction(() => document.querySelector('.task-operation-error').textContent.includes('частично'));
   check('partial deletion closes affected editor, refreshes remaining directory and prevents retry',
-    !(await state()).path && await page.locator('#listTask .listTask-item').filter({ hasText: /^Failure$/ }).count() === 1
+    !(await state()).path && await page.locator('#listTask .listTask-item').filter({ hasText: /Failure$/ }).count() === 1
     && await dialog.getByRole('button', { name: 'Удалить задание', exact: true }).isDisabled());
   await page.screenshot({ path: path.join(out, 'task-delete-error.png') });
   await dialog.getByRole('button', { name: 'Закрыть', exact: true }).click(); await done();

@@ -47,6 +47,7 @@ export function TaskInfoBar(props) {
   const [generalInformationOpen, setGeneralInformationOpen] = createSignal(
     generalInformationOpenAtStartup(),
   );
+  createEffect(() => props.onGeneralInformationOpenChange?.(generalInformationOpen()));
   const saveButtonTitle = () => props.isDemo
     ? "Сохранение демонстрационной задачи недоступно"
     : props.saveFeedback?.message

@@ -1,3 +1,4 @@
+import { chooseProjectDisk } from "./browser-project-access.mjs";
 // Actual App/Tabulator, model history, serializer and native Chromium OPFS.
 // Only the directory picker and the explicit replacement failure are controlled.
 import assert from "node:assert/strict";
@@ -91,7 +92,7 @@ try {
       angle: [0, 1, 2, 3, 10, 11, 12, 13, 20, 21, 22, 23, 30, 31, 32, 33],
       position: [0, 1, 2, 3, 40, 41, 42, 43, 50, 51, 52, 53, 60, 61, 62, 63] }));
   });
-  await page.getByRole("button", { name: "Выбрать каталог с проектами", exact: true }).click();
+  await chooseProjectDisk(page);
   await page.locator("#listProject").selectOption("Project");
   await page.locator("#listTask .listTask-item").filter({ hasText: /^Task$/ }).dblclick();
   await page.waitForFunction(() => editorFixture.model().mhj?.[0]?.v.length === 24048);
