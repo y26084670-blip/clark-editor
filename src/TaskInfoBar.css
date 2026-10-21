@@ -72,12 +72,14 @@
 }
 
 .model-validation-button,
+.general-information-button,
 .documentation-button {
     width: 145px;
     flex: 0 0 145px;
     white-space: nowrap;
 }
 
+.general-information-button,
 .documentation-button {
     display: inline-flex;
     align-items: center;
@@ -92,7 +94,9 @@
     text-decoration: none;
     cursor: pointer;
 }
+.general-information-button:hover,
 .documentation-button:hover { background: #1d4ed8; }
+.general-information-button:focus-visible,
 .documentation-button:focus-visible { outline: 2px solid #466c91; outline-offset: 2px; }
 
 .save-button,
@@ -230,31 +234,9 @@
 }
 
 .general-information-button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    flex: 0 0 32px;
-    box-sizing: border-box;
-    width: 32px;
-    height: 26px;
     padding: 0;
-    border: 0;
-    border-radius: 6px;
-    background: #2563eb;
     color: #ffd600;
-    font-size: 20px;
-    font-weight: 800;
-    line-height: 1;
-    cursor: pointer;
-}
-
-.general-information-button:hover {
-    background: #1d4ed8;
-}
-
-.general-information-button:focus-visible {
-    outline: 2px solid #466c91;
-    outline-offset: 2px;
+    font-weight: 700;
 }
 
 .about-button:focus-visible {
