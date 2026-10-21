@@ -48,6 +48,7 @@ export function TaskDocsGallery(props) {
           disabled={disabled() || !view().documents.length} onChange={event => controller.select(event.currentTarget.value)}>
           <Show when={!view().documents.length}><option value="">Текстовые документы</option></Show>
           <For each={view().documents}>{entry => <option value={entry.name}>{entry.name}</option>}</For>
+          <Show when={view().documents.length}><option disabled value="">все документы см в Viewer</option></Show>
         </select>
         <button type="button" title="Развернуть текст документа" aria-label="Развернуть текст документа"
           disabled={disabled() || !view().selected || view().loading || Boolean(view().error)} onClick={event => {

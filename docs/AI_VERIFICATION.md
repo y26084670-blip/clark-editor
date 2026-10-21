@@ -1,6 +1,35 @@
 # Проверка web-gui
 
-Обновлено: 2026-10-21 18:12 UTC+3.
+Обновлено: 2026-10-21 19:23 UTC+3.
+
+<a id="verification-shared-project-disk"></a>
+## Общий доступ Editor/Viewer — 4.69.0 / 4.48.0
+
+Базы Editor `1fb9958` и Viewer `a839ad8`, Linux, Node.js 24.19.0,
+Chromium 153.0.8010.0/Playwright. Выполнено:
+
+- Editor: 237 профильных Node-тестов; Viewer: полный `npm test`, 723 теста.
+- `scripts/check-shared-disk-browser.mjs`: 12 сценариев двух вкладок на одном
+  origin в отдельном сохраняемом профиле браузера. Настоящие IndexedDB, OPFS
+  и BroadcastChannel; picker и разрешения управляются стендом. Проверены
+  передача диска, маска, независимость выбора/загруженных заданий, подсказка
+  DOCS, восстановление после закрытия Editor/F5 Viewer, отсутствие фонового
+  запроса разрешения, отказ и повторный щелчок, отмена picker, поздний ответ,
+  отказ IndexedDB, размеры 1100×600/1440×900 и отсутствие JS-исключений.
+- Повтор `scripts/check-task-access-browser.mjs`: 18 сценариев Editor,
+  включая пакетное связывание, ошибки/отмену, F5 и компоновку.
+- `npm run build:pages` обоих GUI прошли; ресурсы руководства проверены SHA-256.
+
+Запуск общего сценария из Editor: задать `VIEWER_ROOT` на рабочую копию Viewer,
+`PLAYWRIGHT_MODULE` и при необходимости `CHROMIUM_EXECUTABLE`, затем
+`npm run assets:prepare` и `node scripts/check-shared-disk-browser.mjs`. Стенд использует отдельный
+временный профиль и удаляет его после проверки. В инкогнито-контексте этой
+сборки headless Chromium чтение OPFS handle из IndexedDB завершало процесс
+с SIGTRAP; успешный результат относится к сохраняемому профилю.
+Системные диалоги, фактическое разрешение диска Windows и установленный
+обработчик Clark не подменяются результатами OPFS-проверки.
+[Контракт](AI_CLARK_INTEGRATION.md#shared-project-disk).
+
 
 <a id="verification-project-disk-access"></a>
 ## Доступ к диску и связывание каталогов — 4.68.0

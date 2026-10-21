@@ -1,24 +1,11 @@
 import { getFileSystemAccessSupport } from "./fileSystemAccessSupport.js";
-import { sortTaskDirectories } from "./taskLastOpenedService.js";
+import { isProjectCatalog, listProjectCatalogs } from "./projectDiskAccessService.js";
+export { isProjectCatalog, listProjectCatalogs } from "./projectDiskAccessService.js";
 
 export const CATALOG_REQUEST_FILE = "clark.catalogs-request.json";
 export const CATALOG_RESULT_FILE = "clark.catalogs-result.json";
 const GUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const validGuid = value => typeof value === "string" && GUID.test(value) && !/^0{8}-0{4}-0{4}-0{4}-0{12}$/.test(value);
-
-export function isProjectCatalog(name) {
-  return typeof name === "string" && /^clark\..+/i.test(name) && name.length <= 255
-    && name.toLowerCase() !== "clark.app" && !/[\\/<>:"|?*\x00-\x1f]|[. ]$/.test(name);
-}
-
-export async function listProjectCatalogs(disk) {
-  const catalogs = [];
-  // Служебные каталоги только перечисляются: их содержимое не открывается.
-  for await (const [name, handle] of disk.entries()) {
-    if (handle.kind === "directory" && isProjectCatalog(name)) catalogs.push({ name, handle });
-  }
-  return sortTaskDirectories(catalogs);
-}
 
 export async function pickProjectDisk(browser = window) {
   const support = getFileSystemAccessSupport(browser);

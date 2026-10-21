@@ -1,9 +1,15 @@
 # Карта файлов и компонентов web-gui
 
-Обновлено: 2026-10-21 18:12 UTC+3.
+Обновлено: 2026-10-21 19:20 UTC+3.
 
-Доступ к диску (4.68.0): `src/services/taskAccessService.js` — маска каталогов,
-запрос/ответ `bind-catalogs`; `src/components/tasks/TaskAccessDialog.jsx`/`.css` —
+Общий диск (4.69.0): `src/services/projectDiskAccessService.js` — маска,
+перечисление каталогов, IndexedDB, уведомление и проверка разрешения; файл
+совпадает с Viewer. `TaskDocsGallery.jsx` — подсказка в нижнем списке DOCS.
+`scripts/check-shared-disk-browser.mjs` проверяет два GUI на одном origin;
+стенд `test/browser/projectDisk.fixture.jsx` находится в Viewer.
+
+Доступ к диску (4.68.0): `src/services/taskAccessService.js` — запрос/ответ
+`bind-catalogs`; `src/components/tasks/TaskAccessDialog.jsx`/`.css` —
 общая панель выбора диска и связывания. `Tasks.jsx` владеет выбором дочернего
 каталога, `App.jsx`/`TaskInfoBar.jsx` согласуют старт со справкой.
 Проверки: `test/taskAccessService.test.js`, `test/taskDirectoryPermissions.test.js`,
