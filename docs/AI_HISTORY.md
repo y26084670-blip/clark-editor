@@ -1,6 +1,6 @@
 # История решений web-gui
 
-Обновлено: 2026-10-21 19:27 UTC+3.
+Обновлено: 2026-10-22 02:44 UTC+3.
 
 ## Назначение
 
@@ -9,9 +9,23 @@
 проблемы — [`AI_ARCHITECTURE_AUDIT.md`](AI_ARCHITECTURE_AUDIT.md), порядок
 будущих работ — [`AI_ROADMAP.md`](AI_ROADMAP.md).
 
-Последнее обновление: приложение 4.69.0, [PR #124](https://github.com/y26084670-blip/clark-editor/pull/124).
+Последнее обновление: приложение 4.70.0, [PR #130](https://github.com/y26084670-blip/clark-editor/pull/130).
 
 ## Основные этапы
+
+### 2026-10-22 02:43 UTC+3 — пакет для внешнего диалога по эскизу, 4.70.0
+
+[PR #130](https://github.com/y26084670-blip/clark-editor/pull/130) объединён
+с main коммитом `c8ae5189f9fa84da31c23f61622b87c66743b9c0` по команде владельца.
+«По эскизу» собирает изображения, условие и зафиксированный профиль CLARK
+в ZIP/REQUEST.md. Семь файловых контрактов берутся из текущих схем и
+сериализатора; возвращённый каталог открывается штатно. Профиль поступил из
+[clark.knowledge PR #6](https://github.com/y26084670-blip/clark.knowledge/pull/6).
+25 целевых Node-тестов, 18 браузерных проверок и Pages-сборка прошли локально;
+CI вершины PR успешно собрал приложение на Linux и Windows. Реальный диалог
+с моделью, ChatGPT Free и solver не испытывались.
+[Контракт](AI_CLARK_INTEGRATION.md#sketch-request-package),
+[проверки](AI_VERIFICATION.md#verification-sketch-request).
 
 ### 2026-10-21 19:26 UTC+3 — общий диск Editor/Viewer и подсказка DOCS, 4.69.0
 
