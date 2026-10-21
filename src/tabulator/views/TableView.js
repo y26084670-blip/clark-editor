@@ -145,6 +145,7 @@ export class TableView {
             required: false,
             structure: {
                 mutable: this.isStructureMutable(),
+                removeRows: (rows) => this.removeRows(rows),
                 createDefaultRow: () => ({
                     _row: this.nextRowId++,
                     index: 0,
@@ -180,6 +181,27 @@ export class TableView {
                 },
             },
         };
+    }
+
+    // ARRAY не владеет связанными представлениями строк. Однократная замена
+    // сохраняет порядок значений и не запускает полный пересчёт после каждой
+    // удалённой строки. Готовые подписи исключают такой же эффект row.update.
+    async removeRows(rows) {
+        const table = this.table;
+        const removed = new Set(rows.map(row => row.getIndex()));
+        const previous = table.getData();
+        const remaining = previous
+            .filter(row => !removed.has(row._row))
+            .map((row, index) => ({ ...row, index: this.rowLabel(index) }));
+
+        try {
+            await table.replaceData(remaining);
+        } catch (error) {
+            // BaseModel ещё не опубликована: восстановить только проекцию.
+            await table.replaceData(previous);
+            table.selectRow([...removed]);
+            throw error;
+        }
     }
 
     fillsAvailableHeight() {
