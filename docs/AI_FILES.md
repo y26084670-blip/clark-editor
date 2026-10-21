@@ -1,6 +1,16 @@
 # Карта файлов и компонентов web-gui
 
-Обновлено: 2026-10-21 19:20 UTC+3.
+Обновлено: 2026-10-22 02:32 UTC+3.
+
+Пакет по эскизу (4.70.0): `SketchRequestDialog.jsx`/`.css` в
+`src/components/tasks/` — ввод и выдача файлов; `Tasks.jsx` владеет открытием,
+`SidePanel.jsx` — командой. `src/services/sketchRequestService.js` проверяет
+входы/собирает запрос, `sketchContextService.js` извлекает текущие схемы,
+`zipStore.js` пишет ограниченный ZIP. `data/ai-context/` хранит профиль и lock.
+`test/sketchRequest.test.js` и `scripts/check-sketch-request-browser.mjs`
+проверяют пакет/диалог; браузер использует существующий taskOperations fixture.
+[UI](AI_UI_CONTRACTS.md#sketch-request-ui) ·
+[Формат](AI_CLARK_INTEGRATION.md#sketch-request-package).
 
 Общий диск (4.69.0): `src/services/projectDiskAccessService.js` — маска,
 перечисление каталогов, IndexedDB, уведомление и проверка разрешения; файл

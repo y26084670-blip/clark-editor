@@ -79,6 +79,9 @@ export function SidePanel(props) {
         {props.taskActions && <section class="side-panel-section">
           <div class="side-panel-section-title">Работа с заданиями</div>
           <div class="side-panel-options">
+            <button class="side-panel-option" disabled={!props.open || !props.taskActions.createEnabled}
+              title="Подготовить эскиз, условие и контекст CLARK для внешнего чата"
+              onClick={() => props.onTaskAction?.("sketch")}>По эскизу</button>
             {Object.entries(TASK_OPERATION_LABELS).map(([kind, label]) => <button
               class="side-panel-option"
               disabled={!props.open || !(kind === "create" ? props.taskActions.createEnabled : props.taskActions.selectedEnabled)}
