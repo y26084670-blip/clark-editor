@@ -47,6 +47,7 @@ import "./App.css";
 export default function App() {
   const [activeTab, setActiveTab] = createSignal(TABS.TASKS.id);
   const [taskActions, setTaskActions] = createSignal(null);
+  const [generalInformationOpen, setGeneralInformationOpen] = createSignal(true);
   const [taskSummaryBounds, setTaskSummaryBounds] = createSignal(null);
   const tabButtons = new Map();
   const editorControllers = new Map();
@@ -461,6 +462,7 @@ export default function App() {
       label: "Выбор задания",
       component: (props) => (
         <Tasks
+          helpOpen={generalInformationOpen()}
           onTaskActionsChange={setTaskActions}
           editorBusy={Boolean(savePending() || validationPending())}
           active={props.active}
@@ -769,6 +771,7 @@ export default function App() {
   return (
     <div class="app-container">
       <TaskInfoBar
+        onGeneralInformationOpenChange={setGeneralInformationOpen}
         path={selectionService.loadedTaskPath()}
         isDemo={selectionService.loadedTaskIsDemo()}
         onValidate={handleModelValidation}

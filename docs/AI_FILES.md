@@ -1,6 +1,14 @@
 # Карта файлов и компонентов web-gui
 
-Обновлено: 2026-10-21 04:06 UTC+3.
+Обновлено: 2026-10-21 18:12 UTC+3.
+
+Доступ к диску (4.68.0): `src/services/taskAccessService.js` — маска каталогов,
+запрос/ответ `bind-catalogs`; `src/components/tasks/TaskAccessDialog.jsx`/`.css` —
+общая панель выбора диска и связывания. `Tasks.jsx` владеет выбором дочернего
+каталога, `App.jsx`/`TaskInfoBar.jsx` согласуют старт со справкой.
+Проверки: `test/taskAccessService.test.js`, `test/taskDirectoryPermissions.test.js`,
+`test/browser/taskAccess.fixture.jsx`, `scripts/check-task-access-browser.mjs`.
+`scripts/browser-project-access.mjs` открывает новый диалог в существующих проверках.
 
 ## Назначение
 

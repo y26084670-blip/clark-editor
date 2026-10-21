@@ -1,3 +1,4 @@
+import { chooseProjectDisk } from "./browser-project-access.mjs";
 // Node 24 + installed dependencies; Playwright and Chromium supplied externally.
 // Native OPFS checks actual writes. Windows file picker / permissions are not covered.
 import { createServer } from 'vite';
@@ -27,7 +28,7 @@ async function waitSave(before){await page.waitForFunction(n=>editorFixture.writ
 try{
   await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/__editor-features`);
   await page.waitForFunction(()=>window.editorFixture?.ready);
-  await button('Выбрать каталог с проектами').click();await page.locator('#listProject').selectOption('Project');
+  await chooseProjectDisk(page);await page.locator('#listProject').selectOption('Project');
   await page.locator('#listTask .listTask-item').filter({hasText:/^Task$/}).dblclick();
   await page.waitForFunction(()=>editorFixture.model().general&&editorFixture.model().elements&&editorFixture.model().conrab);
   await page.waitForTimeout(300);

@@ -149,86 +149,11 @@
   text-align: center;
 }
 
-.task-directory-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  margin-bottom: 8px;
-}
-
-.task-directory-buttons {
-  display: flex;
-  align-items: center;
-  flex: 1 1 300px;
-  min-width: 0;
-  gap: 12px;
-}
-
-.task-directory-hint {
-  flex: 1 0 100%;
-  min-width: 0;
-  margin: 0;
-  color: #c0ccd6;
-  font-size: 12px;
-  height: 17px;
-  line-height: 17px;
-  white-space: nowrap;
-}
-
-.task-directory-hint-text {
-  display: inline-block;
-  width: max-content;
-  white-space: nowrap;
-}
-
-.task-directory-actions #pickDir {
-  min-width: 0;
-}
-
-.task-directory-buttons > button {
-  flex: 1 1 0;
-  min-width: 0;
-  white-space: normal;
-}
-
-.task-directory-buttons .task-bind-button:not(:disabled) {
-  color: #a60000;
-  background: #ffdf55;
-}
-
-.task-directory-buttons .task-bind-button:hover:not(:disabled) {
-  background: #ffe984;
-}
-
-.task-directory-buttons > button:disabled {
-  color: #abb7c1;
-  background: #37434f;
-  cursor: default;
-}
-
-.task-directory-buttons .task-bind-button.is-bound:disabled {
-  color: #fff;
-  background: #237a3b;
-  opacity: 1;
-}
-
-.task-binding-status {
-  display: inline;
-  margin: 0;
-  font-size: inherit;
-  color: #c0ccd6;
-}
-
-.task-binding-status.is-unbound {
-  animation: task-binding-blink 1.4s ease-in-out infinite;
-}
-
-@keyframes task-binding-blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.35; }
-}
+.task-directory-actions { width: 100%; margin-bottom: 8px; }
+.task-catalog-label { display: block; margin-bottom: 6px; font-size: 13px; color: #dce5ec; }
+.task-directory-buttons { display: flex; align-items: stretch; gap: 8px; min-width: 0; }
+.task-directory-buttons select { flex: 1 1 0; min-width: 0; width: 0; color: #e6edf3; background: #141c22; border: 1px solid #637589; border-radius: 6px; padding: 6px 8px; }
+.task-directory-buttons .task-access-button { flex: 0 0 36px; min-width: 36px; padding: 4px; display: grid; place-items: center; }
 
 .task-list-heading .task-demo-button {
   flex: 0 0 auto;

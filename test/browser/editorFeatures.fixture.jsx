@@ -12,8 +12,8 @@ import Chart from 'chart.js/auto';
 import { createConstantMuFmm } from '../../src/services/materials/constantMuFmm.js';
 import { createFmmMaterialFile } from '../../src/services/materialImport/xapLibImporter.js';
 const opfs = await navigator.storage.getDirectory();
-try { await opfs.removeEntry('editor-features', {recursive:true}); } catch(e) { if(e.name!=='NotFoundError')throw e; }
-const root=await opfs.getDirectoryHandle('editor-features',{create:true});
+try { await opfs.removeEntry('clark.editor-features', {recursive:true}); } catch(e) { if(e.name!=='NotFoundError')throw e; }
+const root=await opfs.getDirectoryHandle('clark.editor-features',{create:true});
 const project=await root.getDirectoryHandle('Project',{create:true});
 const task=await project.getDirectoryHandle('Task',{create:true});
 await initializeTaskDirectory(task);
@@ -30,7 +30,7 @@ FileSystemFileHandle.prototype.createWritable=async function(...args){
   const stream=await nativeWrite.apply(this,args),close=stream.close.bind(stream),name=this.name;
   stream.close=async()=>{await close();writes.push(name);};return stream;
 };
-window.showDirectoryPicker=async()=>root;
+window.showDirectoryPicker=async options=>options?.id === "clark-project-disk" ? opfs : root;
 localStorage.setItem('e3d.generalInformation.openAtStartup','false');
 window.editorFixture={read,put,writes,
   failFile:name=>{failFile=name;},

@@ -22,7 +22,6 @@ import { createLastOpenedTaskHistory, sortTaskDirectories } from "../services/ta
 import { createTaskSelectionChannel, readTaskSelection } from "../services/taskSelectionChannel.js";
 import { importUsedTaskMaterials } from "../services/taskImportMaterialsService.js";
 import {
-  prepareWorkspaceBinding,
   readWorkspaceBinding,
   createNativeSettingsRequest,
 } from "../services/taskLaunchService.js";
@@ -32,33 +31,24 @@ import {
 } from "../services/taskSummaryService.js";
 import {
   getFilePickerErrorMessage,
-  getFileSystemAccessSupport,
   isFilePickerCancellation,
 } from "../services/fileSystemAccessSupport";
 
+import { TaskAccessDialog } from "../components/tasks/TaskAccessDialog.jsx";
+import { pickProjectDisk, prepareCatalogBinding, readCatalogBindingResult } from "../services/taskAccessService.js";
+
 import "./Tasks.css";
 
-const PROJECTS_ROOT_NAME = "clark.projects";
-const EMPTY_TASK_INFO = Object.freeze({
-  summaryText: "",
-});
-
-function fitBindingLine(container, text) {
-  const available = container?.clientWidth;
-  if (!text || !(available > 1)) return;
-  // Re-measure at the original size so enlarging the panel restores the font.
-  let size = 12;
-  text.style.fontSize = `${size}px`;
-  for (let pass = 0; pass < 3; pass += 1) {
-    const width = text.getBoundingClientRect().width;
-    if (!(width > available - 1)) break;
-    size *= (available - 1) / width;
-    text.style.fontSize = `${size}px`;
-  }
-}
+const EMPTY_TASK_INFO = Object.freeze({ summaryText: "" });
 
 export function Tasks(props) {
   // состояние компонента
+  const [diskHandle, setDiskHandle] = createSignal(null);
+  const [catalogs, setCatalogs] = createSignal([]);
+  const [accessOpen, setAccessOpen] = createSignal(true);
+  const [accessBusy, setAccessBusy] = createSignal(false);
+  const [bindingRequest, setBindingRequest] = createSignal(null);
+  let accessButton;
   const [rootHandle, setRootHandle] = createSignal(null);
   const [rootName, setRootName] = createSignal("");
   const [projects, setProjects] = createSignal([]);
@@ -87,7 +77,6 @@ export function Tasks(props) {
   const [previewRevision, setPreviewRevision] = createSignal(1);
   const [workspaceBinding, setWorkspaceBinding] = createSignal(null);
   const [bindingBusy, setBindingBusy] = createSignal(false);
-  const [bindUri, setBindUri] = createSignal("");
   const [bindingNotice, setBindingNotice] = createSignal("");
   const [launchBusy, setLaunchBusy] = createSignal(false);
   const [operation, setOperation] = createSignal(null);
@@ -99,33 +88,6 @@ export function Tasks(props) {
   const [selectionSending, setSelectionSending] = createSignal(false);
   const [selectionNotice, setSelectionNotice] = createSignal("");
   let taskListElement;
-  let bindingHint, bindingHintText, bindingFitFrame = 0, bindingFitDisposed = false;
-  const bindingStatusText = () => rootHandle() ? bindingNotice() || "Каталог не связан с Решателем." : "";
-  const bindingHintTitle = () => "Для подготовки к запуску расчетов выполнить: «Связать с Решателем»"
-    + (bindingStatusText() ? ` ${bindingStatusText()}` : "");
-  const scheduleBindingFit = () => {
-    if (bindingFitDisposed || bindingFitFrame) return;
-    bindingFitFrame = window.requestAnimationFrame(() => {
-      bindingFitFrame = 0;
-      if (!bindingFitDisposed) fitBindingLine(bindingHint, bindingHintText);
-    });
-  };
-  createEffect(() => { bindingStatusText(); props.active; scheduleBindingFit(); });
-  onMount(() => {
-    const observer = new ResizeObserver(scheduleBindingFit);
-    observer.observe(bindingHint);
-    window.addEventListener("resize", scheduleBindingFit);
-    document.fonts?.addEventListener("loadingdone", scheduleBindingFit);
-    document.fonts?.ready.then(scheduleBindingFit);
-    scheduleBindingFit();
-    onCleanup(() => {
-      bindingFitDisposed = true;
-      observer.disconnect();
-      window.removeEventListener("resize", scheduleBindingFit);
-      document.fonts?.removeEventListener("loadingdone", scheduleBindingFit);
-      if (bindingFitFrame) window.cancelAnimationFrame(bindingFitFrame);
-    });
-  });
 
   createEffect(() => {
     const handle = loadedTaskHandle(), path = loadedTaskPath();
@@ -135,7 +97,7 @@ export function Tasks(props) {
     });
   });
 
-  const galleryDisabled = () => Boolean(operation()) || demoLoading() || bindingBusy()
+  const galleryDisabled = () => accessBusy() || Boolean(operation()) || demoLoading() || bindingBusy()
     || launchBusy() || taskLaunchOpen() || omClientState().busy || props.editorBusy || selectionReceiving();
   const operationsBlocked = () => galleryDisabled() || galleryBusy();
   createEffect(() => props.onTaskActionsChange?.({
@@ -320,25 +282,19 @@ export function Tasks(props) {
     );
   };
 
-  const bindingIsCurrent = (root, revision) => !disposed
-    && root === rootHandle() && revision === bindingRevision;
-  const bindingDisabled = () => !rootHandle() || bindingBusy() || launchBusy() || galleryBusy()
-    || workspaceBinding()?.bindingState === "bound";
-
-  const resetWorkspaceBinding = () => {
-    bindingRevision += 1;
-    setWorkspaceBinding(null);
-    setSettingsRequest(null);
-    setBindingBusy(false);
-    setBindUri("");
-    setBindingNotice("");
-  };
+  const bindingIsCurrent = (disk, revision) => !disposed
+    && disk === diskHandle() && revision === bindingRevision;
+  const accessDisabled = () => operationsBlocked() || omClientState().open;
 
   function openBindingUri(uri) {
-    // Keep the prepared URI until confirmation, so a retry uses a direct click.
-    setBindingNotice("Выберите в окне Решателя тот же базовый каталог «"
-      + rootHandle().name + "». После отмены можно нажать «Связать с Решателем» повторно.");
+    setBindingNotice("В окне Решателя выберите тот же диск. Если окно не открылось или выбор отменён, нажмите «Связать с Решателем» ещё раз. Для этой функции нужен обновлённый обработчик Clark.");
     window.location.href = uri;
+  }
+
+  function closeAccess() {
+    if (accessBusy() || bindingBusy()) return;
+    setAccessOpen(false);
+    queueMicrotask(() => accessButton?.focus());
   }
 
   function openTaskLaunch() {
@@ -363,56 +319,44 @@ export function Tasks(props) {
   }
 
   async function bindWorkspace() {
-    if (bindingDisabled()) return;
-    const root = rootHandle();
-    const revision = bindingRevision;
+    if (!diskHandle() || !catalogs().length || accessDisabled()) return;
+    const disk = diskHandle(), revision = bindingRevision;
     setBindingBusy(true);
     try {
-      if (bindUri()) {
-        openBindingUri(bindUri());
-        return;
-      }
-      const prepared = await prepareWorkspaceBinding(root);
-      if (!bindingIsCurrent(root, revision)) return;
-      setWorkspaceBinding({ workspaceId: prepared.workspaceId, bindingState: "pending" });
-      setBindUri(prepared.uri);
+      if (bindingRequest()) { openBindingUri(bindingRequest().uri); return; }
+      const prepared = await prepareCatalogBinding(disk, catalogs());
+      if (!bindingIsCurrent(disk, revision)) return;
+      setBindingRequest(prepared);
       if (navigator.userActivation && !navigator.userActivation.isActive) {
-        setBindingNotice("Подготовка завершена. Нажмите «Связать с Решателем» ещё раз, "
-          + "чтобы открыть выбор каталога в Windows.");
+        setBindingNotice("Подготовка завершена. Нажмите «Связать с Решателем» ещё раз, чтобы открыть окно выбора диска.");
       } else openBindingUri(prepared.uri);
     } catch (error) {
-      if (bindingIsCurrent(root, revision)) {
-        showTaskError("Не удалось связать каталог с Решателем: "
-          + (error?.message || String(error)));
-      }
+      if (bindingIsCurrent(disk, revision)) setBindingNotice("Не удалось связать каталоги: " + error.message);
     } finally {
-      if (bindingIsCurrent(root, revision)) setBindingBusy(false);
+      if (bindingIsCurrent(disk, revision)) setBindingBusy(false);
     }
   }
 
   async function pollWorkspaceBinding() {
-    const expected = workspaceBinding();
-    if (disposed || bindingPolling || bindingBusy()
-      || expected?.bindingState !== "pending" || !rootHandle()) return;
-    const root = rootHandle();
-    const revision = bindingRevision;
+    const expected = bindingRequest(), disk = diskHandle(), revision = bindingRevision;
+    if (disposed || bindingPolling || bindingBusy() || !expected || !disk) return;
     bindingPolling = true;
     try {
-      const marker = await readWorkspaceBinding(root);
-      if (!bindingIsCurrent(root, revision)
-        || workspaceBinding()?.workspaceId !== expected.workspaceId) return;
-      if (marker?.workspaceId === expected.workspaceId && marker.bindingState === "bound") {
-        batch(() => {
-          setWorkspaceBinding(marker);
-          setBindUri("");
-          setBindingNotice("Каталог связан с Решателем.");
-        });
-      }
-    } catch {
-      // The native handler may be replacing the marker; retry on the next poll.
-    } finally {
-      bindingPolling = false;
-    }
+      const result = await readCatalogBindingResult(disk, expected);
+      if (!result || !bindingIsCurrent(disk, revision) || bindingRequest() !== expected) return;
+      const root = rootHandle();
+      const marker = root ? await readWorkspaceBinding(root) : null;
+      if (!bindingIsCurrent(disk, revision) || bindingRequest() !== expected) return;
+      batch(() => {
+        if (root === rootHandle()) setWorkspaceBinding(marker);
+        setBindingRequest(null);
+        setBindingNotice(result.state === "bound"
+          ? `С Решателем связаны все каталоги: ${result.catalogs.length}. Можно продолжить работу.`
+          : `Связано каталогов: ${result.catalogs.length} из ${expected.catalogs.length}. ${result.message || "Повторите связывание."}`);
+      });
+    } catch (error) {
+      if (bindingIsCurrent(disk, revision)) setBindingNotice("Ожидание подтверждения Решателя: " + error.message);
+    } finally { bindingPolling = false; }
   }
 
   onMount(() => {
@@ -447,50 +391,55 @@ export function Tasks(props) {
     return sortTaskDirectories(dirs);
   };
 
-  // выбор корневого каталога
+  async function selectCatalog(catalog) {
+    const requestId = invalidateBrowserSelection();
+    const handle = catalog?.handle ?? null;
+    batch(() => {
+      setRootHandle(handle);
+      setRootName(handle ? "Корневой каталог: " + catalog.name : "");
+      setWorkspaceBinding(null);
+      setSettingsRequest(null);
+      setProjects([]); setSelectedProject(""); setTasks([]); setSelectedTask(null);
+      setTaskInfo(EMPTY_TASK_INFO); setTaskResultsText("");
+    });
+    if (!handle) { lastTaskHistory.dispose(); setLastTask(null); setLastTaskNotice(""); return; }
+    const historyRead = lastTaskHistory.open(handle);
+    const [subdirs, marker] = await Promise.all([getSubdirs(handle), readWorkspaceBinding(handle).catch(() => null)]);
+    if (disposed || requestId !== selectionRevision || handle !== rootHandle()) return;
+    batch(() => { setProjects(subdirs); setWorkspaceBinding(marker); });
+    await historyRead;
+  }
+
+  // Выбор диска не открывает служебные каталоги и не изменяет прежнюю привязку.
   const handlePickDirectory = async () => {
-    if (bindingBusy() || operation() || galleryBusy() || selectionReceiving()) return;
-    const support = getFileSystemAccessSupport(window);
-    if (!support.supported) {
-      showTaskError(support.message);
-      return;
-    }
-
+    if (accessDisabled()) return;
     const pickRevision = ++directoryPickRevision;
+    setAccessBusy(true);
     try {
-      const handle = await window.showDirectoryPicker({
-        mode: "readwrite",
+      const selected = await pickProjectDisk(window);
+      if (disposed || pickRevision !== directoryPickRevision) return;
+      const previousName = rootHandle()?.name;
+      bindingRevision += 1;
+      batch(() => {
+        setDiskHandle(selected.handle); setCatalogs(selected.catalogs);
+        setBindingRequest(null); setBindingNotice("");
       });
-      const previous = rootHandle();
-      const sameDirectory = previous ? await previous.isSameEntry(handle) : false;
-      if (disposed || pickRevision !== directoryPickRevision) return;
-      const requestId = invalidateBrowserSelection();
-      if (!sameDirectory) resetWorkspaceBinding();
-      setRootHandle(sameDirectory ? previous : handle);
-      setRootName("Корневой каталог: " + handle.name);
-      setProjects([]);
-      setSelectedProject("");
-      setTasks([]);
-      setSelectedTask(null);
-      setTaskInfo(EMPTY_TASK_INFO);
-      setTaskResultsText("");
-      const historyRead = lastTaskHistory.open(sameDirectory ? previous : handle);
-
-      const subdirs = await getSubdirs(handle);
-      if (disposed || requestId !== selectionRevision || pickRevision !== directoryPickRevision) return;
-      setProjects(subdirs);
-      await historyRead;
+      await selectCatalog(selected.catalogs.find(item => item.name === previousName) ?? selected.catalogs[0]);
     } catch (error) {
-      if (disposed || pickRevision !== directoryPickRevision) return;
-      // Отмена выбора пользователем — штатная ситуация.
-      if (isFilePickerCancellation(error)) return;
-
-      console.error("Ошибка выбора каталога", error);
-      showTaskError(
-        getFilePickerErrorMessage(error, "выбрать каталог с проектами"),
-      );
+      if (disposed || pickRevision !== directoryPickRevision || isFilePickerCancellation(error)) return;
+      setBindingNotice(getFilePickerErrorMessage(error, "выбрать диск с проектами"));
+    } finally {
+      if (!disposed && pickRevision === directoryPickRevision) setAccessBusy(false);
     }
   };
+
+  async function handleCatalogChange(event) {
+    if (accessDisabled()) return;
+    setAccessBusy(true);
+    try { await selectCatalog(catalogs().find(item => item.name === event.currentTarget.value)); }
+    catch (error) { showTaskError("Не удалось открыть каталог: " + error.message, accessButton); }
+    finally { if (!disposed) setAccessBusy(false); }
+  }
 
   // выбор проекта
   const handleProjectChange = async (event) => {
@@ -693,45 +642,29 @@ export function Tasks(props) {
           : undefined,
       }}
     >
+      <TaskAccessDialog open={accessOpen() && props.active !== false && !props.helpOpen}
+        disk={diskHandle()} count={catalogs().length} busy={accessBusy() || bindingBusy()}
+        notice={bindingNotice()} onPick={handlePickDirectory} onBind={bindWorkspace} onClose={closeAccess} />
       <div class="task-browser-panel">
         <div class="task-browser-content">
           <div>
             <div class="task-directory-actions">
+              <label class="task-catalog-label" for="projectCatalog">Каталоги с проектами</label>
               <div class="task-directory-buttons">
-                <button
-                  id="pickDir"
-                  disabled={bindingBusy() || Boolean(operation()) || galleryBusy() || selectionReceiving()}
-                  title={`Базовый каталог с проектами, обычно ${PROJECTS_ROOT_NAME}. Смена каталога не останавливает текущий расчёт. Одновременно допускается запуск только одного решателя.`}
-                  onClick={handlePickDirectory}
-                >
-                  Выбрать каталог с проектами
-                </button>
-                <button
-                  type="button"
-                  class="task-bind-button"
-                  classList={{ "is-bound": workspaceBinding()?.bindingState === "bound" }}
-                  disabled={bindingDisabled()}
-                  aria-busy={bindingBusy()}
-                  title={workspaceBinding()?.bindingState === "bound"
-                    ? "Связь с Решателем для выбранного базового каталога установлена"
-                    : "Связать выбранный базовый каталог с установленным Решателем"}
-                  onClick={bindWorkspace}
-                >
-                  {workspaceBinding()?.bindingState === "bound"
-                    ? "Решатель доступен" : "Связать с Решателем"}
+                <select id="projectCatalog" aria-label="Каталоги с проектами"
+                  value={rootHandle()?.name ?? ""} disabled={accessDisabled() || !catalogs().length}
+                  onChange={handleCatalogChange}>
+                  <Show when={!catalogs().length}><option value="">Выберите диск с проектами</option></Show>
+                  {catalogs().map(catalog => <option value={catalog.name}>{catalog.name}</option>)}
+                </select>
+                <button ref={accessButton} type="button" class="task-access-button" aria-label="Доступ к проектам"
+                  title="Выбрать диск с проектами и связать с Решателем" disabled={accessDisabled()}
+                  onClick={() => setAccessOpen(true)}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                    <path d="M3 7V5h7l2 2h9v13H3V7Z" /><path d="M3 10h18" />
+                  </svg>
                 </button>
               </div>
-              <p class="task-directory-hint" ref={bindingHint} title={bindingHintTitle()}>
-                <span class="task-directory-hint-text" ref={bindingHintText}>
-                  Для подготовки к запуску расчетов выполнить: «Связать с Решателем»
-                  <Show when={rootHandle()}>
-                    {" "}<span class="task-binding-status" role="status"
-                      classList={{ "is-unbound": workspaceBinding()?.bindingState !== "bound" }}>
-                      {bindingStatusText()}
-                    </span>
-                  </Show>
-                </span>
-              </p>
             </div>
             <span id="rootName">{rootName()}</span>
           </div>
