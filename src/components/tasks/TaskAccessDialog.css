@@ -1,4 +1,5 @@
 .task-access-dialog {
+  --task-access-action-height: 31px;
   width: min(560px, calc(100vw - 48px));
   max-height: calc(100dvh - 48px);
   box-sizing: border-box;
@@ -8,6 +9,7 @@
   background: #202c38;
   border: 1px solid #637589;
   border-radius: 10px;
+  transform: translateY(calc(var(--task-access-action-height) / 2));
 }
 .task-access-dialog::backdrop { background: rgb(0 0 0 / 55%); }
 .task-access-dialog h2 { margin: 0 0 10px; font-size: 20px; }
@@ -21,8 +23,8 @@
 .task-access-dialog .task-access-bind--bound { background: #98e5b5; color: #063b1f; }
 .task-access-location, .task-access-notice { overflow-wrap: anywhere; }
 .task-access-notice:empty { margin: 0; }
-.task-access-actions { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; margin-left: 226px; padding-right: 3px; }
-.task-access-actions > button { width: 120px; box-sizing: border-box; }
+.task-access-actions { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; margin-left: 226px; padding: calc(var(--task-access-action-height) / 2) 3px calc(var(--task-access-action-height) / 2) 0; }
+.task-access-actions > button { width: 120px; height: var(--task-access-action-height); box-sizing: border-box; }
 @media (max-width: 560px) {
   .task-access-row { grid-template-columns: minmax(0, 1fr); gap: 8px; }
   .task-access-row > button { width: min(210px, 100%); }
