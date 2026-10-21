@@ -1,6 +1,6 @@
 # История решений web-gui
 
-Обновлено: 2026-10-21 04:14 UTC+3.
+Обновлено: 2026-10-21 19:27 UTC+3.
 
 ## Назначение
 
@@ -9,9 +9,25 @@
 проблемы — [`AI_ARCHITECTURE_AUDIT.md`](AI_ARCHITECTURE_AUDIT.md), порядок
 будущих работ — [`AI_ROADMAP.md`](AI_ROADMAP.md).
 
-Последнее обновление: приложение 4.67.2, [PR #118](https://github.com/y26084670-blip/clark-editor/pull/118).
+Последнее обновление: приложение 4.69.0, [PR #124](https://github.com/y26084670-blip/clark-editor/pull/124).
 
 ## Основные этапы
+
+### 2026-10-21 19:26 UTC+3 — общий диск Editor/Viewer и подсказка DOCS, 4.69.0
+
+[PR #124](https://github.com/y26084670-blip/clark-editor/pull/124) слит в `main`
+коммитом `3c531f22c5c2a8a1cd96e5bc883d1d251774d4e7`. Editor сохраняет доступ
+к выбранному диску для Viewer на том же origin. Viewer 4.48.0 показывает
+каталоги `clark.*`, кроме `clark.app`, и отдельно запрашивает утраченное
+разрешение. Выбор и загруженные задания независимы. В нижний список DOCS
+Editor добавлена неактивная подсказка «все документы см в Viewer».
+
+Пройдены 237 профильных тестов Editor, 723 теста Viewer, 18 сценариев доступа
+Editor, 12 сценариев двух вкладок и сборки Pages. CI PR прошли; системные
+диалоги и фактические разрешения пользовательского диска Windows не проверялись.
+[Контракт](AI_CLARK_INTEGRATION.md#shared-project-disk) ·
+[Свидетельства](AI_VERIFICATION.md#verification-shared-project-disk) ·
+[Viewer PR #92](https://github.com/y26084670-blip/clark-viewer/pull/92).
 
 ### 2026-10-21 04:14 UTC+3 — ошибка для Unknown без неизвестных источников, 4.67.2
 
