@@ -49,6 +49,7 @@ export function Tasks(props) {
   const [accessOpen, setAccessOpen] = createSignal(true);
   const [accessBusy, setAccessBusy] = createSignal(false);
   const [bindingRequest, setBindingRequest] = createSignal(null);
+  const [catalogsBound, setCatalogsBound] = createSignal(false);
   let accessButton;
   const [rootHandle, setRootHandle] = createSignal(null);
   const [rootName, setRootName] = createSignal("");
@@ -322,6 +323,7 @@ export function Tasks(props) {
   async function bindWorkspace() {
     if (!diskHandle() || !catalogs().length || accessDisabled()) return;
     const disk = diskHandle(), revision = bindingRevision;
+    setCatalogsBound(false);
     setBindingBusy(true);
     try {
       if (bindingRequest()) { openBindingUri(bindingRequest().uri); return; }
@@ -351,6 +353,7 @@ export function Tasks(props) {
       batch(() => {
         if (root === rootHandle()) setWorkspaceBinding(marker);
         setBindingRequest(null);
+        setCatalogsBound(result.state === "bound");
         setBindingNotice(result.state === "bound"
           ? `С Решателем связаны все каталоги: ${result.catalogs.length}. Можно продолжить работу.`
           : `Связано каталогов: ${result.catalogs.length} из ${expected.catalogs.length}. ${result.message || "Повторите связывание."}`);
@@ -423,7 +426,7 @@ export function Tasks(props) {
       bindingRevision += 1;
       batch(() => {
         setDiskHandle(selected.handle); setCatalogs(selected.catalogs);
-        setBindingRequest(null); setBindingNotice("");
+        setBindingRequest(null); setBindingNotice(""); setCatalogsBound(false);
       });
       await selectCatalog(selected.catalogs.find(item => item.name === previousName) ?? selected.catalogs[0]);
       try { await saveProjectDisk(selected.handle); }
@@ -651,7 +654,7 @@ export function Tasks(props) {
     >
       <TaskAccessDialog open={accessOpen() && props.active !== false && !props.helpOpen}
         disk={diskHandle()} count={catalogs().length} busy={accessBusy() || bindingBusy()}
-        notice={bindingNotice()} onPick={handlePickDirectory} onBind={bindWorkspace} onClose={closeAccess} />
+        notice={bindingNotice()} bound={catalogsBound()} onPick={handlePickDirectory} onBind={bindWorkspace} onClose={closeAccess} />
       <div class="task-browser-panel">
         <div class="task-browser-content">
           <div>

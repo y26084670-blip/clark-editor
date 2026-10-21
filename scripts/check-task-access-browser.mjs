@@ -48,6 +48,7 @@ try {
   await page.waitForTimeout(1200);
   check('stale result does not confirm binding', !(await access.locator('[role="status"]').textContent()).includes('связаны все'));
   await page.evaluate(() => accessFixture.ack()); await bound();
+  check('full confirmation changes button label and color', await button('Связано с Решателем').evaluate(el => el.classList.contains('task-access-bind--bound') && getComputedStyle(el).backgroundColor === 'rgb(152, 229, 181)'));
   await button('Продолжить').click();
   check('bind button is absent from main panel', !await page.getByRole('button', { name: 'Связать с Решателем', exact: true }).isVisible());
   await page.locator('#listProject').selectOption('Project');
@@ -58,16 +59,19 @@ try {
   await page.waitForFunction(() => [...document.querySelector('#listProject').options].some(o => o.value === 'Другой проект'));
   check('switching catalogs updates projects and preserves loaded task', await page.evaluate(() => accessFixture.path() === 'clark.projects/Project/Задание'));
   await open();
+  check('confirmation survives reopening and catalog switching', await button('Связано с Решателем').isVisible());
   for (const mode of ['cancel', 'denied']) {
     await page.evaluate(value => accessFixture.mode(value), mode); await pick();
+    check(`${mode} preserves binding confirmation`, await button('Связано с Решателем').isVisible());
     check(`${mode} preserves selected catalog`, await page.locator('#projectCatalog').inputValue() === 'CLARK.Tests');
   }
   await page.evaluate(() => accessFixture.mode('disk')); await pick();
+  check('new disk selection resets confirmation', await button('Связать с Решателем').evaluate(el => !el.classList.contains('task-access-bind--bound')));
   await button('Связать с Решателем').click();
   await page.waitForFunction(old => accessFixture.read('clark.catalogs-request.json').then(r => r.requestId !== old), request.requestId);
   await page.evaluate(() => accessFixture.ack('error'));
   await page.waitForFunction(() => document.querySelector('.task-access-notice')?.textContent.includes('1 из 2'));
-  check('partial error remains visible and retry is enabled', await button('Связать с Решателем').isEnabled());
+  check('partial error remains yellow and retry is enabled', await button('Связать с Решателем').isEnabled() && await button('Связать с Решателем').evaluate(el => getComputedStyle(el).backgroundColor === 'rgb(255, 223, 85)'));
   const partialRequest = await page.evaluate(() => accessFixture.read('clark.catalogs-request.json'));
   await button('Связать с Решателем').click();
   await page.waitForFunction(old => accessFixture.read('clark.catalogs-request.json').then(r => r.requestId !== old), partialRequest.requestId);
