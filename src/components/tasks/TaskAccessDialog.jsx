@@ -16,7 +16,7 @@ export function TaskAccessDialog(props) {
     <p class="task-access-location">{props.disk ? `Выбрано: ${props.disk.name || "корень диска"}. Каталогов: ${props.count}.` : "Диск ещё не выбран."}</p>
     <Show when={props.disk && !props.count}><p>В корне выбранного диска нет каталогов clark.* с проектами.</p></Show>
     <p>Для запуска расчётов свяжите найденные каталоги с установленным Решателем. В его окне подтвердите тот же диск один раз.</p>
-    <button type="button" class="task-access-bind" onClick={props.onBind} disabled={props.busy || !props.count}>Связать с Решателем</button>
+    <button type="button" class="task-access-bind" classList={{ "task-access-bind--bound": props.bound }} onClick={props.onBind} disabled={props.busy || !props.count}>{props.bound ? "Связано с Решателем" : "Связать с Решателем"}</button>
     <p class="task-access-notice" role="status" aria-live="polite">{props.notice}</p>
     <div class="task-access-actions">
       <button type="button" disabled={props.busy || !props.count} onClick={props.onClose}>Продолжить</button>
