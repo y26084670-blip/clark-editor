@@ -2,6 +2,7 @@
 // вкладка выбора задания
 //
 import { Show, batch, createEffect, createSignal, onCleanup, onMount, untrack } from "solid-js";
+import { SketchRequestDialog } from "../components/tasks/SketchRequestDialog.jsx";
 import { TaskOperationDialog } from "../components/tasks/TaskOperationDialog.jsx";
 import { TaskMediaPanel } from "../components/tasks/TaskMediaPanel.jsx";
 import { runTaskDirectoryOperation, suggestTaskCopyName } from "../services/taskDirectoryService.js";
@@ -65,6 +66,8 @@ export function Tasks(props) {
     () => tasks().map(task => ({ key: task.handle, handle: task.handle })),
   );
   const [selectedTask, setSelectedTask] = createSignal(null);
+  const [sketchOpen, setSketchOpen] = createSignal(false);
+  createEffect(() => { if (props.active === false) setSketchOpen(false); });
   const loadedTaskHandle = selectionService.loadedTaskHandle;
   const loadedTaskPath = selectionService.loadedTaskPath;
   const [taskErrorMessage, setTaskErrorMessage] = createSignal("");
@@ -99,7 +102,7 @@ export function Tasks(props) {
     });
   });
 
-  const galleryDisabled = () => accessBusy() || Boolean(operation()) || demoLoading() || bindingBusy()
+  const galleryDisabled = () => sketchOpen() || accessBusy() || Boolean(operation()) || demoLoading() || bindingBusy()
     || launchBusy() || taskLaunchOpen() || omClientState().busy || props.editorBusy || selectionReceiving();
   const operationsBlocked = () => galleryDisabled() || galleryBusy();
   createEffect(() => props.onTaskActionsChange?.({
@@ -109,6 +112,10 @@ export function Tasks(props) {
   }));
 
   function openTaskOperation(kind) {
+    if (kind === "sketch") {
+      if (!operationsBlocked() && !omClientState().open && selectedProject()) setSketchOpen(true);
+      return;
+    }
     if (operationsBlocked() || omClientState().open || !selectedProject() || (kind !== "create" && !selectedTask())) return;
     const parent = projects().find(project => project.name === selectedProject())?.handle;
     if (!parent) return;
@@ -837,6 +844,7 @@ export function Tasks(props) {
         dirtyParts={["amps", "elements", "regions", "moves", "general"].filter(part => unsavedChangesService.isDirty(part))}
         locked={launchBusy() || bindingBusy() || operationBusy()} />
 
+      <SketchRequestDialog open={sketchOpen() && props.active !== false} onClose={() => setSketchOpen(false)} />
       <TaskOperationDialog request={operation()} busy={operationBusy()} error={operationError()}
         failed={operationFailed()} onSubmit={submitTaskOperation} onClose={() => setOperation(null)} />
 
