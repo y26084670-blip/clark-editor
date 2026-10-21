@@ -6,7 +6,18 @@
 @media(max-width:1100px){.toc{width:260px}main{width:calc(100% - 260px);margin-left:260px;padding:35px 32px}.toolbar{margin-left:260px}h2{font-size:26px}}
 @media(max-width:800px){.toolbar{margin:0;padding:13px 18px;gap:12px}.toolbar .title{display:none}.js .menu-button{display:block}.toc{position:static;width:100%;max-height:none;border:0;border-bottom:1px solid var(--line);padding:20px}.layout{display:block}.js .toc{display:none}.js .toc.open{display:block;max-height:65vh;overflow:auto}main{width:100%;margin:0;padding:30px 20px 50px}body{font-size:17px}.document-toc ol{columns:1}h1{font-size:34px}h2{font-size:25px}h3{font-size:21px}.equation .formula{max-width:100%}.front-matter>p:first-of-type{font-size:23px}table{font-size:15px}}
 @media print{body{font-size:11pt;line-height:1.35}.toolbar,.toc,.document-toc,.skip,.footer{display:none}main{width:100%;margin:0;padding:0}article{max-width:none}.chapter{margin-bottom:22pt;display:block!important}h2,h3,h4,h5{break-after:avoid}.equation{overflow:visible;break-inside:avoid}.equation .formula{max-width:100%}img{break-inside:avoid}a{color:inherit;text-decoration:none}.front-matter{border:0;margin-bottom:22pt;padding:0}}
-</style></head><body><a href="#main-content" class="skip">Перейти к тексту</a><header class="toolbar"><a href="#top" class="brand">CLARK</a><span class="title">Руководство пользователя и математическая модель</span><button id="menu-toggle" type="button" class="menu-button" aria-expanded="false" aria-controls="guide-navigation">Содержание</button><button id="print-guide" type="button" class="print-button">Печать</button></header><div class="layout"><nav id="guide-navigation" class="toc" aria-label="Содержание руководства"><div class="toc-label">Содержание</div><div class="search-form"><label for="guide-search">Поиск по руководству</label><input id="guide-search" type="search" placeholder="Например, MED или Newton" autocomplete="off"><div id="search-status" class="search-status" role="status" aria-live="polite">24 раздела</div></div><ul><li data-chapter="overview"><a href="#overview">1 Назначение и область применения</a><details><summary>Подразделы</summary><div class="secondary"><a href="#section-1">Область применимости</a><a href="#section-2">Выбор токовой схемы</a><a href="#section-3">Версии и воспроизводимость</a></div></details></li><li data-chapter="quickstart"><a href="#quickstart">2 Первый расчёт</a></li><li data-chapter="start"><a href="#start">3 Подготовка среды</a><details><summary>Подразделы</summary><div class="secondary"><a href="#start-open">Открыть редактор и проверить среду</a><a href="#start-demo">Ознакомиться без локального задания</a><a href="#start-examples">Установить примеры и Clark</a></div></details></li><li data-chapter="tasks"><a href="#tasks">4 Проекты и задания</a><details><summary>Подразделы</summary><div class="secondary"><a href="#task-open">Выбрать и загрузить существующее задание</a><a href="#task-gifs">Просмотреть и удалить сохранённый GIF</a><a href="#task-docs">Эскизы и документация DOCS</a><a href="#section-9">Создать задание</a><a href="#section-10">Создать копию</a><a href="#section-11">Переименовать задание</a><a href="#section-12">Перенести в другой каталог</a><a href="#section-13">Удалить задание</a></div></details></li><li data-chapter="editing"><a href="#editing">5 Основные приёмы редактирования</a><details><summary>Подразделы</summary><div class="secondary"><a href="#edit-horizontal-scroll">Прокрутить широкую область по горизонтали</a><a href="#edit-cell">Изменить значение</a><a href="#edit-records">Копирование и порядок записей</a><a href="#edit-history">Отменить действие</a></div></details></li><li data-chapter="geometry"><a href="#geometry">6 Геометрия и дискретизация</a><details><summary>Подразделы</summary><div class="secondary"><a href="#geometry-window">Переместить и изменить размер 3D-окна</a><a href="#geometry-transparency">Настроить видимость геометрии в 3D</a><a href="#geometry-box">Задать прямоугольный блок</a><a href="#geometry-refine">Изменить сетку</a><a href="#geometry-symmetry">Проверить симметрии</a></div></details></li><li data-chapter="materials"><a href="#materials">7 Материалы и характеристики</a><details><summary>Подразделы</summary><div class="secondary"><a href="#material-source">Выбрать источник характеристик</a><a href="#material-copy">Подготовить локальную характеристику</a><a href="#material-assign">Назначить материал элементу</a><a href="#material-hts-gam">Включить токовую модель ВТСП</a><a href="#constant-mu-fmm">Создать линейную характеристику с постоянной проницаемостью</a><a href="#material-save">Изменить и сохранить параметры</a></div></details></li><li data-chapter="sources-time"><a href="#sources-time">8 Источники и временные зависимости</a><details><summary>Подразделы</summary><div class="secondary"><a href="#source-prescribed">Задать ток или намагниченность</a><a href="#time-table">Проверить время и амплитуду</a><a href="#time-table-clipboard">Заменить таблицу из буфера</a><a href="#time-generator">Использовать генератор</a><a href="#uniform-field-coil">Создать катушку однородного поля</a><a href="#section-33">Постоянство шага времени</a></div></details></li><li data-chapter="motion"><a href="#motion">9 Движение модели</a><details><summary>Подразделы</summary><div class="secondary"><a href="#motion-define">Задать траекторию</a><a href="#motion-physics">Заданная кинематика и механическая динамика</a></div></details></li><li data-chapter="med"><a href="#med">10 Контакты граней и MED</a><details><summary>Подразделы</summary><div class="secondary"><a href="#usemed">Учёт зарядов</a><a href="#med-when">Когда выполнять анализ</a><a href="#med-analyze">Проанализировать и просмотреть предложения</a><a href="#med-apply">Применить и сохранить</a><a href="#med-blocked">Почему «Применить» недоступно</a><a href="#med-hierarchy">Готовая иерархия JWeak1</a><a href="#section-42">Смысл названия Учёт зарядов</a></div></details></li><li data-chapter="observations"><a href="#observations">11 Области наблюдения и контрольные точки</a><details><summary>Подразделы</summary><div class="secondary"><a href="#observation-create">Подготовить линию или поверхность</a><a href="#observation-centers">Сохранить контрольную выборку</a><a href="#observation-coils">Измерительные катушки и потоки</a></div></details></li><li data-chapter="calculation"><a href="#calculation">12 Настройка расчёта</a><details><summary>Подразделы</summary><div class="secondary"><a href="#calculation-precision">Выбрать разрядность и профиль</a><a href="#calculation-material-tolerances">Абсолютные допуски материальных уравнений</a><a href="#calculation-iterations">Начальное приближение и критерии</a><a href="#calculation-newton">Выбор токовой схемы</a><a href="#calculation-compare-modes">Сравнить два режима</a><a href="#section-51">Линейная и нелинейная связь электрического поля и тока</a></div></details></li><li data-chapter="validation"><a href="#validation">13 Проверка и сохранение</a><details><summary>Подразделы</summary><div class="secondary"><a href="#geometry-validation-angle">Допуск геометрии ШГ</a><a href="#validation-sequence">Подготовить задание к расчёту</a><a href="#validation-marker">Что означает _nogo.e3d</a><a href="#validation-external">Если файл изменён вне GUI</a></div></details></li><li data-chapter="launch"><a href="#launch">14 Запуск и результаты</a><details><summary>Подразделы</summary><div class="secondary"><a href="#launch-prepare">Подключить задание и запустить</a><a href="#launch-mpi">Процессы MPI</a><a href="#launch-circuit">Цепь и импорт</a><a href="#launch-failure">Завершение и авария</a><a href="#results-read">Прочитать результаты</a></div></details></li><li data-chapter="troubleshooting"><a href="#troubleshooting">15 Затруднения и восстановление</a></li><li data-chapter="mathematical-model"><a href="#mathematical-model">16 Математическая модель</a><details><summary>Подразделы</summary><div class="secondary"><a href="#section-61">Независимость численных схем подсистем</a><a href="#section-62">Область модели и обозначения</a><a href="#model-integral">Общая магнитная и токовая постановка</a><a href="#section-64">От сильной коллокационной постановки к слабой токовой схеме JWeak1</a><a href="#section-87">Полная схема Newton и контроль решения</a><a href="#model-newton">Упрощённая ветка для линейной проводимости</a><a href="#section-94">Материальные оси и переключатель анизотропии тока</a><a href="#model-hts">Материальные законы токовой подсистемы ВТСП</a><a href="#section-99">Массив MED и электрическая связность</a><a href="#model-symmetries">Виды симметрий</a><a href="#model-scope">Границы математического описания</a><a href="#model-discretization">Дискретизация</a><a href="#model-weak">Слабые ограничения</a></div></details></li><li data-chapter="benchmarks"><a href="#benchmarks">17 Проверка точности и эталонные задачи</a><details><summary>Подразделы</summary><div class="secondary"><a href="#section-108">Как оценивать точность</a><a href="#section-109">Датированные результаты опубликованного руководства</a><a href="#section-114">Проверки исходной редакции JWeak1 от 21 сентября 2026 года</a></div></details></li><li data-chapter="examples"><a href="#examples">18 Учебные примеры</a><details><summary>Подразделы</summary><div class="secondary"><a href="#examples-current">Уже доступный материал для обучения</a><a href="#team13">Учебный протокол TEAM13 и MUFEM</a></div></details></li><li data-chapter="reference"><a href="#reference">19 Справочник</a></li><li data-chapter="appendix-a"><a href="#appendix-a">Приложение А Локальное пространство TEAM7</a></li><li data-chapter="appendix-b"><a href="#appendix-b">Приложение Б Отложенная внутренняя интерполяция</a></li><li data-chapter="appendix-d"><a href="#appendix-d">Приложение В Планируемые учебные и проверочные задачи</a><details><summary>Подразделы</summary><div class="secondary"><a href="#examples-lessons">Новые учебные примеры разделы зарезервированы</a><a href="#examples-external">Будущие задачи из внешнего списка</a></div></details></li><li data-chapter="editorial"><a href="#editorial">Приложение Г Анализ структуры и редакционные изменения</a><details><summary>Подразделы</summary><div class="secondary"><a href="#section-132">Оценка исходной структуры</a><a href="#section-133">Что целесообразно дополнить при следующем обновлении</a></div></details></li><li data-chapter="sources"><a href="#sources">Приложение Д Источники и связь с реализацией</a><details><summary>Подразделы</summary><div class="secondary"><a href="#section-134">Дополнения опубликованного руководства</a></div></details></li></ul></nav><main><article id="main-content"><header class="front-matter" id="top"><span id="content" class="anchor-alias" aria-hidden="true"></span><span id="theme-toggle" class="anchor-alias" aria-hidden="true"></span><h1>
+/* Пошаговый первый расчёт: иллюстрации вводного документа. */
+.quickstart-note,.quickstart-figure figcaption{font:14px/1.5 system-ui,sans-serif;color:var(--muted)}
+.quickstart-figures{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;align-items:start}
+.quickstart-figure{margin:20px 0 26px;break-inside:avoid}
+.quickstart-figures .quickstart-figure{margin:8px 0 20px}
+.quickstart-figure img{display:block;max-width:100%;height:auto;margin:auto;border:1px solid var(--line)}
+.quickstart-figure figcaption{margin-top:8px}
+.quickstart-compact img{width:auto;height:auto;max-height:520px}
+.quickstart-menu-icon{vertical-align:middle;margin:0 4px;max-width:100%}
+@media(max-width:800px){.quickstart-figures{grid-template-columns:1fr}.quickstart-figure{margin:16px 0 22px}}
+@media print{.quickstart-figure img{width:auto;height:auto;max-height:130mm}.quickstart-note,.quickstart-figure figcaption{font-size:9pt}}
+</style></head><body><a href="#main-content" class="skip">Перейти к тексту</a><header class="toolbar"><a href="#top" class="brand">CLARK</a><span class="title">Руководство пользователя и математическая модель</span><button id="menu-toggle" type="button" class="menu-button" aria-expanded="false" aria-controls="guide-navigation">Содержание</button><button id="print-guide" type="button" class="print-button">Печать</button></header><div class="layout"><nav id="guide-navigation" class="toc" aria-label="Содержание руководства"><div class="toc-label">Содержание</div><div class="search-form"><label for="guide-search">Поиск по руководству</label><input id="guide-search" type="search" placeholder="Например, MED или Newton" autocomplete="off"><div id="search-status" class="search-status" role="status" aria-live="polite">24 раздела</div></div><ul><li data-chapter="overview"><a href="#overview">1 Назначение и область применения</a><details><summary>Подразделы</summary><div class="secondary"><a href="#section-1">Область применимости</a><a href="#section-2">Выбор токовой схемы</a><a href="#section-3">Версии и воспроизводимость</a></div></details></li><li data-chapter="quickstart"><a href="#quickstart">2 Быстрый старт — первый расчёт</a><details><summary>Подразделы</summary><div class="secondary"><a href="#quickstart-folder">Выбрать каталог и задание</a><a href="#quickstart-copy">Создать копию</a><a href="#quickstart-bind">Связать с решателем</a><a href="#quickstart-run">Запустить расчёт</a><a href="#quickstart-iterations">Изменить TAU и EPS</a><a href="#quickstart-viewer">Открыть результаты в 3D</a><a href="#quickstart-plots">Поля, графики и GIF</a><a href="#quickstart-flight">Режим «Полёт»</a></div></details></li><li data-chapter="start"><a href="#start">3 Подготовка среды</a><details><summary>Подразделы</summary><div class="secondary"><a href="#start-open">Открыть редактор и проверить среду</a><a href="#start-demo">Ознакомиться без локального задания</a><a href="#start-examples">Установить примеры и Clark</a></div></details></li><li data-chapter="tasks"><a href="#tasks">4 Проекты и задания</a><details><summary>Подразделы</summary><div class="secondary"><a href="#task-open">Выбрать и загрузить существующее задание</a><a href="#task-gifs">Просмотреть и удалить сохранённый GIF</a><a href="#task-docs">Эскизы и документация DOCS</a><a href="#section-9">Создать задание</a><a href="#section-10">Создать копию</a><a href="#section-11">Переименовать задание</a><a href="#section-12">Перенести в другой каталог</a><a href="#section-13">Удалить задание</a></div></details></li><li data-chapter="editing"><a href="#editing">5 Основные приёмы редактирования</a><details><summary>Подразделы</summary><div class="secondary"><a href="#edit-horizontal-scroll">Прокрутить широкую область по горизонтали</a><a href="#edit-cell">Изменить значение</a><a href="#edit-records">Копирование и порядок записей</a><a href="#edit-history">Отменить действие</a></div></details></li><li data-chapter="geometry"><a href="#geometry">6 Геометрия и дискретизация</a><details><summary>Подразделы</summary><div class="secondary"><a href="#geometry-window">Переместить и изменить размер 3D-окна</a><a href="#geometry-transparency">Настроить видимость геометрии в 3D</a><a href="#geometry-box">Задать прямоугольный блок</a><a href="#geometry-refine">Изменить сетку</a><a href="#geometry-symmetry">Проверить симметрии</a></div></details></li><li data-chapter="materials"><a href="#materials">7 Материалы и характеристики</a><details><summary>Подразделы</summary><div class="secondary"><a href="#material-source">Выбрать источник характеристик</a><a href="#material-copy">Подготовить локальную характеристику</a><a href="#material-assign">Назначить материал элементу</a><a href="#material-hts-gam">Включить токовую модель ВТСП</a><a href="#constant-mu-fmm">Создать линейную характеристику с постоянной проницаемостью</a><a href="#material-save">Изменить и сохранить параметры</a></div></details></li><li data-chapter="sources-time"><a href="#sources-time">8 Источники и временные зависимости</a><details><summary>Подразделы</summary><div class="secondary"><a href="#source-prescribed">Задать ток или намагниченность</a><a href="#time-table">Проверить время и амплитуду</a><a href="#time-table-clipboard">Заменить таблицу из буфера</a><a href="#time-generator">Использовать генератор</a><a href="#uniform-field-coil">Создать катушку однородного поля</a><a href="#section-33">Постоянство шага времени</a></div></details></li><li data-chapter="motion"><a href="#motion">9 Движение модели</a><details><summary>Подразделы</summary><div class="secondary"><a href="#motion-define">Задать траекторию</a><a href="#motion-physics">Заданная кинематика и механическая динамика</a></div></details></li><li data-chapter="med"><a href="#med">10 Контакты граней и MED</a><details><summary>Подразделы</summary><div class="secondary"><a href="#usemed">Учёт зарядов</a><a href="#med-when">Когда выполнять анализ</a><a href="#med-analyze">Проанализировать и просмотреть предложения</a><a href="#med-apply">Применить и сохранить</a><a href="#med-blocked">Почему «Применить» недоступно</a><a href="#med-hierarchy">Готовая иерархия JWeak1</a><a href="#section-42">Смысл названия Учёт зарядов</a></div></details></li><li data-chapter="observations"><a href="#observations">11 Области наблюдения и контрольные точки</a><details><summary>Подразделы</summary><div class="secondary"><a href="#observation-create">Подготовить линию или поверхность</a><a href="#observation-centers">Сохранить контрольную выборку</a><a href="#observation-coils">Измерительные катушки и потоки</a></div></details></li><li data-chapter="calculation"><a href="#calculation">12 Настройка расчёта</a><details><summary>Подразделы</summary><div class="secondary"><a href="#calculation-precision">Выбрать разрядность и профиль</a><a href="#calculation-material-tolerances">Абсолютные допуски материальных уравнений</a><a href="#calculation-iterations">Начальное приближение и критерии</a><a href="#calculation-newton">Выбор токовой схемы</a><a href="#calculation-compare-modes">Сравнить два режима</a><a href="#section-51">Линейная и нелинейная связь электрического поля и тока</a></div></details></li><li data-chapter="validation"><a href="#validation">13 Проверка и сохранение</a><details><summary>Подразделы</summary><div class="secondary"><a href="#geometry-validation-angle">Допуск геометрии ШГ</a><a href="#validation-sequence">Подготовить задание к расчёту</a><a href="#validation-marker">Что означает _nogo.e3d</a><a href="#validation-external">Если файл изменён вне GUI</a></div></details></li><li data-chapter="launch"><a href="#launch">14 Запуск и результаты</a><details><summary>Подразделы</summary><div class="secondary"><a href="#launch-prepare">Подключить задание и запустить</a><a href="#launch-mpi">Процессы MPI</a><a href="#launch-circuit">Цепь и импорт</a><a href="#launch-failure">Завершение и авария</a><a href="#results-read">Прочитать результаты</a></div></details></li><li data-chapter="troubleshooting"><a href="#troubleshooting">15 Затруднения и восстановление</a></li><li data-chapter="mathematical-model"><a href="#mathematical-model">16 Математическая модель</a><details><summary>Подразделы</summary><div class="secondary"><a href="#section-61">Независимость численных схем подсистем</a><a href="#section-62">Область модели и обозначения</a><a href="#model-integral">Общая магнитная и токовая постановка</a><a href="#section-64">От сильной коллокационной постановки к слабой токовой схеме JWeak1</a><a href="#section-87">Полная схема Newton и контроль решения</a><a href="#model-newton">Упрощённая ветка для линейной проводимости</a><a href="#section-94">Материальные оси и переключатель анизотропии тока</a><a href="#model-hts">Материальные законы токовой подсистемы ВТСП</a><a href="#section-99">Массив MED и электрическая связность</a><a href="#model-symmetries">Виды симметрий</a><a href="#model-scope">Границы математического описания</a><a href="#model-discretization">Дискретизация</a><a href="#model-weak">Слабые ограничения</a></div></details></li><li data-chapter="benchmarks"><a href="#benchmarks">17 Проверка точности и эталонные задачи</a><details><summary>Подразделы</summary><div class="secondary"><a href="#section-108">Как оценивать точность</a><a href="#section-109">Датированные результаты опубликованного руководства</a><a href="#section-114">Проверки исходной редакции JWeak1 от 21 сентября 2026 года</a></div></details></li><li data-chapter="examples"><a href="#examples">18 Учебные примеры</a><details><summary>Подразделы</summary><div class="secondary"><a href="#examples-current">Уже доступный материал для обучения</a><a href="#team13">Учебный протокол TEAM13 и MUFEM</a></div></details></li><li data-chapter="reference"><a href="#reference">19 Справочник</a></li><li data-chapter="appendix-a"><a href="#appendix-a">Приложение А Локальное пространство TEAM7</a></li><li data-chapter="appendix-b"><a href="#appendix-b">Приложение Б Отложенная внутренняя интерполяция</a></li><li data-chapter="appendix-d"><a href="#appendix-d">Приложение В Планируемые учебные и проверочные задачи</a><details><summary>Подразделы</summary><div class="secondary"><a href="#examples-lessons">Новые учебные примеры разделы зарезервированы</a><a href="#examples-external">Будущие задачи из внешнего списка</a></div></details></li><li data-chapter="editorial"><a href="#editorial">Приложение Г Анализ структуры и редакционные изменения</a><details><summary>Подразделы</summary><div class="secondary"><a href="#section-132">Оценка исходной структуры</a><a href="#section-133">Что целесообразно дополнить при следующем обновлении</a></div></details></li><li data-chapter="sources"><a href="#sources">Приложение Д Источники и связь с реализацией</a><details><summary>Подразделы</summary><div class="secondary"><a href="#section-134">Дополнения опубликованного руководства</a></div></details></li></ul></nav><main><article id="main-content"><header class="front-matter" id="top"><span id="content" class="anchor-alias" aria-hidden="true"></span><span id="theme-toggle" class="anchor-alias" aria-hidden="true"></span><h1>
 <b>CLARK</b></h1>
 <p>
 <b>Руководство
@@ -43,7 +54,7 @@
 от 24 и 25 сентября. Датированные результаты
 проверок сохраняют привязку к своим
 расчётным сериям.</p>
-<nav class="document-toc" aria-label="Главы документа"><h2>Содержание</h2><ol><li><a href="#overview">1 Назначение и область применения</a></li><li><a href="#quickstart">2 Первый расчёт</a></li><li><a href="#start">3 Подготовка среды</a></li><li><a href="#tasks">4 Проекты и задания</a></li><li><a href="#editing">5 Основные приёмы редактирования</a></li><li><a href="#geometry">6 Геометрия и дискретизация</a></li><li><a href="#materials">7 Материалы и характеристики</a></li><li><a href="#sources-time">8 Источники и временные зависимости</a></li><li><a href="#motion">9 Движение модели</a></li><li><a href="#med">10 Контакты граней и MED</a></li><li><a href="#observations">11 Области наблюдения и контрольные точки</a></li><li><a href="#calculation">12 Настройка расчёта</a></li><li><a href="#validation">13 Проверка и сохранение</a></li><li><a href="#launch">14 Запуск и результаты</a></li><li><a href="#troubleshooting">15 Затруднения и восстановление</a></li><li><a href="#mathematical-model">16 Математическая модель</a></li><li><a href="#benchmarks">17 Проверка точности и эталонные задачи</a></li><li><a href="#examples">18 Учебные примеры</a></li><li><a href="#reference">19 Справочник</a></li><li><a href="#appendix-a">Приложение А Локальное пространство TEAM7</a></li><li><a href="#appendix-b">Приложение Б Отложенная внутренняя интерполяция</a></li><li><a href="#appendix-d">Приложение В Планируемые учебные и проверочные задачи</a></li><li><a href="#editorial">Приложение Г Анализ структуры и редакционные изменения</a></li><li><a href="#sources">Приложение Д Источники и связь с реализацией</a></li></ol></nav></header><p id="no-results" class="no-results" role="status">Совпадений не найдено. Измените запрос или очистите поле поиска.</p><section class="chapter" id="overview"><h2><a id="b_overview"></a>
+<nav class="document-toc" aria-label="Главы документа"><h2>Содержание</h2><ol><li><a href="#overview">1 Назначение и область применения</a></li><li><a href="#quickstart">2 Быстрый старт — первый расчёт</a></li><li><a href="#start">3 Подготовка среды</a></li><li><a href="#tasks">4 Проекты и задания</a></li><li><a href="#editing">5 Основные приёмы редактирования</a></li><li><a href="#geometry">6 Геометрия и дискретизация</a></li><li><a href="#materials">7 Материалы и характеристики</a></li><li><a href="#sources-time">8 Источники и временные зависимости</a></li><li><a href="#motion">9 Движение модели</a></li><li><a href="#med">10 Контакты граней и MED</a></li><li><a href="#observations">11 Области наблюдения и контрольные точки</a></li><li><a href="#calculation">12 Настройка расчёта</a></li><li><a href="#validation">13 Проверка и сохранение</a></li><li><a href="#launch">14 Запуск и результаты</a></li><li><a href="#troubleshooting">15 Затруднения и восстановление</a></li><li><a href="#mathematical-model">16 Математическая модель</a></li><li><a href="#benchmarks">17 Проверка точности и эталонные задачи</a></li><li><a href="#examples">18 Учебные примеры</a></li><li><a href="#reference">19 Справочник</a></li><li><a href="#appendix-a">Приложение А Локальное пространство TEAM7</a></li><li><a href="#appendix-b">Приложение Б Отложенная внутренняя интерполяция</a></li><li><a href="#appendix-d">Приложение В Планируемые учебные и проверочные задачи</a></li><li><a href="#editorial">Приложение Г Анализ структуры и редакционные изменения</a></li><li><a href="#sources">Приложение Д Источники и связь с реализацией</a></li></ol></nav></header><p id="no-results" class="no-results" role="status">Совпадений не найдено. Измените запрос или очистите поле поиска.</p><section class="chapter" id="overview"><h2><a id="b_overview"></a>
 1 Назначение и область
 применения</h2>
 <p>CLARK решает
@@ -232,76 +243,250 @@ gui не обновляет решатель.
 MPI-конфигурацию каждой
 серии; SHA исходников не
 определяет происхождение Windows-сборки.</p>
-</section><section class="chapter" id="quickstart"><h2><a id="b_quickstart"></a>2
-Первый расчёт</h2>
-<p>Для
-ознакомления с интерфейсом достаточно
-режима «Демо», который не требует наличия
-загруженных исходных данных. Для
-полноценной работы используйте
-подготовленное (в том числе импортированное)
-локальное задание и установленный
-решатель. Начните с независимой копии
-готового примера, чтобы сравнить
-полученный результат с исходным
-комплектом.</p>
+</section><section class="chapter" id="quickstart"><h2><a id="b_quickstart"></a>2 Быстрый старт — первый расчёт</h2>
+<!-- Вводный материал: docs/выдержки/вводное.docx, main 8df1fa2, 21.10.2026. -->
+<p>Этот маршрут проведёт от выбора готового примера до просмотра результатов.
+Предполагается, что примеры уже установлены или распакованы, а решатель Clark
+установлен. Если это ещё не сделано, начните с <a href="#start-examples">установки
+примеров и решателя</a>. Для знакомства с интерфейсом без локальных файлов
+подойдёт <a href="#start-demo">режим «Демо»</a>.</p>
+<p>Работайте с копией готового задания: исходный пример останется для сравнения.
+Откройте <a href="https://y26084670-blip.github.io/clark-editor/" target="_blank"
+rel="noopener noreferrer">E3D Editor</a> в Google Chrome Desktop или Microsoft Edge Desktop.</p>
+<p class="quickstart-note">Порядок действий сверён с E3D Editor 4.67.2 и E3D Viewer 4.46.0.
+Иллюстрации из вводного документа можно открыть в полном размере щелчком.</p>
+
+<h3 id="quickstart-folder">1 Выберите базовый каталог и задание</h3>
+<p>После открытия страницы или её обновления клавишей F5 список может быть пустым:
+сначала нужно выбрать базовый каталог с проектами.</p>
+<figure class="quickstart-figure">
+<a href="images/quickstart-01.webp" target="_blank" rel="noopener noreferrer" title="Открыть иллюстрацию в полном размере">
+<img src="images/quickstart-01.webp" width="779" height="542" loading="lazy" decoding="async" alt="Editor до выбора каталога с проектами"></a>
+<figcaption>Начальное состояние: базовый каталог ещё не выбран.</figcaption>
+</figure>
 <ol>
-	<li><p>Откройте
-	E3D Editor в Google Chrome Desktop или
-	Microsoft Edge Desktop по URL:
-	</p></li>
+<li>Нажмите синюю кнопку «Выбрать каталог с проектами».</li>
+<li>В системном диалоге выберите папку с установленными или распакованными примерами.
+Можно войти в неё и нажать «Выбор папки» либо выделить её в родительском каталоге
+и нажать ту же кнопку. Выбирайте папку, внутри которой находятся проекты,
+а не ZIP-архив, отдельное задание или его <code>input3XX</code>.</li>
+<li>Подтвердите доступ к каталогу, если браузер запросит разрешение.</li>
 </ol>
-<p><b>https://y26084670-blip.github.io/clark-viewer</b>.
-</p>
-<p>Проверьте
-версию и разрешите работу с выбранным
-базовым каталогом.</p>
-<ol start="2">
-	<li><p>Установите
-	примеры в отдельный чистый каталог
-	либо выберите имеющийся проект. Загрузите
-	задание кнопкой «Загрузить для
-	редактирования» или двойным щелчком
-	и проверьте путь в верхней строке.</p></li>
-	<li><p>При необходимости
-	создайте копию задания, затем загрузите
-	именно копию. Сравните геометрию,
-	материалы, заданные источники, шаг
-	времени и области наблюдения с
-	постановкой.</p></li>
-	<li><p>Проверьте
-	локальные библиотеки материалов. При
-	изменении контактов проанализируйте
-	MED и примените только
-	физически верные предложения.</p></li>
-	<li><p>Сохраните
-	изменённые характеристики их собственной
-	командой. Выполните «Проверить модель»,
-	разберите ошибки и предупреждения и
-	нажмите «Сохранить модель».</p></li>
-	<li><p>Нажмите «Связать
-	с Решателем» и укажите в установленном
-	CLARK тот же базовый каталог.
-	В окне списка запуска обновите список,
-	подключите нужные задания и проверьте
-	число MPI-процессов.</p></li>
-	<li><p>Запустите расчёт.
-	После завершения проверьте журнал,
-	число сохранённых состояний и итоговые
-	невязки. Откройте результаты в E3D
-	Viewer; для эталонной задачи
-	выполните её штатное численное сравнение.</p></li>
+<div class="quickstart-figures">
+<figure class="quickstart-figure">
+<a href="images/quickstart-02.webp" target="_blank" rel="noopener noreferrer" title="Открыть иллюстрацию в полном размере">
+<img src="images/quickstart-02.webp" width="1102" height="662" loading="lazy" decoding="async" alt="Выбор базового каталога изнутри папки с примерами"></a>
+<figcaption>Способ 1. Откройте папку с примерами и нажмите «Выбор папки».</figcaption>
+</figure>
+<figure class="quickstart-figure">
+<a href="images/quickstart-03.webp" target="_blank" rel="noopener noreferrer" title="Открыть иллюстрацию в полном размере">
+<img src="images/quickstart-03.webp" width="1183" height="667" loading="lazy" decoding="async" alt="Выделение папки с примерами в родительском каталоге"></a>
+<figcaption>Способ 2. Выделите ту же папку в родительском каталоге.</figcaption>
+</figure>
+</div>
+<p>Проверьте имя в строке «Корневой каталог», затем выберите проект и задание
+в появившихся списках. Одиночный щелчок выделяет задание для просмотра и операций
+с файлами. Чтобы увидеть его данные на вкладках, нажмите «Загрузить для редактирования»
+или дважды щёлкните по строке. Для просмотра геометрии используйте синюю кнопку 3D вверху.</p>
+<div class="quickstart-figures">
+<figure class="quickstart-figure">
+<a href="images/quickstart-04.webp" target="_blank" rel="noopener noreferrer" title="Открыть иллюстрацию в полном размере">
+<img src="images/quickstart-04.webp" width="823" height="587" loading="lazy" decoding="async" alt="Список проектов выбранного базового каталога"></a>
+<figcaption>После выбора каталога доступны проекты.</figcaption>
+</figure>
+<figure class="quickstart-figure">
+<a href="images/quickstart-05.webp" target="_blank" rel="noopener noreferrer" title="Открыть иллюстрацию в полном размере">
+<img src="images/quickstart-05.webp" width="768" height="705" loading="lazy" decoding="async" alt="Выделенный пример в списке заданий проекта"></a>
+<figcaption>Выберите проект и исходный пример.</figcaption>
+</figure>
+</div>
+
+<h3 id="quickstart-copy">2 Создайте копию примера</h3>
+<p>На вкладке «Выбор задания» выделите исходный пример. Откройте жёлтой кнопкой
+<a href="images/quickstart-06.webp" target="_blank" rel="noopener noreferrer" title="Открыть иллюстрацию в полном размере"><img class="quickstart-menu-icon" src="images/quickstart-06.webp" width="48" height="40"
+loading="lazy" decoding="async" alt="Кнопка с тремя горизонтальными полосами"></a>
+левую панель «Дополнительные функции» и выберите «Создать копию».
+Состав этой панели зависит от активной вкладки; на вкладках редактирования в ней
+также доступны команды отмены и повтора изменений.</p>
+<div class="quickstart-figures">
+<figure class="quickstart-figure quickstart-compact">
+<a href="images/quickstart-07.webp" target="_blank" rel="noopener noreferrer" title="Открыть иллюстрацию в полном размере">
+<img src="images/quickstart-07.webp" width="406" height="714" loading="lazy" decoding="async" alt="Команда Создать копию в дополнительных функциях"></a>
+<figcaption>Левая панель вкладки «Выбор задания».</figcaption>
+</figure>
+<figure class="quickstart-figure">
+<a href="images/quickstart-08.webp" target="_blank" rel="noopener noreferrer" title="Открыть иллюстрацию в полном размере">
+<img src="images/quickstart-08.webp" width="661" height="400" loading="lazy" decoding="async" alt="Диалог создания копии с полем имени"></a>
+<figcaption>Задайте имя копии и подтвердите создание.</figcaption>
+</figure>
+</div>
+<p>При необходимости измените имя и нажмите «Создать копию» в диалоге.
+Копируются сохранённые исходные данные и библиотеки; несохранённые правки
+и результаты расчёта в копию не входят. Копия появится в списке, но автоматически
+для редактирования не загрузится.</p>
+<figure class="quickstart-figure">
+<a href="images/quickstart-09.webp" target="_blank" rel="noopener noreferrer" title="Открыть иллюстрацию в полном размере">
+<img src="images/quickstart-09.webp" width="721" height="369" loading="lazy" decoding="async" alt="Новая копия в списке заданий проекта"></a>
+<figcaption>Копия появилась в списке; для редактирования загрузите её отдельно.</figcaption>
+</figure>
+<p>Для изменения данных загрузите именно копию и проверьте путь в верхней строке.
+Проверьте геометрию, материалы, заданные источники, временные зависимости и области
+наблюдения. При изменении контактов выполните <a href="#med">анализ MED</a>.
+Сохраните изменённые характеристики их собственной командой, выполните
+«Проверить модель», разберите диагностику и нажмите «Сохранить модель».
+Подробности — в разделе <a href="#validation">«Проверка и сохранение»</a>.</p>
+<p>Если требуется только повторить расчёт сохранённого примера без изменений,
+после копирования можно перейти к подключению решателя и списку запуска.</p>
+
+<h3 id="quickstart-bind">3 Свяжите каталог с решателем</h3>
+<p>Выбор папки в браузере даёт Editor доступ к файлам. Для запуска установленного
+Clark требуется связать с ним этот же базовый каталог.</p>
+<ol>
+<li>Нажмите жёлтую кнопку «Связать с Решателем».</li>
+<li>Если браузер запросит разрешение открыть Clark, подтвердите его.</li>
+<li>В открывшемся окне Clark укажите <strong>тот же базовый каталог</strong>, который
+выбран в Editor, и подтвердите выбор.</li>
+<li>Дождитесь зелёной надписи «Решатель доступен» и сообщения о связи каталога.</li>
 </ol>
-<p>Признаки
-завершённого первого расчёта: сохранён
-полный входной комплект, решатель
-завершился без аварии, число состояний
-соответствует заданию, результаты
-относятся к этим исходным данным и
-выполнены критерии итераций. Если выбран
-эталонный пример, отдельно должно быть
-выполнено сопоставление контрольных
-величин.</p>
+<figure class="quickstart-figure">
+<a href="images/quickstart-10.webp" target="_blank" rel="noopener noreferrer" title="Открыть иллюстрацию в полном размере">
+<img src="images/quickstart-10.webp" width="985" height="812" loading="lazy" decoding="async" alt="Выбор того же базового каталога в окне привязки Clark"></a>
+<figcaption>При привязке выбирается тот же каталог, что и в Editor.</figcaption>
+</figure>
+<figure class="quickstart-figure">
+<a href="images/quickstart-11.webp" target="_blank" rel="noopener noreferrer" title="Открыть иллюстрацию в полном размере">
+<img src="images/quickstart-11.webp" width="770" height="162" loading="lazy" decoding="async" alt="Зелёная кнопка Решатель доступен после привязки каталога"></a>
+<figcaption>Успешная связь каталога с установленным решателем.</figcaption>
+</figure>
+<p>При выборе другого базового каталога проверьте его связь с решателем заново.
+Отмена диалога выбора папки не завершает подключение.</p>
+
+<h3 id="quickstart-run">4 Подключите копию к списку и запустите расчёт</h3>
+<ol>
+<li>Нажмите нижнюю кнопку «Формирование списка заданий и запуск приложений».</li>
+<li>В открывшемся окне нажмите «Обновить список», особенно после создания,
+копирования или переноса заданий. Новые задания добавляются отключёнными;
+состояние уже существующих записей сохраняется.</li>
+<li>Найдите копию и нажмите «Подключить» либо дважды щёлкните по её строке.
+Двойной щелчок переключает подключение. Для нескольких заданий используйте
+Ctrl + щелчок, затем «Подключить».</li>
+<li>Проверьте весь список: <strong>«Запустить расчёт» запускает все подключённые
+задания</strong>, независимо от выделенной строки и задания, открытого для
+редактирования. Отключите лишние записи кнопкой «Отключить».</li>
+<li>Проверьте поле «Процессов MPI». Значение <code>default</code> использует настройку
+установленного Clark; явное число задаёт этот запуск и не меняет постоянную
+конфигурацию. Число 4 на иллюстрации — пример настройки, а не обязательное значение.</li>
+<li>Нажмите «Запустить расчёт» и при запросе подтвердите открытие Clark.
+Ход вычислений появится в консольном окне PowerShell.</li>
+</ol>
+<figure class="quickstart-figure">
+<a href="images/quickstart-12.webp" target="_blank" rel="noopener noreferrer" title="Открыть иллюстрацию в полном размере">
+<img src="images/quickstart-12.webp" width="1365" height="973" loading="lazy" decoding="async" alt="Окно списка запуска с подключением заданий, MPI и параметрами активной задачи"></a>
+<figcaption>Обновите список, проверьте подключённые задания и параметры запуска.</figcaption>
+</figure>
+<p>Сообщение о том, что исходные данные не проверены, само по себе не означает
+аварийного завершения. Однако его следует отличать от сообщений об ошибках:
+вернитесь к проверке и сохранению модели. Значение маркера проверки объяснено
+в разделе <a href="#validation-marker">«Что означает _nogo.e3d»</a>.</p>
+
+<h3 id="quickstart-iterations">5 При необходимости измените TAU и EPS во время расчёта</h3>
+<p>Если запущенная версия решателя поддерживает управление активным заданием,
+в окне списка запуска станет доступна кнопка «Активная задача: Установить значения».
+При необходимости отметьте флажок TAU и/или EPS, введите новые значения и нажмите
+эту кнопку. Изменения передаются текущему выполняемому заданию и применяются
+на границе итерации; дождитесь сообщения о применении либо отклонении запроса.
+Применение отражается в текстовом протоколе итераций.</p>
+<p>Изменение критерия EPS меняет требуемую точность: завершение после его ослабления
+следует оценивать с учётом нового значения. Этот приём не заменяет проверки
+постановки и анализа сходимости.</p>
+<figure class="quickstart-figure quickstart-compact">
+<a href="images/quickstart-13.webp" target="_blank" rel="noopener noreferrer" title="Открыть иллюстрацию в полном размере">
+<img src="images/quickstart-13.webp" width="693" height="790" loading="lazy" decoding="async" alt="Консоль расчёта с протоколом итераций и сообщением проверки данных"></a>
+<figcaption>Ход расчёта и диагностические сообщения в PowerShell.</figcaption>
+</figure>
+<p>После расчёта проверьте итоговое сообщение, протокол, число сохранённых состояний
+и невязки. Для эталонного примера выполните предусмотренное сравнение контрольных
+величин. Наличие файлов результатов само по себе не подтверждает успешное завершение.</p>
+
+<h3 id="quickstart-viewer">6 Откройте результаты и настройте 3D</h3>
+<p>Перейдите в <a href="https://y26084670-blip.github.io/clark-viewer/" target="_blank"
+rel="noopener noreferrer">E3D Viewer</a>. Выберите тот же базовый каталог, проект
+и рассчитанную копию, затем загрузите результаты. При запросе браузера подтвердите
+доступ. Editor и Viewer отдельно выбирают каталог и загружают данные.</p>
+<p>Если Viewer уже открыт с тем же базовым каталогом, кнопка Editor
+«Выбрать в Viewer» поможет выделить нужное задание. Она не загружает результаты:
+выполните загрузку в Viewer.</p>
+<ol>
+<li>Откройте вкладку «Источники / Поле 3D».</li>
+<li>В меню «Симметрии» отключите образы, мешающие обзору, а в списке областей скройте
+ненужные площадки наблюдения. Это меняет только отображение.</li>
+<li>Установите фокус на 3D-виде и нажмите A либо используйте «Показать всё», чтобы
+вписать модель. Настройте прозрачность геометрии для обзора внутренних источников.</li>
+<li>В меню «Представление» включите «Карта», чтобы увидеть распределение выбранной
+величины цветными маркерами. Для векторных величин можно вернуться к показу векторов.</li>
+<li>Меняйте момент времени горизонтальным ползунком внизу. Для сопоставления
+цветов разных состояний при необходимости включите «Общий минимакс».</li>
+</ol>
+<div class="quickstart-figures">
+<figure class="quickstart-figure">
+<a href="images/quickstart-14.webp" target="_blank" rel="noopener noreferrer" title="Открыть иллюстрацию в полном размере">
+<img src="images/quickstart-14.webp" width="477" height="527" loading="lazy" decoding="async" alt="Меню Симметрии на вкладке источников и поля 3D"></a>
+<figcaption>Отключите образы, затрудняющие обзор.</figcaption>
+</figure>
+<figure class="quickstart-figure">
+<a href="images/quickstart-15.webp" target="_blank" rel="noopener noreferrer" title="Открыть иллюстрацию в полном размере">
+<img src="images/quickstart-15.webp" width="329" height="241" loading="lazy" decoding="async" alt="Опция Карта в меню Представление"></a>
+<figcaption>Цветные маркеры показывают распределение выбранной величины.</figcaption>
+</figure>
+</div>
+
+<h3 id="quickstart-plots">7 Посмотрите рабочие точки, поля и графики</h3>
+<ul>
+<li><strong>«Рабочие точки».</strong> Выберите нужные элементы и просматривайте их
+состояния на характеристиках материала, изменяя время.</li>
+<li><strong>«Поле на линиях».</strong> Выберите линии наблюдения, нужную величину
+и момент времени.</li>
+<li><strong>«Поле в областях».</strong> Выберите область и величину. Три графика
+показывают компоненты X, Y и Z; кнопки «Вписать» и «Вид X/Y/Z» задают общий ракурс.
+Ракурс сохраняется при переключении времени. «Общий минимакс» задаёт общую
+цветовую шкалу трёх компонент в текущий момент времени.</li>
+</ul>
+<figure class="quickstart-figure">
+<a href="images/quickstart-16.webp" target="_blank" rel="noopener noreferrer" title="Открыть иллюстрацию в полном размере">
+<img src="images/quickstart-16.webp" width="968" height="758" loading="lazy" decoding="async" alt="Три компоненты поля в области наблюдения и ползунок времени"></a>
+<figcaption>Компоненты X, Y и Z с общим ракурсом; время меняется ползунком внизу.</figcaption>
+</figure>
+<p>На вкладке <strong>«Графики»</strong> можно строить зависимости Y(X), выбирая обе
+величины из доступных результатов. Например, задайте время по оси X, а по оси Y —
+плотность энергии в выбранной сохранённой точке. Доступный набор зависит от
+результатов задания; номер точки относится к файлу результата.</p>
+<figure class="quickstart-figure">
+<a href="images/quickstart-17.webp" target="_blank" rel="noopener noreferrer" title="Открыть иллюстрацию в полном размере">
+<img src="images/quickstart-17.webp" width="901" height="340" loading="lazy" decoding="async" alt="График плотности энергии в зависимости от времени"></a>
+<figcaption>Пример зависимости выбранной величины от времени.</figcaption>
+</figure>
+<p>Для GIF-анимации откройте «Инструменты» → «Создать moview» на нужной вкладке,
+задайте параметры, сформируйте анимацию, просмотрите её и сохраните GIF.
+Возможность записи зависит от активной вкладки и загруженных результатов.</p>
+
+<h3 id="quickstart-flight">8 Осмотрите геометрию в режиме «Полёт»</h3>
+<p>В 3D-окнах Editor и Viewer откройте меню «Показ» и нажмите «Полёт».
+Режим позволяет перемещаться внутри модели с управлением мышью и клавишами:</p>
+<ul>
+<li>мышь — направление взгляда; ←/→ — перемещение влево и вправо,
+↑/↓ — приближение и удаление;</li>
+<li>Enter — вверх, правый Ctrl — вниз;</li>
+<li>правый Shift со стрелками — вращение вокруг выбранного центра;</li>
+<li>+/− — изменение скорости; A — начальный вид полёта; Esc — выход
+с восстановлением прежнего вида.</li>
+</ul>
+<figure class="quickstart-figure">
+<a href="images/quickstart-18.webp" target="_blank" rel="noopener noreferrer" title="Открыть иллюстрацию в полном размере">
+<img src="images/quickstart-18.webp" width="227" height="158" loading="lazy" decoding="async" alt="Кнопка Полёт в меню Показ"></a>
+<figcaption>Режим «Полёт» включается одноимённой кнопкой.</figcaption>
+</figure>
+<p>Во время полёта выбранный момент времени фиксирован. Полная подсказка по
+управлению доступна у кнопки «Полёт».</p>
 </section><section class="chapter" id="start"><span id="title-start" class="anchor-alias" aria-hidden="true"></span><h2><a id="b_start"></a>3
 Подготовка среды</h2>
 <p>Clark E3D
@@ -322,9 +507,9 @@ Clark.</p>
 	для локальной разработки допустим
 	localhost.</p></li>
 	<li><p>Посмотрите
-	версию в интерфейсе. Эта редакция
-	Руководства описывает интерфейс версии
-	<b>4.51.0</b>.</p></li>
+	версию в интерфейсе. Основная редакция Руководства подготовлена для
+	<b>4.51.0</b>; <a href="#quickstart">быстрый старт</a> актуализирован для
+	Editor <b>4.67.2</b> и Viewer <b>4.46.0</b>.</p></li>
 	<li><p>После запроса
 	разрешите чтение и запись выбранного
 	базового каталога, с которым собираетесь

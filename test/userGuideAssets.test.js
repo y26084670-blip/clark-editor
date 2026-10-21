@@ -80,7 +80,7 @@ test('prepare copies all guide bytes deterministically and removes obsolete gene
         const sentinel = path.join(temporary, 'other-resource.txt');
         await writeFile(sentinel, 'keep');
         const first = await prepareUserGuideAssets({ outputRoot });
-        assert.equal(first.length, 9);
+        assert.equal(first.length, 27);
         await writeFile(path.join(outputRoot, 'obsolete.html'), 'obsolete');
         assert.deepEqual(await prepareUserGuideAssets({ outputRoot }), first);
         assert.deepEqual(await verifyUserGuideAssets({ assetRoot: outputRoot }), first);
