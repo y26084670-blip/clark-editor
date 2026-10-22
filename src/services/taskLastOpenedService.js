@@ -97,7 +97,8 @@ export function createLastOpenedTaskHistory({ app, onChange, onNotice }) {
       if (!snapshot || snapshot.root !== root || snapshot.session !== session) return false;
       const handle = root, generation = session, request = ++revision;
       const isCurrent = () => current(handle, generation, request);
-      const positions = { projectIndex: snapshot.projectIndex, taskIndex: snapshot.taskIndex };
+      const positions = snapshot.projectIndex === null ? null
+        : { projectIndex: snapshot.projectIndex, taskIndex: snapshot.taskIndex };
       onChange(positions);
       onNotice("");
       return enqueue(handle, filename, async () => {
@@ -108,6 +109,10 @@ export function createLastOpenedTaskHistory({ app, onChange, onNotice }) {
           return false;
         }
       });
+    },
+
+    clear() {
+      return root ? this.remember({ root, session, projectIndex: null, taskIndex: null }) : Promise.resolve(false);
     },
 
     dispose() { root = null; session++; revision++; },

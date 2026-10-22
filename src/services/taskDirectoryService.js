@@ -246,3 +246,97 @@ export async function runTaskDirectoryOperation({ kind, root, sourceParent, sour
     throw error;
   }
 }
+
+// Projects are direct children of the selected catalog. Reuse the task file
+// manifest/verification mechanism, but update every launch path in the project.
+export async function runProjectDirectoryOperation({ kind, root, source, name }) {
+  if (!root || root.kind !== "directory") throw new Error("Выберите базовый каталог проектов.");
+  if (!["create", "rename", "delete"].includes(kind)) throw new Error("Неизвестная операция с проектом.");
+  const key = value => value.normalize("NFC").toLowerCase();
+  const assertSource = async () => {
+    if (!source || (await root.resolve(source))?.length !== 1) {
+      throw new Error("Выберите проект непосредственно в текущем базовом каталоге.");
+    }
+    const current = await root.getDirectoryHandle(source.name);
+    if (!await current.isSameEntry(source)) throw new Error("Каталог проекта был заменён. Выберите его заново.");
+  };
+  const assertEmpty = async directory => {
+    for await (const _ of directory.entries()) throw new Error("Проект не пуст: в каталоге есть файлы или подкаталоги. Удаление запрещено.");
+  };
+  if (kind !== "create") await assertSource();
+  if (kind === "delete") await assertEmpty(source);
+  else { validateTaskName(name); await assertUnused(root, name); }
+  if (kind === "create") {
+    const handle = await root.getDirectoryHandle(name, { create: true });
+    await assertEmpty(handle);
+    return { handle, name, verified: true };
+  }
+
+  const before = await readTaskList(root);
+  if (kind === "rename" && before.entries.some(entry => key(entry.path.split("/")[0]) === key(name))) {
+    throw new Error("В списке запуска уже есть пути проекта назначения. Обновите список и повторите операцию.");
+  }
+  const entries = before.entries.flatMap(entry => {
+    const [project, ...parts] = entry.path.split("/");
+    if (key(project) !== key(source.name)) return [entry];
+    return kind === "delete" ? [] : [{ ...entry, path: [name, ...parts].join("/") }];
+  });
+  const publishList = async () => {
+    if (JSON.stringify(await readTaskList(root)) !== JSON.stringify(before)) {
+      throw new Error("Список запуска изменился во время операции. Источник сохранён; проверьте список.");
+    }
+    if (before.exists) await writeTaskList(root, entries);
+    else await invalidateLaunchRequest(root);
+  };
+  const result = { name: kind === "delete" ? source.name : name, verified: false, deletionStarted: false, sourceRemoved: false };
+  const guards = [];
+  try {
+    if (kind === "delete") {
+      await assertSource(); await assertEmpty(source);
+      await publishList();
+      await assertSource(); await assertEmpty(source);
+      result.deletionStarted = true;
+      // Never recursively remove a project through the empty-project command:
+      // a concurrent file creation must make removal fail, not delete that file.
+      await root.removeEntry(source.name, { recursive: false });
+      result.sourceRemoved = true;
+      return result;
+    }
+    const include = () => true;
+    const expected = await manifest(source, include);
+    await assertSource(); await assertUnused(root, name);
+    const target = await root.getDirectoryHandle(name, { create: true });
+    result.handle = target;
+    await assertEmpty(target);
+    for (const entry of expected) {
+      const parts = entry.path.split("/");
+      if (entry.kind !== "directory" || parts.length !== 2 || parts[1] !== DIRECTORIES.INPUT) continue;
+      const marker = `${entry.path}/${TASK_UNAPPROVED_FILE}`;
+      const input = await directoryAt(target, entry.path, true);
+      await writeFile(input, TASK_UNAPPROVED_FILE, "Переименование проекта ещё не завершено.\n");
+      if (!expected.some(item => item.path === marker)) guards.push({ input, marker });
+    }
+    await copyManifest(source, target, expected);
+    const addedGuards = new Set(guards.map(item => item.marker));
+    await assertManifest(target, expected, path => !addedGuards.has(path));
+    await assertManifest(source, expected, include);
+    result.verified = true;
+    await publishList();
+    await assertManifest(source, expected, include);
+    await assertSource();
+    result.deletionStarted = true;
+    await root.removeEntry(source.name, { recursive: true });
+    result.sourceRemoved = true;
+    for (const { input } of guards) await input.removeEntry(TASK_UNAPPROVED_FILE);
+    return result;
+  } catch (cause) {
+    const state = kind === "delete"
+      ? "Непустой каталог не удаляется. Проверьте проект и список запуска."
+      : result.deletionStarted
+        ? "Удаление источника началось и могло завершиться частично. Проверенная полная копия сохранена в назначении."
+        : "Источник не удалялся. Если назначение создано, оно сохранено для проверки и не будет перезаписано.";
+    const error = new Error(`Операция с проектом не завершена. Проект: «${root.name}/${result.name}». ${state}\n${cause.message}`, { cause });
+    error.operationResult = result;
+    throw error;
+  }
+}

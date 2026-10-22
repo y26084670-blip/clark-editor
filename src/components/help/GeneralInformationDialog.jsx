@@ -209,9 +209,11 @@ export function GeneralInformationDialog(props) {
           </p>
           <ul>
             <li>
-              На вкладке «Выбор задания»: <strong>«Создать задание»</strong>,
-              <strong> «Создать копию»</strong>, <strong>«Переименовать»</strong> и
-              <strong> «Перенести в другой каталог»</strong>.
+              На вкладке «Выбор задания» сворачиваемый раздел <strong>«Работа с проектами»</strong>:
+              <strong> «Создать проект»</strong>, <strong>«Переименовать проект»</strong>, <strong>«Удалить пустой проект»</strong>.
+              В разделе <strong>«Работа с заданиями»</strong>: <strong>«Создать геометрию по эскизу»</strong>,
+              <strong> «Создать задание»</strong>, <strong>«Создать копию»</strong>, <strong>«Переименовать задание»</strong>,
+              <strong> «Перенести в другой каталог»</strong>, <strong>«Удалить задание»</strong>.
             </li>
             <li>
               <strong>«История текущей вкладки»</strong> — отмена и повтор

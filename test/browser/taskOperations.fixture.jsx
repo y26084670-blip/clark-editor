@@ -19,8 +19,14 @@ await initializeTaskDirectory(original);
 const failure = await project.getDirectoryHandle('Failure', { create: true });
 await initializeTaskDirectory(failure);
 let failDeletion = false;
+let failProjectDeletion = false;
 const nativeRemove = FileSystemDirectoryHandle.prototype.removeEntry;
 FileSystemDirectoryHandle.prototype.removeEntry = async function(name, options) {
+  if (failProjectDeletion && name === 'RenamedProject' && options?.recursive) {
+    const p = await root.getDirectoryHandle(name), task = await p.getDirectoryHandle('Original');
+    await nativeRemove.call(await task.getDirectoryHandle('input3XX'), 'general.txt');
+    throw new DOMException('Test partial project deletion', 'NoModificationAllowedError');
+  }
   if (failDeletion && name === 'Failure') {
     const input = await failure.getDirectoryHandle('input3XX');
     await nativeRemove.call(input, 'general.txt');
@@ -56,6 +62,11 @@ window.showDirectoryPicker = async options => {
 };
 localStorage.setItem('e3d.generalInformation.openAtStartup', 'false');
 window.taskFixture = {
+  put: (path, value) => put(root, path, value),
+  mkdir: path => directory(root, path.split('/'), true),
+  projectExists: name => root.getDirectoryHandle(name).then(() => true, error => { if (error.name === 'NotFoundError') return false; throw error; }),
+  projectEntries: async name => { const result = []; for await (const [entry] of (await root.getDirectoryHandle(name)).entries()) result.push(entry); return result; },
+  failProjectDeletion: value => { failProjectDeletion = value; },
   failDeletion: value => { failDeletion = value; },
   read, setPicker: value => { picker = value; },
   exists: async path => { try { await read(path); return true; } catch (e) { if (e.name === 'NotFoundError') return false; throw e; } },

@@ -10,7 +10,7 @@ const root = fileURLToPath(new URL('../', import.meta.url));
 const out = path.resolve(process.env.CHECK_OUTPUT ?? '/tmp/clark-task-browser');
 await mkdir(out, { recursive: true });
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE ?? 'playwright');
-const server = await createServer({ root, server: { host: '127.0.0.1', port: 0 }, base: '/clark-editor/',
+const server = await createServer({ root, cacheDir: path.join(out, 'vite-cache'), server: { host: '127.0.0.1', port: 0 }, base: '/clark-editor/',
   plugins: [{ name: 'task-fixture-route', configureServer(server) {
     server.middlewares.use(async (req, res, next) => {
       if (!req.url?.split('?')[0].endsWith('/__task-fixture')) return next();
@@ -31,7 +31,7 @@ page.on('console', message => { if (message.type() === 'error') console.error('B
 const check = (name, condition) => { assert.ok(condition, name); checks.push(name); console.log('PASS', name); };
 const button = name => page.getByRole('button', { name, exact: true });
 const dialog = page.locator('.task-operation-dialog');
-const choose = async name => { await page.locator('#listTask .listTask-item').filter({ hasText: new RegExp(`^${name}$`) }).click(); };
+const choose = async name => { await page.locator('#listTask .listTask-item').filter({ hasText: new RegExp(`(?:^|▶\\s*)${name}$`) }).click(); };
 const open = async name => { await button('Выбор задания').click(); await button('Открыть дополнительные функции').click(); await page.locator('.side-panel').getByRole('button', { name, exact: true }).click(); await dialog.waitFor({ state: 'visible' }); };
 const submit = async name => { await dialog.getByRole('button', { name, exact: true }).click(); };
 const done = async () => { await dialog.waitFor({ state: 'hidden' }); };
@@ -91,17 +91,17 @@ try {
   check('copy preserves unsaved loaded model', dirty.path === afterCopy.path && afterCopy.dirty && afterCopy.model.general.timeStep === 42);
   check('copy contains saved state, library and formulas', JSON.parse(await read('Project/Copy/input3XX/general.txt')).timeStep !== 42 && await read('Project/Copy/input3XX/FMM/custom.json') === '{"unchanged":true}' && await read('Project/Copy/input3XX/formulas-user.json') === '{"formula":"sin(t)"}');
   check('copy excludes results', !await page.evaluate(() => taskFixture.exists('Project/Copy/output3XX/result.bin')));
-  await choose('Original'); await open('Переименовать');
-  await dialog.locator('input[type="checkbox"]').check(); await dialog.locator('input[name="taskName"]').fill('Renamed'); await submit('Переименовать');
+  await choose('Original'); await open('Переименовать задание');
+  await dialog.locator('input[type="checkbox"]').check(); await dialog.locator('input[name="taskName"]').fill('Renamed'); await submit('Переименовать задание');
   await page.waitForFunction(() => document.querySelector('.task-operation-error').textContent.includes('Сначала сохраните'));
   check('dirty rename rejected', await page.evaluate(() => taskFixture.exists('Project/Original/input3XX/general.txt')));
   await dialog.getByRole('button', { name: 'Отмена', exact: true }).click();
   await page.evaluate(() => taskFixture.clean());
-  await open('Переименовать'); await dialog.locator('input[type="checkbox"]').check();
-  await dialog.locator('input[name="taskName"]').fill('Copy'); await submit('Переименовать');
+  await open('Переименовать задание'); await dialog.locator('input[type="checkbox"]').check();
+  await dialog.locator('input[name="taskName"]').fill('Copy'); await submit('Переименовать задание');
   await page.waitForFunction(() => document.querySelector('.task-operation-error').textContent.includes('уже занято'));
   check('conflict stays in dialog and preserves source', await page.evaluate(() => taskFixture.exists('Project/Original/input3XX/general.txt')));
-  await dialog.locator('input[name="taskName"]').fill('Renamed'); await submit('Переименовать'); await done();
+  await dialog.locator('input[name="taskName"]').fill('Renamed'); await submit('Переименовать задание'); await done();
   await page.waitForFunction(() => taskFixture.snapshot().path?.endsWith('/Renamed') && taskFixture.snapshot().model.general);
   check('rename updates loaded path and task list', (await state()).path.endsWith('/Renamed') && (await read('clark.tasks.txt')).includes('Project/Renamed\n'));
   check('rename preserves result and removes old directory', await page.evaluate(() => taskFixture.exists('Project/Renamed/output3XX/result.bin')) && !await page.evaluate(() => taskFixture.exists('Project/Original/input3XX/general.txt')));
@@ -116,8 +116,8 @@ try {
   await page.waitForFunction(() => taskFixture.snapshot().path === 'clark.projects/Second/Renamed');
   check('move updates loaded path and enabled launch entry', (await read('clark.tasks.txt')).includes('Second/Renamed\n') && !await page.evaluate(() => taskFixture.exists('Project/Renamed/input3XX/general.txt')));
   await page.locator('#listProject').selectOption('Second');
-  await page.locator('#listTask .listTask-item').filter({ hasText: /^Renamed$/ }).waitFor({ state: 'visible' });
-  check('destination list refreshed after project selection', await page.locator('#listTask .listTask-item').filter({ hasText: /^Renamed$/ }).count() === 1);
+  await page.locator('#listTask .listTask-item').filter({ hasText: /(?:^|▶\s*)Renamed$/ }).waitFor({ state: 'visible' });
+  check('destination list refreshed after project selection', await page.locator('#listTask .listTask-item').filter({ hasText: /(?:^|▶\s*)Renamed$/ }).count() === 1);
   await choose('Renamed');
   await page.evaluate(() => taskFixture.dirty());
   await open('Удалить задание');

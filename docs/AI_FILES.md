@@ -1,6 +1,6 @@
 # Карта файлов и компонентов web-gui
 
-Обновлено: 2026-10-22 21:21 UTC+3.
+Обновлено: 2026-10-22 22:05 UTC+3.
 
 Пакет по эскизу (4.70.0): `SketchRequestDialog.jsx`/`.css` в
 `src/components/tasks/` — ввод и выдача файлов; `Tasks.jsx` владеет открытием,
@@ -361,10 +361,12 @@ File System Access API и разрешение `readwrite` сохраняютс�
 solver ab322751dc1756471b657902f675f12cac514693. Другие даты в карте относятся
 к своим разделам и не подтверждают повторную проверку всего проекта.
 
-## Файловые команды заданий (4.29.0)
+## Файловые команды проектов и заданий (4.75.0)
 
 - `src/services/taskDirectoryService.js` — имена, состав копии, последовательное
   копирование, SHA-256, проверка источника, перенос, удаление и обновление списка запуска.
+  runProjectDirectoryOperation также владеет созданием/переименованием проекта
+  и удалением только пустого каталога без recursive.
 - `src/services/taskTemplateService.js` — начальная модель через текущие схемы,
   `dataService` и штатную сводку; не содержит отдельного формата solver.
 - `src/components/tasks/TaskOperationDialog.jsx` / `.css` — имя, подтверждение,
@@ -373,7 +375,10 @@ solver ab322751dc1756471b657902f675f12cac514693. Другие даты в кар
   единственный источник состояния в `Tasks`.
 - `TaskInfoBar.jsx` / `.css` — кнопка «Документация» и адрес с `BASE_URL`.
 - `test/taskDirectoryService.test.js`, `test/browser/taskOperations.fixture.jsx`,
-  `scripts/check-task-operations-browser.mjs` — файловые отказы и браузерная приёмка.
+  `scripts/check-task-operations-browser.mjs`,
+  `scripts/check-project-operations-browser.mjs` — файловые отказы и браузерная приёмка.
+- `taskLastOpenedService.js` — отметка последнего задания; Tasks пересчитывает
+  её индексы после операций с проектами, clear очищает недействующую отметку.
 
 Механизм: [файловый контракт](AI_CLARK_INTEGRATION.md#task-directory-operations).
 
