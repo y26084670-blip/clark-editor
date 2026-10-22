@@ -1,6 +1,23 @@
 # Проверка web-gui
 
-Обновлено: 2026-10-22 22:07 UTC+3.
+Обновлено: 2026-10-23 00:50 UTC+3.
+
+<a id="verification-contact-input"></a>
+## Контактное возбуждение: черновик и ввод чисел — 4.76.2
+
+База main `95a3dd4`, 2026-10-23; Node.js 24.19.0/Linux, Chromium/Playwright.
+- `node --test test/contactElement.test.js test/medPrescribedCurrent.test.js test/medAnalysisService.test.js test/diagnosticGrouping.test.js test/geometryPicking.test.js test/uniformFieldCoil.test.js test/changeNotifications.test.js`: **128/128**. Разбор полных чисел, допуск исправимых ошибок, сохранение ошибочных прежних значений MHJ, вставка при неверном порядке targ, перенумерация MED, прежние контакты и все шесть нормалей REAL32/64.
+- `node scripts/check-contact-element-browser.mjs`: **9/9 групп**, **96 raycast-проверок**. Посимвольный ввод точки/запятой, знака и экспоненты, промежуточная запись, редактирование в середине строки, настоящий App/OPFS и атомарный Undo/Redo. При 160 одинаковых геометрических ошибках элемент добавлен; в DOM диагностики остаётся одна группа этого сообщения. В разделе «Алгоритмы и вычисления» показано актуальное название «Контактное возбуждение».
+- `npm run build:pages`: production-сборка успешна; проверены SHA-256 185 ресурсов библиотек и 32 ресурсов руководства.
+
+Для браузера используются `PLAYWRIGHT_MODULE`, `CHROMIUM_EXECUTABLE`, `CHECK_OUTPUT`;
+Vite имеет отдельный кеш. Снимок панели ввода просмотрен. Обрезание общего окна
+диагностики зафиксировано отдельно как [WGUI-013](AI_ARCHITECTURE_AUDIT.md#wgui-013--обрезание-общей-панели-диагностики);
+снимок подтверждает проблему размещения, а не визуальную приёмку этого окна.
+Полный набор Editor и установленный решатель не запускались; прежние 22 сбоя
+полного набора описаны [ниже](#verification-contact-element). Структурные
+ограничения MHJ/jweak_local и необходимость исправить модель перед расчётом
+описаны в [контракте](AI_GEOMETRY_GENERATION.md#contact-element-generator).
 
 <a id="project-directory-verification"></a>
 ## Работа с проектами и уточнение команд — 4.75.0

@@ -41,11 +41,30 @@ try {
   });
   await page.locator(".tabs-header button").filter({ hasText: /^Элементы$/ }).click();
   await page.getByRole("button", { name: "Открыть дополнительные функции", exact: true }).click();
-  await page.locator(".side-panel").getByRole("button", { name: "Контактный элемент", exact: true }).click();
+  await page.locator(".side-panel").getByRole("button", { name: "Контактное возбуждение", exact: true }).click();
   const panel = page.locator(".contact-element-dialog"); await panel.waitFor();
   assert.equal(await panel.locator("input").count(), 4);
-  await panel.getByLabel("Толщина контактного элемента, мм", { exact: true }).fill("0.2");
-  await panel.getByLabel("Нормальная плотность тока, А/мм²", { exact: true }).fill("3");
+  const thickness = panel.getByLabel("Толщина контактного элемента, мм", { exact: true });
+  const current = panel.getByLabel("Нормальная плотность тока, А/мм²", { exact: true });
+  const add = panel.getByRole("button", { name: "Добавить элемент", exact: true });
+  // Typing (not just fill) reproduces the former valueAsNumber feedback bug.
+  for (const [input, text] of [[thickness, "0.05"], [thickness, "0,02"], [current, "-0.25"], [current, "-.5E-2"]]) {
+    await input.fill(""); let prefix = "";
+    for (const char of text) {
+      await input.pressSequentially(char); prefix += char;
+      assert.equal(await input.inputValue(), prefix);
+    }
+    assert.equal(await add.isEnabled(), true);
+  }
+  await current.fill("1e-"); assert.equal(await add.isEnabled(), false);
+  await current.pressSequentially("3"); assert.equal(await current.inputValue(), "1e-3");
+  assert.equal(await add.isEnabled(), true);
+  await current.fill("-0.25"); await current.press("ArrowLeft"); await current.press("Backspace");
+  assert.equal(await current.inputValue(), "-0.5");
+  await current.pressSequentially("3"); assert.equal(await current.inputValue(), "-0.35");
+  await current.fill(""); assert.equal(await add.isEnabled(), false);
+  await thickness.fill("0.2"); await current.fill("3");
+  pass("keystrokes preserve decimal separators, sign, exponent, intermediate text and caret edits");
   await page.screenshot({ path: `${output}/contact-panel.png` });
   await panel.getByRole("button", { name: "Добавить элемент", exact: true }).click();
   await page.waitForFunction(() => editorFixture.model().elements.length === 2);
@@ -111,5 +130,55 @@ try {
   });
   assert.deepEqual(rayResult.failures, []); assert.ok(rayResult.count >= 48);
   pass(`${rayResult.count} actual Three.js ray hits resolve all six faces through rotations, local/periodic images and mirrors`);
+
+  // A model with 160 identical geometry failures used to produce a wall of
+  // repeated inline errors and never insert the requested contact.
+  await page.getByRole("button", { name: "Закрыть 3D-просмотр геометрии", exact: true }).click();
+  await page.evaluate(async () => {
+    const { modelService } = await import("/src/services/modelService.js");
+    const { tabRegistry } = await import("/src/services/tabRegistry.js");
+    const source = { ...editorFixture.model().elements[0], med: Array.from({ length: 6 }, () => [-1]) };
+    const invalid = Array.from({ length: 160 }, () => ({ ...source, geoType: 0, geo: Array.from({ length: 8 }, () => [0,0,0]) }));
+    modelService.setModelParts([
+      { schema: tabRegistry.find(s => s.id === "elements"), data: [source, ...invalid] },
+      { schema: tabRegistry.find(s => s.id === "mhj"), data: [] },
+    ]);
+  });
+  const beforeErrors = await page.evaluate(() => editorFixture.model());
+  await page.getByRole("button", { name: "Открыть дополнительные функции", exact: true }).click();
+  await page.locator(".side-panel").getByRole("button", { name: "Контактное возбуждение", exact: true }).click();
+  await panel.waitFor(); await thickness.fill("0,02"); await current.fill("-2,5e-1"); await add.click();
+  await page.waitForFunction(() => editorFixture.model().elements.length === 162);
+  await panel.getByRole("status").filter({ hasText: "Добавлен контактный элемент №162" }).waitFor();
+  await page.waitForFunction(() => !document.querySelector(".contact-element-actions button")?.disabled);
+  assert.equal(await panel.getByRole("alert").count(), 0);
+  const afterErrors = await page.evaluate(() => editorFixture.model());
+  assert.deepEqual(afterErrors.mhj[0].v, [[0, 0.25, 0]]);
+  await panel.getByRole("button", { name: "Закрыть", exact: true }).click();
+  const repeated = await page.evaluate(async () => {
+    const { diagnosticService } = await import("/src/services/diagnosticService.js");
+    const counts = new Map();
+    for (const d of diagnosticService.diagnostics()) counts.set(d.message, (counts.get(d.message) || 0) + 1);
+    return [...counts].find(([, count]) => count >= 160);
+  });
+  assert.ok(repeated, "the errors must still be available in model diagnostics");
+  await page.locator(".validation-indicator").click();
+  await page.locator(".diagnostic-popup").waitFor();
+  const messages = await page.locator(".diagnostic-message").allTextContents();
+  assert.equal(messages.filter(text => text === repeated[0]).length, 1);
+  await page.screenshot({ path: `${output}/grouped-model-errors.png` });
+  pass("160 model errors allow insertion and appear once as a grouped diagnostic, not an inline wall of text");
+  await page.evaluate(async () => { const { modelService } = await import("/src/services/modelService.js"); modelService.undo("mhj"); });
+  assert.deepEqual(await page.evaluate(() => editorFixture.model()), beforeErrors);
+  await page.evaluate(async () => { const { modelService } = await import("/src/services/modelService.js"); modelService.redo("elements"); });
+  assert.deepEqual(await page.evaluate(() => editorFixture.model()), afterErrors);
+  pass("draft insertion with model errors is atomic and fully undoable");
+  await page.locator(".whats-new-button").click();
+  await page.getByRole("tab", { name: /^Алгоритмы и вычисления/ }).click();
+  const news = page.locator(".whats-new-entry").filter({ hasText: "Контактное возбуждение проводников" });
+  await news.waitFor();
+  assert.match(await news.textContent(), /используйте «Контактное возбуждение»/);
+  assert.doesNotMatch(await news.textContent(), /«Контактный элемент»/);
+  pass("What's New computation entry uses the current Contact Excitation menu label");
   assert.deepEqual(errors, []); pass("no browser exceptions");
 } finally { await browser.close(); await server.close(); await rm(profile, { recursive: true, force: true }); }

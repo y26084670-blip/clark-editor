@@ -4,8 +4,10 @@ import { createContactElementDefaults, contactElementParameters, CONTACT_CURRENT
 import "./ContactElementDialog.css";
 
 export function ContactElementDialog(props) {
-  const [params, setParams] = createSignal(createContactElementDefaults(props.model));
-  const change = (key, event) => { const value = event.currentTarget.valueAsNumber; props.onChange?.(); setParams(old => ({ ...old, [key]: value })); };
+  const [params, setParams] = createSignal(Object.fromEntries(
+    Object.entries(createContactElementDefaults(props.model)).map(([key, value]) => [key, String(value)]),
+  ));
+  const change = (key, event) => { const value = event.currentTarget.value; props.onChange?.(); setParams(old => ({ ...old, [key]: value })); };
   const error = createMemo(() => {
     try { contactElementParameters(props.model, params()); return ""; }
     catch (error) { return error.message; }
@@ -14,11 +16,13 @@ export function ContactElementDialog(props) {
     minWidth={360} minHeight={240} fitContentHeight class="contact-element-window"
     storageKey="web-gui:contact-element" onClose={props.onClose}>
     <div class="contact-element-dialog">
-      <label>Номер элемента-проводника<input type="number" min="1" step="1" value={params().element} onInput={e => change("element", e)} disabled={props.busy}/></label>
-      <label>Номер грани для ввода тока<input type="number" min="1" max="6" step="1" value={params().face} onInput={e => change("face", e)} disabled={props.busy}/></label>
-      <label>Толщина контактного элемента, мм<input type="number" min="0" step="any" value={params().thickness} onInput={e => change("thickness", e)} disabled={props.busy}/></label>
-      <label>Нормальная плотность тока, А/мм²<input type="number" step="any" value={params().normalCurrent} onInput={e => change("normalCurrent", e)} disabled={props.busy}/></label>
+      <label>Номер элемента-проводника<input type="text" inputMode="numeric" value={params().element} onInput={e => change("element", e)} disabled={props.busy}/></label>
+      <label>Номер грани для ввода тока<input type="text" inputMode="numeric" value={params().face} onInput={e => change("face", e)} disabled={props.busy}/></label>
+      <label>Толщина контактного элемента, мм<input type="text" inputMode="decimal" value={params().thickness} onInput={e => change("thickness", e)} disabled={props.busy}/></label>
+      <label>Нормальная плотность тока, А/мм²<input type="text" inputMode="decimal" value={params().normalCurrent} onInput={e => change("normalCurrent", e)} disabled={props.busy}/></label>
+      <p>Дробную часть можно отделять точкой или запятой; допустима запись 1e-3.</p>
       <p>Положительный ток направлен внутрь проводника, отрицательный — наружу. Элемент строится снаружи, без зазора, с разбиением 1 × 1 × 1.</p>
+      <p>Ошибки модели не препятствуют добавлению: исправьте их после создания элемента по сообщениям «Диагностики». Указатель MED выбранной грани заменяется ссылкой на новый элемент.</p>
       <p>Номер грани: включите «Грани» в общих опциях окна 3D и наведите указатель на поверхность.</p>
       <p>{CONTACT_THICKNESS_NOTICE}</p>
       <p>{CONTACT_CURRENT_NOTICE}</p>

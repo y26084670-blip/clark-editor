@@ -1,7 +1,7 @@
 import test, { after } from "node:test";
 import assert from "node:assert/strict";
 import { createServer } from "vite";
-import { prepareContactElement, applyContactElement } from "../src/services/generator/contactElement.js";
+import { contactElementParameters, prepareContactElement, applyContactElement } from "../src/services/generator/contactElement.js";
 import { MED_FACES, physicalHex } from "../src/services/solver/medContactGeometry.js";
 import { unpackKvVertices } from "../src/services/solver/geometryKv.js";
 import { expandElementSymmetry } from "../src/services/solver/symmetryExpansion.js";
@@ -88,22 +88,16 @@ test("source rows append before virtual elements and other active contacts stay 
   assert.deepEqual(second.mhj[0].v[0], first.mhj[0].v[0]);
 });
 
-test("occupied geometry, nonplanar faces, hierarchy, invalid current and unresolved thickness reject without mutations", () => {
+test("only unbuildable input and unmappable source structure reject without mutations", () => {
   const attempts = [
-    [{ ...fixture(), general: { useMED: false } }, params, /Учёт зарядов/],
-    [{ ...fixture(), general: { doubleFloat: false } }, { ...params, normalCurrent: 1e100 }, /REAL32/],
+    [fixture(), { ...params, element: 0 }, /существующего/],
     [fixture(), { ...params, face: 7 }, /от 1 до 6/],
     [fixture(), { ...params, thickness: 0 }, /положительным/],
-    [fixture(), { ...params, thickness: 1e-20 }, /слишком мала/],
     [fixture(), { ...params, normalCurrent: NaN }, /конечным/],
-    [fixture({ rv: 0 }), params, /электропроводность/],
-    [fixture({ targ: 2 }), params, /Unknown/],
     [{ ...fixture(), jweakLocal: { status: "valid" } }, params, /зафиксированы/],
-    [fixture({ med: [[2], [-1], [-1], [-1], [-1], [-1]] }), params, /ссылку MED/],
     [{ ...fixture(), mhj: [{ v: [[1, 2, 3]] }] }, params, /MHJ/],
+    [fixture({ symLs: 0 }), params, /MHJ/],
   ];
-  const occupied = fixture(); occupied.elements.push({ ...occupied.elements[0], dr: [[0], [12], [0]] });
-  attempts.push([occupied, params, /несколько|пересеч|контакт|налож|совпад/i]);
   const bad = fixture(); const vertices = unpackKvVertices(bad.elements[0].geo.flat(), 2).vertices;
   vertices[0][1] += 1;
   bad.elements[0] = { ...bad.elements[0], geoType: 0, geo: vertices };
@@ -113,6 +107,54 @@ test("occupied geometry, nonplanar faces, hierarchy, invalid current and unresol
     assert.throws(() => prepareContactElement(model, input, createElement), expected);
     assert.deepEqual(model, before);
   }
+});
+
+test("decimal comma, signed scientific notation and whitespace parse as complete values", () => {
+  for (const [text, expected] of [["-0.05", -0.05], ["+0,05", 0.05], ["-.2e-3", -0.0002],
+    [" 1,25E+2 ", 125], ["0.", 0], ["-0", -0]]) {
+    const value = contactElementParameters(fixture(), { ...params, thickness: "1e-2", normalCurrent: text });
+    assert.equal(value.thickness, 0.01); assert.equal(value.normalCurrent, expected);
+  }
+  for (const text of ["", " ", "-", ".", "1e", "1e-", "NaN", "Infinity", "1e309", "0x10", "1,2,3", "1.2.3", "2mm"]) {
+    assert.throws(() => contactElementParameters(fixture(), { ...params, normalCurrent: text }), /конечным/);
+  }
+});
+
+test("correctable model errors and unresolved thickness do not prevent draft insertion", () => {
+  const attempts = [
+    [{ ...fixture(), general: { useMED: false } }, params],
+    [{ ...fixture(), general: { doubleFloat: false } }, { ...params, normalCurrent: 1e100 }],
+    [fixture(), { ...params, thickness: 1e-20 }],
+    [fixture({ rv: 0 }), params],
+    [fixture({ med: [[999], [-1], [-1], [-1], [-1], [-1]] }), params],
+  ];
+  for (const [model, input] of attempts) {
+    const before = structuredClone(model), result = prepareContactElement(model, input, createElement);
+    assert.deepEqual(model, before);
+    assert.equal(result.elements.length, 2);
+    assert.equal(result.elements[0].med[0][0], 2);
+    assert.equal(result.elements[1].med[1][0], 1);
+    assert.equal(result.mhj[0].v.length, 1);
+  }
+});
+
+test("overlaps remain diagnosable after insertion instead of throwing a repeated error list", () => {
+  const model = fixture(); model.elements.push({ ...model.elements[0], dr: [[0], [12], [0]] });
+  const before = structuredClone(model), result = prepareContactElement(model, params, createElement);
+  assert.deepEqual(model, before); assert.equal(result.elements.length, 3);
+  assert.ok(analyzeMed({ ...model, ...result }).errors.length > 0);
+  assert.deepEqual(result.mhj[0].v, [[0, -2, 0]]);
+});
+
+test("unordered targets retain source row ownership and renumber both sides of inserted contact", () => {
+  const model = fixture({ targ: 3 });
+  model.elements.push({ ...fixture().elements[0], targ: 2, dp: [[1], [1], [1]] });
+  model.mhj = [{ v: [[NaN, 5, 6]] }]; // An existing value error must not block insertion.
+  const result = prepareContactElement(model, { ...params, element: 2 }, createElement);
+  assert.equal(result.recordIndex, 0); assert.equal(result.elements[1].targ, 3);
+  assert.equal(result.elements[0].med[1][0], 3);
+  assert.equal(result.elements[2].med[0][0], 1);
+  assert.deepEqual(result.mhj[0].v, [[0, -2, 0], [NaN, 5, 6]]);
 });
 
 test("atomic history and native serialization preserve geometry, reciprocal MED and MHJ", () => {
