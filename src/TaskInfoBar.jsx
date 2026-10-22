@@ -231,6 +231,18 @@ export function TaskInfoBar(props) {
 
         <div class="header-save-start">
           <button
+            ref={(el) => (generalInformationButton = el)}
+            type="button"
+            class="general-information-button"
+            onClick={() => setGeneralInformationOpen(true)}
+            title="Быстрый старт"
+            aria-label="Быстрый старт"
+            aria-haspopup="dialog"
+          >
+            Быстрый старт
+          </button>
+
+          <button
             class="save-button"
             classList={{
               "save-button-saving": props.saving,
@@ -256,17 +268,6 @@ export function TaskInfoBar(props) {
             {props.saveFeedback?.message ?? (props.saving ? "Сохранение модели…" : "")}
           </span>
 
-          <button
-            ref={(el) => (generalInformationButton = el)}
-            type="button"
-            class="general-information-button"
-            onClick={() => setGeneralInformationOpen(true)}
-            title="Быстрый старт"
-            aria-label="Быстрый старт"
-            aria-haspopup="dialog"
-          >
-            Быстрый старт
-          </button>
         </div>
 
         <div class="header-news-about">

@@ -49,7 +49,7 @@
     transform: translateY(-50%);
 }
 
-.task-info-bar--aligned .geometry-button,
+.task-info-bar--aligned .validation-controls > .geometry-button,
 .task-info-bar--aligned .model-validation-button,
 .task-info-bar--aligned .header-validation-indicator,
 .task-info-bar--aligned .header-save-start,
@@ -60,19 +60,19 @@
     transform: translateY(-50%);
 }
 
-.task-info-bar--aligned .geometry-button {
-    left: var(--header-moves-right);
-    transform: translate(-100%, -50%);
+.task-info-bar--aligned .validation-controls > .geometry-button {
+    right: calc(100% - var(--header-moves-right));
 }
 
 .task-info-bar--aligned .model-validation-button {
     left: var(--header-mhj-left);
-    width: calc(var(--header-mhj-width) - 26px);
+    /* Quick start fills the FMM tab width minus Save (32px) and the 6px gap. */
+    width: calc(var(--header-fmmLibrary-width) - 32px - 6px);
     min-width: 0;
 }
 
 .task-info-bar--aligned .header-validation-indicator {
-    left: calc(var(--header-mhj-right) - 19px);
+    left: calc(var(--header-mhj-right) - 24px);
     display: flex;
     align-items: center;
 }
@@ -342,6 +342,11 @@
 
 .task-info-bar .validation-controls :is(.geometry-button, .general-information-button) {
     font-weight: 700;
+}
+
+.task-info-bar .validation-controls .model-validation-button {
+    padding-inline: 0;
+    font-size: 12px;
 }
 
 .task-info-leading > .validate-button {

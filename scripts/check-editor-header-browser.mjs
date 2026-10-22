@@ -25,7 +25,8 @@ page.on("pageerror", error => errors.push(error.message));
 const near = (a, b, label) => assert.ok(Math.abs(a - b) < 1, `${label}: ${a} vs ${b}`);
 const selectors = {
   folder: ".task-info-leading > .validate-button", tasks: '[data-tab-id="tasks"]',
-  geometry: ".geometry-button", validate: ".model-validation-button", save: ".save-button", quick: ".general-information-button",
+  geometry: ".validation-controls > .geometry-button", validate: ".model-validation-button", save: ".save-button", quick: ".general-information-button",
+  circle: ".header-validation-indicator",
   news: ".whats-new-button", about: ".about-button", docs: ".documentation-button", leading: ".task-info-leading",
   trajectory: '[data-tab-id="moves"]', sources: '[data-tab-id="mhj"]', fmm: '[data-tab-id="fmmLibrary"]',
   hts: '[data-tab-id="htsLibrary"]', settings: '[data-tab-id="conrab"]',
@@ -44,12 +45,15 @@ async function check(label) {
   near(rects.folder.right, rects.tasks.right, "Folder/Task selection right");
   near(rects.docs.right, rects.settings.right, "Documentation/Settings right");
   near(rects.about.right, rects.hts.right, "About/HTS right");
-  near(rects.save.left, rects.fmm.left, "Save/FMM left");
-  near(rects.quick.right, rects.fmm.right, "Quick start/FMM right");
+  near(rects.quick.left, rects.fmm.left, "Quick start/FMM left");
+  near(rects.save.right, rects.fmm.right, "Save/FMM right");
   near(rects.validate.left, rects.sources.left, "Validate/Sources left");
+  near(rects.validate.width, rects.quick.width, "Validate/Quick start width");
+  near(rects.circle.left, rects.sources.right - 24, "Diagnostics shifted another 5px left");
   near(rects.geometry.right, rects.trajectory.right, "3D/Trajectory right");
-  const order = ["leading", "geometry", "validate", "save", "quick", "news", "about", "docs"];
+  const order = ["leading", "geometry", "validate", "circle", "quick", "save", "news", "about", "docs"];
   for (let i = 1; i < order.length; i++) assert.ok(rects[order[i - 1]].right <= rects[order[i]].left + 1, `overlap ${order[i - 1]}/${order[i]}: ${JSON.stringify(rects)}`);
+  assert.ok(await page.locator(".model-validation-button").evaluate(el => el.scrollWidth <= el.clientWidth), "validation label fits its new width");
   console.log("PASS", label);
 }
 try {
