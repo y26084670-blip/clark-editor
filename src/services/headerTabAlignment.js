@@ -13,20 +13,23 @@ export function installHeaderTabAlignment({ header, tabs }) {
   const caps = new Map([...tabButtons, ...actions].map(button => [button, parseFloat(view.getComputedStyle(button).fontSize)]));
   const originalActionFonts = new Map(actions.map(button => [button, button.style.fontSize]));
   const originalTabFont = tabs.style.getPropertyValue("--tab-label-font-size");
+  const originalTabCount = tabs.style.getPropertyValue("--tab-count");
+  tabs.style.setProperty("--tab-count", String(tabButtons.length));
   const context = header.ownerDocument.createElement("canvas").getContext("2d");
   function fittedSize(button, bold = false) {
+    const isTitle = button.classList.contains("task-info-title");
     const label = button.querySelector(".tab-label, .validation-button-label") || button;
-    const text = label === button
+    const text = isTitle ? button.textContent.trim() : label === button
       ? Array.from(button.childNodes).filter(node => node.nodeType === 3).map(node => node.textContent).join("").trim()
       : label.textContent.trim();
     const cap = caps.get(button);
     if (!context || !text) return cap;
-    const lines = button.classList.contains("task-info-title")
-      ? Array.from(button.childNodes).filter(node => node.nodeType === 3).map(node => node.textContent.trim()).filter(Boolean)
+    const lines = isTitle
+      ? Array.from(button.children).map(node => node.textContent.trim()).filter(Boolean)
       : [text];
     const style = view.getComputedStyle(button);
     const font = view.getComputedStyle(label);
-    const siblings = Array.from(button.children).filter(child => {
+    const siblings = isTitle ? [] : Array.from(button.children).filter(child => {
       const childStyle = view.getComputedStyle(child);
       return child !== label && childStyle.display !== "none" && !["absolute", "fixed"].includes(childStyle.position);
     });
@@ -93,6 +96,8 @@ export function installHeaderTabAlignment({ header, tabs }) {
     for (const name of variables) header.style.removeProperty(name);
     if (originalTabFont) tabs.style.setProperty("--tab-label-font-size", originalTabFont);
     else tabs.style.removeProperty("--tab-label-font-size");
+    if (originalTabCount) tabs.style.setProperty("--tab-count", originalTabCount);
+    else tabs.style.removeProperty("--tab-count");
     for (const [button, font] of originalActionFonts) {
       if (font) button.style.fontSize = font;
       else button.style.removeProperty("font-size");

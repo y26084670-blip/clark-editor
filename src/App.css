@@ -80,7 +80,9 @@ body,
   cursor: pointer;
   color: rgb(0, 0, 0);
   flex: 1 1 0;
-  min-width: 0;
+  /* Keep the row at least 1400px wide, including each tab's 4px margins. */
+  min-width: calc(1400px / var(--tab-count, 10) - 4px);
+  min-height: 36px;
   font-size: var(--tab-label-font-size, 13.333333px);
   white-space: nowrap;
   display: flex;
