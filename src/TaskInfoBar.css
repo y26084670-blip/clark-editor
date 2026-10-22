@@ -57,7 +57,7 @@
 }
 
 .task-info-bar--aligned .header-validation-indicator {
-    left: calc(var(--header-mhj-right) - 16px);
+    left: calc(var(--header-mhj-right) - 19px);
     display: flex;
     align-items: center;
 }
