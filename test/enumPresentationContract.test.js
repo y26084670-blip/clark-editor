@@ -70,7 +70,7 @@ test("element role tooltip contains the exact five explanation lines", async () 
         "Роль элемента в расчетах:",
         "Unknown -> Неизвестные источники",
         "M-const -> Заданная намагниченность",
-        "J-const -> Заданная плотность тока",
+        "J-const -> Заданная плотность тока; контакт через MED задаёт нормальный ток (грань источника 1×1), магнитный вклад сохраняется",
         "Virtual -> Виртуальный (поле/катушка)",
     ]);
     assert.match(source, /targ:\s*\{[\s\S]*?enum:\s*EN_TARG/u);
