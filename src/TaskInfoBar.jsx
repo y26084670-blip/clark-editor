@@ -8,6 +8,8 @@ import {
   isFilePickerCancellation,
 } from "./services/fileSystemAccessSupport";
 import aboutIconUrl from "./assets/zaica.BMP";
+import folderIconUrl from "./assets/header/folder.svg";
+import saveIconUrl from "./assets/header/save.svg";
 import packageMetadata from "../package.json";
 import { WhatsNewDialog } from "./components/updates/WhatsNewDialog.jsx";
 import "./TaskInfoBar.css";
@@ -159,9 +161,10 @@ export function TaskInfoBar(props) {
           class="validate-button"
           disabled={!props.path}
           onClick={handleBrowse}
+          aria-label="Просмотр каталога задания"
           title="Просмотр каталога задания (выбор задания не изменяется)"
         >
-          📂
+          <img class="header-action-icon" src={folderIconUrl} alt="" draggable={false} />
         </button>
 
         <div
@@ -240,7 +243,9 @@ export function TaskInfoBar(props) {
             aria-label="Сохранить модель"
             aria-busy={Boolean(props.saving)}
           >
-            <span class="save-button-symbol" aria-hidden="true">💾</span>
+            <span class="save-button-symbol" aria-hidden="true">
+              <img class="header-action-icon" src={saveIconUrl} alt="" draggable={false} />
+            </span>
             <Show when={props.saveFeedback}>
               <span class="save-button-confirmation" aria-hidden="true">
                 {props.saveFeedback?.status === "success" ? "✓" : "!"}

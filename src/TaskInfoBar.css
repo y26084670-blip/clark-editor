@@ -344,6 +344,28 @@
     font-weight: 700;
 }
 
+.task-info-leading > .validate-button {
+    width: 32px;
+    padding: 2px 5px;
+}
+
+.header-action-icon {
+    display: block;
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    pointer-events: none;
+}
+
+.save-button-symbol {
+    display: inline-flex;
+}
+
+.task-info-bar button:disabled .header-action-icon {
+    opacity: .5;
+    filter: saturate(.3);
+}
+
 .task-info-leading > .validate-button:hover:not(:disabled),
 .task-info-bar .validation-controls :is(.geometry-button, .model-validation-button,
     .save-button, .general-information-button, .documentation-button, .whats-new-button):hover:not(:disabled) {
