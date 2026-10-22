@@ -83,7 +83,7 @@ test("task tab renders readonly summary and ignores stale reads", async () => {
 });
 
 const { formatTaskSummary, writeTaskSummary } = await import("../src/services/taskSummaryService.js");
-const savedAt = new Date("2026-09-20T12:00:00Z");
+const savedAt = new Date("2026-09-20T12:00:00.709Z");
 const summaryModel = {
   general:{doubleFloat:true,htsMu:true,htsRo:true,htsRegimFC:false,evalForce:true,timeStep:0.125,countTimeSteps:4},
   elements:[
@@ -97,7 +97,7 @@ const summaryModel = {
 test("editor summary matches solver counters, independent images and original roles", () => {
   const original=structuredClone(summaryModel);
   const text=formatTaskSummary(summaryModel,savedAt);
-  for (const line of ["Сохранено редактором: 2026-09-20T12:00:00.000Z", "Число элементов: 3",
+  for (const line of ["Сохранено редактором: 2026-09-20 12:00:00", "Число элементов: 3",
     "Число областей: 1", "Число изм катушек: 7", "Число импульсов: 2", "Число траекторий: 1",
     "Число компонент плотн тока J (PPJ): 150", "Число компонент намагниченности M (PPM): 147",
     "ВТСП: Режим ZFC", "Число интервалов по времени: 4", "Разрядность вычислений - Double Float"]) assert.ok(text.includes(line),line);
@@ -144,10 +144,19 @@ test("matrix sizes use unknown rows and all J/M source columns with the solver's
     model.general.doubleFloat = doubleFloat;
     const before = structuredClone(model);
     const text = formatTaskSummary(model, savedAt);
-    assert.match(text, /Матрица J: 144 × 297; 0\.163147 MiB \(суммарно по MPI, Float32\)/);
-    assert.match(text, /Матрица M: 144 × 297; 0\.163147 MiB \(суммарно по MPI, Float32\)/);
-    assert.match(text, /без рабочих буферов, векторов и слабых операторов/);
+    assert.match(text, /^Матрица J: 0\.1 MiB$/m);
+    assert.match(text, /^Матрица M: 0\.1 MiB$/m);
+    assert.doesNotMatch(text, /×|суммарно по MPI|Float32|Объём матриц/);
     assert.deepEqual(model, before);
+    for (const [label, rv, xapName, targ] of [["J", 1, "", 2], ["M", 0, "FMM", 1]]) {
+      const example = formatTaskSummary({ general: { doubleFloat }, elements: [
+        { targ: 0, rv, xapName, dp: [[1908], [1], [1]] },
+        { targ, dp: [[1], [1], [1]] },
+      ] }, new Date("2026-10-22T11:34:35.709Z"));
+      assert.equal(example.split("\n")[0], "Сохранено редактором: 2026-10-22 11:34:35");
+      // 5724 × 5727 × 4 bytes = 125.050918... MiB: truncate to the requested 125.0.
+      assert.ok(example.split("\n").includes(`Матрица ${label}: 125.0 MiB`));
+    }
   }
 });
 
@@ -166,19 +175,19 @@ test("J and M have different row counts, with independent images counted only on
     { targ: 3, rv: 1, xapName: "ignored", dp: [[99], [99], [99]] },
   ] }, savedAt);
   // PPJ=150, PPM=39, PPJN=144, PPMN=30.
-  assert.match(text, /Матрица J: 144 × 189; 0\.103821 MiB/);
-  assert.match(text, /Матрица M: 30 × 189; 0\.021629 MiB/);
+  assert.match(text, /^Матрица J: 0\.1 MiB$/m);
+  assert.match(text, /^Матрица M: 0\.0 MiB$/m);
 });
 
 test("prescribed sources have zero matrix rows and absent source families add no matrix", () => {
   const model = { general: {}, elements: [{ targ: 2, dp: [[2], [1], [1]] }] };
   const knownJ = formatTaskSummary(model, savedAt);
-  assert.match(knownJ, /Матрица J: 0 × 6; 0\.000000 MiB/);
+  assert.match(knownJ, /^Матрица J: 0\.0 MiB$/m);
   assert.doesNotMatch(knownJ, /Матрица M/);
   model.elements.push({ targ: 1, dp: [[3], [1], [1]] });
   const knownJM = formatTaskSummary(model, savedAt);
-  assert.match(knownJM, /Матрица J: 0 × 15; 0\.000000 MiB/);
-  assert.match(knownJM, /Матрица M: 0 × 15; 0\.000000 MiB/);
+  assert.match(knownJM, /^Матрица J: 0\.0 MiB$/m);
+  assert.match(knownJM, /^Матрица M: 0\.0 MiB$/m);
   const empty = formatTaskSummary({ general: {}, elements: [] }, savedAt);
   assert.doesNotMatch(empty, /Матриц[аы]|Объём матриц/);
 });
@@ -188,10 +197,10 @@ test("matrix estimates use the actual fine grid and handle large dimensions with
     elements: [{ targ: 0, rv: 1, dp: [[3], [3], [100]] }],
     jweakLocal: { status: "ready", data: { version: 1, coarse_divisions: [[1, 1, 100]] } },
   };
-  assert.match(formatTaskSummary(model, savedAt), /Матрица J: 2700 × 2700; 27\.809143 MiB/);
+  assert.match(formatTaskSummary(model, savedAt), /^Матрица J: 27\.8 MiB$/m);
   delete model.jweakLocal;
   model.elements[0].dp = [[300], [300], [100]];
   const text = formatTaskSummary(model, savedAt);
-  assert.match(text, /Матрица J: 27000000 × 27000000; 2780914306\.640625 MiB/);
+  assert.match(text, /^Матрица J: 2780914306\.6 MiB$/m);
   assert.doesNotMatch(text, /Матрица M/);
 });
