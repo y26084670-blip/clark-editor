@@ -89,6 +89,19 @@ try {
   await editor.getByText("Журнал недоступен. Показана последняя сохранённая копия.", { exact: true }).waitFor();
   assert.equal(await badge(editor).textContent(), "2");
   pass("offline refresh and page reload retain the journal, acknowledgements and last successful times");
+  offline = false;
+  feed.recommendedClark.version = "0.10.48";
+  await editor.evaluate(() => updateFixture.setNativeVersion("0.10.49"));
+  await editor.getByRole("button", { name: "Проверить обновления", exact: true }).click();
+  for (const appPage of [editor, viewerPage]) {
+    await appPage.getByText("Установлена более новая версия Clark. Обновление не требуется", { exact: true }).waitFor();
+    await appPage.getByText("Установлено: 0.10.49; версия в журнале: 0.10.48.", { exact: true }).waitFor();
+    assert.equal(await appPage.getByRole("link", { name: "Скачать установщик" }).count(), 0);
+    const style = await appPage.locator(".whats-new-button").evaluate(el => getComputedStyle(el).borderTopWidth);
+    assert.equal(style, "2px");
+    assert.equal(await appPage.locator(".whats-new-dialog").evaluate(el => getComputedStyle(el).borderTopWidth), "1px");
+  }
+  pass("0.10.49 never recommends or links to the older 0.10.48 in either app; only the button border is 2px");
   await editor.setViewportSize({ width: 480, height: 800 });
   await editor.screenshot({ path: `${output}/narrow.png`, fullPage: true });
   const fits = await editor.locator(".whats-new-dialog").evaluate(el => el.scrollWidth <= el.clientWidth + 1);

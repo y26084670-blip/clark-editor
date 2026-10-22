@@ -42,6 +42,7 @@ import { loadJweakLocal, createJweakLocalLoader } from "./services/jweakLocalSer
 import { installModelSaveShortcut } from "./services/modelSaveShortcut.js";
 import { installHorizontalDragScroll } from "./services/horizontalDragScroll.js";
 import { installBrowserContextMenuSuppression } from "./services/browserContextMenu.js";
+import { installHeaderTabAlignment } from "./services/headerTabAlignment.js";
 
 import "./App.css";
 
@@ -70,7 +71,9 @@ export default function App() {
   }
   let openConstantMuGenerator;
   let tabsViewport;
+  let taskInfoBar, tabsHeader;
   onMount(() => {
+    onCleanup(installHeaderTabAlignment({ header: taskInfoBar, tabs: tabsHeader }));
     onCleanup(installBrowserContextMenuSuppression(document));
     onCleanup(installHorizontalDragScroll(tabsViewport));
     onCleanup(installModelSaveShortcut({
@@ -725,6 +728,7 @@ export default function App() {
   return (
     <div class="app-container">
       <TaskInfoBar
+        barRef={element => { taskInfoBar = element; }}
         onGeneralInformationOpenChange={setGeneralInformationOpen}
         path={selectionService.loadedTaskPath()}
         isDemo={selectionService.loadedTaskIsDemo()}
@@ -785,10 +789,11 @@ export default function App() {
         ref={tabsViewport}
       >
         <div class="tabs-frame">
-          <div class="tabs-header">
+          <div class="tabs-header" ref={tabsHeader}>
             <For each={tabs}>
               {(tab) => (
                 <button
+                  data-tab-id={tab.id}
                   classList={{
                     active: activeTab() === tab.id,
                   }}

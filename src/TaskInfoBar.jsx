@@ -138,50 +138,51 @@ export function TaskInfoBar(props) {
   }
 
   return (
-    <div class="task-info-bar">
-      <button
-        class="menu-button"
-        onClick={props.onMenuToggle}
-        title="Дополнительные функции"
-        aria-label="Открыть дополнительные функции"
-        aria-expanded={props.menuOpen}
-      >
-        ☰
-      </button>
-
-      <div class="task-info-title">
-        <div>Редактируемое</div>
-        <div>задание</div>
-      </div>
-
-      <button
-        class="validate-button"
-        disabled={!props.path}
-        onClick={handleBrowse}
-        title="Просмотр каталога задания (выбор задания не изменяется)"
-      >
-        📂
-      </button>
-
-      <div
-        class="task-info-path"
-        title={props.path ?? ""}
-        aria-live="polite"
-        aria-atomic="true"
-      >
-        <Show
-          keyed
-          when={props.path}
-          fallback={
-            <span class="task-info-path-empty">
-              Задание для редактирования не загружено
-            </span>
-          }
+    <div class="task-info-bar" ref={props.barRef}>
+      <div class="task-info-leading">
+        <button
+          class="menu-button"
+          onClick={props.onMenuToggle}
+          title="Дополнительные функции"
+          aria-label="Открыть дополнительные функции"
+          aria-expanded={props.menuOpen}
         >
-          {(path) => <span class="task-info-path-value">{path}</span>}
-        </Show>
-      </div>
+          ☰
+        </button>
 
+        <div class="task-info-title">
+          <div>Редактируемое</div>
+          <div>задание</div>
+        </div>
+
+        <button
+          class="validate-button"
+          disabled={!props.path}
+          onClick={handleBrowse}
+          title="Просмотр каталога задания (выбор задания не изменяется)"
+        >
+          📂
+        </button>
+
+        <div
+          class="task-info-path"
+          title={props.path ?? ""}
+          aria-live="polite"
+          aria-atomic="true"
+        >
+          <Show
+            keyed
+            when={props.path}
+            fallback={
+              <span class="task-info-path-empty">
+                Задание для редактирования не загружено
+              </span>
+            }
+          >
+            {(path) => <span class="task-info-path-value">{path}</span>}
+          </Show>
+        </div>
+      </div>
       <div class="validation-controls">
         <button
           ref={props.geometryViewerButtonRef}
@@ -223,66 +224,69 @@ export function TaskInfoBar(props) {
           {props.validationFeedback?.message ?? (props.validating ? "Проверка модели…" : "")}
         </span>
 
-        <ValidationIndicator />
+        <div class="header-validation-indicator"><ValidationIndicator /></div>
 
-        <button
-          class="save-button"
-          classList={{
-            "save-button-saving": props.saving,
-            "save-button-success": props.saveFeedback?.status === "success",
-            "save-button-error": props.saveFeedback?.status === "error",
-          }}
-          disabled={!props.path || props.isDemo || props.saveBusy}
-          onClick={props.onSave}
-          title={saveButtonTitle()}
-          aria-label="Сохранить модель"
-          aria-busy={Boolean(props.saving)}
-        >
-          <span class="save-button-symbol" aria-hidden="true">💾</span>
-          <Show when={props.saveFeedback}>
-            <span class="save-button-confirmation" aria-hidden="true">
-              {props.saveFeedback?.status === "success" ? "✓" : "!"}
-            </span>
-          </Show>
-        </button>
-        <span class="save-feedback-announcement" role="status" aria-live="polite">
-          {props.saveFeedback?.message ?? (props.saving ? "Сохранение модели…" : "")}
-        </span>
+        <div class="header-save-start">
+          <button
+            class="save-button"
+            classList={{
+              "save-button-saving": props.saving,
+              "save-button-success": props.saveFeedback?.status === "success",
+              "save-button-error": props.saveFeedback?.status === "error",
+            }}
+            disabled={!props.path || props.isDemo || props.saveBusy}
+            onClick={props.onSave}
+            title={saveButtonTitle()}
+            aria-label="Сохранить модель"
+            aria-busy={Boolean(props.saving)}
+          >
+            <span class="save-button-symbol" aria-hidden="true">💾</span>
+            <Show when={props.saveFeedback}>
+              <span class="save-button-confirmation" aria-hidden="true">
+                {props.saveFeedback?.status === "success" ? "✓" : "!"}
+              </span>
+            </Show>
+          </button>
+          <span class="save-feedback-announcement" role="status" aria-live="polite">
+            {props.saveFeedback?.message ?? (props.saving ? "Сохранение модели…" : "")}
+          </span>
 
-        <button
-          ref={(el) => (generalInformationButton = el)}
-          type="button"
-          class="general-information-button"
-          onClick={() => setGeneralInformationOpen(true)}
-          title="Быстрый старт"
-          aria-label="Быстрый старт"
-          aria-haspopup="dialog"
-        >
-          Быстрый старт
-        </button>
+          <button
+            ref={(el) => (generalInformationButton = el)}
+            type="button"
+            class="general-information-button"
+            onClick={() => setGeneralInformationOpen(true)}
+            title="Быстрый старт"
+            aria-label="Быстрый старт"
+            aria-haspopup="dialog"
+          >
+            Быстрый старт
+          </button>
+        </div>
 
-        <WhatsNewDialog app="editor" />
+        <div class="header-news-about">
+          <WhatsNewDialog app="editor" />
+          <button
+            ref={(el) => (aboutButton = el)}
+            class="about-button"
+            onClick={() => setAboutOpen(true)}
+            title="О программе"
+            aria-label="О программе"
+            aria-haspopup="dialog"
+          >
+            <img
+              class="about-button-image"
+              src={aboutIconUrl}
+              alt=""
+              aria-hidden="true"
+              draggable={false}
+            />
+          </button>
+        </div>
         <a class="documentation-button"
           href={`${import.meta.env.BASE_URL}user-guide/index.html`}
           target="_blank" rel="noopener noreferrer"
           title="Открыть документацию в новой вкладке">Документация</a>
-
-        <button
-          ref={(el) => (aboutButton = el)}
-          class="about-button"
-          onClick={() => setAboutOpen(true)}
-          title="О программе"
-          aria-label="О программе"
-          aria-haspopup="dialog"
-        >
-          <img
-            class="about-button-image"
-            src={aboutIconUrl}
-            alt=""
-            aria-hidden="true"
-            draggable={false}
-          />
-        </button>
       </div>
 
       <GeneralInformationDialog
