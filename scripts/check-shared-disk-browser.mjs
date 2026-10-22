@@ -75,6 +75,56 @@ try {
   assert.equal(await editor.evaluate(() => accessFixture.path()), "clark.projects/Project/Задание");
   pass("catalog selection is independent; switching catalogs preserves both loaded tasks");
 
+  await editor.getByRole("button", { name: "Выбрать в Viewer", exact: true }).click();
+  await waitCatalog(viewerPage, "clark.projects");
+  await viewerPage.waitForFunction(() => document.querySelector('[aria-label="Список проектов"]')?.value === "Project"
+    && document.querySelector('.task-list .selected, [role="option"].selected')?.textContent.includes("Задание"));
+  assert.equal(await viewerPage.evaluate(() => diskFixture.path()), "clark.projects/Project/Задание");
+  pass("Editor selects all three levels in Viewer across catalogs without reloading results");
+  await viewerPage.locator("#projectCatalog").selectOption("CLARK.Tests");
+  await viewerPage.getByLabel("Список проектов", { exact: true }).selectOption("Другой проект");
+  await viewerPage.getByRole("option", { name: /Задание/ }).last().click();
+  await viewerPage.getByRole("button", { name: "Выбрать в Editor", exact: true }).click();
+  await waitCatalog(editor, "CLARK.Tests");
+  await editor.waitForFunction(() => document.querySelector("#listProject")?.value === "Другой проект"
+    && document.querySelector("#listTask .selected")?.textContent.includes("Задание"));
+  assert.equal(await editor.evaluate(() => accessFixture.path()), "clark.projects/Project/Задание");
+  pass("Viewer selects all three levels in Editor while preserving the loaded model");
+  await editor.locator("#projectCatalog").selectOption("clark.projects");
+  await editor.locator("#listProject").selectOption("Project");
+  await editor.locator("#listTask .listTask-item").filter({ hasText: /Задание/ }).first().click();
+
+  const beforeSummary = await editor.locator(".task-summary-text").inputValue();
+  await editor.evaluate(async () => {
+    const { modelService } = await import("/src/services/modelService.js");
+    const { tabRegistry } = await import("/src/services/tabRegistry.js");
+    modelService.setModelPart(tabRegistry.find(item => item.id === "general"), { ...modelService.getModel().general, timeStep: 3.125 });
+  });
+  await editor.getByRole("button", { name: "Сохранить модель", exact: true }).click();
+  await editor.waitForFunction(() => document.querySelector(".task-summary-text")?.value.includes("3.125"));
+  assert.notEqual(await editor.locator(".task-summary-text").inputValue(), beforeSummary);
+  const savedText = await editor.evaluate(async () => {
+    let handle = await navigator.storage.getDirectory();
+    for (const name of ["access-test", "Диск Д", "clark.projects", "Project", "Задание", "input3XX"]) handle = await handle.getDirectoryHandle(name);
+    return (await (await handle.getFileHandle("_summary.txt")).getFile()).text();
+  });
+  assert.equal(await editor.locator(".task-summary-text").inputValue(), savedText);
+  pass("saving overwrites the existing summary and immediately refreshes its displayed text");
+
+  await editor.getByRole("button", { name: "Открыть 3D-просмотр геометрии", exact: true }).click();
+  await editor.getByRole("button", { name: "Общие опции отображения", exact: true }).click();
+  await editor.getByLabel("Производительность", { exact: true }).check();
+  await editor.getByRole("button", { name: "Общие опции отображения", exact: true }).click();
+  await editor.locator(".geometry-performance-overlay").getByText(/render .* ms/).waitFor();
+  const position = await editor.locator(".geometry-performance-overlay").evaluate(element => {
+    const panel = element.getBoundingClientRect(), parent = element.parentElement.getBoundingClientRect();
+    return { left: panel.left - parent.left, top: panel.top - parent.top };
+  });
+  assert.ok(Math.abs(position.left - 8) <= 1 && Math.abs(position.top - 8) <= 1);
+  await editor.screenshot({ path: `${output}/editor-performance.png` });
+  await editor.getByRole("button", { name: "Закрыть 3D-просмотр геометрии", exact: true }).click();
+  pass("Editor performance panel reports real WebGL frame counters at the upper left");
+
   await editor.evaluate(async () => {
     let handle = await navigator.storage.getDirectory();
     for (const name of ["access-test", "Диск Д", "clark.projects", "Project", "Задание", "DOCS"]) handle = await handle.getDirectoryHandle(name, { create: true });

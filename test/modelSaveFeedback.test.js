@@ -31,7 +31,7 @@ const createSaveRuntime = new Function("dependencies", `
   let modelValidationRevision = 0;
   ${sourceRegion("  const [savePending, setSavePending]", "  async function collectModelDiagnostics")}
   ${sourceRegion("  async function handleSave()", "  function runHistoryAction")}
-  return { handleSave, savePending, saveFeedback };
+  return { handleSave, savePending, saveFeedback, savedSummary };
 `);
 
 function deferred() {
@@ -172,6 +172,19 @@ function assertFeedback(harness, status) {
   assert.equal(typeof harness.saveFeedback().message, "string");
   assert.ok(harness.saveFeedback().message.length > 0);
 }
+
+test("every successful save publishes a fresh summary notification; failed writes do not", async t => {
+  const h = createHarness(t);
+  assert.equal(h.savedSummary(), null);
+  await h.handleSave();
+  const first = h.savedSummary();
+  assert.equal(first.taskHandle, h.initialTask);
+  await h.handleSave();
+  assert.notEqual(h.savedSummary(), first);
+  const failed = createHarness(t, { summary: () => { throw new Error("write failed"); } });
+  await failed.handleSave();
+  assert.equal(failed.savedSummary(), null); assertFeedback(failed, "error");
+});
 
 test("save stays pending until the last write and rejects duplicate clicks", async t => {
   const marker = deferred();

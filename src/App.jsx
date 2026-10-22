@@ -361,6 +361,7 @@ export default function App() {
   }
 
   const [savePending, setSavePending] = createSignal(null);
+  const [savedSummary, setSavedSummary] = createSignal(null);
   const [saveFeedback, setSaveFeedback] = createSignal(null);
   let saveFeedbackTimer;
   let saveContextVersion = 0;
@@ -470,6 +471,7 @@ export default function App() {
           onReturnToEditing={props.onReturnToEditing}
           onValidate={handleModelValidation}
           onSave={handleSave}
+          savedSummary={savedSummary()}
           onOpenTab={setActiveTab}
         />
       ),
@@ -695,6 +697,7 @@ export default function App() {
       if (saveErrors.length === 0 && savedCount > 0) {
         try {
           await writeTaskSummary(dirHandle, modelSnapshot);
+          setSavedSummary({ taskHandle: dirHandle });
         } catch (error) {
           feedbackResult = { status: "error", message: "Не удалось сохранить _summary.txt: "
             + (error?.message ?? String(error)) };

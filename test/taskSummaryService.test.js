@@ -134,3 +134,64 @@ test("summary accepts absent optional time tables represented by null", async ()
   assert.match(text, /Число траекторий: 0/);
   assert.deepEqual(model, before);
 });
+
+test("matrix sizes use unknown rows and all J/M source columns with the solver's Float32 storage", () => {
+  // 48 independent HTS cells, 1 prescribed M cell, 2 prescribed J cells:
+  // PPJN=PPMN=144, PPJ=150, PPM=147. Each dense matrix has 42,768
+  // coefficients = 171,072 bytes, regardless of the working precision.
+  for (const doubleFloat of [false, true]) {
+    const model = structuredClone(summaryModel);
+    model.general.doubleFloat = doubleFloat;
+    const before = structuredClone(model);
+    const text = formatTaskSummary(model, savedAt);
+    assert.match(text, /Матрица J: 144 × 297; 0\.163147 MiB \(суммарно по MPI, Float32\)/);
+    assert.match(text, /Матрица M: 144 × 297; 0\.163147 MiB \(суммарно по MPI, Float32\)/);
+    assert.match(text, /без рабочих буферов, векторов и слабых операторов/);
+    assert.deepEqual(model, before);
+  }
+});
+
+test("J and M have different row counts, with independent images counted only once", () => {
+  const text = formatTaskSummary({ general: {}, elements: [
+    // Geometrical AS and PS images are independent: 2×2×3×4 = 48 cells.
+    { targ: 0, rv: 1, xapName: "", dp: [[2], [1], [1]], symLs: 2,
+      symAs: 3, symPs: 4, symKya: 0, symKyp: 0 },
+    // Full AS/PS symmetry folds these images: 5×2 = 10 cells.
+    { targ: 0, rv: 0, xapName: "FMM", dp: [[5], [1], [1]], symLs: 2,
+      symAs: 3, symPs: 4, symKya: 1, symKyp: -1 },
+    { targ: 2, dp: [[2], [1], [1]] },
+    { targ: 1, dp: [[3], [1], [1]] },
+    // A materialless unknown and a virtual element contribute no components.
+    { targ: 0, rv: 0, xapName: " ", dp: [[99], [99], [99]] },
+    { targ: 3, rv: 1, xapName: "ignored", dp: [[99], [99], [99]] },
+  ] }, savedAt);
+  // PPJ=150, PPM=39, PPJN=144, PPMN=30.
+  assert.match(text, /Матрица J: 144 × 189; 0\.103821 MiB/);
+  assert.match(text, /Матрица M: 30 × 189; 0\.021629 MiB/);
+});
+
+test("prescribed sources have zero matrix rows and absent source families add no matrix", () => {
+  const model = { general: {}, elements: [{ targ: 2, dp: [[2], [1], [1]] }] };
+  const knownJ = formatTaskSummary(model, savedAt);
+  assert.match(knownJ, /Матрица J: 0 × 6; 0\.000000 MiB/);
+  assert.doesNotMatch(knownJ, /Матрица M/);
+  model.elements.push({ targ: 1, dp: [[3], [1], [1]] });
+  const knownJM = formatTaskSummary(model, savedAt);
+  assert.match(knownJM, /Матрица J: 0 × 15; 0\.000000 MiB/);
+  assert.match(knownJM, /Матрица M: 0 × 15; 0\.000000 MiB/);
+  const empty = formatTaskSummary({ general: {}, elements: [] }, savedAt);
+  assert.doesNotMatch(empty, /Матриц[аы]|Объём матриц/);
+});
+
+test("matrix estimates use the actual fine grid and handle large dimensions without allocating it", () => {
+  const model = { general: { doubleFloat: true },
+    elements: [{ targ: 0, rv: 1, dp: [[3], [3], [100]] }],
+    jweakLocal: { status: "ready", data: { version: 1, coarse_divisions: [[1, 1, 100]] } },
+  };
+  assert.match(formatTaskSummary(model, savedAt), /Матрица J: 2700 × 2700; 27\.809143 MiB/);
+  delete model.jweakLocal;
+  model.elements[0].dp = [[300], [300], [100]];
+  const text = formatTaskSummary(model, savedAt);
+  assert.match(text, /Матрица J: 27000000 × 27000000; 2780914306\.640625 MiB/);
+  assert.doesNotMatch(text, /Матрица M/);
+});

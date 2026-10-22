@@ -21,7 +21,9 @@ const createTaskLoading = new Function("dependencies", `
         operation, galleryBusy, selectionReceiving, rootHandle, getFullPath, showLoadError, console,
         lastTaskHistory, projects, selectedProject, tasks, omClientState, showTaskError,
         operationsBlocked, loadedTaskPath, setOMClientRequest } = dependencies;
-    let taskLoadRevision = 0, taskInfoRevision = 0;
+    let taskLoadRevision = 0, taskInfoRevision = 0, inputSummaryRevision = 0;
+    // Summary notification effects have their own reactive/browser coverage.
+    const createEffect = () => {}, on = () => {};
     ${taskFunctions("  const commitTaskLoad =", "  const handleLaunchComplete =")}
     ${taskFunctions("  const requestTaskLoad =", "  const taskLoaded =")}
     ${taskFunctions("  function openOMClient()", "  async function bindWorkspace()")}
