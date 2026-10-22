@@ -3,7 +3,7 @@
 export function installHeaderTabAlignment({ header, tabs }) {
   if (!header || !tabs) return () => {};
   const view = header.ownerDocument.defaultView;
-  const ids = ["moves", "mhj", "fmmLibrary", "htsLibrary", "conrab"];
+  const ids = ["tasks", "moves", "mhj", "fmmLibrary", "htsLibrary", "conrab"];
   const buttons = new Map(ids.map(id => [id, tabs.querySelector(`[data-tab-id="${id}"]`)]));
   if (ids.some(id => !buttons.get(id))) return () => {};
   let frame = 0, disposed = false;

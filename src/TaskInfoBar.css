@@ -34,6 +34,21 @@
     width: max(0px, calc(var(--header-moves-right) - 62px));
 }
 
+.task-info-bar--aligned .task-info-leading > .validate-button {
+    position: absolute;
+    top: 50%;
+    left: var(--header-tasks-right);
+    transform: translate(-100%, -50%);
+}
+
+.task-info-bar--aligned .task-info-path {
+    position: absolute;
+    top: 50%;
+    left: max(128px, calc(var(--header-tasks-right) + 10px));
+    right: calc(100% - var(--header-moves-right) + 54px);
+    transform: translateY(-50%);
+}
+
 .task-info-bar--aligned .geometry-button,
 .task-info-bar--aligned .model-validation-button,
 .task-info-bar--aligned .header-validation-indicator,
@@ -226,18 +241,18 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #ffd600;
+    color: #14623d;
     font-size: 24px;
     font-weight: 900;
     line-height: 1;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, .65);
+    text-shadow: none;
     pointer-events: none;
     animation: model-save-confirmation 3s ease-in-out both;
 }
 
 .save-button-error .save-button-confirmation,
 .validation-button-error .validation-button-confirmation {
-    color: #ffb4ab;
+    color: #b42318;
 }
 
 .save-feedback-announcement,
@@ -251,13 +266,13 @@
 }
 
 @keyframes model-save-pulse {
-    0%, 100% { box-shadow: 0 0 0 1px rgba(255, 214, 0, .35); }
-    50% { box-shadow: 0 0 0 3px #ffd600; }
+    0%, 100% { box-shadow: 0 0 0 1px rgba(70, 108, 145, .35); }
+    50% { box-shadow: 0 0 0 3px #466c91; }
 }
 
 @keyframes model-save-success {
     0%, 100% { box-shadow: 0 0 0 0 transparent; }
-    20%, 70% { box-shadow: 0 0 0 3px #ffd600; }
+    20%, 70% { box-shadow: 0 0 0 3px #23854f; }
 }
 
 @keyframes model-save-error {
@@ -272,11 +287,15 @@
 
 @media (prefers-reduced-motion: reduce) {
     .save-button-saving,
+    .validation-button-running {
+        animation: none;
+        box-shadow: 0 0 0 3px #466c91;
+    }
+
     .save-button-success,
-    .validation-button-running,
     .validation-button-success {
         animation: none;
-        box-shadow: 0 0 0 3px #ffd600;
+        box-shadow: 0 0 0 3px #23854f;
     }
 
     .save-button-error,
@@ -305,13 +324,73 @@
     cursor: pointer;
 }
 
-.geometry-button:hover:not(:disabled),
-.geometry-button[aria-pressed="true"] {
-    background: #1d4ed8;
+.task-info-leading > .validate-button,
+.task-info-bar .validation-controls :is(.geometry-button, .model-validation-button,
+    .save-button, .general-information-button, .documentation-button, .whats-new-button) {
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 26px;
+    padding: 2px 9px;
+    border: 2px solid #91aac4;
+    border-radius: 6px;
+    background: #edf4fb;
+    color: #163a60;
+    font: inherit;
 }
 
-.geometry-button:disabled {
-    opacity: .55;
+.task-info-bar .validation-controls :is(.geometry-button, .general-information-button) {
+    font-weight: 700;
+}
+
+.task-info-leading > .validate-button {
+    width: 32px;
+    padding: 2px 5px;
+}
+
+.header-action-icon {
+    display: block;
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    pointer-events: none;
+}
+
+.save-button-symbol {
+    display: inline-flex;
+}
+
+.task-info-bar button:disabled .header-action-icon {
+    opacity: .5;
+    filter: saturate(.3);
+}
+
+.task-info-leading > .validate-button:hover:not(:disabled),
+.task-info-bar .validation-controls :is(.geometry-button, .model-validation-button,
+    .save-button, .general-information-button, .documentation-button, .whats-new-button):hover:not(:disabled) {
+    border-color: #6c8dab;
+    background: #e0ebf6;
+}
+
+.task-info-bar .validation-controls .geometry-button[aria-pressed="true"] {
+    border-color: #466c91;
+    background: #d8e7f5;
+}
+
+.task-info-leading > .validate-button:focus-visible,
+.task-info-bar .validation-controls :is(.geometry-button, .model-validation-button,
+    .save-button, .general-information-button, .documentation-button, .whats-new-button):focus-visible {
+    outline: 2px solid #466c91;
+    outline-offset: 2px;
+}
+
+.task-info-leading > .validate-button:disabled,
+.task-info-bar .validation-controls :is(.geometry-button, .model-validation-button, .save-button):disabled {
+    border-color: #b4c2cf;
+    background: #f3f6fa;
+    color: #60758a;
+    opacity: 1;
     cursor: default;
 }
 
