@@ -71,7 +71,7 @@ body,
 
 /* Кнопки вкладок */
 .tabs-header button {
-  padding: 8px 16px;
+  padding: 8px 4px;
   border: none;
   background: #a8a1a1;
   margin-right: 2px;
@@ -79,7 +79,9 @@ body,
   margin-bottom: 4px;
   cursor: pointer;
   color: rgb(0, 0, 0);
-  flex: 1 0 auto;
+  /* Keep equal widths and room for the longest bold label and its indicator. */
+  flex: 1 0 0;
+  min-width: 188px;
   white-space: nowrap;
   display: flex;
   align-items: center;
