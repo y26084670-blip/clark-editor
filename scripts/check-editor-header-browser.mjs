@@ -18,6 +18,7 @@ const server = await createServer({ root, cacheDir: `${output}/vite-cache`, serv
 });
 await server.listen();
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_EXECUTABLE, headless: true,
+  ignoreDefaultArgs: ["--hide-scrollbars"],
   args: [...JSON.parse(process.env.CHROMIUM_ARGS || "[]"), "--no-sandbox", "--disable-dev-shm-usage"] });
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
 const errors = [];
@@ -69,14 +70,18 @@ async function checkTabs() {
       assert.ok(tab.indicator.inset >= 3.9, `${tab.name}: indicator fits inside the tab`);
     }
   }
-  assert.ok(scrollWidth <= width, "all tabs fit without horizontal scrolling");
+  if (width >= 1400) assert.ok(scrollWidth <= width, "all tabs fit without horizontal scrolling from 1400px");
+  else {
+    assert.ok(scrollWidth > width, "narrow windows enable horizontal tab scrolling");
+    near(scrollWidth, 1400, "the tab row stops shrinking below 1400px");
+  }
   return tabs[0].fontSize;
 }
 async function check(label) {
   await page.waitForFunction(() => {
     const docs = document.querySelector(".documentation-button")?.getBoundingClientRect();
     const settings = document.querySelector('[data-tab-id="conrab"]')?.getBoundingClientRect();
-    return docs && settings && Math.abs(docs.left - settings.left) < 1;
+    return docs && settings && Math.abs(docs.left - settings.left) < 0.1 && Math.abs(docs.right - settings.right) < 0.1;
   });
   const rects = await page.evaluate(selectors => Object.fromEntries(Object.entries(selectors).map(([name, selector]) => {
     const rect = document.querySelector(selector).getBoundingClientRect();
@@ -84,7 +89,11 @@ async function check(label) {
   })), selectors);
   near(rects.docs.left, rects.settings.left, "Documentation/Settings left");
   near(rects.folder.right, rects.tasks.right, "Folder/Task selection right");
-  assert.ok(rects.title.right + 3.9 <= rects.folder.left, "task title does not overlap Folder");
+  if (rects.title.width > 0) assert.ok(rects.title.right + 3.9 <= rects.folder.left, "task title does not overlap Folder");
+  assert.ok(await page.locator(".task-info-leading > .menu-button").evaluate(el => {
+    const rect = el.getBoundingClientRect();
+    return document.elementFromPoint(rect.right - 1, rect.top + rect.height / 2)?.closest(".menu-button") === el;
+  }), "the fixed menu remains accessible when Folder scrolls left");
   near(rects.docs.right, rects.settings.right, "Documentation/Settings right");
   near(rects.about.right, rects.hts.right, "About/HTS right");
   near(rects.quick.left, rects.fmm.left, "Quick start/FMM left");
@@ -110,12 +119,14 @@ try {
   if (await access.count()) await access.getByRole("button", { name: "Закрыть", exact: true }).click();
   await page.evaluate(() => headerFixture.setPath("clark.projects / Проект / Задание с длинным названием для проверки строки пути"));
   const fonts = new Map();
-  for (const width of [1440, 1920, 2560, 1100, 1280]) {
+  for (const width of [1440, 1401, 1400, 1399, 1280, 1100, 1920, 2560]) {
     await page.setViewportSize({ width, height: 900 });
-    fonts.set(width, await check(`all tabs fit; header alignment and non-overlap at ${width}px`));
+    fonts.set(width, await check(`tab sizing, scrolling, and header alignment at ${width}px`));
     await page.screenshot({ path: `${output}/header-${width}.png` });
   }
-  assert.ok(fonts.get(1100) < fonts.get(1440), "font shrinks with the available width");
+  for (const width of [1399, 1280, 1100]) {
+    assert.equal(fonts.get(width), fonts.get(1400), `font stops shrinking below 1400px: ${width}px`);
+  }
   assert.ok(fonts.get(1440) < fonts.get(1920), "font shrinks only when needed");
   assert.equal(fonts.get(1920), fonts.get(2560), "wide windows restore the original font size");
   assert.ok(fonts.get(1920) > 13.2, "original tab font size is preserved when it fits");
@@ -131,9 +142,14 @@ try {
   assert.equal(await check("active tab does not change the fitted font size"), fonts.get(1440));
   await page.setViewportSize({ width: 1100, height: 900 });
   await page.locator(".tabs-header").evaluate(el => { el.scrollLeft = el.scrollWidth; });
-  await check("horizontal scrolling is unnecessary at 1100px");
-  assert.equal(await page.locator(".tabs-header").evaluate(el => el.scrollLeft), 0);
+  assert.equal(await check("upper controls follow horizontal tab scrolling at 1100px"), fonts.get(1400));
+  assert.ok(await page.locator(".tabs-header").evaluate(el => el.scrollLeft > 0), "the tab row scrolls to its end");
+  const lastTab = await page.locator('[data-tab-id="conrab"]').boundingBox();
+  assert.ok(lastTab.x >= 0 && lastTab.x + lastTab.width <= 1100, "the last tab is reachable by scrolling");
+  await page.screenshot({ path: `${output}/header-1100-scrolled.png` });
   await page.setViewportSize({ width: 1920, height: 900 });
+  await check("expanding the window restores unscrolled tabs and their original font size");
+  assert.equal(await page.locator(".tabs-header").evaluate(el => el.scrollLeft), 0);
   await page.locator(".tabs-header").evaluate(el => { el.scrollLeft = 0; });
   const buttonBorder = await page.locator(".whats-new-button").evaluate(el => getComputedStyle(el).borderTopWidth);
   assert.equal(buttonBorder, "2px");

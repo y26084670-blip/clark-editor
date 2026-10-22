@@ -39,12 +39,15 @@
     top: 50%;
     left: var(--header-tasks-right);
     transform: translate(-100%, -50%);
+    /* Scrolling the tabs must not paint Folder over the fixed menu button. */
+    clip-path: inset(0 0 0 clamp(0px, calc(80px - var(--header-tasks-right)), 32px));
 }
 
 .task-info-bar--aligned .task-info-title {
     /* Title starts at 48px; leave 32px for Folder and a 4px gap. */
     width: min(70px, max(0px, calc(var(--header-tasks-right) - 84px)));
     min-width: 0;
+    overflow: hidden;
 }
 
 .task-info-bar--aligned .task-info-path {
