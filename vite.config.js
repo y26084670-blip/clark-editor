@@ -5,6 +5,20 @@ import { readFileSync } from "node:fs";
 
 export default defineConfig({
   plugins: [solid(), examplesAssetsPlugin(), {
+    name: "clark-updates",
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        if (req.url?.split("?")[0] !== "/updates.json") return next();
+        res.setHeader("Content-Type", "application/json; charset=utf-8");
+        res.setHeader("Cache-Control", "no-store");
+        res.end(readFileSync(new URL("./data/updates/changes.json", import.meta.url), "utf8"));
+      });
+    },
+    generateBundle() {
+      this.emitFile({ type: "asset", fileName: "updates.json",
+        source: readFileSync(new URL("./data/updates/changes.json", import.meta.url), "utf8") });
+    },
+  }, {
     name: "third-party-notices",
     generateBundle() {
       // This project uses .generated as publicDir, so public/ is not copied.
