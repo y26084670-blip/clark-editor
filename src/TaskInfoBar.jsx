@@ -9,6 +9,7 @@ import {
 } from "./services/fileSystemAccessSupport";
 import aboutIconUrl from "./assets/zaica.BMP";
 import packageMetadata from "../package.json";
+import { WhatsNewDialog } from "./components/updates/WhatsNewDialog.jsx";
 import "./TaskInfoBar.css";
 
 const GENERAL_INFORMATION_STARTUP_KEY = "e3d.generalInformation.openAtStartup";
@@ -260,6 +261,7 @@ export function TaskInfoBar(props) {
           Быстрый старт
         </button>
 
+        <WhatsNewDialog app="editor" />
         <a class="documentation-button"
           href={`${import.meta.env.BASE_URL}user-guide/index.html`}
           target="_blank" rel="noopener noreferrer"
