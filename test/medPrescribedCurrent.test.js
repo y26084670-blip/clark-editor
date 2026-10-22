@@ -87,20 +87,15 @@ function hierarchicalBar({port=true,insulatedJoint=false}={}) {
     return m;
 }
 
-test("hierarchical port distinguishes unsupported excitation from incompatible actual joints",()=>{
+test("hierarchical port supports nonconforming child joints with conforming parents",()=>{
     const m=hierarchicalBar(),before=structuredClone(m),r=analyzeMed(m);
     assert.equal(r.ordinaryContactGrid.status,"incompatible");
     assert.equal(r.ordinaryContactGrid.conflicts.length,1);
-    const port=r.errors.find(e=>e.code==="PRESCRIBED_HIERARCHY");
-    assert.match(port.message,/не реализовано.*Граничная правая часть/u);
-    assert.deepEqual(port.elements,[1,3]);
-    const joint=r.errors.find(e=>e.code==="PRESCRIBED_HIERARCHY_GRID");
-    assert.deepEqual(joint.elements,[2,1]);
-    assert.deepEqual(joint.faces.map(f=>[f.block,f.face]),[[2,5],[1,4]]);
-    assert.match(joint.message,/dp=\[1,1,2\].*dp=\[3,3,2\]/u);
-    assert.match(joint.message,/Удаление jweak_local.json или автозаполнение MED.*не устраняет/u);
+    assert.deepEqual(r.errors,[]);
+    assert.deepEqual(medDiagnostics(r),[]);
+    assert.equal(r.contacts.find(c=>c.prescribed).compatible,true);
+    assert.deepEqual(r.changes,[]);
     assert.equal(r.canApply,false);
-    assert.ok(medDiagnostics(r).some(d=>d.code==="PRESCRIBED_HIERARCHY_GRID"&&d.row===2&&d.level==="error"));
     assert.deepEqual(m,before);
 });
 
@@ -109,15 +104,15 @@ test("matching actual joints do not get a false structural-incompatibility diagn
     const r=analyzeMed(m);
     assert.equal(r.ordinaryContactGrid.status,"compatible");
     assert.deepEqual(r.ordinaryContactGrid.conflicts,[]);
-    assert.ok(!r.errors.some(e=>e.code==="PRESCRIBED_HIERARCHY_GRID"));
-    assert.match(r.errors.find(e=>e.code==="PRESCRIBED_HIERARCHY").message,/Несогласованных активных стыков.*не найдено/u);
-    assert.equal(r.canApply,false); // The unsupported solver mode remains blocked.
+    assert.deepEqual(r.errors,[]);
+    assert.deepEqual(medDiagnostics(r),[]);
+    assert.equal(r.canApply,false); // All existing pointers are already correct.
 });
 
 test("paired insulation is excluded from the active-interface compatibility check",()=>{
     const r=analyzeMed(hierarchicalBar({insulatedJoint:true}));
     assert.equal(r.ordinaryContactGrid.status,"compatible");
-    assert.ok(!r.errors.some(e=>e.code==="PRESCRIBED_HIERARCHY_GRID"));
+    assert.deepEqual(r.errors,[]);
 });
 
 test("a supported hierarchy with no active port is not invalidated by nonconforming child joints",()=>{
@@ -133,5 +128,32 @@ test("an incomplete interface assessment never declares the ordinary grid compat
     const r=analyzeMed(m);
     assert.equal(r.ordinaryContactGrid.status,"unverified");
     assert.ok(r.errors.some(e=>e.code==="PARENT_GRID_MISMATCH"));
-    assert.match(r.errors.find(e=>e.code==="PRESCRIBED_HIERARCHY").message,/не подтверждена/u);
+    assert.ok(medDiagnostics(r).some(d=>d.level==="error"&&d.code==="PARENT_GRID_MISMATCH"));
+});
+
+test("hierarchical prescribed contact can be explicitly autofilled",()=>{
+    const m=hierarchicalBar({port:false}),before=structuredClone(m),r=analyzeMed(m);
+    assert.deepEqual(r.errors,[]);
+    assert.equal(r.canApply,true);
+    assert.deepEqual(r.changes.map(c=>[c.block,c.face,c.proposed]),[[1,5,3],[3,4,1]]);
+    assert.ok(medDiagnostics(r).every(d=>d.level==="warning"));
+    assert.deepEqual(m,before);
+});
+
+test("hierarchical port retains donor face, parent and reciprocal MED checks",()=>{
+    for(let axis=0;axis<3;axis++) {
+        const origin=[0,0,0];origin[axis]=1;
+        const dp=[1,1,1];dp[axis]=3;
+        const face=5-2*axis;
+        const m=medModel([medBox({dp:[3,3,2]}),medBox({origin,dp,targ:2})],{useMED:true});
+        m.elements[0].med[face]=[2];m.elements[1].med[face-1]=[1];
+        m.jweakLocal={status:"ready",data:{version:1,coarse_divisions:[[1,1,2],dp.slice()]}};
+        assert.deepEqual(medDiagnostics(analyzeMed(m)),[]);
+        m.elements[1].med[face-1]=[-1];
+        assert.ok(medDiagnostics(analyzeMed(m)).some(d=>d.level==="error"));
+        m.elements[1].med[face-1]=[1];
+        m.elements[1].dp[(axis+1)%3]=[2];
+        m.jweakLocal.data.coarse_divisions[1][(axis+1)%3]=2;
+        assert.ok(analyzeMed(m).errors.some(e=>e.code==="PRESCRIBED_GRID"));
+    }
 });
