@@ -362,7 +362,7 @@ export function Tasks(props) {
         setBindingRequest(null);
         setCatalogsBound(result.state === "bound");
         setBindingNotice(result.state === "bound"
-          ? `С Решателем связаны все каталоги: ${result.catalogs.length}. Можно продолжить работу.`
+          ? `С Решателем связано каталогов: ${result.catalogs.length}. Можно продолжить работу.`
           : `Связано каталогов: ${result.catalogs.length} из ${expected.catalogs.length}. ${result.message || "Повторите связывание."}`);
       });
     } catch (error) {
