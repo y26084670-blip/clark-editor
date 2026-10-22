@@ -1308,6 +1308,9 @@ export function ThreeGeometryViewport(props) {
     if (!renderer || !threeScene || !camera || rendering || disposed || contextLost) return;
     if (renderFrame) { cancelAnimationFrame(renderFrame); renderFrame = 0; }
     rendering = true;
+    const profile = props.performanceEnabled === true;
+    const totalStart = profile ? performance.now() : 0;
+    let updateMs = 0, renderStart = 0;
     try {
       // Commit the last requested time before drawing; no second RAF latency.
       props.beforeRender?.();
@@ -1327,6 +1330,12 @@ export function ThreeGeometryViewport(props) {
         const far = Math.max(flightSceneScale * 100,
           camera.position.distanceTo(flightBoundsCenter) + flightSceneScale * 2);
         if (camera.far !== far) { camera.far = far; camera.updateProjectionMatrix(); }
+      }
+      if (profile) {
+        updateMs = performance.now() - totalStart;
+        renderer.info.autoReset = false;
+        renderer.info.reset();
+        renderStart = performance.now();
       }
       renderer.setScissorTest(false);
       renderer.setViewport(0, 0, viewportWidth, viewportHeight);
@@ -1364,9 +1373,19 @@ export function ThreeGeometryViewport(props) {
         renderer.setScissorTest(false);
         renderer.setViewport(0, 0, viewportWidth, viewportHeight);
       }
+      if (profile) {
+        const info = renderer.info.render;
+        props.onPerformance?.({
+          updateMs, renderMs: performance.now() - renderStart, totalMs: performance.now() - totalStart,
+          calls: info.calls, triangles: info.triangles, lines: info.lines, points: info.points,
+          geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures,
+          programs: renderer.info.programs?.length ?? 0,
+        });
+      }
     } catch (renderError) {
       reportError(renderError);
     } finally {
+      if (profile && renderer) renderer.info.autoReset = true;
       rendering = false;
       if (flightController?.needsFrame) requestRender();
     }
@@ -2374,6 +2393,11 @@ export function ThreeGeometryViewport(props) {
     const model = props.geometryRevision, key = props.flightFrameKey;
     if (model !== flightModel || key !== flightFrameKey) flightController?.stop();
     flightModel = model; flightFrameKey = key;
+  });
+
+  createEffect(() => {
+    props.performanceEnabled;
+    if (ready()) requestRender();
   });
 
   onCleanup(() => {

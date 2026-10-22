@@ -1,8 +1,10 @@
 import { GEOMETRY_FLIGHT_HELP, formatGeometryFlightSpeed } from "../../services/visualization/geometryFlightController.js";
 import { createGeometryViewSetting } from "../../services/visualization/geometryViewSettings.js";
+import { installGeometryOverlayDrag } from "../../services/visualization/geometryOverlayDrag.js";
 import {
   For,
   Show,
+  batch,
   createEffect,
   createMemo,
   createSignal,
@@ -163,6 +165,18 @@ export function GeometryViewerWindow(props) {
   const [openPanel, setOpenPanel] = createSignal(null);
   const [panelPosition, setPanelPosition] = createSignal({ left: 8, top: 40, width: undefined });
   const [renderStats, setRenderStats] = createSignal(EMPTY_RENDER_STATS);
+  const [performanceEnabled, setPerformanceEnabled] = createGeometryViewSetting("performanceOverlay", false);
+  const [performanceLeft, setPerformanceLeft] = createGeometryViewSetting("performanceOverlayLeft", null);
+  const [performanceTop, setPerformanceTop] = createGeometryViewSetting("performanceOverlayTop", null);
+  const [renderPerformance, setRenderPerformance] = createSignal(null);
+  const attachPerformanceDrag = element => {
+    const drag = installGeometryOverlayDrag(element, {
+      getPosition: () => performanceLeft() === null || performanceTop() === null ? null
+        : { x: performanceLeft(), y: performanceTop() },
+      setPosition: ({ x, y }) => batch(() => { setPerformanceLeft(x); setPerformanceTop(y); }),
+    });
+    createEffect(drag.refresh); onCleanup(drag.dispose);
+  };
 
   // Scope the index to the loaded task before any frame is projected, including
   // when another task is loaded while the floating window is closed.
@@ -836,6 +850,11 @@ export function GeometryViewerWindow(props) {
             <Show when={openPanel() === "general"}>
               <div class="geometry-viewer-options-title">Общие опции</div>
               <label>
+                <input type="checkbox" checked={performanceEnabled()}
+                  onChange={event => setPerformanceEnabled(event.currentTarget.checked)} />
+                Производительность
+              </label>
+              <label>
                 <input
                   type="checkbox"
                   checked={orthographicView()}
@@ -1027,8 +1046,20 @@ export function GeometryViewerWindow(props) {
             fitAllPadding={FLOATING_FIT_ALL_PADDING}
             instanceBudget={GEOMETRY_INSTANCE_BUDGET}
             onRenderStats={setRenderStats}
+            performanceEnabled={performanceEnabled()}
+            onPerformance={setRenderPerformance}
             onError={setViewportError}
           />
+          <Show when={performanceEnabled()}>
+            <div class="geometry-performance-overlay" aria-live="polite" ref={attachPerformanceDrag}>
+              <div class="geometry-overlay-drag-handle" title="Перетащите панель за заголовок">Производительность</div>
+              <Show when={renderPerformance()} fallback={<span>Ожидание кадра…</span>}>
+                <span>render {renderPerformance().renderMs.toFixed(1)} ms · update {renderPerformance().updateMs.toFixed(1)} ms</span>
+                <span>calls {renderPerformance().calls} · △ {renderPerformance().triangles} · lines {renderPerformance().lines} · points {renderPerformance().points}</span>
+                <span>geo {renderPerformance().geometries} · tex {renderPerformance().textures} · programs {renderPerformance().programs}</span>
+              </Show>
+            </div>
+          </Show>
           <Show when={budgetWarning()} keyed>
             {(warning) => (
               <div class="geometry-viewer-budget-warning" role="status">

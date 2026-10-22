@@ -1,7 +1,7 @@
 //
 // вкладка выбора задания
 //
-import { Show, batch, createEffect, createSignal, onCleanup, onMount, untrack } from "solid-js";
+import { Show, batch, createEffect, createSignal, on, onCleanup, onMount, untrack } from "solid-js";
 import { SketchRequestDialog } from "../components/tasks/SketchRequestDialog.jsx";
 import { TaskOperationDialog } from "../components/tasks/TaskOperationDialog.jsx";
 import { TaskMediaPanel } from "../components/tasks/TaskMediaPanel.jsx";
@@ -206,6 +206,8 @@ export function Tasks(props) {
   let selectionRevision = 0;
   let taskLoadRevision = 0;
   let taskInfoRevision = 0;
+  let inputSummaryRevision = 0;
+  let summaryRefreshRevision = 0;
   let directoryPickRevision = 0;
   let bindingRevision = 0;
   let bindingPolling = false;
@@ -224,16 +226,29 @@ export function Tasks(props) {
     setSelectionNotice("");
     try {
       const selected = await readTaskSelection(root, request, {
+        catalogs: catalogs(),
         isCurrent: () => !disposed && root === rootHandle() && revision === selectionRevision && !props.editorBusy,
       });
+      const switched = selected.root !== root;
+      const marker = switched ? await readWorkspaceBinding(selected.root).catch(() => null) : workspaceBinding();
+      if (disposed || root !== rootHandle() || revision !== selectionRevision || props.editorBusy) {
+        throw new Error("Выбор задания отменён: состояние страницы изменилось.");
+      }
       batch(() => {
+        if (switched) {
+          bindingRevision += 1;
+          setRootHandle(selected.root);
+          setRootName("Корневой каталог: " + selected.root.name);
+          setWorkspaceBinding(marker); setSettingsRequest(null);
+        }
         setProjects(selected.projects);
         setSelectedProject(selected.project.name);
         setTasks(selected.tasks);
         void selectTaskCandidate(selected.task, { external: true });
       });
+      if (switched) await lastTaskHistory.open(selected.root);
       props.onOpenTab?.(TABS.TASKS.id);
-      setSelectionNotice(`Выбрано задание из Viewer: ${selected.project.name}/${selected.task.name}`);
+      setSelectionNotice(`Выбрано задание из Viewer: ${selected.root.name}/${selected.project.name}/${selected.task.name}`);
       queueMicrotask(() => {
         if (!disposed && revision === selectionRevision) {
           taskListElement?.querySelector(".selected")?.scrollIntoView({ block: "nearest" });
@@ -502,6 +517,7 @@ export function Tasks(props) {
     if (galleryBusy() || (selectionReceiving() && !external)) return;
     taskLoadRevision += 1;
     const requestId = ++taskInfoRevision;
+    const summaryRequest = ++inputSummaryRevision;
     setSelectedTask(task);
     setTaskInfo(EMPTY_TASK_INFO);
     setTaskResultsText("");
@@ -517,9 +533,9 @@ export function Tasks(props) {
       (async () => {
         try {
           const info = await readTaskSummary(task.handle);
-          if (isCurrentSelection()) setTaskInfo(info);
+          if (isCurrentSelection() && summaryRequest === inputSummaryRevision) setTaskInfo(info);
         } catch (error) {
-          if (!isCurrentSelection()) return;
+          if (!isCurrentSelection() || summaryRequest !== inputSummaryRevision) return;
           console.error("Ошибка чтения информации о выбранном задании:", error);
           setTaskInfo({
             summaryText: "Ошибка чтения информации о задании: "
@@ -540,6 +556,24 @@ export function Tasks(props) {
       })(),
     ]);
   };
+
+  // Refresh only the displayed input summary, never the loaded model or results.
+  createEffect(on(() => props.savedSummary, saved => {
+    const task = untrack(selectedTask), requestId = taskInfoRevision;
+    if (!saved || !task || task.isDemo) return;
+    const refreshRequest = ++summaryRefreshRevision;
+    const current = () => !disposed && requestId === taskInfoRevision && task === selectedTask()
+      && refreshRequest === summaryRefreshRevision;
+    void (async () => {
+      if (task.handle !== saved.taskHandle && !await task.handle.isSameEntry(saved.taskHandle)) return;
+      if (!current()) return;
+      const summaryRequest = ++inputSummaryRevision;
+      const info = await readTaskSummary(task.handle);
+      if (current() && summaryRequest === inputSummaryRevision) setTaskInfo(info);
+    })().catch(error => {
+      if (current()) setTaskInfo({ summaryText: "Ошибка чтения сводки: " + error.message });
+    });
+  }));
 
   const offerTaskLoad = (request) => {
     if (omClientState().busy) {
@@ -778,7 +812,7 @@ export function Tasks(props) {
           <button type="button" class="task-cross-open-button"
             disabled={!selectedTask() || selectedTask()?.isDemo || !selectionChannel.supported || operationsBlocked() || selectionSending()}
             aria-busy={selectionSending()}
-            title="Выделить задание и перейти на вкладку открытого Viewer с тем же базовым каталогом; браузер может ограничить переключение"
+            title="Выбрать каталог проектов, проект и задание в открытом Viewer; браузер может ограничить переключение вкладки"
             onClick={showInViewer}>Выбрать в Viewer</button>
           <button
             type="button"

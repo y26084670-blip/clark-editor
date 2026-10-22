@@ -53,20 +53,34 @@ export async function readTaskResultsSummary(taskHandle) {
   }
 }
 
-// Source: solver/src/task/01_counters.jl and former writeTaskSummary.
+// Solver e10342f38d7dc0495df221c80f2119d9d54711fd:
+// src/task/01_counters.jl, src/vsolver/02_solver.jl and 01_summary.jl.
+// fm1: PPJN × IP, fm3: PPMN × IS, IP = IS = PPJ + PPM.
+// src/base/defines.jl fixes REALM at Float32, independently of general.doubleFloat.
+function formatMatrixSize(label, rows, columns) {
+  const mib = 4 * rows * columns / 1024 ** 2;
+  return `Матрица ${label}: ${rows} × ${columns}; ${mib.toFixed(6)} MiB (суммарно по MPI, Float32)`;
+}
+
 // A summary describes the same immutable BaseModel snapshot as the saved files.
 export function formatTaskSummary(model, savedAt = new Date()) {
   const { general, elements = [], regions = [], amps = [], moves = [] } = model;
   if (!general || !Array.isArray(elements) || !Array.isArray(regions)) {
     throw new Error("Недостаточно данных для сводки задания");
   }
-  let ppj = 0, ppm = 0, coils = 0;
+  let ppj = 0, ppm = 0, ppjn = 0, ppmn = 0, coils = 0;
   for (const record of elements) {
     if (record.targ === 3) coils = Math.max(coils, Math.abs(record.indCoil ?? 0));
     if (![0, 1, 2].includes(record.targ)) continue;
     const flags = kvFlags(record), count = 3 * eoCount(record);
-    if (flags.rv) ppj += count;
-    if (flags.mv) ppm += count;
+    if (flags.rv) {
+      ppj += count;
+      if (record.targ === 0) ppjn += count;
+    }
+    if (flags.mv) {
+      ppm += count;
+      if (record.targ === 0) ppmn += count;
+    }
   }
   for (const record of regions) coils = Math.max(coils, Math.abs(record.indCoil ?? 0));
   const lines = [
@@ -86,6 +100,9 @@ export function formatTaskSummary(model, savedAt = new Date()) {
   if (general.evalForce) lines.push("Расчет силы/момента подключен");
   if (ppj > 0) lines.push(`Число компонент плотн тока J (PPJ): ${ppj}`);
   if (ppm > 0) lines.push(`Число компонент намагниченности M (PPM): ${ppm}`);
+  if (ppj > 0) lines.push(formatMatrixSize("J", ppjn, ppj + ppm));
+  if (ppm > 0) lines.push(formatMatrixSize("M", ppmn, ppj + ppm));
+  if (ppj > 0 || ppm > 0) lines.push("Объём матриц указан без рабочих буферов, векторов и слабых операторов.");
   lines.push(`Шаг по времени, сек: ${general.timeStep}`,
     `Число интервалов по времени: ${general.countTimeSteps}`);
   return lines.join("\n") + "\n";
