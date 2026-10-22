@@ -41,6 +41,12 @@
     transform: translate(-100%, -50%);
 }
 
+.task-info-bar--aligned .task-info-title {
+    /* Title starts at 48px; leave 32px for Folder and a 4px gap. */
+    width: min(70px, max(0px, calc(var(--header-tasks-right) - 84px)));
+    min-width: 0;
+}
+
 .task-info-bar--aligned .task-info-path {
     position: absolute;
     top: 50%;
@@ -347,6 +353,11 @@
 .task-info-bar .validation-controls .model-validation-button {
     padding-inline: 0;
     font-size: 12px;
+}
+
+.task-info-bar--aligned .validation-controls :is(.general-information-button,
+    .documentation-button, .whats-new-button) {
+    padding-inline: 2px;
 }
 
 .task-info-leading > .validate-button {

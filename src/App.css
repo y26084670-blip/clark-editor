@@ -79,9 +79,9 @@ body,
   margin-bottom: 4px;
   cursor: pointer;
   color: rgb(0, 0, 0);
-  /* Keep equal widths and room for the longest bold label and its indicator. */
-  flex: 1 0 0;
-  min-width: 188px;
+  flex: 1 1 0;
+  min-width: 0;
+  font-size: var(--tab-label-font-size, 13.333333px);
   white-space: nowrap;
   display: flex;
   align-items: center;

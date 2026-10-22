@@ -28,6 +28,7 @@ const selectors = {
   geometry: ".validation-controls > .geometry-button", validate: ".model-validation-button", save: ".save-button", quick: ".general-information-button",
   circle: ".header-validation-indicator",
   news: ".whats-new-button", about: ".about-button", docs: ".documentation-button", leading: ".task-info-leading",
+  title: ".task-info-title",
   trajectory: '[data-tab-id="moves"]', sources: '[data-tab-id="mhj"]', fmm: '[data-tab-id="fmmLibrary"]',
   hts: '[data-tab-id="htsLibrary"]', settings: '[data-tab-id="conrab"]',
 };
@@ -42,7 +43,9 @@ async function checkTabs() {
       const labelBounds = label.getBoundingClientRect();
       const indicatorBounds = indicator?.getBoundingClientRect();
       return {
-        name: label.textContent, width: bounds.width,
+        name: label.textContent, width: bounds.width, height: bounds.height,
+        fontSize: parseFloat(getComputedStyle(button).fontSize),
+        oneLine: label.getBoundingClientRect().height < parseFloat(getComputedStyle(label).fontSize) * 1.6,
         labelFits: label.scrollWidth <= label.clientWidth,
         indicator: indicatorBounds && {
           width: indicatorBounds.width, height: indicatorBounds.height,
@@ -55,7 +58,10 @@ async function checkTabs() {
   assert.equal(tabs.length, 10);
   for (const tab of tabs) {
     near(tab.width, tabs[0].width, `${tab.name}: equal tab width`);
+    near(tab.height, tabs[0].height, `${tab.name}: equal tab height`);
+    assert.equal(tab.fontSize, tabs[0].fontSize, `${tab.name}: common font size`);
     assert.ok(tab.labelFits, `${tab.name}: full label fits`);
+    assert.ok(tab.oneLine, `${tab.name}: label stays on one line`);
     if (tab.indicator) {
       near(tab.indicator.width, 9, `${tab.name}: indicator width`);
       near(tab.indicator.height, 9, `${tab.name}: indicator height`);
@@ -63,8 +69,8 @@ async function checkTabs() {
       assert.ok(tab.indicator.inset >= 3.9, `${tab.name}: indicator fits inside the tab`);
     }
   }
-  if (width >= 1920) assert.ok(scrollWidth <= width, "all tabs fit without horizontal scrolling");
-  else assert.ok(scrollWidth > width, "narrow windows retain horizontal tab scrolling");
+  assert.ok(scrollWidth <= width, "all tabs fit without horizontal scrolling");
+  return tabs[0].fontSize;
 }
 async function check(label) {
   await page.waitForFunction(() => {
@@ -78,6 +84,7 @@ async function check(label) {
   })), selectors);
   near(rects.docs.left, rects.settings.left, "Documentation/Settings left");
   near(rects.folder.right, rects.tasks.right, "Folder/Task selection right");
+  assert.ok(rects.title.right + 3.9 <= rects.folder.left, "task title does not overlap Folder");
   near(rects.docs.right, rects.settings.right, "Documentation/Settings right");
   near(rects.about.right, rects.hts.right, "About/HTS right");
   near(rects.quick.left, rects.fmm.left, "Quick start/FMM left");
@@ -88,9 +95,12 @@ async function check(label) {
   near(rects.geometry.right, rects.trajectory.right, "3D/Trajectory right");
   const order = ["leading", "geometry", "validate", "circle", "quick", "save", "news", "about", "docs"];
   for (let i = 1; i < order.length; i++) assert.ok(rects[order[i - 1]].right <= rects[order[i]].left + 1, `overlap ${order[i - 1]}/${order[i]}: ${JSON.stringify(rects)}`);
-  assert.ok(await page.locator(".model-validation-button").evaluate(el => el.scrollWidth <= el.clientWidth), "validation label fits its new width");
-  await checkTabs();
+  for (const name of ["validate", "quick", "news", "docs"]) {
+    assert.ok(await page.locator(selectors[name]).evaluate(el => el.scrollWidth <= el.clientWidth), `${name}: header label fits`);
+  }
+  const fontSize = await checkTabs();
   console.log("PASS", label);
+  return fontSize;
 }
 try {
   await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/__header`);
@@ -99,24 +109,30 @@ try {
   const access = page.locator(".task-access-dialog[open]");
   if (await access.count()) await access.getByRole("button", { name: "Закрыть", exact: true }).click();
   await page.evaluate(() => headerFixture.setPath("clark.projects / Проект / Задание с длинным названием для проверки строки пути"));
-  for (const width of [1440, 1920, 2560, 1100]) {
+  const fonts = new Map();
+  for (const width of [1440, 1920, 2560, 1100, 1280]) {
     await page.setViewportSize({ width, height: 900 });
-    await check(`header alignment and non-overlap at ${width}px`);
+    fonts.set(width, await check(`all tabs fit; header alignment and non-overlap at ${width}px`));
     await page.screenshot({ path: `${output}/header-${width}.png` });
   }
-  await page.setViewportSize({ width: 1920, height: 900 });
+  assert.ok(fonts.get(1100) < fonts.get(1440), "font shrinks with the available width");
+  assert.ok(fonts.get(1440) < fonts.get(1920), "font shrinks only when needed");
+  assert.equal(fonts.get(1920), fonts.get(2560), "wide windows restore the original font size");
+  assert.ok(fonts.get(1920) > 13.2, "original tab font size is preserved when it fits");
+  await page.setViewportSize({ width: 1100, height: 900 });
   const boldLabels = await page.addStyleTag({ content: ".tabs-header .tab-label { font-weight: 700; }" });
   await page.locator(".tab-change-indicator").evaluateAll(indicators => indicators.forEach(indicator => indicator.classList.add("dirty")));
-  await check("all bold labels and unsaved-data indicators fit at 1920px");
-  await page.screenshot({ path: `${output}/header-1920-unsaved.png` });
+  assert.equal(await check("all bold labels and unsaved-data indicators fit at 1100px"), fonts.get(1100));
+  await page.screenshot({ path: `${output}/header-1100-unsaved.png` });
   await boldLabels.evaluate(style => style.remove());
   await page.locator(".tab-change-indicator").evaluateAll(indicators => indicators.forEach(indicator => indicator.classList.remove("dirty")));
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.locator('[data-tab-id="htsLibrary"]').click();
-  await check("alignment follows active-tab font changes");
+  assert.equal(await check("active tab does not change the fitted font size"), fonts.get(1440));
   await page.setViewportSize({ width: 1100, height: 900 });
   await page.locator(".tabs-header").evaluate(el => { el.scrollLeft = el.scrollWidth; });
-  await check("alignment follows horizontal tab scrolling");
+  await check("horizontal scrolling is unnecessary at 1100px");
+  assert.equal(await page.locator(".tabs-header").evaluate(el => el.scrollLeft), 0);
   await page.setViewportSize({ width: 1920, height: 900 });
   await page.locator(".tabs-header").evaluate(el => { el.scrollLeft = 0; });
   const buttonBorder = await page.locator(".whats-new-button").evaluate(el => getComputedStyle(el).borderTopWidth);
