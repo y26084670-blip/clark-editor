@@ -1,6 +1,6 @@
 # Карта файлов и компонентов web-gui
 
-Обновлено: 2026-10-22 18:27 UTC+3.
+Обновлено: 2026-10-22 21:21 UTC+3.
 
 Пакет по эскизу (4.70.0): `SketchRequestDialog.jsx`/`.css` в
 `src/components/tasks/` — ввод и выдача файлов; `Tasks.jsx` владеет открытием,
@@ -459,3 +459,18 @@ BroadcastChannel/OPFS контекста; headless-фокус не подтве�
 с контактным возбуждением не блокируется из-за различия дочерних сеток.
 [Семантика диагностики](AI_DATA_CONTRACTS.md#med-hierarchy-diagnostics); проверки —
 `test/medPrescribedCurrent.test.js` и исходный иерархический TEAM7.
+
+## Контактный инструмент и переход между каталогами — 4.74.0
+
+| Владелец | Ответственность |
+|---|---|
+| `src/services/generator/contactElement.js` | Нормальная экструзия, полная проверка контакта, согласованные Elements/MHJ и атомарная история. |
+| `src/components/elements/ContactElementDialog.jsx`, `ContactElementDialog.css`, `src/App.jsx`, `src/components/SidePanel.jsx` | Четыре поля, команда шторки, состояние окна, flush и защита от смены задания. |
+| `geometrySceneModel.js`, `geometryPicking.js`, `GeometryViewerWindow.jsx`, `ThreeGeometryViewport.jsx` | Номера MED в треугольниках и необязательной подсказке поверхности. |
+| `src/services/taskSelectionChannel.js`, `src/tabs/Tasks.jsx` в обоих GUI | Явный перенос выбора с доступным diskHandle, обновление устаревшего списка каталогов. |
+| `test/contactElement.test.js`, `test/geometryPicking.test.js`, `test/taskSelectionChannel.test.js` | Геометрия, знак тока, сериализация/история, топология подсказки и точная идентичность каталогов. |
+| `scripts/check-contact-element-browser.mjs`, `scripts/check-shared-disk-browser.mjs` | Настоящий App/WebGL/raycast и две страницы с OPFS/BroadcastChannel. |
+
+Контракты: [генератор](AI_GEOMETRY_GENERATION.md#contact-element-generator),
+[интерфейс](AI_UI_CONTRACTS.md#contact-element-ui),
+[обмен заданиями](AI_CLARK_INTEGRATION.md#explicit-task-selection).

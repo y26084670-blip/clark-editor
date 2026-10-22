@@ -147,6 +147,7 @@ export function GeometryViewerWindow(props) {
   const [viewRequest, setViewRequest] = createSignal(null);
   const [geometryTransparency, setGeometryTransparency] = createGeometryViewSetting("geometryTransparency", 0);
   const [orthographicView, setOrthographicView] = createGeometryViewSetting("orthographicView", true);
+  const [showFaces, setShowFaces] = createGeometryViewSetting("showFaces", false);
   const [showEdges, setShowEdges] = createGeometryViewSetting("showEdges", true);
   const [showVertices, setShowVertices] = createGeometryViewSetting("showVertices", false);
   const [showDiscretizationLines, setShowDiscretizationLines] =
@@ -865,6 +866,11 @@ export function GeometryViewerWindow(props) {
                 Ортогональный вид
               </label>
               <label>
+                <input type="checkbox" checked={showFaces()}
+                  onChange={event => setShowFaces(event.currentTarget.checked)} />
+                Грани
+              </label>
+              <label>
                 <input
                   type="checkbox"
                   checked={showEdges()}
@@ -1032,6 +1038,7 @@ export function GeometryViewerWindow(props) {
             filters={filters()}
             mode="solid"
             geometryOpacity={1 - geometryTransparency() / 100}
+            showFaces={showFaces()}
             showEdges={showEdges()}
             showVertices={showVertices()}
             showDiscretizationLines={showDiscretizationLines()}

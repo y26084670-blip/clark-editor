@@ -173,6 +173,7 @@ export function SidePanel(props) {
                 >Автозаполнение MED</button>
                 <button class="side-panel-option" disabled={!props.open || !props.medActionEnabled}
                   onClick={props.onCreateUniformFieldCoil}>Катушка однородного поля</button>
+                <button class="side-panel-option" disabled={!props.open || !props.medActionEnabled} onClick={props.onCreateContactElement}>Контактный элемент</button>
               </div>
             </section>
           </>

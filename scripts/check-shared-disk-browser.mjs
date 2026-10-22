@@ -94,6 +94,46 @@ try {
   await editor.locator("#listProject").selectOption("Project");
   await editor.locator("#listTask .listTask-item").filter({ hasText: /Задание/ }).first().click();
 
+  // Regression: the receiving Viewer has independently selected another disk.
+  await viewerPage.getByRole("button", { name: "Выбрать диск с проектами", exact: true }).click();
+  await waitCatalog(viewerPage, "clark.viewer");
+  await editor.getByRole("button", { name: "Выбрать в Viewer", exact: true }).click();
+  await waitCatalog(viewerPage, "clark.projects");
+  await viewerPage.waitForFunction(() => document.querySelector('.task-list .selected')?.textContent.includes("Задание"));
+  assert.equal(await viewerPage.evaluate(() => diskFixture.path()), "clark.projects/Project/Задание");
+  pass("Editor -> Viewer adopts the explicit source disk and catalog without reloading results");
+
+  // A catalog added after the Viewer snapshot must be found through the disk.
+  await editor.evaluate(async () => {
+    const { initializeTaskDirectory } = await import("/src/services/taskTemplateService.js");
+    let disk = await navigator.storage.getDirectory();
+    for (const name of ["access-test", "Диск Д"]) disk = await disk.getDirectoryHandle(name);
+    const catalog = await disk.getDirectoryHandle("clark.new", { create: true });
+    const project = await catalog.getDirectoryHandle("Новый проект", { create: true });
+    await initializeTaskDirectory(await project.getDirectoryHandle("Новое задание", { create: true }));
+  });
+  await editor.getByRole("button", { name: "Доступ к проектам", exact: true }).click();
+  await pickEditor(); await access.getByRole("button", { name: "Продолжить", exact: true }).click();
+  await editor.locator("#projectCatalog").selectOption("clark.new");
+  await editor.locator("#listProject").selectOption("Новый проект");
+  await editor.locator("#listTask .listTask-item").filter({ hasText: /^Новое задание$/ }).click();
+  assert.equal(await viewerPage.locator('#projectCatalog option[value="clark.new"]').count(), 0);
+  await editor.getByRole("button", { name: "Выбрать в Viewer", exact: true }).click();
+  await waitCatalog(viewerPage, "clark.new");
+  await viewerPage.waitForFunction(() => document.querySelector('.task-list .selected')?.textContent.includes("Новое задание"));
+  assert.equal(await viewerPage.evaluate(() => diskFixture.path()), "clark.projects/Project/Задание");
+  pass("Editor -> Viewer refreshes a stale catalog list and selects the exact project/task");
+  await viewerPage.locator("#projectCatalog").selectOption("CLARK.Tests");
+  await editor.locator("#projectCatalog").selectOption("clark.projects");
+  await editor.locator("#listProject").selectOption("Project");
+  await editor.locator("#listTask .listTask-item").filter({ hasText: /Задание/ }).first().click();
+
+  await editor.evaluate(async () => {
+    let disk = await navigator.storage.getDirectory();
+    for (const name of ["access-test", "Диск Д"]) disk = await disk.getDirectoryHandle(name);
+    await disk.removeEntry("clark.new", { recursive: true });
+  });
+
   const beforeSummary = await editor.locator(".task-summary-text").inputValue();
   await editor.evaluate(async () => {
     const { modelService } = await import("/src/services/modelService.js");

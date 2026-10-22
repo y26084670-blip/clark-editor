@@ -231,7 +231,7 @@ export function Tasks(props) {
     setSelectionNotice("");
     try {
       const selected = await readTaskSelection(root, request, {
-        catalogs: catalogs(),
+        catalogs: catalogs(), diskHandle: diskHandle(),
         isCurrent: () => !disposed && root === rootHandle() && revision === selectionRevision && !props.editorBusy,
       });
       const switched = selected.root !== root;
@@ -240,6 +240,10 @@ export function Tasks(props) {
         throw new Error("Выбор задания отменён: состояние страницы изменилось.");
       }
       batch(() => {
+        if (selected.diskHandle && (selected.diskHandle !== diskHandle() || selected.catalogs !== catalogs())) {
+          setDiskHandle(selected.diskHandle); setCatalogs(selected.catalogs);
+          setBindingRequest(null); setBindingNotice(""); setCatalogsBound(false);
+        }
         if (switched) {
           bindingRevision += 1;
           setRootHandle(selected.root);
@@ -269,7 +273,7 @@ export function Tasks(props) {
     const task = selectedTask(), project = selectedProject(), root = rootHandle();
     setSelectionSending(true); setSelectionNotice("");
     try {
-      await selectionChannel.select({ baseHandle: root, projectName: project, taskName: task.name });
+      await selectionChannel.select({ baseHandle: root, diskHandle: diskHandle(), projectName: project, taskName: task.name });
       if (!disposed) setSelectionNotice(`В Viewer выделено задание: ${project}/${task.name}`);
     } catch (error) { if (!disposed) showTaskError(error.message, sourceButton); }
     finally { if (!disposed) setSelectionSending(false); }

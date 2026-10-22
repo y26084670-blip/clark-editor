@@ -1,4 +1,4 @@
-import { createEffect, createMemo, createSignal, For, onCleanup, onMount } from "solid-js";
+import { createEffect, createMemo, createSignal, For, Show, onCleanup, onMount } from "solid-js";
 
 import { Tasks } from "./tabs/Tasks.jsx";
 import { DataEditor } from "./components/editors/DataEditor.jsx";
@@ -10,6 +10,8 @@ import { SidePanel } from "./components/SidePanel";
 import { MaterialSelectionDialog } from "./components/materials/MaterialSelectionDialog.jsx";
 import { GeometryViewerWindow } from "./components/geometry/GeometryViewerWindow.jsx";
 import { MedAutofillDialog } from "./components/elements/MedAutofillDialog.jsx";
+import {ContactElementDialog} from "./components/elements/ContactElementDialog.jsx";
+import {applyContactElement, CONTACT_CURRENT_NOTICE} from "./services/generator/contactElement.js";
 import {UniformFieldCoilDialog} from "./components/elements/UniformFieldCoilDialog.jsx";
 import {applyUniformFieldCoil} from "./services/generator/uniformFieldCoil.js";
 import { createMedRequest, medRequestIsCurrent, medRequestCanNavigate, applyMedResult } from "./services/medAutofillService.js";
@@ -141,6 +143,29 @@ export default function App() {
       await performModelValidation({restart:true});
     }catch(error){if(revision===coilRevision)setCoilError(error.message||String(error));}
     finally{if(revision===coilRevision)setCoilBusy(false);}
+  }
+  const [contactTask, setContactTask] = createSignal(null), [contactBusy, setContactBusy] = createSignal(false);
+  const [contactError, setContactError] = createSignal(""), [contactNotice, setContactNotice] = createSignal("");
+  let contactRevision = 0;
+  function closeContact() { contactRevision++; setContactTask(null); setContactBusy(false); }
+  function openContact() { setContactError(""); setContactNotice(""); setContactTask(selectionService.loadedTaskHandle()); setSidePanelOpen(false); }
+  createEffect(() => { if (contactTask() && contactTask() !== selectionService.loadedTaskHandle()) closeContact(); });
+  onCleanup(() => { contactRevision++; });
+  async function addContact(params) {
+    if (contactBusy() || !contactTask()) return;
+    const task = contactTask(), revision = ++contactRevision;
+    setContactBusy(true); setContactError(""); setContactNotice("");
+    try {
+      await medEditor?.flush();
+      if (revision !== contactRevision || task !== selectionService.loadedTaskHandle() || task !== contactTask()) return;
+      if (!await refreshJweakForMed() || revision !== contactRevision || task !== contactTask()) return;
+      const elementSchema = tabRegistry.find(s => s.id === TABS.ELEMENTS.id), mhjSchema = tabRegistry.find(s => s.id === TABS.MHJ.id);
+      const result = applyContactElement({ modelService, params, elementSchema, mhjSchema,
+        createElement: () => dataService.createDefaultRecord(elementSchema) });
+      setContactNotice(`Добавлен контактный элемент №${result.recordIndex + 1}. Отмена — одной операцией Undo. ${CONTACT_CURRENT_NOTICE}`);
+      await performModelValidation({ restart: true });
+    } catch (error) { if (revision === contactRevision) setContactError(error.message || String(error)); }
+    finally { if (revision === contactRevision) setContactBusy(false); }
   }
   let medRevision = 0;
   let medAnalysisResolve = null;
@@ -751,6 +776,7 @@ export default function App() {
         medActionEnabled={Boolean(selectionService.loadedTaskHandle()) && Array.isArray(modelService.getModel().elements)}
         onAutofillMed={analyzeCurrentMed}
         onCreateUniformFieldCoil={openCoil}
+        onCreateContactElement={openContact}
         onCreateConstantMu={() => { setSidePanelOpen(false); openConstantMuGenerator?.(); }}
         onMakeNonmagnetic={handleMakeElementsNonmagnetic}
       />
@@ -843,6 +869,8 @@ export default function App() {
         onAnalyze={analyzeCurrentMed} onApply={applyCurrentMed} onClose={closeMed}
         onNavigate={navigateCurrentMed}
       />
+      <Show when={contactTask()}><ContactElementDialog open={true} model={modelService.getModel()} busy={contactBusy()}
+        error={contactError()} notice={contactNotice()} onChange={() => { setContactError(""); setContactNotice(""); }} onApply={addContact} onClose={closeContact}/></Show>
       <UniformFieldCoilDialog open={!!coilTask()} model={modelService.getModel()} busy={coilBusy()}
         error={coilError()} notice={coilNotice()} onApply={addCoil} onClose={closeCoil}/>
     </div>

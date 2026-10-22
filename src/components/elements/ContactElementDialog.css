@@ -1,0 +1,7 @@
+.contact-element-window .floating-window-content { overflow: auto; }
+.contact-element-dialog { padding: 14px; box-sizing: border-box; font: 14px/1.4 Arial, sans-serif; }
+.contact-element-dialog label { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
+.contact-element-dialog input { box-sizing: border-box; width: 100%; padding: 5px; }
+.contact-element-dialog p { margin: 10px 0; }
+.contact-element-error { color: #b00020; background: #ffeded; border: 1px solid #b00020; padding: 8px; }
+.contact-element-actions { display: flex; gap: 10px; justify-content: flex-end; }
