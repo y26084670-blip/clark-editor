@@ -36,6 +36,8 @@ test("TEAM7: all 88 parents match, 32 false errors disappear, input and MED stay
     assert.deepEqual(r.errors, []);
     assert.equal(r.contacts.length, 88);
     assert.equal(r.refinedBlocks.length, 16);
+    assert.equal(r.ordinaryContactGrid.status, "incompatible");
+    assert.equal(r.ordinaryContactGrid.conflicts.length, 32);
     assert.equal(r.counts.freeFaces, 154);
     assert.equal(r.changes.length, 0);
     assert.equal(r.canApply, false); // Nothing needs repair.

@@ -4,7 +4,7 @@ import { expandElementSymmetry } from "./solver/symmetryExpansion.js";
 import { buildGeometryTimeModel } from "./visualization/geometryTimeModel.js";
 import {
     MED_FACE_NAMES, boxesMeet, faceOverlapArea, matchingFaces, matchingGrids, extrudedContactSeparates, onlyBoundaryIntersection,
-    medTolerance, physicalHex, volumesOverlap,
+    medTolerance, physicalHex, volumesOverlap, singlePrescribedContactPatch,
 } from "./solver/medContactGeometry.js";
 
 export { MED_FACE_NAMES };
@@ -37,8 +37,12 @@ export function analyzeMed(model = {}, { maxImages = 100_000, maxPairs = 2_000_0
     errors.push(...hierarchy.errors);
     result.gridLevel = hierarchy.hierarchical ? "parent" : "actual";
     result.refinedBlocks = hierarchy.refinedBlocks;
+    // This is only a check of active Unknown/Unknown interface grids. It does
+    // not establish the algebraic compatibility of C*j=b_Gamma or a full solve.
+    result.ordinaryContactGrid = hierarchy.hierarchical ? {status:"unverified",conflicts:[]} : null;
     if (errors.length) return done();
-    const relevant = model.elements.map((r,i)=>r?.targ===0 && r.rv>0 ? i : -1).filter(i=>i>=0);
+    if (!model.elements.some(r=>r?.targ===0 && r.rv>0)) return done();
+    const relevant = model.elements.map((r,i)=>(r?.targ===0 && r.rv>0) || r?.targ===2 ? i : -1).filter(i=>i>=0);
     if (!relevant.length) return done();
     const relevantSet = new Set(relevant);
     const projected = buildGeometryTimeModel({ general:model.general,
@@ -77,12 +81,12 @@ export function analyzeMed(model = {}, { maxImages = 100_000, maxPairs = 2_000_0
             const vertices = unpacked.vertices.map(p=>transform(image.matrix,p,cast));
             if (!vertices.flat().every(Number.isFinite)) { fail("NONFINITE", "Координаты выходят за диапазон выбранной разрядности.",owner); continue; }
             for (const p of vertices) for (const x of p) scale=Math.max(scale,Math.abs(x));
-            if (hierarchy.hierarchical && !isJweakLocalCartesian(vertices, result.doubleFloat)) {
+            if (hierarchy.hierarchical && row.targ===0 && !isJweakLocalCartesian(vertices, result.doubleFloat)) {
                 fail("JWEAK_LOCAL_CARTESIAN", `ШГ №${block}: иерархия требует декартовых ЭО `
                     + "с исходным порядком вершин после преобразований.", owner);
                 continue;
             }
-            images.push({ block, image:imageName(image), vertices, dp,
+            images.push({ block, image:imageName(image), vertices, dp, prescribed:row.targ===2,
                 contactDp: hierarchy.hierarchical ? hierarchy.divisions[index] : dp });
         }
     }
@@ -101,10 +105,11 @@ export function analyzeMed(model = {}, { maxImages = 100_000, maxPairs = 2_000_0
     if (errors.length) return done();
     // Sweep broad phase; full candidate pairs are processed, never truncated.
     physical.sort((a,b)=>a.box[0][0]-b.box[0][0]);
-    let pairs=0;
+    let pairs=0, ordinaryUnverified=false;
     for (let i=0;i<physical.length;i++) for (let j=i+1;j<physical.length;j++) {
         const a=physical[i],b=physical[j];
         if (b.box[0][0]>a.box[0][1]+tol) break;
+        if (a.prescribed && b.prescribed) continue;
         if (!boxesMeet(a.box,b.box,tol)) continue;
         if (++pairs>maxPairs) { fail("BUDGET","Превышен бюджет проверки пар. Частичный результат применять нельзя."); return done(); }
         const separatedSlabs=(!a.planar||!b.planar)&&extrudedContactSeparates(a,b,tol);
@@ -119,6 +124,27 @@ export function analyzeMed(model = {}, { maxImages = 100_000, maxPairs = 2_000_0
             if (af.collapsed||bf.collapsed||!boxesMeet(af.box,bf.box,tol)) continue;
             const ao={block:a.block,face:af.index,image:a.image}, bo={block:b.block,face:bf.index,image:b.image};
             if (matchingFaces(af,bf,tol)) {
+                const prescribed=a.prescribed || b.prescribed;
+                const oldA=oldMed(model.elements[a.block-1],af.index);
+                const oldB=oldMed(model.elements[b.block-1],bf.index);
+                if (prescribed) {
+                    const donor=a.prescribed ? a : b, donorFace=a.prescribed ? af : bf;
+                    const grid=singlePrescribedContactPatch(donorFace,donor.dp);
+                    const compatible=grid;
+                    const ignored=!compatible && oldA===-1 && oldB===-1;
+                    const contact={a:ao,b:bo,compatible,prescribed:true,ignored,
+                        gridLevel:result.gridLevel,contactDpA:a.contactDp,contactDpB:b.contactDp,
+                        actualDpA:a.dp,actualDpB:b.dp,oldA,oldB};
+                    contacts.push(contact);
+                    if (ignored) continue;
+                    af.neighbors.push(bf);bf.neighbors.push(af);
+                    if (!compatible) {
+                        af.unresolved=bf.unresolved=true;
+                        if (!grid) fail("PRESCRIBED_GRID",
+                            `Контактная грань J-const ШГ №${donor.block} требует разбиение 1×1 вдоль грани.`,[ao,bo]);
+                    }
+                    continue;
+                }
                 af.neighbors.push(bf); bf.neighbors.push(af);
                 let compatible=false;
                 try { compatible=matchingGrids(af,a.contactDp,bf,b.contactDp,tol); }
@@ -129,7 +155,18 @@ export function analyzeMed(model = {}, { maxImages = 100_000, maxPairs = 2_000_0
                             + `(${MED_FACE_NAMES[af.index]}, [${a.contactDp}]) / ШГ №${b.block} `
                             + `(${MED_FACE_NAMES[bf.index]}, [${b.contactDp}]).`
                         : "Не совпадают элементарные грани сетки стыка.",[ao,bo]); }
-                contacts.push({a:ao,b:bo,compatible,gridLevel:result.gridLevel,contactDpA:a.contactDp,contactDpB:b.contactDp,actualDpA:a.dp,actualDpB:b.dp,oldA:oldMed(model.elements[a.block-1],af.index),oldB:oldMed(model.elements[b.block-1],bf.index)});
+                const contact={a:ao,b:bo,compatible,gridLevel:result.gridLevel,contactDpA:a.contactDp,contactDpB:b.contactDp,actualDpA:a.dp,actualDpB:b.dp,oldA,oldB};
+                contacts.push(contact);
+                if (hierarchy.hierarchical && compatible && !(oldA===-1 && oldB===-1)) {
+                    try {
+                        contact.ordinaryCompatible=matchingGrids(af,a.dp,bf,b.dp,tol);
+                        if (!contact.ordinaryCompatible) result.ordinaryContactGrid.conflicts.push(contact);
+                    } catch {
+                        // A budget limit in this additional assessment must not
+                        // invalidate an otherwise supported hierarchical model.
+                        ordinaryUnverified=true;
+                    }
+                }
             } else {
                 const area=faceOverlapArea(af,bf,tol);
                 const extent=Math.max(...af.box.map(([lo,hi])=>hi-lo),...bf.box.map(([lo,hi])=>hi-lo));
@@ -143,7 +180,17 @@ export function analyzeMed(model = {}, { maxImages = 100_000, maxPairs = 2_000_0
             }
         }
     }
-    for (const [block,record] of records) for (let f=0;f<6;f++) {
+    if (hierarchy.hierarchical) {
+        const ordinary=result.ordinaryContactGrid;
+        ordinary.status=ordinary.conflicts.length ? "incompatible"
+            : ordinaryUnverified || errors.some(e=>e.code!=="PRESCRIBED_GRID") ? "unverified" : "compatible";
+    }
+    for (const [block,record] of records) {
+      // Free induction sources never participated in MED. Keep their unused
+      // pointers and avoid adding rows/proposals to existing conductor analyses.
+      if (record.row.targ===2 && record.slots.every(slots=>slots.every(s=>s.neighbors.length===0))
+          && !vector(record.row.med,6)?.some(m=>m>0 && model.elements[m-1]?.targ===0)) continue;
+      for (let f=0;f<6;f++) {
         const slots=record.slots[f], owner=[{block,face:f}];
         if (!slots.length) continue;
         if (slots.some(s=>s.neighbors.length>1)) { fail("AMBIGUOUS_CONTACT","У физической грани несколько соседей.",owner); continue; }
@@ -153,10 +200,15 @@ export function analyzeMed(model = {}, { maxImages = 100_000, maxPairs = 2_000_0
             fail("IMAGE_CONFLICT","Образы одной грани имеют разные состояния: контакт и свободная поверхность. Единый MED невозможен.",owner); continue;
         }
         const neighbors=new Set(attached.map(s=>s.neighbors[0].block));
-        const proposed=attached.length===0 ? -1 : neighbors.size===1 && !neighbors.has(block) ? [...neighbors][0] : 0;
-        const row={block,face:f,old:oldMed(record.row,f),proposed,neighbors:[...neighbors],physicalCount:slots.length};
+        const old=oldMed(record.row,f);
+        const unusedSourceFace=record.row.targ===2 && attached.length===0
+            && !(old>0 && model.elements[old-1]?.targ===0);
+        const proposed=unusedSourceFace ? old : attached.length===0 ? -1
+            : neighbors.size===1 && !neighbors.has(block) ? [...neighbors][0] : 0;
+        const row={block,face:f,old,proposed,neighbors:[...neighbors],physicalCount:slots.length};
         faces.push(row);
         if (row.old!==proposed) changes.push(row);
+      }
     }
     return done();
 }
@@ -180,6 +232,9 @@ export function medDiagnostics(analysis) {
     }
     for(const c of analysis.contacts) {
         if((c.oldA===-1)!==(c.oldB===-1)) {mark(c.a.block,c.a.face);mark(c.b.block,c.b.face);}
+        if(c.ignored) diagnostics.push({level:"warning",tab:{id:"elements",label:"Элементы модели"},
+            row:c.a.block,property:"med",code:"PRESCRIBED_INSULATED",
+            message:"Грани изолированы. Для контактного возбуждения J-const нужно разбиение донора 1×1 вдоль грани; автозаполнение сохраняет изоляцию."});
     }
     for(const [block,names] of invalid) diagnostics.push({level:"error",tab:{id:"elements",label:"Элементы модели"},row:block,property:"med",
         code:"MED_INVALID_POINTER",message:`Указатели MED не соответствуют контактам граней ${[...names].join(", ")}.`});

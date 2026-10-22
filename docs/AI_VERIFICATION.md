@@ -1,6 +1,6 @@
 # Проверка web-gui
 
-Обновлено: 2026-10-22 02:35 UTC+3.
+Обновлено: 2026-10-22 18:27 UTC+3.
 
 <a id="verification-sketch-request"></a>
 ## Пакет по эскизу — 4.70.0
@@ -1939,3 +1939,45 @@ Python-проверок принадлежат clark.tests. Новый Windows/M
 новый адрес справки и её открытие; затем остановился на прежнем несовпадении
 текста заголовка JWeak1/HTS. Этот фрагмент руководства правкой не изменялся.
 Полный сценарий управления заданиями не объявляется пройденным.
+
+<a id="verification-prescribed-current"></a>
+## MED с J-const, подготовка 4.72.0
+
+Linux, Node 24.19.0. Профильный набор из 61 проверки прошёл:
+
+```sh
+node --test test/medPrescribedCurrent.test.js test/medAnalysisService.test.js test/medContactGeometry.test.js test/medAutofillService.test.js test/medAutofillFlow.test.js test/jweakMedIntegration.test.js
+```
+
+После согласования подсказки J-const полный node --test: 1051 тест, 1029 PASS,
+22 FAIL. Те же 22 отказа воспроизведены на неизменённом b9162c4 (1041 тест,
+1019 PASS): прежние UI/geometry contract-проверки, снимок default library и
+HTS config importer. Новых отказов нет; полный набор не объявляется зелёным.
+`npm run build` завершён; default library (185 файлов) и руководство (32 файла)
+проверены штатными SHA-256-верификаторами. Ручной запуск установленного solver
+из Editor не выполнялся. Контракт — [DATA](AI_DATA_CONTRACTS.md#med-prescribed-current),
+геометрические рекомендации — [GEOMETRY](AI_GEOMETRY_GENERATION.md#prescribed-current-carrier).
+
+<a id="verification-med-hierarchy-diagnostics"></a>
+## Контактное возбуждение в допустимой иерархии, PR #134
+
+2026-10-22, Linux, Node 24.19.0: 74/74 проверки прошли командой:
+
+```sh
+node --test test/medPrescribedCurrent.test.js test/jweakMedIntegration.test.js test/jweakLocalValidation.test.js test/medAnalysisService.test.js test/medAutofillService.test.js test/medAutofillFlow.test.js
+```
+
+Контактный ток разрешён при согласованных родителях и различающихся дочерних
+сетках. Проверены три оси контакта, требование 1×1 у донора, односторонняя
+изоляция, парная изоляция, ошибки родителей, явное предложение автозаполнения
+и неизменность входных данных при анализе. Оценка `ordinaryContactGrid` сохраняется,
+но её конфликты не создают ошибки допустимого иерархического режима.
+На неизменённой геометрии TEAM7 по-прежнему 32 расхождения дочерних сеток при
+88 согласованных родительских контактах и отсутствии ошибок. В набор входит
+производственный worker. Сборку bΓ проверяют тесты solver; ручная проверка
+браузерного окна и установленного комплекса в этот результат не входят.
+
+`npm run build` после обновления руководства завершён с кодом 0; штатные проверки
+SHA-256 подтвердили 185 файлов характеристик и 32 файла руководства. Полный
+`node --test` для этой редакции повторно не запускался; его прежние отказы описаны
+в разделе выше и не считаются устранёнными.

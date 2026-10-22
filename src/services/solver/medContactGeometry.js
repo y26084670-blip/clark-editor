@@ -5,6 +5,11 @@ export const MED_FACES = Object.freeze([
     [2, 3, 7, 6], [0, 2, 6, 4], [1, 3, 7, 5],
 ]);
 export const MED_FACE_NAMES = Object.freeze(["ζ−", "ζ+", "η−", "η+", "ξ−", "ξ+"]);
+// solver/TTask.currentFaceAxes; normal subdivisions do not affect the contact.
+export function singlePrescribedContactPatch(face, dp) {
+    const axes = face.index < 2 ? [0,1] : face.index < 4 ? [0,2] : [1,2];
+    return axes.every(d => dp[d] === 1);
+}
 const sub = (a, b) => a.map((x, i) => x - b[i]);
 const dot = (a, b) => a.reduce((s, x, i) => s + x * b[i], 0);
 const cross = (a, b) => [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]];
