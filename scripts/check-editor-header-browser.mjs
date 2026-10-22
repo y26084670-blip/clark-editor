@@ -44,11 +44,11 @@ async function check(label) {
   near(rects.folder.right, rects.tasks.right, "Folder/Task selection right");
   near(rects.docs.right, rects.settings.right, "Documentation/Settings right");
   near(rects.about.right, rects.hts.right, "About/HTS right");
-  near(rects.save.left, rects.fmm.left, "Save/FMM left");
-  near(rects.quick.right, rects.fmm.right, "Quick start/FMM right");
+  near(rects.quick.left, rects.fmm.left, "Quick start/FMM left");
+  near(rects.save.right, rects.fmm.right, "Save/FMM right");
   near(rects.validate.left, rects.sources.left, "Validate/Sources left");
   near(rects.geometry.right, rects.trajectory.right, "3D/Trajectory right");
-  const order = ["leading", "geometry", "validate", "save", "quick", "news", "about", "docs"];
+  const order = ["leading", "geometry", "validate", "quick", "save", "news", "about", "docs"];
   for (let i = 1; i < order.length; i++) assert.ok(rects[order[i - 1]].right <= rects[order[i]].left + 1, `overlap ${order[i - 1]}/${order[i]}: ${JSON.stringify(rects)}`);
   console.log("PASS", label);
 }
