@@ -1,4 +1,6 @@
 .task-info-bar {
+    position: relative;
+    flex: 0 0 auto;
     display: flex;
     align-items: center;
     height: 30px;
@@ -6,6 +8,97 @@
     padding: 3px 8px;
     border-bottom: 1px solid #ccc;
     font-size: 13px;
+}
+
+.task-info-leading {
+    display: flex;
+    align-items: center;
+    flex: 1 1 0;
+    min-width: 0;
+    gap: 10px;
+}
+
+.header-save-start,
+.header-news-about {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.task-info-bar--aligned .validation-controls {
+    display: contents;
+}
+
+.task-info-bar--aligned .task-info-leading {
+    flex: 0 1 auto;
+    width: max(0px, calc(var(--header-moves-right) - 62px));
+}
+
+.task-info-bar--aligned .geometry-button,
+.task-info-bar--aligned .model-validation-button,
+.task-info-bar--aligned .header-validation-indicator,
+.task-info-bar--aligned .header-save-start,
+.task-info-bar--aligned .header-news-about,
+.task-info-bar--aligned .documentation-button {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.task-info-bar--aligned .geometry-button {
+    left: var(--header-moves-right);
+    transform: translate(-100%, -50%);
+}
+
+.task-info-bar--aligned .model-validation-button {
+    left: var(--header-mhj-left);
+    width: calc(var(--header-mhj-width) - 26px);
+    min-width: 0;
+}
+
+.task-info-bar--aligned .header-validation-indicator {
+    left: calc(var(--header-mhj-right) - 16px);
+    display: flex;
+    align-items: center;
+}
+
+.task-info-bar--aligned .header-save-start {
+    left: var(--header-fmmLibrary-left);
+    width: var(--header-fmmLibrary-width);
+    gap: 6px;
+}
+
+.task-info-bar--aligned .header-save-start .save-button {
+    flex: 0 0 32px;
+    width: 32px;
+    padding-left: 0;
+    padding-right: 0;
+}
+
+.task-info-bar--aligned .header-save-start .general-information-button {
+    flex: 1 1 0;
+    min-width: 0;
+    width: auto;
+}
+
+.task-info-bar--aligned .header-news-about {
+    left: var(--header-htsLibrary-left);
+    width: var(--header-htsLibrary-width);
+    justify-content: space-between;
+    gap: 6px;
+}
+
+.task-info-bar--aligned .header-news-about .whats-new-button {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding-left: 5px;
+    padding-right: 5px;
+    font-size: 12px;
+}
+
+.task-info-bar--aligned .documentation-button {
+    left: var(--header-conrab-left);
+    width: var(--header-conrab-width);
 }
 
 .task-info-title {

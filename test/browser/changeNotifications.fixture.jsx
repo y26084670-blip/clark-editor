@@ -17,12 +17,13 @@ const write = (name, value) => files.set(name, JSON.stringify(value));
 write("clark.workspace.json", { schemaVersion: 1, bindingState: "bound",
     workspaceId: "11111111-1111-4111-8111-111111111111", launchOptionsVersion: 1,
     appVersion: "0.10.9", appVersionCheckedAt: "2026-10-22T00:00:00Z" });
-window.updateFixture = { calls: [], ready: false };
+let nativeVersion = "0.10.10";
+window.updateFixture = { calls: [], ready: false, setNativeVersion: value => { nativeVersion = value; } };
 const openNative = uri => {
   updateFixture.calls.push(uri);
   const params = new URL(uri).searchParams;
   void write("clark.settings.json", { schemaVersion: 1, workspaceId: params.get("workspace"), requestId: params.get("request"),
-    appVersion: "0.10.10", appVersionCheckedAt: new Date().toISOString(), mpiRanks: 1 });
+    appVersion: nativeVersion, appVersionCheckedAt: new Date().toISOString(), mpiRanks: 1 });
 };
 render(() => createComponent(WhatsNewDialog, { app, feedUrl: location.origin + "/__updates/feed", openNative,
   getVersionContext: () => findVersionContext([{ handle: catalog }]) }), document.getElementById("root"));
