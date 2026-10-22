@@ -467,6 +467,8 @@ function elementPrimitive(record, recordIndex, general, remainingInstances) {
             ...(discretization && { discretization }),
             vertices: flattenVertices(unpacked.vertices),
             indices: new Uint16Array(ELEMENT_INDICES),
+            // MED numbering of the two triangles of each solver macro face.
+            triangleFaces: new Uint8Array([5, 5, 6, 6, 1, 1, 2, 2, 3, 3, 4, 4]),
             edgeIndices: new Uint16Array(ELEMENT_EDGE_INDICES),
             instances,
         },

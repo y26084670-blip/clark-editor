@@ -9,6 +9,7 @@ import {
     formatSymmetryInstance,
     formatVertexTooltip,
     geometryHitInstance,
+    geometryHitFace,
     pointHitMetadata,
     vertexHitMetadata,
 } from "../src/services/visualization/geometryPicking.js";
@@ -322,4 +323,20 @@ test("metadata range lookup rejects invalid input", () => {
         findVertexMetadataRange([{ start: 4, end: 4 }], 4),
         null,
     );
+});
+
+
+test("face tooltip is optional and only applies to element surfaces", () => {
+    const element = { schemaId: "elements", recordIndex: 0 };
+    assert.equal(formatGeometryTooltip(element, null, null, 6), "Элемент №1, грань №6");
+    assert.equal(formatGeometryTooltip(element, null, null), "Элемент №1");
+    assert.equal(formatGeometryTooltip({ ...element, schemaId: "regions" }, null, null, 6), "Область №1");
+});
+
+test("face lookup resolves triangle metadata across symmetry batches without assigning faces to lines or invalid hits", () => {
+    const pick = { kind: "mesh", span: 12, triangleFaces: [5,5,6,6,1,1,2,2,3,3,4,4], instances: [{ ls: 0 }, { ls: 1, mirrorX: 1 }] };
+    const object = { userData: { source: { schemaId: "elements" }, pick } };
+    for (let i = 0; i < 24; i++) assert.equal(geometryHitFace({ object, faceIndex: i }), pick.triangleFaces[i % 12]);
+    for (const faceIndex of [-1, 0.5, 24, undefined]) assert.equal(geometryHitFace({ object, faceIndex }), null);
+    pick.kind = "lines"; assert.equal(geometryHitFace({ object, faceIndex: 0, index: 0 }), null);
 });

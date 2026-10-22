@@ -38,6 +38,7 @@ import {
   formatGeometryTooltip,
   formatVertexTooltip,
   geometryHitInstance,
+  geometryHitFace,
   pointHitMetadata,
   vertexHitMetadata,
 } from "../../services/visualization/geometryPicking.js";
@@ -751,6 +752,7 @@ function renderableFor(
       instances,
       kind: pickKind,
       span: pickSpan,
+      triangleFaces: primitive.triangleFaces,
     },
     primitiveKind: primitive.kind,
     renderShape,
@@ -1672,6 +1674,7 @@ export function ThreeGeometryViewport(props) {
           geometryHit.object.userData.source,
           geometryHitInstance(geometryHit),
           hitPoint ? [hitPoint.x, hitPoint.y, hitPoint.z] : null,
+          props.showFaces ? geometryHitFace(geometryHit) : null,
         ),
         x,
         y,

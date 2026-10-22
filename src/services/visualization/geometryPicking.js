@@ -97,8 +97,10 @@ function tooltipText(title, instance, coordinates) {
  * Formats the tooltip for a scene primitive source.
  * `source.recordIndex` follows the zero-based BaseModel convention.
  */
-export function formatGeometryTooltip(source, instance, coordinates) {
-    return tooltipText(sourceIdentity(source), instance, coordinates);
+export function formatGeometryTooltip(source, instance, coordinates, faceNumber) {
+    const face = source?.schemaId === "elements" && Number.isInteger(faceNumber) && faceNumber >= 1 && faceNumber <= 6
+        ? `, грань №${faceNumber}` : "";
+    return tooltipText(sourceIdentity(source) + face, instance, coordinates);
 }
 
 /**
@@ -356,3 +358,13 @@ export function findVertexMetadataRange(ranges, globalIndex) {
 // lookup contract. Keep the existing export and provide a semantically named
 // entry point for point buffers.
 export const findPointMetadataRange = findVertexMetadataRange;
+
+// Picking uses triangle topology, independent of transforms and winding reversal.
+// Lines, vertices, region surfaces and malformed/out-of-range hits have no face.
+export function geometryHitFace(hit) {
+    const data = hit?.object?.userData, pick = data?.pick;
+    if (data?.source?.schemaId !== "elements" || pick?.kind !== "mesh"
+        || !geometryHitInstance(hit) || pick.triangleFaces?.length !== pick.span) return null;
+    const face = pick.triangleFaces[hit.faceIndex % pick.span];
+    return Number.isInteger(face) && face >= 1 && face <= 6 ? face : null;
+}
