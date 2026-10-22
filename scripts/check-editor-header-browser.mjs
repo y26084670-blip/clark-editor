@@ -24,6 +24,7 @@ const errors = [];
 page.on("pageerror", error => errors.push(error.message));
 const near = (a, b, label) => assert.ok(Math.abs(a - b) < 1, `${label}: ${a} vs ${b}`);
 const selectors = {
+  folder: ".task-info-leading > .validate-button", tasks: '[data-tab-id="tasks"]',
   geometry: ".geometry-button", validate: ".model-validation-button", save: ".save-button", quick: ".general-information-button",
   news: ".whats-new-button", about: ".about-button", docs: ".documentation-button", leading: ".task-info-leading",
   trajectory: '[data-tab-id="moves"]', sources: '[data-tab-id="mhj"]', fmm: '[data-tab-id="fmmLibrary"]',
@@ -40,6 +41,7 @@ async function check(label) {
     return [name, { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, width: rect.width }];
   })), selectors);
   near(rects.docs.left, rects.settings.left, "Documentation/Settings left");
+  near(rects.folder.right, rects.tasks.right, "Folder/Task selection right");
   near(rects.docs.right, rects.settings.right, "Documentation/Settings right");
   near(rects.about.right, rects.hts.right, "About/HTS right");
   near(rects.save.left, rects.fmm.left, "Save/FMM left");
