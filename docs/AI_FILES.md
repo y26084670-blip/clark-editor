@@ -1,6 +1,6 @@
 # Карта файлов и компонентов web-gui
 
-Обновлено: 2026-10-22 16:58 UTC+3.
+Обновлено: 2026-10-22 17:38 UTC+3.
 
 Пакет по эскизу (4.70.0): `SketchRequestDialog.jsx`/`.css` в
 `src/components/tasks/` — ввод и выдача файлов; `Tasks.jsx` владеет открытием,
@@ -453,3 +453,8 @@ BroadcastChannel/OPFS контекста; headless-фокус не подтве�
 `medContactGeometry.js::singlePrescribedContactPatch` проверяет 1×1 у донора.
 Профильный тест — `test/medPrescribedCurrent.test.js`. Контракт и ограничения:
 [AI_DATA_CONTRACTS](AI_DATA_CONTRACTS.md#med-prescribed-current).
+
+`medAnalysisService.js` также вычисляет `ordinaryContactGrid`: проверяет фактические
+сетки активных стыков при иерархии и адресно объясняет конфликт с контактным возбуждением.
+[Семантика диагностики](AI_DATA_CONTRACTS.md#med-hierarchy-diagnostics); проверки —
+`test/medPrescribedCurrent.test.js` и исходный иерархический TEAM7.

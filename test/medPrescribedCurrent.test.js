@@ -74,3 +74,64 @@ test("two prescribed sources do not create a conduction constraint",()=>{
     const m=medModel([medBox({origin:[10,0,0]}),medBox({targ:2}),medBox({targ:2})]);
     const r=analyzeMed(m);assert.deepEqual(r.errors,[]);assert.equal(r.contacts.length,0);
 });
+
+function hierarchicalBar({port=true,insulatedJoint=false}={}) {
+    const m=medModel([
+        medBox({dp:[3,3,2]}),
+        medBox({origin:[-1,0,0],dp:[1,1,2]}),
+        medBox({origin:[1,0,0],dp:[2,1,1],targ:2,rv:0}),
+    ],{useMED:true});
+    if (!insulatedJoint) {m.elements[0].med[4]=[2];m.elements[1].med[5]=[1];}
+    if (port) {m.elements[0].med[5]=[3];m.elements[2].med[4]=[1];}
+    m.jweakLocal={status:"ready",data:{version:1,coarse_divisions:[[1,1,2],[1,1,2],[2,1,1]]}};
+    return m;
+}
+
+test("hierarchical port distinguishes unsupported excitation from incompatible actual joints",()=>{
+    const m=hierarchicalBar(),before=structuredClone(m),r=analyzeMed(m);
+    assert.equal(r.ordinaryContactGrid.status,"incompatible");
+    assert.equal(r.ordinaryContactGrid.conflicts.length,1);
+    const port=r.errors.find(e=>e.code==="PRESCRIBED_HIERARCHY");
+    assert.match(port.message,/не реализовано.*Граничная правая часть/u);
+    assert.deepEqual(port.elements,[1,3]);
+    const joint=r.errors.find(e=>e.code==="PRESCRIBED_HIERARCHY_GRID");
+    assert.deepEqual(joint.elements,[2,1]);
+    assert.deepEqual(joint.faces.map(f=>[f.block,f.face]),[[2,5],[1,4]]);
+    assert.match(joint.message,/dp=\[1,1,2\].*dp=\[3,3,2\]/u);
+    assert.match(joint.message,/Удаление jweak_local.json или автозаполнение MED.*не устраняет/u);
+    assert.equal(r.canApply,false);
+    assert.ok(medDiagnostics(r).some(d=>d.code==="PRESCRIBED_HIERARCHY_GRID"&&d.row===2&&d.level==="error"));
+    assert.deepEqual(m,before);
+});
+
+test("matching actual joints do not get a false structural-incompatibility diagnosis",()=>{
+    const m=hierarchicalBar();m.elements[1].dp=[[3],[3],[2]];
+    const r=analyzeMed(m);
+    assert.equal(r.ordinaryContactGrid.status,"compatible");
+    assert.deepEqual(r.ordinaryContactGrid.conflicts,[]);
+    assert.ok(!r.errors.some(e=>e.code==="PRESCRIBED_HIERARCHY_GRID"));
+    assert.match(r.errors.find(e=>e.code==="PRESCRIBED_HIERARCHY").message,/Несогласованных активных стыков.*не найдено/u);
+    assert.equal(r.canApply,false); // The unsupported solver mode remains blocked.
+});
+
+test("paired insulation is excluded from the active-interface compatibility check",()=>{
+    const r=analyzeMed(hierarchicalBar({insulatedJoint:true}));
+    assert.equal(r.ordinaryContactGrid.status,"compatible");
+    assert.ok(!r.errors.some(e=>e.code==="PRESCRIBED_HIERARCHY_GRID"));
+});
+
+test("a supported hierarchy with no active port is not invalidated by nonconforming child joints",()=>{
+    const r=analyzeMed(hierarchicalBar({port:false}));
+    assert.equal(r.ordinaryContactGrid.status,"incompatible");
+    assert.deepEqual(r.errors,[]);
+    assert.ok(!medDiagnostics(r).some(d=>d.level==="error"));
+});
+
+test("an incomplete interface assessment never declares the ordinary grid compatible",()=>{
+    const m=hierarchicalBar();m.elements[1].dp=[[1],[1],[3]];
+    m.jweakLocal.data.coarse_divisions[1]=[1,1,3];
+    const r=analyzeMed(m);
+    assert.equal(r.ordinaryContactGrid.status,"unverified");
+    assert.ok(r.errors.some(e=>e.code==="PARENT_GRID_MISMATCH"));
+    assert.match(r.errors.find(e=>e.code==="PRESCRIBED_HIERARCHY").message,/не подтверждена/u);
+});
