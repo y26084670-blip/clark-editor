@@ -59,7 +59,7 @@ export async function readTaskResultsSummary(taskHandle) {
 // src/base/defines.jl fixes REALM at Float32, independently of general.doubleFloat.
 function formatMatrixSize(label, rows, columns) {
   const mib = 4 * rows * columns / 1024 ** 2;
-  return `Матрица ${label}: ${rows} × ${columns}; ${mib.toFixed(6)} MiB (суммарно по MPI, Float32)`;
+  return `Матрица ${label}: ${(Math.trunc(mib * 10) / 10).toFixed(1)} MiB`;
 }
 
 // A summary describes the same immutable BaseModel snapshot as the saved files.
@@ -84,7 +84,7 @@ export function formatTaskSummary(model, savedAt = new Date()) {
   }
   for (const record of regions) coils = Math.max(coils, Math.abs(record.indCoil ?? 0));
   const lines = [
-    `Сохранено редактором: ${savedAt.toISOString()}`,
+    `Сохранено редактором: ${savedAt.toISOString().slice(0, 19).replace("T", " ")}`,
     `Разрядность вычислений - ${general.doubleFloat ? "Double Float" : "Single Float"}`,
     `Число элементов: ${elements.filter(row => [0, 1, 2].includes(row.targ)).length}`,
     `Число областей: ${regions.length}`,
@@ -102,7 +102,6 @@ export function formatTaskSummary(model, savedAt = new Date()) {
   if (ppm > 0) lines.push(`Число компонент намагниченности M (PPM): ${ppm}`);
   if (ppj > 0) lines.push(formatMatrixSize("J", ppjn, ppj + ppm));
   if (ppm > 0) lines.push(formatMatrixSize("M", ppmn, ppj + ppm));
-  if (ppj > 0 || ppm > 0) lines.push("Объём матриц указан без рабочих буферов, векторов и слабых операторов.");
   lines.push(`Шаг по времени, сек: ${general.timeStep}`,
     `Число интервалов по времени: ${general.countTimeSteps}`);
   return lines.join("\n") + "\n";
