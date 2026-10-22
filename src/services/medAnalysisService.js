@@ -218,7 +218,7 @@ export function analyzeMed(model = {}, { maxImages = 100_000, maxPairs = 2_000_0
 export function medDiagnostics(analysis) {
     const diagnostics=[];
     for (const error of analysis.errors) for (const block of error.elements.length?error.elements:[undefined]) {
-        diagnostics.push({level:"error",tab:{id:"elements",label:"Элементы модели"},row:block,property:"med",
+        diagnostics.push({level:"error",tab:{id:"elements",label:"Элементы"},row:block,property:"med",
             code:error.code,message:error.message});
     }
     const invalid=new Map();
@@ -232,11 +232,11 @@ export function medDiagnostics(analysis) {
     }
     for(const c of analysis.contacts) {
         if((c.oldA===-1)!==(c.oldB===-1)) {mark(c.a.block,c.a.face);mark(c.b.block,c.b.face);}
-        if(c.ignored) diagnostics.push({level:"warning",tab:{id:"elements",label:"Элементы модели"},
+        if(c.ignored) diagnostics.push({level:"warning",tab:{id:"elements",label:"Элементы"},
             row:c.a.block,property:"med",code:"PRESCRIBED_INSULATED",
             message:"Грани изолированы. Для контактного возбуждения J-const нужно разбиение донора 1×1 вдоль грани; автозаполнение сохраняет изоляцию."});
     }
-    for(const [block,names] of invalid) diagnostics.push({level:"error",tab:{id:"elements",label:"Элементы модели"},row:block,property:"med",
+    for(const [block,names] of invalid) diagnostics.push({level:"error",tab:{id:"elements",label:"Элементы"},row:block,property:"med",
         code:"MED_INVALID_POINTER",message:`Указатели MED не соответствуют контактам граней ${[...names].join(", ")}.`});
     const changed=new Map();
     for (const change of analysis.changes) {
@@ -244,7 +244,7 @@ export function medDiagnostics(analysis) {
         if (!changed.has(change.block)) changed.set(change.block,[]);
         changed.get(change.block).push(MED_FACE_NAMES[change.face]);
     }
-    for (const [block,names] of changed) diagnostics.push({level:"warning",tab:{id:"elements",label:"Элементы модели"},row:block,property:"med",
+    for (const [block,names] of changed) diagnostics.push({level:"warning",tab:{id:"elements",label:"Элементы"},row:block,property:"med",
         code:"MED_PROPOSAL",message:`Автозаполнение MED предлагает пересчитать грани ${names.join(", ")}. Проверка не изменяет указатели.`});
     return diagnostics;
 }

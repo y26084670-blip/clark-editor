@@ -39,7 +39,6 @@ import { createError } from "./tabulator/validators/common/createDiagnostic.js";
 import { loadJweakLocal, createJweakLocalLoader } from "./services/jweakLocalService.js";
 import { installModelSaveShortcut } from "./services/modelSaveShortcut.js";
 import { installHorizontalDragScroll } from "./services/horizontalDragScroll.js";
-import { installLinkedHorizontalScrollbar } from "./services/linkedHorizontalScrollbar.js";
 import { installBrowserContextMenuSuppression } from "./services/browserContextMenu.js";
 
 import "./App.css";
@@ -48,8 +47,6 @@ export default function App() {
   const [activeTab, setActiveTab] = createSignal(TABS.TASKS.id);
   const [taskActions, setTaskActions] = createSignal(null);
   const [generalInformationOpen, setGeneralInformationOpen] = createSignal(true);
-  const [taskSummaryBounds, setTaskSummaryBounds] = createSignal(null);
-  const tabButtons = new Map();
   const editorControllers = new Map();
   const [clipboardBusy, setClipboardBusy] = createSignal(false);
   const [clipboardError, setClipboardError] = createSignal("");
@@ -71,62 +68,9 @@ export default function App() {
   }
   let openConstantMuGenerator;
   let tabsViewport;
-  let tabsHeader;
-  let tabsScrollbar;
-  let tabsScrollTrack;
-  let linkedTabsScrollbar;
-  let tasksContent;
-  let taskPanelMeasurementFrame;
-  let taskPanelMeasurementDisposed = false;
-
-  function measureTaskSummaryBounds() {
-    taskPanelMeasurementFrame = undefined;
-    linkedTabsScrollbar?.refresh();
-    if (activeTab() !== TABS.TASKS.id || !tasksContent) return;
-
-    const regionsButton = tabButtons.get(TABS.REGIONS.id);
-    const movesButton = tabButtons.get(TABS.MOVES.id);
-    if (!regionsButton || !movesButton) return;
-
-    const regionsRect = regionsButton.getBoundingClientRect();
-    const movesRect = movesButton.getBoundingClientRect();
-    const contentRect = tasksContent.getBoundingClientRect();
-    // Grid coordinates start inside the content border, unlike viewport rects.
-    const left = regionsRect.left - contentRect.left - tasksContent.clientLeft;
-    const width = movesRect.right - regionsRect.left;
-    const browserWidth = regionsRect.right - contentRect.left - tasksContent.clientLeft;
-    if (left <= 0 || width <= 0) return;
-
-    setTaskSummaryBounds((previous) =>
-      previous?.left === left && previous?.width === width && previous?.browserWidth === browserWidth
-        ? previous
-        : { left, width, browserWidth },
-    );
-  }
-
-  function scheduleTaskPanelMeasurement() {
-    if (taskPanelMeasurementDisposed || taskPanelMeasurementFrame !== undefined) return;
-    taskPanelMeasurementFrame = requestAnimationFrame(measureTaskSummaryBounds);
-  }
-
-  createEffect(() => {
-    // The active button becomes bold and can change the flex row's geometry.
-    if (activeTab() !== TABS.TASKS.id && tabsViewport) {
-      tabsViewport.scrollLeft = 0;
-    }
-    scheduleTaskPanelMeasurement();
-  });
-
   onMount(() => {
     onCleanup(installBrowserContextMenuSuppression(document));
     onCleanup(installHorizontalDragScroll(tabsViewport));
-    linkedTabsScrollbar = installLinkedHorizontalScrollbar({
-      viewport: tabsViewport,
-      scrollbar: tabsScrollbar,
-      track: tabsScrollTrack,
-      isEnabled: () => activeTab() === TABS.TASKS.id,
-    });
-    onCleanup(() => linkedTabsScrollbar.dispose());
     onCleanup(installModelSaveShortcut({
       target: window,
       isEnabled: () => activeTab() !== TABS.TASKS.id
@@ -144,23 +88,6 @@ export default function App() {
         }
       },
     }));
-    const observer = new ResizeObserver(scheduleTaskPanelMeasurement);
-    observer.observe(tabsViewport);
-    observer.observe(tabsHeader);
-    observer.observe(tasksContent);
-    tabButtons.forEach((button) => observer.observe(button));
-    window.addEventListener("resize", scheduleTaskPanelMeasurement);
-    document.fonts?.addEventListener("loadingdone", scheduleTaskPanelMeasurement);
-    document.fonts?.ready.then(scheduleTaskPanelMeasurement);
-    scheduleTaskPanelMeasurement();
-
-    onCleanup(() => {
-      taskPanelMeasurementDisposed = true;
-      observer.disconnect();
-      window.removeEventListener("resize", scheduleTaskPanelMeasurement);
-      document.fonts?.removeEventListener("loadingdone", scheduleTaskPanelMeasurement);
-      cancelAnimationFrame(taskPanelMeasurementFrame);
-    });
   });
 
   // The companion belongs to the same task snapshot, not to a separate editor.
@@ -467,7 +394,6 @@ export default function App() {
           onTaskActionsChange={setTaskActions}
           editorBusy={Boolean(savePending() || validationPending())}
           active={props.active}
-          summaryBounds={taskSummaryBounds()}
           onReturnToEditing={props.onReturnToEditing}
           onValidate={handleModelValidation}
           onSave={handleSave}
@@ -510,7 +436,7 @@ export default function App() {
         />
       ),
     })),
-  ];
+  ].sort((a, b) => Number(a.id === TABS.CONRAB.id) - Number(b.id === TABS.CONRAB.id));
   const activeTabDefinition = () =>
     tabs.find((tab) => tab.id === activeTab());
   const historyTabId = () =>
@@ -831,14 +757,12 @@ export default function App() {
       <div
         class="tabs-viewport"
         ref={tabsViewport}
-        classList={{ "tasks-active": activeTab() === TABS.TASKS.id }}
       >
         <div class="tabs-frame">
-          <div class="tabs-header" ref={tabsHeader}>
+          <div class="tabs-header">
             <For each={tabs}>
               {(tab) => (
                 <button
-                  ref={(element) => tabButtons.set(tab.id, element)}
                   classList={{
                     active: activeTab() === tab.id,
                   }}
@@ -866,26 +790,12 @@ export default function App() {
             </For>
           </div>
 
-          <div
-            class="tabs-scrollbar"
-            ref={tabsScrollbar}
-            hidden
-            tabIndex="0"
-            role="region"
-            aria-label="Горизонтальная прокрутка вкладок и панелей задания"
-          >
-            <div class="tabs-scroll-track" ref={tabsScrollTrack} aria-hidden="true" />
-          </div>
-
           <For each={tabs}>
             {(tab) => {
               const Component = tab.component;
               return (
                 <div
                   class="tab-content"
-                  ref={(element) => {
-                    if (tab.id === TABS.TASKS.id) tasksContent = element;
-                  }}
                   style={{
                     display: activeTab() === tab.id ? "block" : "none",
                   }}
