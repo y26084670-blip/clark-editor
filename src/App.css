@@ -57,52 +57,15 @@ body,
   min-width: 0;
 }
 
-/* Tasks and their tab headings share one horizontal scroll coordinate. */
-.tabs-viewport.tasks-active {
-  overflow-x: auto;
-}
-
-.tasks-active .tabs-frame {
-  min-width: min-content;
-}
-
-.tasks-active .tabs-header {
-  /* Leave room for the task picker, preview and assistant at narrow widths. */
-  min-width: 90rem;
-}
-
-.tabs-viewport:not(.tasks-active) .tabs-header {
-  overflow-x: auto;
-}
-
-/* Keep a second native scrollbar directly below the task tab headings. */
-.tabs-scrollbar {
-  position: sticky;
-  left: 0;
-  flex: 0 0 auto;
-  min-width: 0;
-  height: 18px;
-  overflow-x: auto;
-  overflow-y: hidden;
-  background: #e7ebef;
-  scrollbar-color: #74899a #e7ebef;
-}
-
-.tabs-scrollbar[hidden] {
-  display: none;
-}
-
-.tabs-scroll-track {
-  height: 1px;
-  pointer-events: none;
-}
-
 /* Панель вкладок: */
 .tabs-header {
   display: flex;
   flex-direction: row;
   flex: 0 0 auto;
   min-height: 40px;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
   border-bottom: 1px solid #ccc;
 }
 

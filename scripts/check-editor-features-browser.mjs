@@ -17,7 +17,7 @@ const browser=await chromium.launch({executablePath:process.env.CHROMIUM_EXECUTA
 const page=await browser.newPage({viewport:{width:1500,height:1050}});page.setDefaultTimeout(12000);
 const checks=[],errors=[];page.on('pageerror',e=>errors.push(e.message));
 const check=(name,ok)=>{assert.ok(ok,name);checks.push(name);console.log('PASS',name);};
-const tabNames=['Выбор задания','Общие параметры','Элементы модели','Области наблюдения','Амплитуды','Траектории','Заданные источники','Конфигурация модели','Характеристики ФММ','Характеристики ВТСП'];
+const tabNames=['Выбор задания','Общие параметры','Элементы','Области','Амплитуды','Траектории','Заданные источники','Настройки','Материалы ФММ','Материалы ВТСП'];
 const button=name=>tabNames.includes(name)?page.locator('.tabs-header button').filter({hasText:new RegExp('^'+name+'$')}):page.getByRole('button',{name,exact:true});
 const read=file=>page.evaluate(path=>editorFixture.read(path),file);
 const current=()=>page.evaluate(()=>editorFixture.model());
@@ -32,7 +32,7 @@ try{
   await page.locator('#listTask .listTask-item').filter({hasText:/^Task$/}).dblclick();
   await page.waitForFunction(()=>editorFixture.model().general&&editorFixture.model().elements&&editorFixture.model().conrab);
   await page.waitForTimeout(300);
-  await button('Элементы модели').click();
+  await button('Элементы').click();
   await openDrawer();await page.locator('.side-panel').getByRole('button',{name:'Катушка однородного поля',exact:true}).click();
   const coil=page.locator('.uniform-field-coil');await coil.waitFor();
   check('coil default L=100, dvi=20, Russian name',await coil.getByLabel('L, мм',{exact:true}).inputValue()==='100'&&await coil.getByLabel('Раскрытие, град',{exact:true}).inputValue()==='20'&&(await coil.locator('input').first().inputValue())==='Катушка однородного поля');
@@ -95,7 +95,7 @@ try{
   check('repeated Save overwrites the named file without duplicates',stored.tabl[11]===44&&(await page.evaluate(()=>editorFixture.files())).join(',')==='1234.00.txt,2.00.txt');
   await dialog.getByRole('button',{name:'Закрыть',exact:true}).click();
   // Ctrl+S must work on every data tab even when focus is not in a table.
-  for(const tab of ['Общие параметры','Элементы модели','Области наблюдения','Амплитуды','Траектории','Заданные источники','Конфигурация модели','Характеристики ФММ','Характеристики ВТСП']) {
+  for(const tab of ['Общие параметры','Элементы','Области','Амплитуды','Траектории','Заданные источники','Настройки','Материалы ФММ','Материалы ВТСП']) {
     await button(tab).click();await page.evaluate(()=>editorFixture.setDirty());
     before=await page.evaluate(()=>editorFixture.writes.filter(v=>v==='general.txt').length);
     const consumed=await page.evaluate(()=>!window.dispatchEvent(new KeyboardEvent('keydown',{code:'KeyS',key:'ы',ctrlKey:true,bubbles:true,cancelable:true})));
@@ -106,7 +106,7 @@ try{
   check('Ctrl+S is not intercepted on task selection tab',await page.evaluate(()=>window.dispatchEvent(new KeyboardEvent('keydown',{code:'KeyS',ctrlKey:true,bubbles:true,cancelable:true}))));
   await page.waitForTimeout(150);check('task selection shortcut does not write files',(await page.evaluate(()=>editorFixture.writes.length))===before);
   // Preserve a different unsaved library row when applying a generated curve.
-  await button('Характеристики ФММ').click();
+  await button('Материалы ФММ').click();
   await page.evaluate(()=>{const t=editorFixture.tables('.material-library-table').find(t=>t.getRows().some(r=>r.getData().name==='2.00'));t.getRows().find(r=>r.getData().name==='2.00').getCell('name').edit();});
   await page.locator('.tabulator-editing input').fill('Несохранённая другая');await page.locator('.tabulator-editing input').press('Enter');
   await openMu();await dialog.getByLabel('μ',{exact:true}).fill('7');await dialog.getByRole('button',{name:'Создать',exact:true}).click();
@@ -119,7 +119,7 @@ try{
   await dialog.locator('[role=alert]').filter({hasText:'несохранённые правки'}).waitFor();
   check('generator protects unsaved edits to the same source characteristic',JSON.parse(await read('input3XX/xapLibFMM/2.00.txt')).tabl[11]===22);
   await dialog.getByRole('button',{name:'Закрыть',exact:true}).click();
-  await button('Элементы модели').click();await page.locator('button.geometry-button').click();
+  await button('Элементы').click();await page.locator('button.geometry-button').click();
   const viewer=page.locator('.geometry-viewer-window');await viewer.waitFor();
   const canvas=viewer.locator('canvas');await canvas.waitFor();await page.waitForTimeout(1500);
   await viewer.focus();await page.keyboard.press('Control+a');await page.waitForTimeout(450);

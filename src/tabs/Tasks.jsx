@@ -39,11 +39,16 @@ import { TaskAccessDialog } from "../components/tasks/TaskAccessDialog.jsx";
 import { pickProjectDisk, prepareCatalogBinding, readCatalogBindingResult } from "../services/taskAccessService.js";
 import { saveProjectDisk } from "../services/projectDiskAccessService.js";
 
+import { installTaskPanelResize } from "../services/taskPanelResize.js";
+
 import "./Tasks.css";
 
 const EMPTY_TASK_INFO = Object.freeze({ summaryText: "" });
 
 export function Tasks(props) {
+  let taskPanels;
+  onMount(() => onCleanup(installTaskPanelResize(taskPanels)));
+
   // состояние компонента
   const [diskHandle, setDiskHandle] = createSignal(null);
   const [catalogs, setCatalogs] = createSignal([]);
@@ -684,15 +689,8 @@ export function Tasks(props) {
     && selectedTask()?.handle === loadedTaskHandle();
 
   return (
-    <div
-      class="tasks-layout"
-      style={{
-        "grid-template-columns": props.summaryBounds
-          ? `${props.summaryBounds.browserWidth}px minmax(320px, 1fr) `
-            + `calc(${props.summaryBounds.left}px - var(--tasks-panel-gap))`
-          : undefined,
-      }}
-    >
+    <div class="tasks-scroll-viewport">
+    <div class="tasks-layout" ref={taskPanels}>
       <TaskAccessDialog open={accessOpen() && props.active !== false && !props.helpOpen}
         disk={diskHandle()} count={catalogs().length} busy={accessBusy() || bindingBusy()}
         notice={bindingNotice()} bound={catalogsBound()} onPick={handlePickDirectory} onBind={bindWorkspace} onClose={closeAccess} />
@@ -830,6 +828,9 @@ export function Tasks(props) {
         <Show when={lastTaskNotice()}><p class="task-last-opened-notice" role="status">{lastTaskNotice()}</p></Show>
         <div class="task-panel-caption">выбор задания</div>
       </div>
+      <div class="task-panel-splitter" role="separator" aria-orientation="vertical"
+        aria-label="Ширина панели выбора задания" tabIndex="0"
+        title="Перетащите границу; двойной щелчок — исходные пропорции" />
       <div class="task-summary-panel">
         <Show when={previewRevision()} keyed>
           {() => (
@@ -850,6 +851,9 @@ export function Tasks(props) {
         <div class="task-panel-caption">исходные данные</div>
       </div>
 
+      <div class="task-panel-splitter" role="separator" aria-orientation="vertical"
+        aria-label="Ширина панели исходных данных" tabIndex="0"
+        title="Перетащите границу; двойной щелчок — исходные пропорции" />
       <TaskMediaPanel taskHandle={selectedTask()?.handle} active={props.active}
         disabled={galleryDisabled()} refreshKey={previewRevision()} onBusyChange={setGalleryBusy}
         resultsSummary={taskResultsText()} />
@@ -924,6 +928,7 @@ export function Tasks(props) {
           </button>
         </div>
       </dialog>
+    </div>
     </div>
   );
 }

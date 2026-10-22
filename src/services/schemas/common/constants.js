@@ -38,17 +38,17 @@ export const TABS = {
 
     CONRAB: {
         id: "conrab",
-        label: "Конфигурация модели",
+        label: "Настройки",
     },
 
     ELEMENTS: {
         id: "elements",
-        label: "Элементы модели",
+        label: "Элементы",
     },
 
     REGIONS: {
         id: "regions",
-        label: "Области наблюдения",
+        label: "Области",
     },
 
     AMPS: {
@@ -68,12 +68,12 @@ export const TABS = {
 
     FMM_LIBRARY: {
         id: "fmmLibrary",
-        label: "Характеристики ФММ",
+        label: "Материалы ФММ",
     },
 
     HTS_LIBRARY: {
         id: "htsLibrary",
-        label: "Характеристики ВТСП",
+        label: "Материалы ВТСП",
     },
 };
 
