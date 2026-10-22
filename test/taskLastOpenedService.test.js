@@ -49,6 +49,16 @@ test("directories use the same natural Russian ordering without mutating their i
   assert.equal(input[0].name, "Задание 10");
 });
 
+test("clearing a removed project marker persists null positions only for this app", async () => {
+  const root = directory({ [LAST_OPENED_TASK_FILES.viewer]: record(2, 3) }), h = runtime();
+  await h.history.open(root); await h.history.remember(h.capture());
+  assert.equal(await h.history.clear(), true);
+  assert.equal(h.state.positions, null);
+  assert.equal(root.files.get(LAST_OPENED_TASK_FILES.editor), record(null, null));
+  assert.equal(root.files.get(LAST_OPENED_TASK_FILES.viewer), record(2, 3));
+  h.history.dispose(); assert.equal(await h.history.clear(), false);
+});
+
 test("granting access initializes only the application's own JSON file", async () => {
   for (const app of ["editor", "viewer"]) {
     const root = directory(), h = runtime(app);

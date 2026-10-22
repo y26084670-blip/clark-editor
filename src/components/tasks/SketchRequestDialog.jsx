@@ -51,7 +51,7 @@ export function SketchRequestDialog(props) {
   }
   return <dialog ref={dialog} class="sketch-request-dialog" aria-labelledby="sketch-request-title"
     onCancel={event => { event.preventDefault(); props.onClose(); }}>
-    <header><h2 id="sketch-request-title">По эскизу</h2><button type="button" aria-label="Закрыть подготовку по эскизу" onClick={props.onClose}>×</button></header>
+    <header><h2 id="sketch-request-title">Создать геометрию по эскизу</h2><button type="button" aria-label="Закрыть подготовку по эскизу" onClick={props.onClose}>×</button></header>
     <div class="sketch-request-content">
       <p>Подготовьте пакет для нового чата ChatGPT. Модель получит эскиз, ваше условие и правила CLARK, задаст уточнения и подготовит исходные данные.</p>
       <label>Название задания<input ref={titleInput} value={title()} maxLength={120} placeholder="Например, кольца и стержень"

@@ -5,7 +5,7 @@ import { Show, batch, createEffect, createSignal, on, onCleanup, onMount, untrac
 import { SketchRequestDialog } from "../components/tasks/SketchRequestDialog.jsx";
 import { TaskOperationDialog } from "../components/tasks/TaskOperationDialog.jsx";
 import { TaskMediaPanel } from "../components/tasks/TaskMediaPanel.jsx";
-import { runTaskDirectoryOperation, suggestTaskCopyName } from "../services/taskDirectoryService.js";
+import { runProjectDirectoryOperation, runTaskDirectoryOperation, suggestTaskCopyName } from "../services/taskDirectoryService.js";
 import { initializeTaskDirectory } from "../services/taskTemplateService.js";
 import { selectionService } from "../services/selectionService";
 import { diagnosticService } from "../services/diagnosticService";
@@ -111,6 +111,8 @@ export function Tasks(props) {
     || launchBusy() || taskLaunchOpen() || omClientState().busy || props.editorBusy || selectionReceiving();
   const operationsBlocked = () => galleryDisabled() || galleryBusy();
   createEffect(() => props.onTaskActionsChange?.({
+    createProjectEnabled: Boolean(rootHandle()) && !operationsBlocked() && !omClientState().open,
+    projectEnabled: Boolean(selectedProject()) && !operationsBlocked() && !omClientState().open,
     createEnabled: Boolean(selectedProject()) && !operationsBlocked() && !omClientState().open,
     selectedEnabled: Boolean(selectedTask()) && !operationsBlocked() && !omClientState().open,
     run: openTaskOperation,
@@ -119,6 +121,17 @@ export function Tasks(props) {
   function openTaskOperation(kind) {
     if (kind === "sketch") {
       if (!operationsBlocked() && !omClientState().open && selectedProject()) setSketchOpen(true);
+      return;
+    }
+    if (kind.startsWith("project-")) {
+      kind = kind.slice("project-".length);
+      if (!["create", "rename", "delete"].includes(kind) || operationsBlocked() || omClientState().open || !rootHandle()) return;
+      const project = projects().find(item => item.name === selectedProject());
+      if (kind !== "create" && !project) return;
+      invalidateBrowserSelection();
+      setOperationError(""); setOperationFailed(false);
+      setOperation({ scope: "project", kind, root: rootHandle(), parent: project?.handle,
+        projectName: project?.name, task: selectedTask(), name: kind === "create" ? "Новый проект" : project.name });
       return;
     }
     if (operationsBlocked() || omClientState().open || !selectedProject() || (kind !== "create" && !selectedTask())) return;
@@ -141,6 +154,7 @@ export function Tasks(props) {
   async function submitTaskOperation(name) {
     const request = operation();
     if (!request || operationBusy() || operationFailed()) return;
+    if (request.scope === "project") return submitProjectOperation(request, name);
     const relocate = ["rename", "move"].includes(request.kind);
     setOperationError("");
     setOperationBusy(true);
@@ -174,6 +188,66 @@ export function Tasks(props) {
     } finally {
       setOperationBusy(false);
     }
+  }
+
+  async function submitProjectOperation(request, name) {
+    setOperationError(""); setOperationBusy(true);
+    let loadedName = null, bookmark = null, completedResult = null;
+    try {
+      if (request.kind === "rename" && loadedTaskHandle()) {
+        const path = await request.parent.resolve(loadedTaskHandle());
+        if (path?.length === 1) loadedName = path[0];
+        if (loadedName && unsavedChangesService.hasDirty()) {
+          throw new Error("Сначала сохраните изменения открытого задания и его библиотек. Проект не переименован.");
+        }
+      }
+      const marker = lastTask(), markedProject = projects()[marker?.projectIndex - 1];
+      if (markedProject) {
+        const markedTasks = await getSubdirs(markedProject.handle).catch(() => []);
+        const markedTask = markedTasks[marker.taskIndex - 1];
+        if (markedTask) bookmark = { projectName: markedProject.name, taskName: markedTask.name };
+      }
+      const result = await runProjectDirectoryOperation({ kind: request.kind, root: request.root, source: request.parent, name });
+      completedResult = result;
+      await finishProjectOperation(request, result, loadedName, bookmark);
+      setOperation(null);
+    } catch (error) {
+      const result = error.operationResult ?? completedResult;
+      if (result) {
+        setOperationFailed(true);
+        if (completedResult) error.message = `Файловая операция завершена, но обновление интерфейса не удалось. Проект: «${request.root.name}/${result.name}». ${error.message}`;
+        try { await finishProjectOperation(request, result, loadedName, bookmark); }
+        catch (refreshError) { error.message += `\nНе удалось обновить список: ${refreshError.message}`; }
+      }
+      setOperationError(error.message);
+    } finally { setOperationBusy(false); }
+  }
+
+  async function finishProjectOperation(request, result, loadedName, bookmark) {
+    invalidateBrowserSelection();
+    const renamed = request.kind === "rename" && result.verified && result.deletionStarted;
+    const updated = await getSubdirs(request.root);
+    const chosenName = request.kind === "create" || renamed ? result.name : request.projectName;
+    const chosen = updated.find(project => project.name === chosenName);
+    const updatedTasks = chosen ? await getSubdirs(chosen.handle) : [];
+    batch(() => {
+      setProjects(updated); setSelectedProject(chosen?.name ?? ""); setTasks(updatedTasks);
+      setSelectedTask(null); setTaskInfo(EMPTY_TASK_INFO); setTaskResultsText("");
+    });
+    if (bookmark) {
+      const markedName = renamed && bookmark.projectName === request.projectName ? result.name : bookmark.projectName;
+      const markedProject = updated.find(project => project.name === markedName);
+      const markedTasks = markedProject ? await getSubdirs(markedProject.handle) : [];
+      const markedTask = markedTasks.find(task => task.name === bookmark.taskName);
+      if (markedTask) await lastTaskHistory.remember(lastTaskHistory.capture(updated, markedName, markedTasks, markedTask));
+      else await lastTaskHistory.clear();
+    } else await lastTaskHistory.clear();
+    if (renamed && loadedName) {
+      const handle = await result.handle.getDirectoryHandle(loadedName);
+      commitTaskLoad({ task: { name: loadedName, handle }, fullPath: `${request.root.name}/${result.name}/${loadedName}`, openEditor: false });
+    }
+    const selected = updatedTasks.find(task => task.name === request.task?.name);
+    if (selected) await selectTaskCandidate(selected);
   }
 
   async function finishTaskOperation(request, destination, result, rebindLoaded) {

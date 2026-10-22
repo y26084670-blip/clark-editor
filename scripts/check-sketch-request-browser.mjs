@@ -12,7 +12,7 @@ const out = path.resolve(process.env.CHECK_OUTPUT ?? "/tmp/clark-sketch-browser"
 await mkdir(out, { recursive: true });
 const profile = await mkdtemp(path.join(tmpdir(), "clark-sketch-browser-"));
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE ?? "playwright");
-const server = await createServer({ root, base: "/clark-editor/", server: { host: "127.0.0.1", port: 0 },
+const server = await createServer({ root, cacheDir: path.join(out, 'vite-cache'), base: "/clark-editor/", server: { host: "127.0.0.1", port: 0 },
   plugins: [{ name: "sketch-fixture-route", configureServer(server) {
     server.middlewares.use(async (req, res, next) => {
       if (!req.url?.split("?")[0].endsWith("/__sketch-fixture")) return next();
@@ -36,7 +36,7 @@ page.on("request", req => { if (/chatgpt\.com|api\.openai\.com/u.test(req.url())
 const check = (name, condition) => { assert.ok(condition, name); checks.push(name); console.log("PASS", name); };
 const button = name => page.getByRole("button", { name, exact: true });
 const dialog = page.locator(".sketch-request-dialog");
-const command = page.locator(".side-panel").getByRole("button", { name: "По эскизу", exact: true });
+const command = page.locator(".side-panel").getByRole("button", { name: "Создать геометрию по эскизу", exact: true });
 const prepare = dialog.getByRole("button", { name: "Подготовить пакет", exact: true });
 const close = () => dialog.getByRole("button", { name: "Вернуться к заданиям", exact: true }).click();
 const open = async () => { if (!(await command.isVisible())) await button("Открыть дополнительные функции").click(); await command.click(); };

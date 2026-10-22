@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import * as fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
-import { runTaskDirectoryOperation as run, validateTaskName, suggestTaskCopyName } from '../src/services/taskDirectoryService.js';
+import { runTaskDirectoryOperation as run, runProjectDirectoryOperation as projectRun, validateTaskName, suggestTaskCopyName } from '../src/services/taskDirectoryService.js';
 
 // Disk-backed adapter: actual byte reads/writes/removals with injected failures.
 // Browser API compatibility is additionally checked against native OPFS handles.
@@ -34,7 +34,9 @@ class Handle {
   }
   async removeEntry(name, { recursive = false } = {}) {
     await this.hook('remove', path.join(this.location, name).replaceAll(path.sep, '/'));
-    await fs.rm(path.join(this.location, name), { recursive });
+    const target = path.join(this.location, name);
+    if (!recursive && (await fs.stat(target)).isDirectory()) await fs.rmdir(target);
+    else await fs.rm(target, { recursive });
   }
 }
 async function fixture(t) {
@@ -62,6 +64,143 @@ async function fixture(t) {
 test('portable names reject traversal, Windows aliases and ambiguous endings', () => {
   for (const name of ['', '.', '..', '../x', 'x/y', 'x\\y', ' x', 'x ', 'x.', 'CON', 'nul.txt', 'LPT9.x', 'a:b', 'a\n', 'x'.repeat(121)]) assert.throws(() => validateTaskName(name), undefined, name);
   assert.equal(validateTaskName('Катушка 160 — вариант 2'), 'Катушка 160 — вариант 2');
+});
+
+test('project creation makes an empty direct child; conflicts and invalid names do not overwrite', async t => {
+  const f = await fixture(t), before = await f.read(f.root, 'clark.tasks.txt');
+  const result = await projectRun({ kind: 'create', root: f.root, name: 'Новый проект' });
+  assert.deepEqual(await fs.readdir(result.handle.location), []);
+  assert.equal(await f.read(f.root, 'clark.tasks.txt'), before);
+  for (const name of ['Project', 'project', '../bad', 'CON', 'x.']) {
+    await assert.rejects(projectRun({ kind: 'create', root: f.root, name }));
+  }
+  await f.put(f.root, 'occupied', 'keep');
+  await assert.rejects(projectRun({ kind: 'create', root: f.root, name: 'occupied' }), /занято/);
+  assert.equal(await f.read(f.root, 'occupied'), 'keep');
+});
+
+test('project rename preserves all tasks, binary results, empty folders and existing guards', async t => {
+  const f = await fixture(t);
+  await f.put(f.parent, 'Other/input3XX/_nogo.e3d', 'keep guard');
+  await f.put(f.parent, 'Legacy/input3AA/data', 'legacy');
+  await f.put(f.parent, 'project-note.txt', 'note');
+  await f.parent.getDirectoryHandle('Empty', { create: true });
+  const result = await projectRun({ kind: 'rename', root: f.root, source: f.parent, name: 'Renamed' });
+  assert.equal(result.sourceRemoved, true);
+  assert.equal(await f.exists(f.root, 'Project'), false);
+  assert.equal(await f.read(result.handle, 'Other/input3XX/_nogo.e3d'), 'keep guard');
+  assert.equal(await f.exists(result.handle, 'Original/input3XX/_nogo.e3d'), false);
+  assert.equal(await f.exists(result.handle, 'Legacy/input3XX'), false);
+  assert.deepEqual(await fs.readFile(path.join(result.handle.location, 'Original/output3XX/result.bin')), Buffer.from([0, 255, 127, 128]));
+  assert.deepEqual(await fs.readdir(path.join(result.handle.location, 'Empty')), []);
+  assert.equal(await f.read(result.handle, 'project-note.txt'), 'note');
+  assert.equal(await f.read(f.root, 'clark.tasks.txt'), 'Renamed/Original\n*Renamed/Other\n');
+});
+
+test('project rename updates only full project segments and invalidates old launch request', async t => {
+  const f = await fixture(t);
+  await f.put(f.root, 'clark.tasks.txt', 'Project/Original\n*project/Other\nProject2/Task\n');
+  await f.put(f.root, 'clark.launch.json', 'stale');
+  await projectRun({ kind: 'rename', root: f.root, source: f.parent, name: 'Renamed' });
+  assert.equal(await f.read(f.root, 'clark.tasks.txt'), 'Renamed/Original\n*Renamed/Other\nProject2/Task\n');
+  assert.equal(await f.read(f.root, 'clark.launch.json'), '');
+});
+
+test('project rename rejects stale destinations, invalid list and replaced or nested source', async t => {
+  for (const list of ['Project/Original\nRenamed/Stale\n', '../outside\n']) {
+    const f = await fixture(t); await f.put(f.root, 'clark.tasks.txt', list);
+    await assert.rejects(projectRun({ kind: 'rename', root: f.root, source: f.parent, name: 'Renamed' }));
+    assert.equal(await f.exists(f.root, 'Renamed'), false);
+    assert.equal(await f.exists(f.parent, 'Original'), true);
+  }
+  const f = await fixture(t);
+  for (const source of [f.root, f.source]) await assert.rejects(projectRun({ kind: 'rename', root: f.root, source, name: 'Renamed' }), /непосредственно/);
+  const get = f.root.getDirectoryHandle.bind(f.root);
+  f.root.getDirectoryHandle = async (...args) => { const h = await get(...args); h.isSameEntry = async () => false; return h; };
+  await assert.rejects(projectRun({ kind: 'rename', root: f.root, source: f.parent, name: 'Renamed' }), /заменён/);
+});
+
+test('project copy, hash and launch write failures preserve original and block incomplete destination', async t => {
+  for (const failure of ['copy', 'hash', 'list', 'launch']) {
+    const f = await fixture(t); let corrupted = false;
+    await f.put(f.root, 'clark.launch.json', 'stale');
+    f.setHook(async (op, p) => {
+      if (failure === 'copy' && op === 'write' && p.endsWith('Renamed/Original/input3XX/general.txt')) throw new Error('disk full');
+      if (failure === 'hash' && !corrupted && op === 'read' && p.endsWith('Renamed/Original/input3XX/general.txt')) { corrupted = true; await fs.writeFile(p, 'bad'); }
+      if (op === 'write' && ((failure === 'list' && p.endsWith('clark.tasks.txt')) || (failure === 'launch' && p.endsWith('clark.launch.json')))) throw new Error('locked');
+    });
+    await assert.rejects(projectRun({ kind: 'rename', root: f.root, source: f.parent, name: 'Renamed' }), error => {
+      assert.equal(error.operationResult.deletionStarted, false); return true;
+    });
+    assert.equal(await f.read(f.source, 'input3XX/general.txt'), '{"time":1}');
+    assert.equal(await f.exists(f.root, 'Renamed/Original/input3XX/_nogo.e3d'), true);
+  }
+});
+
+test('source edits or launch-list changes during project copy stop deletion', async t => {
+  for (const target of ['source', 'list']) {
+    const f = await fixture(t); let changed = false;
+    f.setHook(async (op, p) => {
+      if (!changed && op === 'write' && p.endsWith('Renamed/Original/input3XX/general.txt')) {
+        changed = true;
+        if (target === 'source') await f.put(f.parent, 'new-file.txt', 'new');
+        else await f.put(f.root, 'clark.tasks.txt', '*Project/Original\n');
+      }
+    });
+    await assert.rejects(projectRun({ kind: 'rename', root: f.root, source: f.parent, name: 'Renamed' }), error => {
+      assert.equal(error.operationResult.deletionStarted, false); return true;
+    });
+    assert.equal(await f.exists(f.parent, 'Original'), true);
+  }
+});
+
+test('partial project deletion retains verified complete destination and reports recovery state', async t => {
+  const f = await fixture(t);
+  f.setHook(async (op, p) => { if (op === 'remove' && p.endsWith('/Project')) { await fs.rm(path.join(p, 'Original/input3XX/general.txt')); throw new Error('locked'); } });
+  await assert.rejects(projectRun({ kind: 'rename', root: f.root, source: f.parent, name: 'Renamed' }), error => {
+    assert.equal(error.operationResult.verified, true); assert.equal(error.operationResult.deletionStarted, true);
+    assert.equal(error.operationResult.sourceRemoved, false); assert.match(error.message, /частично/); return true;
+  });
+  assert.equal(await f.read(f.root, 'Renamed/Original/input3XX/general.txt'), '{"time":1}');
+  assert.equal(await f.exists(f.root, 'Renamed/Original/input3XX/_nogo.e3d'), true);
+});
+
+test('empty-project removal rejects any file or directory, including hidden files', async t => {
+  const f = await fixture(t);
+  for (const content of ['file', 'directory', 'hidden']) {
+    const source = await f.root.getDirectoryHandle('Empty' + content, { create: true });
+    if (content === 'directory') await source.getDirectoryHandle('EmptyChild', { create: true });
+    else await f.put(source, content === 'hidden' ? '.keep' : 'note.txt', 'keep');
+    await assert.rejects(projectRun({ kind: 'delete', root: f.root, source }), /не пуст/);
+    assert.equal(await f.exists(f.root, source.name), true);
+  }
+});
+
+test('empty-project removal drops obsolete launch rows and preserves unrelated entries', async t => {
+  const f = await fixture(t), source = await f.root.getDirectoryHandle('Empty', { create: true });
+  await f.put(f.root, 'clark.tasks.txt', 'Project/Original\n*Empty/Ghost\nEmpty2/Task\n');
+  await projectRun({ kind: 'delete', root: f.root, source });
+  assert.equal(await f.exists(f.root, 'Empty'), false);
+  assert.equal(await f.read(f.root, 'clark.tasks.txt'), 'Project/Original\nEmpty2/Task\n');
+});
+
+test('file appearing immediately before empty-project deletion is never removed recursively', async t => {
+  const f = await fixture(t), source = await f.root.getDirectoryHandle('Empty', { create: true });
+  f.setHook(async (op, p) => { if (op === 'remove' && p.endsWith('/Empty')) await f.put(source, 'appeared.txt', 'preserve'); });
+  await assert.rejects(projectRun({ kind: 'delete', root: f.root, source }));
+  assert.equal(await f.read(source, 'appeared.txt'), 'preserve');
+});
+
+test('project operations without task list do not create it; empty removal write failure preserves directory', async t => {
+  const f = await fixture(t); await fs.rm(path.join(f.root.location, 'clark.tasks.txt'));
+  await f.put(f.root, 'clark.launch.json', 'stale');
+  await projectRun({ kind: 'rename', root: f.root, source: f.parent, name: 'Renamed' });
+  assert.equal(await f.exists(f.root, 'clark.tasks.txt'), false);
+  assert.equal(await f.read(f.root, 'clark.launch.json'), '');
+  const source = await f.root.getDirectoryHandle('Empty', { create: true });
+  f.setHook((op, p) => { if (op === 'write' && p.endsWith('clark.launch.json')) throw new Error('locked'); });
+  await assert.rejects(projectRun({ kind: 'delete', root: f.root, source }));
+  assert.equal(await f.exists(f.root, 'Empty'), true);
 });
 test('copy saved inputs, binary supplements and libraries; exclude results/temp; mark unapproved', async t => {
   const f = await fixture(t); await f.put(f.source, 'input3XX/extra.bin', new Uint8Array([0, 255, 33]));

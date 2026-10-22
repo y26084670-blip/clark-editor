@@ -3,7 +3,7 @@ import {
   COMPUTED_COLUMN_MODES,
 } from "../services/viewSettingsService";
 import "./SidePanel.css";
-import { TASK_OPERATION_LABELS } from "./tasks/TaskOperationDialog.jsx";
+import { PROJECT_OPERATION_LABELS, TASK_OPERATION_LABELS } from "./tasks/TaskOperationDialog.jsx";
 
 const VISIBILITY_OPTIONS = Object.freeze([
   {
@@ -77,11 +77,24 @@ export function SidePanel(props) {
         </div>
 
         {props.taskActions && <section class="side-panel-section">
+          <details class="side-panel-submenu">
+            <summary class="side-panel-section-title">Работа с проектами</summary>
+            <div class="side-panel-options">
+              {Object.entries(PROJECT_OPERATION_LABELS).map(([kind, label]) => <button
+                class="side-panel-option"
+                disabled={!props.open || !(kind === "create" ? props.taskActions.createProjectEnabled : props.taskActions.projectEnabled)}
+                title={{ create: "Создать пустой проект в выбранном базовом каталоге", rename: "Изменить имя выбранного проекта, сохранив задания и результаты", delete: "Удалить выбранный проект, только если в его каталоге нет файлов и подкаталогов" }[kind]}
+                onClick={() => props.onTaskAction?.(`project-${kind}`)}>{label}</button>)}
+            </div>
+          </details>
+        </section>}
+
+        {props.taskActions && <section class="side-panel-section">
           <div class="side-panel-section-title">Работа с заданиями</div>
           <div class="side-panel-options">
             <button class="side-panel-option" disabled={!props.open || !props.taskActions.createEnabled}
               title="Подготовить эскиз, условие и контекст CLARK для внешнего чата"
-              onClick={() => props.onTaskAction?.("sketch")}>По эскизу</button>
+              onClick={() => props.onTaskAction?.("sketch")}>Создать геометрию по эскизу</button>
             {Object.entries(TASK_OPERATION_LABELS).map(([kind, label]) => <button
               class="side-panel-option"
               disabled={!props.open || !(kind === "create" ? props.taskActions.createEnabled : props.taskActions.selectedEnabled)}
