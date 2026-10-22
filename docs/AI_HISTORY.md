@@ -1,6 +1,6 @@
 # История решений web-gui
 
-Обновлено: 2026-10-22 02:44 UTC+3.
+Обновлено: 2026-10-22 20:11 UTC+3.
 
 ## Назначение
 
@@ -9,9 +9,24 @@
 проблемы — [`AI_ARCHITECTURE_AUDIT.md`](AI_ARCHITECTURE_AUDIT.md), порядок
 будущих работ — [`AI_ROADMAP.md`](AI_ROADMAP.md).
 
-Последнее обновление: приложение 4.70.0, [PR #130](https://github.com/y26084670-blip/clark-editor/pull/130).
+Последнее обновление: приложение 4.72.0, [PR #134](https://github.com/y26084670-blip/clark-editor/pull/134).
 
 ## Основные этапы
+
+### 2026-10-22 20:09 UTC+3 — контактное возбуждение MED, 4.72.0
+
+[PR #134](https://github.com/y26084670-blip/clark-editor/pull/134) объединён с main
+коммитом `047b65341fe419e0bdab21a631f11bf8638a964b` по команде владельца.
+Editor поддерживает полный контакт Unknown/J-const с гранью донора 1×1,
+в том числе при допустимой иерархии jweak_local. Поддержка виртуальных
+контактных площадок уже опубликована в solver. Формат входных данных сохранён.
+
+В подготовленной версии прошли 74/74 профильных проверки и production-сборка.
+На коммите слияния успешно завершились CI Linux/Windows и
+[публикация GitHub Pages](https://github.com/y26084670-blip/clark-editor/actions/runs/39820212337).
+Полный npm test и установленный Windows-комплекс этим выпуском не подтверждаются.
+[Контракт](AI_DATA_CONTRACTS.md#med-prescribed-current),
+[методика и границы проверок](AI_VERIFICATION.md#verification-prescribed-current).
 
 ### 2026-10-22 02:43 UTC+3 — пакет для внешнего диалога по эскизу, 4.70.0
 
