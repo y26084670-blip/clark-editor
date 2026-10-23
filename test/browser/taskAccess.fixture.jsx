@@ -3,7 +3,10 @@ import App from '../../src/App.jsx';
 import { initializeTaskDirectory } from '../../src/services/taskTemplateService.js';
 import { selectionService } from '../../src/services/selectionService.js';
 const opfs = await navigator.storage.getDirectory();
-try { await opfs.removeEntry('access-test', { recursive: true }); } catch (error) { if (error.name !== 'NotFoundError') throw error; }
+if (!sessionStorage.getItem('access-fixture-initialized')) {
+  try { await opfs.removeEntry('access-test', { recursive: true }); } catch (error) { if (error.name !== 'NotFoundError') throw error; }
+  sessionStorage.setItem('access-fixture-initialized', 'true');
+}
 const container = await opfs.getDirectoryHandle('access-test', { create: true });
 const disk = await container.getDirectoryHandle('Диск Д', { create: true });
 const empty = await container.getDirectoryHandle('Пустой диск', { create: true });
@@ -18,7 +21,8 @@ for (const name of ['System Volume Information', '$RECYCLE.BIN', 'clark.app', 'C
 }
 await disk.getFileHandle('clark.file', { create: true });
 let mode = 'disk';
-const calls = [];
+const calls = [], browseCalls = [];
+window.showOpenFilePicker = async options => { browseCalls.push(options); throw new DOMException('Cancelled', 'AbortError'); };
 window.showDirectoryPicker = async options => {
   calls.push(options);
   if (mode === 'cancel') throw new DOMException('Cancelled', 'AbortError');
@@ -27,7 +31,7 @@ window.showDirectoryPicker = async options => {
 };
 async function read(name, base = disk) { return JSON.parse(await (await (await base.getFileHandle(name)).getFile()).text()); }
 async function put(base, name, value) { const stream = await (await base.getFileHandle(name, { create: true })).createWritable(); await stream.write(JSON.stringify(value)); await stream.close(); }
-window.accessFixture = { calls, mode: value => { mode = value; }, read,
+window.accessFixture = { calls, browseCalls, mode: value => { mode = value; }, read,
   path: () => selectionService.loadedTaskPath(),
   marker: name => read('clark.workspace.json', handles[name]),
   async ack(state = 'bound', stale = false) {
