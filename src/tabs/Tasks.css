@@ -108,7 +108,8 @@
   margin-left: 10px;
 }
 
-.task-list-heading .task-status-refresh {
+.task-list-heading .task-status-refresh,
+.task-project-actions > button {
   flex: 0 0 28px;
   box-sizing: border-box;
   width: 28px;
@@ -122,12 +123,13 @@
   line-height: 26px;
 }
 
-.task-list-heading .task-status-refresh:hover:not(:disabled) {
+.task-list-heading .task-status-refresh:hover:not(:disabled),
+.task-project-actions > button:hover:not(:disabled) {
   background: #334454;
 }
 
-.task-list-heading .task-status-refresh:disabled { opacity: .5; }
-.task-list-heading .task-status-refresh[aria-busy="true"] { cursor: progress; }
+.task-status-refresh:disabled, .task-project-actions > button:disabled { opacity: .5; }
+.task-status-refresh[aria-busy="true"] { cursor: progress; }
 
 .task-list-group .listTask {
   box-sizing: border-box;
@@ -168,11 +170,11 @@
   text-align: center;
 }
 
-.task-directory-actions { width: 100%; margin-bottom: 8px; }
-.task-catalog-label { display: block; margin-bottom: 6px; font-size: 13px; color: #dce5ec; }
-.task-directory-buttons { display: flex; align-items: stretch; gap: 8px; min-width: 0; }
-.task-directory-buttons select { flex: 1 1 0; min-width: 0; width: 0; color: #e6edf3; background: #141c22; border: 1px solid #637589; border-radius: 6px; padding: 6px 8px; }
-.task-directory-buttons .task-access-button { flex: 0 0 36px; min-width: 36px; padding: 4px; display: grid; place-items: center; }
+.task-project-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.task-project-actions { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
+.task-project-actions .task-project-browse { display: grid; place-items: center; }
+.task-project-notice { margin: 8px 0 0; font-size: 13px; overflow-wrap: anywhere; }
+.task-catalog-box #rootName { display: block; margin-top: 8px; font-size: 13px; }
 
 .task-list-heading .task-demo-button {
   flex: 0 0 auto;
@@ -205,6 +207,8 @@
 }
 
 .task-browser-panel .box h4 {
+  font-size: 16px;
+  font-weight: 700;
   margin-top: 5px;
   /* отступ снизу от заголовка */
   margin-bottom: 5px;
@@ -216,6 +220,9 @@
   margin-top: 5px;
   /* отступ сверху от select */
   width: 100%;
+  min-width: 0;
+  height: 34px;
+  font: inherit;
   /* чтобы select занимал всю ширину */
   color: #eef3f7;
   background: #141a20;

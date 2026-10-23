@@ -40,6 +40,16 @@ const pass = label => { checks.push(label); console.log("PASS", label); };
 const waitCatalog = (page, name) => page.waitForFunction(name => document.querySelector("#projectCatalog")?.value === name, name);
 const viewerPage = await makePage(), editor = await makePage();
 const access = editor.locator(".task-access-dialog");
+let viewerLoadedPath = "clark.projects/Project/Задание";
+const closeViewerAccess = async page => {
+  const dialog = page.locator('.task-disk-dialog');
+  if (await dialog.isVisible()) await dialog.getByRole('button', { name: 'Продолжить', exact: true }).click();
+};
+const reloadEditorAccess = async () => {
+  await editor.evaluate(() => localStorage.setItem('e3d.generalInformation.openAtStartup', 'false'));
+  await editor.reload(); await editor.waitForFunction(() => window.accessFixture?.ready);
+  await access.waitFor({ state: 'visible' });
+};
 const pickEditor = async () => {
   await access.getByRole("button", { name: "Выбрать диск с проектами", exact: true }).click();
   await editor.waitForFunction(() => !document.querySelector(".task-access-dialog button").disabled);
@@ -66,12 +76,13 @@ try {
   await editor.locator("#listTask .listTask-item").filter({ hasText: /^Задание$/ }).dblclick();
   await editor.waitForFunction(() => accessFixture.path()?.includes("clark.projects/Project/Задание"));
   await editor.getByRole("button", { name: "Выбор задания", exact: true }).click();
+  await closeViewerAccess(viewerPage);
   await viewerPage.getByLabel("Список проектов", { exact: true }).selectOption("Project");
   await viewerPage.getByRole("option", { name: /Задание/, exact: false }).last().dblclick();
   await viewerPage.waitForFunction(() => diskFixture.path() === "clark.projects/Project/Задание");
   await viewerPage.locator("#projectCatalog").selectOption("CLARK.Tests");
   assert.equal(await editor.locator("#projectCatalog").inputValue(), "clark.projects");
-  assert.equal(await viewerPage.evaluate(() => diskFixture.path()), "clark.projects/Project/Задание");
+  assert.equal(await viewerPage.evaluate(() => diskFixture.path()), viewerLoadedPath);
   assert.equal(await editor.evaluate(() => accessFixture.path()), "clark.projects/Project/Задание");
   pass("catalog selection is independent; switching catalogs preserves both loaded tasks");
 
@@ -79,7 +90,7 @@ try {
   await waitCatalog(viewerPage, "clark.projects");
   await viewerPage.waitForFunction(() => document.querySelector('[aria-label="Список проектов"]')?.value === "Project"
     && document.querySelector('.task-list .selected, [role="option"].selected')?.textContent.includes("Задание"));
-  assert.equal(await viewerPage.evaluate(() => diskFixture.path()), "clark.projects/Project/Задание");
+  assert.equal(await viewerPage.evaluate(() => diskFixture.path()), viewerLoadedPath);
   pass("Editor selects all three levels in Viewer across catalogs without reloading results");
   await viewerPage.locator("#projectCatalog").selectOption("CLARK.Tests");
   await viewerPage.getByLabel("Список проектов", { exact: true }).selectOption("Другой проект");
@@ -94,14 +105,41 @@ try {
   await editor.locator("#listProject").selectOption("Project");
   await editor.locator("#listTask .listTask-item").filter({ hasText: /Задание/ }).first().click();
 
-  // Regression: the receiving Viewer has independently selected another disk.
+  // F5 opens disk access; the receiving Viewer independently selects another disk.
+  await viewerPage.reload(); await viewerPage.waitForFunction(() => window.diskFixture?.ready);
+  viewerLoadedPath = "";
   await viewerPage.getByRole("button", { name: "Выбрать диск с проектами", exact: true }).click();
   await waitCatalog(viewerPage, "clark.viewer");
+  await closeViewerAccess(viewerPage);
   await editor.getByRole("button", { name: "Выбрать в Viewer", exact: true }).click();
   await waitCatalog(viewerPage, "clark.projects");
   await viewerPage.waitForFunction(() => document.querySelector('.task-list .selected')?.textContent.includes("Задание"));
-  assert.equal(await viewerPage.evaluate(() => diskFixture.path()), "clark.projects/Project/Задание");
-  pass("Editor -> Viewer adopts the explicit source disk and catalog without reloading results");
+  assert.equal(await viewerPage.evaluate(() => diskFixture.path()), viewerLoadedPath);
+  pass("Editor -> Viewer adopts the explicit source disk and catalog without loading results");
+
+  const beforeBrowse = await viewerPage.evaluate(() => ({ catalog: document.querySelector('#projectCatalog').value,
+    project: document.querySelector('#listProject').value, calls: diskFixture.calls.length }));
+  await viewerPage.getByRole('button', { name: 'Просмотр каталога с проектами', exact: true }).click();
+  assert.equal(await viewerPage.evaluate(() => diskFixture.browseCalls.at(-1).startIn.name), beforeBrowse.catalog);
+  assert.equal(await viewerPage.evaluate(() => diskFixture.calls.length), beforeBrowse.calls);
+  await viewerPage.evaluate(async () => {
+    let handle = await navigator.storage.getDirectory();
+    for (const name of ['access-test', 'Диск Д', 'clark.projects']) handle = await handle.getDirectoryHandle(name);
+    await handle.getDirectoryHandle('Добавленный проект', { create: true });
+  });
+  await viewerPage.getByRole('button', { name: 'Обновить список проектов', exact: true }).click();
+  await viewerPage.waitForFunction(() => [...document.querySelector('#listProject').options].some(o => o.value === 'Добавленный проект'));
+  assert.equal(await viewerPage.locator('#listProject').inputValue(), beforeBrowse.project);
+  await viewerPage.locator('#listProject').selectOption('Добавленный проект');
+  await viewerPage.evaluate(async () => {
+    let handle = await navigator.storage.getDirectory();
+    for (const name of ['access-test', 'Диск Д', 'clark.projects']) handle = await handle.getDirectoryHandle(name);
+    await handle.removeEntry('Добавленный проект');
+  });
+  await viewerPage.getByRole('button', { name: 'Обновить список проектов', exact: true }).click();
+  await viewerPage.waitForFunction(() => document.querySelector('#listProject').value === '');
+  assert.equal(await viewerPage.locator('.task-list-heading:not(.task-project-heading) .task-status-refresh').getAttribute('title'), 'Обновить список заданий');
+  pass('Viewer folder browses the catalog; refresh handles added/deleted projects and preserves an existing selection');
 
   // A catalog added after the Viewer snapshot must be found through the disk.
   await editor.evaluate(async () => {
@@ -112,7 +150,7 @@ try {
     const project = await catalog.getDirectoryHandle("Новый проект", { create: true });
     await initializeTaskDirectory(await project.getDirectoryHandle("Новое задание", { create: true }));
   });
-  await editor.getByRole("button", { name: "Доступ к проектам", exact: true }).click();
+  await reloadEditorAccess();
   await pickEditor(); await access.getByRole("button", { name: "Продолжить", exact: true }).click();
   await editor.locator("#projectCatalog").selectOption("clark.new");
   await editor.locator("#listProject").selectOption("Новый проект");
@@ -121,7 +159,7 @@ try {
   await editor.getByRole("button", { name: "Выбрать в Viewer", exact: true }).click();
   await waitCatalog(viewerPage, "clark.new");
   await viewerPage.waitForFunction(() => document.querySelector('.task-list .selected')?.textContent.includes("Новое задание"));
-  assert.equal(await viewerPage.evaluate(() => diskFixture.path()), "clark.projects/Project/Задание");
+  assert.equal(await viewerPage.evaluate(() => diskFixture.path()), viewerLoadedPath);
   pass("Editor -> Viewer refreshes a stale catalog list and selects the exact project/task");
   await viewerPage.locator("#projectCatalog").selectOption("CLARK.Tests");
   await editor.locator("#projectCatalog").selectOption("clark.projects");
@@ -134,6 +172,9 @@ try {
     await disk.removeEntry("clark.new", { recursive: true });
   });
 
+  await editor.locator('#listTask .listTask-item').filter({ hasText: /Задание$/ }).dblclick();
+  await editor.waitForFunction(() => accessFixture.path() === 'clark.projects/Project/Задание');
+  await editor.getByRole('button', { name: 'Выбор задания', exact: true }).click();
   const beforeSummary = await editor.locator(".task-summary-text").inputValue();
   await editor.evaluate(async () => {
     const { modelService } = await import("/src/services/modelService.js");
@@ -185,10 +226,10 @@ try {
   assert.equal(await editor.getByLabel("Содержимое документа DOCS", { exact: true }).inputValue(), "Описание задания");
   pass("Editor lower DOCS dropdown contains a disabled hint that does not replace the document");
 
-  await editor.getByRole("button", { name: "Доступ к проектам", exact: true }).click();
+  await reloadEditorAccess();
   await editor.evaluate(() => accessFixture.mode("empty")); await pickEditor();
   assert.equal(await viewerPage.locator("#projectCatalog").inputValue(), "CLARK.Tests");
-  assert.equal(await viewerPage.evaluate(() => diskFixture.path()), "clark.projects/Project/Задание");
+  assert.equal(await viewerPage.evaluate(() => diskFixture.path()), viewerLoadedPath);
   pass("another tab changing the shared disk does not switch an existing Viewer task");
   await editor.evaluate(() => accessFixture.mode("disk")); await pickEditor(); await editor.close();
   await viewerPage.reload(); await waitCatalog(viewerPage, "clark.projects");
@@ -222,12 +263,18 @@ try {
   await viewerPage.waitForLoadState("networkidle");
   assert.equal(await viewerPage.locator("#projectCatalog").inputValue(), "clark.viewer");
   pass("late restoration cannot overwrite a newer explicit disk selection");
+  await closeViewerAccess(viewerPage);
   for (const width of [1100, 1440]) {
     await viewerPage.setViewportSize({ width, height: width === 1100 ? 600 : 900 });
     assert.equal(await viewerPage.locator(".task-catalog-row").evaluate(el => el.scrollWidth <= el.clientWidth + 1), true);
     await viewerPage.screenshot({ path: `${output}/viewer-${width}.png` });
   }
-  pass("Viewer catalog dropdown and folder button fit at 1100 and 1440 pixels");
+  assert.equal(await viewerPage.locator('.task-catalog-row button').count(), 0);
+  assert.ok(await viewerPage.locator('.task-project-actions').evaluate(el => {
+    const [folder, refresh] = el.children, list = document.querySelector('#listProject').getBoundingClientRect();
+    return folder.getBoundingClientRect().right < refresh.getBoundingClientRect().left && Math.abs(refresh.getBoundingClientRect().right - list.right) < 1;
+  }));
+  pass("Viewer catalog and relocated project buttons fit at 1100 and 1440 pixels");
   const noStorage = await makePage();
   await noStorage.addInitScript(() => Object.defineProperty(window, "indexedDB", { get() { throw new DOMException("Blocked", "SecurityError"); } }));
   await noStorage.goto(`${origin}/__shared-disk/viewer`);

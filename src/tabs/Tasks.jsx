@@ -32,6 +32,7 @@ import {
 } from "../services/taskSummaryService.js";
 import {
   getFilePickerErrorMessage,
+  getFileSystemAccessSupport,
   isFilePickerCancellation,
 } from "../services/fileSystemAccessSupport";
 
@@ -56,7 +57,9 @@ export function Tasks(props) {
   const [accessBusy, setAccessBusy] = createSignal(false);
   const [bindingRequest, setBindingRequest] = createSignal(null);
   const [catalogsBound, setCatalogsBound] = createSignal(false);
-  let accessButton;
+  let catalogSelect;
+  const [projectListBusy, setProjectListBusy] = createSignal(false);
+  const [projectBrowseNotice, setProjectBrowseNotice] = createSignal("");
   const [rootHandle, setRootHandle] = createSignal(null);
   const [rootName, setRootName] = createSignal("");
   const [projects, setProjects] = createSignal([]);
@@ -107,7 +110,7 @@ export function Tasks(props) {
     });
   });
 
-  const galleryDisabled = () => sketchOpen() || accessBusy() || Boolean(operation()) || demoLoading() || bindingBusy()
+  const galleryDisabled = () => sketchOpen() || accessBusy() || projectListBusy() || Boolean(operation()) || demoLoading() || bindingBusy()
     || launchBusy() || taskLaunchOpen() || omClientState().busy || props.editorBusy || selectionReceiving();
   const operationsBlocked = () => galleryDisabled() || galleryBusy();
   createEffect(() => props.onTaskActionsChange?.({
@@ -401,7 +404,7 @@ export function Tasks(props) {
   function closeAccess() {
     if (accessBusy() || bindingBusy()) return;
     setAccessOpen(false);
-    queueMicrotask(() => accessButton?.focus());
+    queueMicrotask(() => catalogSelect?.focus());
   }
 
   function openTaskLaunch() {
@@ -505,6 +508,7 @@ export function Tasks(props) {
     const handle = catalog?.handle ?? null;
     batch(() => {
       setRootHandle(handle);
+      setProjectBrowseNotice("");
       setRootName(handle ? "Корневой каталог: " + catalog.name : "");
       setWorkspaceBinding(null);
       setSettingsRequest(null);
@@ -552,13 +556,51 @@ export function Tasks(props) {
     if (accessDisabled()) return;
     setAccessBusy(true);
     try { await selectCatalog(catalogs().find(item => item.name === event.currentTarget.value)); }
-    catch (error) { showTaskError("Не удалось открыть каталог: " + error.message, accessButton); }
+    catch (error) { showTaskError("Не удалось открыть каталог: " + error.message, catalogSelect); }
     finally { if (!disposed) setAccessBusy(false); }
+  }
+
+  async function browseProjects() {
+    const handle = rootHandle();
+    if (!handle || operationsBlocked()) return;
+    setProjectBrowseNotice("");
+    const support = getFileSystemAccessSupport(window, { requireOpenFilePicker: true });
+    if (!support.supported) { setProjectBrowseNotice(support.message); return; }
+    try {
+      const picked = await window.showOpenFilePicker({ id: "project-catalog-browse", startIn: handle,
+        multiple: false, excludeAcceptAllOption: false });
+      if (picked?.length && !disposed && handle === rootHandle()) setProjectBrowseNotice(
+        "Работа с файлами в Проводнике выполняется через контекстное меню при нажатии правой кнопки мыши.");
+    } catch (error) {
+      if (!isFilePickerCancellation(error) && !disposed && handle === rootHandle()) {
+        setProjectBrowseNotice(getFilePickerErrorMessage(error, "просмотреть каталог с проектами"));
+      }
+    }
+  }
+
+  async function refreshProjects() {
+    const handle = rootHandle();
+    if (!handle || operationsBlocked()) return;
+    const request = invalidateBrowserSelection();
+    setProjectListBusy(true);
+    try {
+      const entries = await getSubdirs(handle);
+      if (disposed || request !== selectionRevision || handle !== rootHandle()) return;
+      batch(() => {
+        setProjects(entries);
+        if (!entries.some(item => item.name === selectedProject())) {
+          setSelectedProject(""); setTasks([]); setSelectedTask(null);
+          setTaskInfo(EMPTY_TASK_INFO); setTaskResultsText("");
+        }
+      });
+    } catch (error) {
+      if (!disposed && request === selectionRevision) showTaskError("Не удалось обновить список проектов: " + error.message);
+    } finally { if (!disposed) setProjectListBusy(false); }
   }
 
   // выбор проекта
   const handleProjectChange = async (event) => {
-    if (operation() || galleryBusy() || selectionReceiving()) return;
+    if (operationsBlocked()) return;
     const projectName = event.currentTarget.value;
     const requestId = invalidateBrowserSelection();
     setSelectedProject(projectName);
@@ -774,42 +816,45 @@ export function Tasks(props) {
         notice={bindingNotice()} bound={catalogsBound()} onPick={handlePickDirectory} onBind={bindWorkspace} onClose={closeAccess} />
       <div class="task-browser-panel">
         <div class="task-browser-content">
-          <div>
-            <div class="task-directory-actions">
-              <label class="task-catalog-label" for="projectCatalog">Каталоги с проектами</label>
-              <div class="task-directory-buttons">
-                <select id="projectCatalog" aria-label="Каталоги с проектами"
-                  value={rootHandle()?.name ?? ""} disabled={accessDisabled() || !catalogs().length}
-                  onChange={handleCatalogChange}>
-                  <Show when={!catalogs().length}><option value="">Выберите диск с проектами</option></Show>
-                  {catalogs().map(catalog => <option value={catalog.name}>{catalog.name}</option>)}
-                </select>
-                <button ref={accessButton} type="button" class="task-access-button" aria-label="Доступ к проектам"
-                  title="Выбрать диск с проектами и связать с Решателем" disabled={accessDisabled()}
-                  onClick={() => setAccessOpen(true)}>
+          <div class="box task-catalog-box">
+            <h4><label for="projectCatalog">Каталоги с проектами</label></h4>
+            <select id="projectCatalog" ref={catalogSelect} class="task-project-select" aria-label="Каталоги с проектами"
+              value={rootHandle()?.name ?? ""} disabled={accessDisabled() || !catalogs().length}
+              onChange={handleCatalogChange}>
+              <Show when={!catalogs().length}><option value="">Выберите диск с проектами</option></Show>
+              {catalogs().map(catalog => <option value={catalog.name}>{catalog.name}</option>)}
+            </select>
+            <span id="rootName">{rootName()}</span>
+          </div>
+          <div class="box">
+            <div class="task-project-heading">
+              <h4><label for="listProject">Список проектов</label></h4>
+              <div class="task-project-actions">
+                <button type="button" class="task-project-browse" disabled={!rootHandle() || operationsBlocked()}
+                  aria-label="Просмотр каталога с проектами" title="Просмотр каталога с проектами (выбор не изменяется)" onClick={browseProjects}>
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
                     <path d="M3 7V5h7l2 2h9v13H3V7Z" /><path d="M3 10h18" />
                   </svg>
                 </button>
+                <button type="button" class="task-status-refresh" disabled={!rootHandle() || operationsBlocked()}
+                  aria-label="Обновить список проектов" title="Обновить список проектов" aria-busy={projectListBusy()}
+                  onClick={refreshProjects}>↻</button>
               </div>
             </div>
-            <span id="rootName">{rootName()}</span>
-          </div>
-          <div class="box">
-            <h4>Список проектов</h4>
             <select
               id="listProject"
               class="task-project-select"
               value={selectedProject()}
-              disabled={Boolean(operation()) || galleryBusy() || selectionReceiving()}
+              disabled={operationsBlocked()}
               onChange={handleProjectChange}
             >
               <ProjectSelectValue value={selectedProject()} placeholder="Выбрать проект" marked={selectedProject() === lastProjectName()} />
-              <option value="">Выбрать проект</option>
+              <option value="" selected={!selectedProject()}>Выбрать проект</option>
               {projects().map((project) => (
-                <option value={project.name}><Show when={project.name === lastProjectName()}><LastOpenedTaskMarker label="Последний открытый проект" /></Show>{project.name}</option>
+                <option value={project.name} selected={project.name === selectedProject()}><Show when={project.name === lastProjectName()}><LastOpenedTaskMarker label="Последний открытый проект" /></Show>{project.name}</option>
               ))}
             </select>
+            <Show when={projectBrowseNotice()}><p class="task-project-notice" role="status">{projectBrowseNotice()}</p></Show>
           </div>
           <div class="task-list-group">
             <div class="task-list-heading">
@@ -828,9 +873,9 @@ export function Tasks(props) {
                 type="button"
                 class="task-status-refresh"
                 disabled={!tasks().length || taskStatus.busy() || galleryBusy() || operationBusy()}
-                aria-label="Обновить признаки состояния заданий"
+                aria-label="Обновить список заданий"
                 aria-busy={taskStatus.busy()}
-                title="Обновить признаки состояния заданий"
+                title="Обновить список заданий"
                 onClick={() => { void taskStatus.refresh(); }}
               >↻</button>
             </div>
