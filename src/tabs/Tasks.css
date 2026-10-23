@@ -101,11 +101,11 @@
   flex: 0 0 auto;
   gap: 10px;
   margin-bottom: 10px;
+  padding-inline: 10px;
 }
 
 .task-list-heading h4 {
   margin: 0;
-  margin-left: 10px;
 }
 
 .task-list-heading .task-status-refresh,
