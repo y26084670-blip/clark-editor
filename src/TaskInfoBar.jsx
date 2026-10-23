@@ -270,8 +270,14 @@ export function TaskInfoBar(props) {
 
         </div>
 
-        <div class="header-news-about">
+        <div class="header-news">
           <WhatsNewDialog app="editor" />
+        </div>
+        <div class="header-documentation">
+          <a class="documentation-button"
+            href={`${import.meta.env.BASE_URL}user-guide/index.html`}
+            target="_blank" rel="noopener noreferrer"
+            title="Открыть документацию в новой вкладке">Документация</a>
           <button
             ref={(el) => (aboutButton = el)}
             class="about-button"
@@ -289,10 +295,6 @@ export function TaskInfoBar(props) {
             />
           </button>
         </div>
-        <a class="documentation-button"
-          href={`${import.meta.env.BASE_URL}user-guide/index.html`}
-          target="_blank" rel="noopener noreferrer"
-          title="Открыть документацию в новой вкладке">Документация</a>
       </div>
 
       <GeneralInformationDialog

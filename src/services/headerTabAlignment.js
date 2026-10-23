@@ -8,7 +8,7 @@ export function installHeaderTabAlignment({ header, tabs }) {
   const tabButtons = Array.from(tabs.querySelectorAll("[data-tab-id]"));
   const actions = Array.from(header.querySelectorAll(
     ".validation-controls > .model-validation-button, .header-save-start > .general-information-button, " +
-    ".validation-controls > .documentation-button, .header-news-about > .whats-new-button, .task-info-title",
+    ".header-documentation > .documentation-button, .header-news > .whats-new-button, .task-info-title",
   ));
   const caps = new Map([...tabButtons, ...actions].map(button => [button, parseFloat(view.getComputedStyle(button).fontSize)]));
   const originalActionFonts = new Map(actions.map(button => [button, button.style.fontSize]));

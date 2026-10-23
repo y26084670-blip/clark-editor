@@ -95,14 +95,24 @@ async function check(label) {
     return document.elementFromPoint(rect.right - 1, rect.top + rect.height / 2)?.closest(".menu-button") === el;
   }), "the fixed menu remains accessible when Folder scrolls left");
   near(rects.docs.right, rects.settings.right, "Documentation/Settings right");
-  near(rects.about.right, rects.hts.right, "About/HTS right");
+  near(rects.news.left, rects.hts.left, "What's new/HTS left");
+  near(rects.news.right, rects.hts.right, "What's new/HTS right");
+  near(rects.news.width, rects.hts.width, "What's new/HTS width");
+  near(rects.about.right, rects.docs.right - 4, "About is inset from Documentation's right edge");
+  assert.ok(rects.about.left >= rects.docs.left && rects.about.top >= rects.docs.top && rects.about.bottom <= rects.docs.bottom,
+    "About fits entirely inside Documentation's bounds");
+  const docsTextRight = await page.locator(selectors.docs).evaluate(el => {
+    const range = document.createRange(); range.selectNodeContents(el);
+    return range.getBoundingClientRect().right;
+  });
+  assert.ok(docsTextRight + 2 <= rects.about.left, "Documentation text does not overlap About");
   near(rects.quick.left, rects.fmm.left, "Quick start/FMM left");
   near(rects.save.right, rects.fmm.right, "Save/FMM right");
   near(rects.validate.left, rects.sources.left, "Validate/Sources left");
   near(rects.validate.width, rects.quick.width, "Validate/Quick start width");
   near(rects.circle.left, rects.sources.right - 24, "Diagnostics shifted another 5px left");
   near(rects.geometry.right, rects.trajectory.right, "3D/Trajectory right");
-  const order = ["leading", "geometry", "validate", "circle", "quick", "save", "news", "about", "docs"];
+  const order = ["leading", "geometry", "validate", "circle", "quick", "save", "news", "docs"];
   for (let i = 1; i < order.length; i++) assert.ok(rects[order[i - 1]].right <= rects[order[i]].left + 1, `overlap ${order[i - 1]}/${order[i]}: ${JSON.stringify(rects)}`);
   for (const name of ["validate", "quick", "news", "docs"]) {
     assert.ok(await page.locator(selectors[name]).evaluate(el => el.scrollWidth <= el.clientWidth), `${name}: header label fits`);
@@ -110,6 +120,34 @@ async function check(label) {
   const fontSize = await checkTabs();
   console.log("PASS", label);
   return fontSize;
+}
+async function checkDiagnostics(width) {
+  await page.setViewportSize({ width, height: 900 });
+  await page.locator(".tabs-header").evaluate(el => { el.scrollLeft = el.scrollWidth; });
+  await check(`diagnostics header at ${width}px`);
+  await page.locator(".header-validation-indicator .validation-indicator > div[title]").click();
+  const popup = page.locator(".diagnostic-popup");
+  await popup.waitFor({ state: "visible" });
+  const bounds = await popup.boundingBox();
+  assert.ok(bounds.x >= 15.9 && bounds.x + bounds.width <= width - 15.9, "diagnostics stay inside the viewport");
+  assert.ok(await popup.evaluate(el => {
+    const rect = el.getBoundingClientRect();
+    const grid = document.querySelector(".tabulator-header").getBoundingClientRect();
+    const points = [
+      [rect.left + 24, rect.top + 24], [rect.right - 24, rect.top + 24],
+      [rect.left + 24, Math.max(rect.top + 60, grid.top + 8)],
+    ];
+    return points.every(([x, y]) => el.contains(document.elementFromPoint(x, y)));
+  }), "diagnostics are in front of tab labels and the table header");
+  const list = popup.locator(".diagnostic-list");
+  await list.evaluate(el => { el.scrollTop = el.scrollHeight; });
+  assert.ok(await list.evaluate(el => el.scrollTop > 0), "a long diagnostic list remains scrollable");
+  await popup.locator(".diagnostic-title").click();
+  assert.ok(await popup.isVisible(), "clicks inside diagnostics keep the panel open");
+  await page.screenshot({ path: `${output}/diagnostics-${width}.png` });
+  await page.locator(".task-info-bar").click({ position: { x: 60, y: 18 } });
+  await popup.waitFor({ state: "hidden" });
+  console.log("PASS", `diagnostics foreground, viewport bounds, scrolling, and dismissal at ${width}px`);
 }
 try {
   await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/__header`);
@@ -150,6 +188,18 @@ try {
   await page.setViewportSize({ width: 1920, height: 900 });
   await check("expanding the window restores unscrolled tabs and their original font size");
   assert.equal(await page.locator(".tabs-header").evaluate(el => el.scrollLeft), 0);
+  await page.evaluate(() => headerFixture.setDiagnostics(Array.from({ length: 80 }, (_, index) => ({
+    level: "error", message: `Замечание для проверки панели диагностики № ${index + 1}`,
+    tab: { id: "elements", label: "Элементы" }, row: index + 1,
+  }))));
+  for (const width of [1920, 1400, 1100]) await checkDiagnostics(width);
+  await page.setViewportSize({ width: 1920, height: 900 });
+  await check("header returns to its wide layout after diagnostic checks");
+  const pagesBeforeAbout = page.context().pages().length;
+  await page.locator(".about-button").click();
+  await page.locator(".about-dialog[open]").waitFor();
+  assert.equal(page.context().pages().length, pagesBeforeAbout, "About opens its dialog without following the documentation link");
+  await page.keyboard.press("Escape");
   await page.locator(".tabs-header").evaluate(el => { el.scrollLeft = 0; });
   const buttonBorder = await page.locator(".whats-new-button").evaluate(el => getComputedStyle(el).borderTopWidth);
   assert.equal(buttonBorder, "2px");

@@ -19,7 +19,8 @@
 }
 
 .header-save-start,
-.header-news-about {
+.header-news,
+.header-documentation {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -62,8 +63,8 @@
 .task-info-bar--aligned .model-validation-button,
 .task-info-bar--aligned .header-validation-indicator,
 .task-info-bar--aligned .header-save-start,
-.task-info-bar--aligned .header-news-about,
-.task-info-bar--aligned .documentation-button {
+.task-info-bar--aligned .header-news,
+.task-info-bar--aligned .header-documentation {
     position: absolute;
     top: 50%;
     transform: translateY(-50%);
@@ -84,6 +85,12 @@
     left: calc(var(--header-mhj-right) - 24px);
     display: flex;
     align-items: center;
+    /* This transformed wrapper owns the popup's stacking context. */
+    z-index: 1000;
+}
+
+.task-info-bar--aligned .header-validation-indicator .diagnostic-popup {
+    max-width: max(0px, calc(var(--header-mhj-right) - 24px));
 }
 
 .task-info-bar--aligned .header-save-start {
@@ -105,24 +112,37 @@
     width: auto;
 }
 
-.task-info-bar--aligned .header-news-about {
+.task-info-bar--aligned .header-news {
     left: var(--header-htsLibrary-left);
     width: var(--header-htsLibrary-width);
-    justify-content: space-between;
-    gap: 6px;
 }
 
-.task-info-bar--aligned .header-news-about .whats-new-button {
-    flex: 1 1 auto;
+.task-info-bar--aligned .header-news .whats-new-button {
+    flex: 1 1 0;
+    width: 100%;
     min-width: 0;
     padding-left: 5px;
     padding-right: 5px;
     font-size: 12px;
 }
 
-.task-info-bar--aligned .documentation-button {
+.task-info-bar--aligned .header-documentation {
     left: var(--header-conrab-left);
     width: var(--header-conrab-width);
+}
+
+.header-documentation > .documentation-button {
+    flex: 1 1 0;
+    width: 100%;
+}
+
+.header-documentation > .about-button {
+    position: absolute;
+    right: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 24px;
+    height: 22px;
 }
 
 .task-info-title {
@@ -361,6 +381,10 @@
 .task-info-bar--aligned .validation-controls :is(.general-information-button,
     .documentation-button, .whats-new-button) {
     padding-inline: 2px;
+}
+
+.task-info-bar--aligned .validation-controls .header-documentation .documentation-button {
+    padding-right: 34px;
 }
 
 .task-info-leading > .validate-button {
