@@ -94,7 +94,7 @@ export function WhatsNewDialog(props) {
   return <>
     <button type="button" class="whats-new-button" ref={opener} onClick={show} aria-haspopup="dialog"
       aria-label={`Что нового${unread() ? `: непрочитанных ${unread()}` : ""}`}>
-      Что нового <Show when={unread()}><span class="whats-new-count">{unread()}</span></Show>
+      <span class="header-action-label">Что нового</span><Show when={unread()}><span class="whats-new-count">{unread()}</span></Show>
     </button>
     <dialog ref={dialog} class="whats-new-dialog" aria-label="Что нового в Clark"
       onClose={() => { setOpen(false); checkController?.abort(); setVersionBusy(false); opener?.focus(); }}>

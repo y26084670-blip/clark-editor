@@ -277,7 +277,7 @@ export function TaskInfoBar(props) {
           <a class="documentation-button"
             href={`${import.meta.env.BASE_URL}user-guide/index.html`}
             target="_blank" rel="noopener noreferrer"
-            title="Открыть документацию в новой вкладке">Документация</a>
+            title="Открыть документацию в новой вкладке"><span class="header-action-label">Документация</span></a>
           <button
             ref={(el) => (aboutButton = el)}
             class="about-button"

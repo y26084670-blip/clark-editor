@@ -388,8 +388,37 @@
     padding-inline: 2px;
 }
 
-.task-info-bar--aligned .validation-controls .header-documentation .documentation-button {
-    padding-right: 34px;
+.task-info-bar--aligned .validation-controls :is(.model-validation-button, .whats-new-button, .documentation-button) {
+    justify-content: flex-start;
+    padding-inline: 0;
+}
+
+.task-info-bar--aligned :is(.validation-button-label, .header-action-label) {
+    flex: 0 0 auto;
+}
+
+.task-info-bar--aligned .model-validation-button .validation-button-label {
+    margin-left: calc(var(--header-validation-gap) - 2px);
+}
+
+.task-info-bar--aligned .header-news .whats-new-button {
+    gap: var(--header-news-gap);
+}
+
+.task-info-bar--aligned .whats-new-button .header-action-label {
+    margin-left: calc(var(--header-news-gap) - 2px);
+}
+
+.task-info-bar--aligned .whats-new-count {
+    flex-shrink: 0;
+}
+
+.task-info-bar--aligned .documentation-button .header-action-label {
+    margin-left: calc(var(--header-documentation-gap) - 2px);
+}
+
+.task-info-bar--aligned .header-documentation > .about-button {
+    right: var(--header-documentation-gap);
 }
 
 .task-info-leading > .validate-button {
