@@ -174,7 +174,7 @@ try {
   assert.deepEqual(await page.evaluate(() => editorFixture.model()), afterErrors);
   pass("draft insertion with model errors is atomic and fully undoable");
   await page.locator(".whats-new-button").click();
-  await page.getByRole("tab", { name: /^Алгоритмы и вычисления/ }).click();
+  await page.getByRole("tab", { name: /^Алгоритмы/ }).click();
   const news = page.locator(".whats-new-entry").filter({ hasText: "Контактное возбуждение проводников" });
   await news.waitFor();
   assert.match(await news.textContent(), /используйте «Контактное возбуждение»/);
