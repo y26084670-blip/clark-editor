@@ -28,6 +28,7 @@ const selectors = {
   folder: ".task-info-leading > .validate-button", tasks: '[data-tab-id="tasks"]',
   geometry: ".validation-controls > .geometry-button", validate: ".model-validation-button", save: ".save-button", quick: ".general-information-button",
   circle: ".header-validation-indicator",
+  validationLabel: ".validation-button-label",
   news: ".whats-new-button", about: ".about-button", docs: ".documentation-button", leading: ".task-info-leading",
   title: ".task-info-title",
   trajectory: '[data-tab-id="moves"]', sources: '[data-tab-id="mhj"]', fmm: '[data-tab-id="fmmLibrary"]',
@@ -109,10 +110,14 @@ async function check(label) {
   near(rects.quick.left, rects.fmm.left, "Quick start/FMM left");
   near(rects.save.right, rects.fmm.right, "Save/FMM right");
   near(rects.validate.left, rects.sources.left, "Validate/Sources left");
-  near(rects.validate.width, rects.quick.width, "Validate/Quick start width");
-  near(rects.circle.left, rects.sources.right - 24, "Diagnostics shifted another 5px left");
+  near(rects.validate.width, rects.sources.width, "Validate/Sources width");
+  near(rects.validate.right, rects.sources.right, "Validate/Sources right");
+  near((rects.circle.left + rects.circle.right) / 2,
+    (rects.validationLabel.right + rects.validate.right) / 2, "Diagnostics centered after the validation label");
+  assert.ok(rects.circle.left >= rects.validationLabel.right && rects.circle.right <= rects.validate.right,
+    `Diagnostics fit between the validation label and its button's right edge: ${JSON.stringify({ circle: rects.circle, label: rects.validationLabel, button: rects.validate })}`);
   near(rects.geometry.right, rects.trajectory.right, "3D/Trajectory right");
-  const order = ["leading", "geometry", "validate", "circle", "quick", "save", "news", "docs"];
+  const order = ["leading", "geometry", "validate", "quick", "save", "news", "docs"];
   for (let i = 1; i < order.length; i++) assert.ok(rects[order[i - 1]].right <= rects[order[i]].left + 1, `overlap ${order[i - 1]}/${order[i]}: ${JSON.stringify(rects)}`);
   for (const name of ["validate", "quick", "news", "docs"]) {
     assert.ok(await page.locator(selectors[name]).evaluate(el => el.scrollWidth <= el.clientWidth), `${name}: header label fits`);
@@ -216,6 +221,22 @@ try {
   assert.equal(newsTheme.border, "1px");
   await page.screenshot({ path: `${output}/whats-new.png` });
   await page.keyboard.press("Escape");
+  await check("header alignment after closing What's New");
+  await page.locator(".whats-new-button").focus();
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Shift+Tab");
+  assert.ok(await page.locator(".whats-new-button").evaluate(el => {
+    const style = getComputedStyle(el);
+    return el.matches(":focus-visible") && parseFloat(style.outlineOffset) + parseFloat(style.outlineWidth) <= 0;
+  }), "the keyboard focus outline stays inside the aligned news button");
+  await page.locator(".whats-new-button").click();
+  await page.getByRole("tab", { name: /^Интерфейс/ }).click();
+  await page.getByRole("button", { name: "Отметить раздел прочитанным" }).click();
+  await page.getByRole("tab", { name: /^Алгоритмы/ }).click();
+  await page.getByRole("button", { name: "Отметить раздел прочитанным" }).click();
+  await page.keyboard.press("Escape");
+  assert.equal(await page.locator(".whats-new-count").count(), 0);
+  await check("news edges stay aligned when its unread badge disappears");
   assert.deepEqual(errors, []);
   console.log(`PASS button border is 2px; notification panel matches Quick start with a 1px border. Screenshots: ${output}`);
 } finally { await page.close(); await browser.close(); await server.close(); }

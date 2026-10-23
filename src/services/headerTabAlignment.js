@@ -14,6 +14,8 @@ export function installHeaderTabAlignment({ header, tabs }) {
   const originalActionFonts = new Map(actions.map(button => [button, button.style.fontSize]));
   const originalTabFont = tabs.style.getPropertyValue("--tab-label-font-size");
   const originalTabCount = tabs.style.getPropertyValue("--tab-count");
+  const validationLabel = header.querySelector(".model-validation-button .validation-button-label");
+  const validationIndicator = header.querySelector(".header-validation-indicator");
   tabs.style.setProperty("--tab-count", String(tabButtons.length));
   const context = header.ownerDocument.createElement("canvas").getContext("2d");
   function fittedSize(button, bold = false) {
@@ -35,7 +37,11 @@ export function installHeaderTabAlignment({ header, tabs }) {
     });
     const reserved = siblings.reduce((sum, child) => sum + child.getBoundingClientRect().width, 0)
       + siblings.length * (parseFloat(style.columnGap) || 0);
-    const available = button.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight) - reserved - 1;
+    // A centered label leaves half of its unused width on each side. Reserve
+    // enough on both sides for the diagnostic circle and its 2px halo.
+    const diagnosticSpace = label === validationLabel && validationIndicator
+      ? 2 * (validationIndicator.getBoundingClientRect().width + 4) : 0;
+    const available = button.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight) - reserved - diagnosticSpace - 1;
     const fits = size => {
       context.font = `${bold ? 700 : font.fontWeight} ${size}px ${font.fontFamily}`;
       return lines.every(line => context.measureText(line).width <= available);
@@ -73,6 +79,14 @@ export function installHeaderTabAlignment({ header, tabs }) {
     for (const button of actions) {
       const size = `${fittedSize(button)}px`;
       if (button.style.fontSize !== size) button.style.fontSize = size;
+    }
+    if (validationLabel) {
+      // The diagnostic control is a separate click target, centered in the
+      // space after the label inside the full-width validation button.
+      const center = (validationLabel.getBoundingClientRect().right + buttons.get("mhj").getBoundingClientRect().right) / 2 - origin;
+      const name = "--header-validation-center", value = `${center}px`;
+      variables.add(name);
+      if (header.style.getPropertyValue(name) !== value) header.style.setProperty(name, value);
     }
   }
   const schedule = () => { if (!disposed && !frame) frame = view.requestAnimationFrame(measure); };
