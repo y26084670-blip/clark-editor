@@ -345,6 +345,7 @@ export function TaskInfoBar(props) {
         <div class="about-separator" aria-hidden="true" />
         <div class="about-version">Версия: {packageMetadata.version}</div>
         <div class="about-credits">
+          <div>МЭИ, Центр К-Электро</div>
           <div>Разработчик: ChatGPT 5.6 Sol</div>
           <div class="about-curator-stack">
             <div>Куратор: Кулаев Ю.</div>
