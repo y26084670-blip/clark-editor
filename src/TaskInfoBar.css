@@ -76,13 +76,13 @@
 
 .task-info-bar--aligned .model-validation-button {
     left: var(--header-mhj-left);
-    /* Quick start fills the FMM tab width minus Save (32px) and the 6px gap. */
-    width: calc(var(--header-fmmLibrary-width) - 32px - 6px);
+    width: var(--header-mhj-width);
     min-width: 0;
 }
 
 .task-info-bar--aligned .header-validation-indicator {
-    left: calc(var(--header-mhj-right) - 24px);
+    left: var(--header-validation-center);
+    transform: translate(-50%, -50%);
     display: flex;
     align-items: center;
     /* This transformed wrapper owns the popup's stacking context. */
@@ -90,7 +90,7 @@
 }
 
 .task-info-bar--aligned .header-validation-indicator .diagnostic-popup {
-    max-width: max(0px, calc(var(--header-mhj-right) - 24px));
+    max-width: max(0px, calc(var(--header-validation-center) - 8px));
 }
 
 .task-info-bar--aligned .header-save-start {
@@ -114,16 +114,21 @@
 
 .task-info-bar--aligned .header-news {
     left: var(--header-htsLibrary-left);
-    width: var(--header-htsLibrary-width);
+    right: calc(100% - var(--header-htsLibrary-right));
 }
 
 .task-info-bar--aligned .header-news .whats-new-button {
     flex: 1 1 0;
     width: 100%;
+    max-width: 100%;
     min-width: 0;
     padding-left: 5px;
     padding-right: 5px;
     font-size: 12px;
+}
+
+.task-info-bar--aligned .validation-controls .header-news .whats-new-button:focus-visible {
+    outline-offset: -4px;
 }
 
 .task-info-bar--aligned .header-documentation {
