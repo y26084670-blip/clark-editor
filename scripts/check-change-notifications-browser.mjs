@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdir, realpath } from "node:fs/promises";
+import { mkdir, readFile, realpath } from "node:fs/promises";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createServer } from "vite";
@@ -60,7 +60,7 @@ try {
   pass("version 0.10.9 is below 0.10.10; opening preserves unread marks and shows the archive");
   await editor.getByRole("button", { name: "Отметить раздел прочитанным" }).click();
   await viewerPage.waitForFunction(() => document.querySelector(".whats-new-count")?.textContent === "1");
-  await viewerPage.getByRole("tab", { name: "Алгоритмы и вычисления (1)", exact: true }).click();
+  await viewerPage.getByRole("tab", { name: "Алгоритмы (1)", exact: true }).click();
   await viewerPage.getByText("Влияет на результаты расчёта", { exact: true }).waitFor();
   assert.equal(await viewerPage.locator(".whats-new-entry").count(), 1);
   await viewerPage.getByRole("button", { name: "Прочитано", exact: true }).click();
@@ -109,7 +109,38 @@ try {
   await editor.keyboard.press("Escape");
   assert.equal(await editor.locator("dialog[open]").count(), 0);
   assert.equal(await editor.locator(".whats-new-button").evaluate(el => el === document.activeElement), true);
-  assert.deepEqual(errors, []);
   pass("narrow dialog fits, Escape closes it and focus returns to the notification button");
+
+  feed = JSON.parse(await readFile(resolve(root, "data/updates/changes.json"), "utf8"));
+  await show(editor);
+  await editor.getByRole("button", { name: "Проверить обновления", exact: true }).click();
+  for (const [app, appPage] of [["editor", editor], ["viewer", viewerPage]]) {
+    await appPage.getByLabel("Только непрочитанные", { exact: true }).uncheck();
+    await appPage.getByRole("tab", { name: /^Интерфейс/ }).click();
+    const med = appPage.locator(".whats-new-entry").first();
+    await med.getByRole("heading", { name: "Автоматизация заполнения MED", exact: true }).waitFor();
+    assert.equal(await appPage.locator(".whats-new-entry").count(), 2);
+    assert.equal(await med.getByRole("link", { name: "Подробнее" }).getAttribute("href"), `${origin}/__updates/user-guide/index.html#med`);
+    assert.match(await med.textContent(), /В общих параметрах включить Учёт зарядов\./);
+    for (const title of ["Верхняя панель Editor и тема уведомлений", "Уведомления об изменениях и обновлениях"]) {
+      assert.equal(await appPage.getByRole("heading", { name: title, exact: true }).count(), 0);
+    }
+    for (const category of ["Интерфейс", "Алгоритмы"]) {
+      await appPage.getByRole("tab", { name: new RegExp(`^${category} \\(`) }).click();
+      const status = appPage.locator(".whats-new-entry-title .whats-new-entry-status");
+      assert.equal(await status.textContent(), "статус: модель отлаживается");
+      assert.equal(await status.evaluate(el => getComputedStyle(el).color), "rgb(139, 0, 0)");
+      for (const width of [1280, 480]) {
+        await appPage.setViewportSize({ width, height: 900 });
+        const widths = await appPage.getByRole("tab").evaluateAll(tabs => tabs.map(el => el.getBoundingClientRect().width));
+        assert.ok(Math.abs(widths[0] - widths[1]) < 1, "category buttons must have equal widths");
+        assert.ok(await appPage.locator(".whats-new-dialog").evaluate(el => el.scrollWidth <= el.clientWidth + 1));
+        await appPage.screenshot({ path: `${output}/${app}-${category === "Интерфейс" ? "interface" : "algorithms"}-${width}.png` });
+      }
+    }
+    assert.match(await appPage.locator(".whats-new-entry").textContent(), /Ограничения: Для инструмента Editor добавление строк при наличии jweak_local\.json пока запрещено\./);
+  }
+  pass("curated feed in both apps: MED first with details, obsolete entries removed, dark-red contact status and equal-width category buttons at desktop and mobile sizes");
+  assert.deepEqual(errors, []);
   console.log(`${checks.length} browser checks passed; screenshots: ${output}`);
 } finally { await context.close(); await browser.close(); await server.close(); }
