@@ -30,6 +30,8 @@ const selectors = {
   circle: ".header-validation-indicator",
   validationLabel: ".validation-button-label",
   news: ".whats-new-button", about: ".about-button", docs: ".documentation-button", leading: ".task-info-leading",
+  newsLabel: ".whats-new-button .header-action-label", newsCount: ".whats-new-count",
+  docsLabel: ".documentation-button .header-action-label",
   title: ".task-info-title",
   trajectory: '[data-tab-id="moves"]', sources: '[data-tab-id="mhj"]', fmm: '[data-tab-id="fmmLibrary"]',
   hts: '[data-tab-id="htsLibrary"]', settings: '[data-tab-id="conrab"]',
@@ -84,9 +86,10 @@ async function check(label) {
     const settings = document.querySelector('[data-tab-id="conrab"]')?.getBoundingClientRect();
     return docs && settings && Math.abs(docs.left - settings.left) < 0.1 && Math.abs(docs.right - settings.right) < 0.1;
   });
+  await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   const rects = await page.evaluate(selectors => Object.fromEntries(Object.entries(selectors).map(([name, selector]) => {
-    const rect = document.querySelector(selector).getBoundingClientRect();
-    return [name, { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, width: rect.width }];
+    const rect = document.querySelector(selector)?.getBoundingClientRect();
+    return [name, rect && { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, width: rect.width }];
   })), selectors);
   near(rects.docs.left, rects.settings.left, "Documentation/Settings left");
   near(rects.folder.right, rects.tasks.right, "Folder/Task selection right");
@@ -99,23 +102,24 @@ async function check(label) {
   near(rects.news.left, rects.hts.left, "What's new/HTS left");
   near(rects.news.right, rects.hts.right, "What's new/HTS right");
   near(rects.news.width, rects.hts.width, "What's new/HTS width");
-  near(rects.about.right, rects.docs.right - 4, "About is inset from Documentation's right edge");
   assert.ok(rects.about.left >= rects.docs.left && rects.about.top >= rects.docs.top && rects.about.bottom <= rects.docs.bottom,
     "About fits entirely inside Documentation's bounds");
-  const docsTextRight = await page.locator(selectors.docs).evaluate(el => {
-    const range = document.createRange(); range.selectNodeContents(el);
-    return range.getBoundingClientRect().right;
-  });
-  assert.ok(docsTextRight + 2 <= rects.about.left, "Documentation text does not overlap About");
   near(rects.quick.left, rects.fmm.left, "Quick start/FMM left");
   near(rects.save.right, rects.fmm.right, "Save/FMM right");
   near(rects.validate.left, rects.sources.left, "Validate/Sources left");
   near(rects.validate.width, rects.sources.width, "Validate/Sources width");
   near(rects.validate.right, rects.sources.right, "Validate/Sources right");
-  near((rects.circle.left + rects.circle.right) / 2,
-    (rects.validationLabel.right + rects.validate.right) / 2, "Diagnostics centered after the validation label");
-  assert.ok(rects.circle.left >= rects.validationLabel.right && rects.circle.right <= rects.validate.right,
-    `Diagnostics fit between the validation label and its button's right edge: ${JSON.stringify({ circle: rects.circle, label: rects.validationLabel, button: rects.validate })}`);
+  for (const [buttonName, labelName, accessoryName] of [
+    ["validate", "validationLabel", "circle"], ["news", "newsLabel", "newsCount"], ["docs", "docsLabel", "about"],
+  ]) {
+    const button = rects[buttonName], text = rects[labelName], accessory = rects[accessoryName];
+    const leftGap = text.left - button.left;
+    assert.ok(leftGap >= 5.9, `${buttonName}: label clears the border`);
+    if (accessory) {
+      near(leftGap, accessory.left - text.right, `${buttonName}: left and middle gaps match`);
+      near(leftGap, button.right - accessory.right, `${buttonName}: left and right gaps match`);
+    } else near(leftGap, button.right - text.right, `${buttonName}: label centered without an accessory`);
+  }
   near(rects.geometry.right, rects.trajectory.right, "3D/Trajectory right");
   const order = ["leading", "geometry", "validate", "quick", "save", "news", "docs"];
   for (let i = 1; i < order.length; i++) assert.ok(rects[order[i - 1]].right <= rects[order[i]].left + 1, `overlap ${order[i - 1]}/${order[i]}: ${JSON.stringify(rects)}`);
@@ -173,6 +177,14 @@ try {
   assert.ok(fonts.get(1440) < fonts.get(1920), "font shrinks only when needed");
   assert.equal(fonts.get(1920), fonts.get(2560), "wide windows restore the original font size");
   assert.ok(fonts.get(1920) > 13.2, "original tab font size is preserved when it fits");
+  const originalCount = await page.locator(".whats-new-count").textContent();
+  for (const width of [1400, 1920]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.locator(".whats-new-count").evaluate(el => { el.textContent = "123"; });
+    await check(`three-digit news badge keeps equal gaps at ${width}px`);
+    await page.locator(".whats-new-count").evaluate((el, count) => { el.textContent = count; }, originalCount);
+    await check(`single-digit news badge restores equal gaps at ${width}px`);
+  }
   await page.setViewportSize({ width: 1100, height: 900 });
   const boldLabels = await page.addStyleTag({ content: ".tabs-header .tab-label { font-weight: 700; }" });
   await page.locator(".tab-change-indicator").evaluateAll(indicators => indicators.forEach(indicator => indicator.classList.add("dirty")));

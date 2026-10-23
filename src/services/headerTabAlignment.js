@@ -14,13 +14,17 @@ export function installHeaderTabAlignment({ header, tabs }) {
   const originalActionFonts = new Map(actions.map(button => [button, button.style.fontSize]));
   const originalTabFont = tabs.style.getPropertyValue("--tab-label-font-size");
   const originalTabCount = tabs.style.getPropertyValue("--tab-count");
-  const validationLabel = header.querySelector(".model-validation-button .validation-button-label");
   const validationIndicator = header.querySelector(".header-validation-indicator");
+  const pairedActions = new Map([
+    [".model-validation-button", "validation", ".header-validation-indicator"],
+    [".whats-new-button", "news", ".header-news .whats-new-count"],
+    [".documentation-button", "documentation", ".header-documentation .about-button"],
+  ].map(([selector, name, accessory]) => [header.querySelector(selector), { name, accessory }]));
   tabs.style.setProperty("--tab-count", String(tabButtons.length));
   const context = header.ownerDocument.createElement("canvas").getContext("2d");
   function fittedSize(button, bold = false) {
     const isTitle = button.classList.contains("task-info-title");
-    const label = button.querySelector(".tab-label, .validation-button-label") || button;
+    const label = button.querySelector(".tab-label, .validation-button-label, .header-action-label") || button;
     const text = isTitle ? button.textContent.trim() : label === button
       ? Array.from(button.childNodes).filter(node => node.nodeType === 3).map(node => node.textContent).join("").trim()
       : label.textContent.trim();
@@ -37,11 +41,13 @@ export function installHeaderTabAlignment({ header, tabs }) {
     });
     const reserved = siblings.reduce((sum, child) => sum + child.getBoundingClientRect().width, 0)
       + siblings.length * (parseFloat(style.columnGap) || 0);
-    // A centered label leaves half of its unused width on each side. Reserve
-    // enough on both sides for the diagnostic circle and its 2px halo.
-    const diagnosticSpace = label === validationLabel && validationIndicator
-      ? 2 * (validationIndicator.getBoundingClientRect().width + 4) : 0;
-    const available = button.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight) - reserved - diagnosticSpace - 1;
+    const pair = pairedActions.get(button);
+    const accessory = pair && header.querySelector(pair.accessory);
+    // Keep three equal gaps of at least 6px around a label and its accessory,
+    // including room for the button border and the diagnostic circle's halo.
+    const available = pair
+      ? button.getBoundingClientRect().width - (accessory?.getBoundingClientRect().width || 0) - (accessory ? 3 : 2) * 6 - 1
+      : button.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight) - reserved - 1;
     const fits = size => {
       context.font = `${bold ? 700 : font.fontWeight} ${size}px ${font.fontFamily}`;
       return lines.every(line => context.measureText(line).width <= available);
@@ -80,13 +86,22 @@ export function installHeaderTabAlignment({ header, tabs }) {
       const size = `${fittedSize(button)}px`;
       if (button.style.fontSize !== size) button.style.fontSize = size;
     }
-    if (validationLabel) {
-      // The diagnostic control is a separate click target, centered in the
-      // space after the label inside the full-width validation button.
-      const center = (validationLabel.getBoundingClientRect().right + buttons.get("mhj").getBoundingClientRect().right) / 2 - origin;
-      const name = "--header-validation-center", value = `${center}px`;
+    const setVariable = (name, value) => {
       variables.add(name);
       if (header.style.getPropertyValue(name) !== value) header.style.setProperty(name, value);
+    };
+    for (const [button, pair] of pairedActions) {
+      const label = button?.querySelector(".validation-button-label, .header-action-label");
+      if (!label) continue;
+      const bounds = button.getBoundingClientRect();
+      const accessory = header.querySelector(pair.accessory);
+      const accessoryWidth = accessory?.getBoundingClientRect().width || 0;
+      const gap = (bounds.width - label.getBoundingClientRect().width - accessoryWidth) / (accessory ? 3 : 2);
+      setVariable(`--header-${pair.name}-gap`, `${gap}px`);
+      if (accessory === validationIndicator) {
+        // Diagnostics stay a separate click target above the main button.
+        setVariable("--header-validation-center", `${bounds.right - origin - gap - accessoryWidth / 2}px`);
+      }
     }
   }
   const schedule = () => { if (!disposed && !frame) frame = view.requestAnimationFrame(measure); };
