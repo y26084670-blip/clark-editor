@@ -1,6 +1,8 @@
 import { createLensVectorDetails } from "../../services/visualization/lensVectorDetails.js";
 import { normalizeSourceVectorScale } from "../../services/visualization/sourceVectorScale.js";
 import { createViewportLens } from "../../services/visualization/viewportLens.js";
+import { createViewportLensHintPreference } from "../../services/visualization/viewportLensHint.js";
+import "../../services/visualization/viewportLensHint.css";
 import { createThinVectorHover } from "../../services/visualization/thinVectorHover.js";
 import {
   Show,
@@ -1197,7 +1199,8 @@ export function applyGeometryOpacity(layers, geometryOpacity, defaults) {
 }
 
 export function ThreeGeometryViewport(props) {
-  let viewportLens, vectorHover, lensVectorDetails;
+  let viewportLens, vectorHover, lensVectorDetails, lensHintPreference;
+  const [showLensHint, setShowLensHint] = createSignal(false);
   let host;
   let renderer;
   let threeScene;
@@ -2186,6 +2189,7 @@ export function ThreeGeometryViewport(props) {
   };
 
   onMount(() => {
+    lensHintPreference = createViewportLensHintPreference({ window: host.ownerDocument.defaultView, onChange: setShowLensHint });
     void Promise.all([
       import("three"),
       import("three/addons/controls/OrbitControls.js"),
@@ -2219,7 +2223,7 @@ export function ThreeGeometryViewport(props) {
       if (THREE.SRGBColorSpace) renderer.outputColorSpace = THREE.SRGBColorSpace;
       host.append(renderer.domElement);
       lensVectorDetails = createLensVectorDetails(THREE);
-      viewportLens = createViewportLens({ THREE, renderer,
+      viewportLens = createViewportLens({ THREE, renderer, onActivate: () => lensHintPreference.dismiss(),
         renderDetails: (scene, camera) => lensVectorDetails.render(scene, camera, () => renderer.render(scene, camera)),
         enabled: () => props.enableLens === true && !contextLost, requestRender });
       vectorHover = createThinVectorHover({ scene: threeScene, requestRender });
@@ -2436,7 +2440,7 @@ export function ThreeGeometryViewport(props) {
 
   onCleanup(() => {
     disposed = true;
-    viewportLens?.dispose(); vectorHover?.dispose(); lensVectorDetails?.dispose();
+    viewportLens?.dispose(); vectorHover?.dispose(); lensVectorDetails?.dispose(); lensHintPreference?.dispose();
     axisRotationController?.dispose();
     flightController?.dispose();
     props.onFlightReady?.(null);
@@ -2486,6 +2490,9 @@ export function ThreeGeometryViewport(props) {
       aria-label="Трёхмерная геометрия элементов и областей"
       aria-busy={loading()}
     >
+      <Show when={props.enableLens === true && ready() && !error() && showLensHint()}>
+        <span class="viewport-lens-hint" style={{ "--viewport-lens-hint-left": `${AXES_GIZMO_SIZE + AXES_GIZMO_MARGIN + 8}px` }}>Нажми Пробел !</span>
+      </Show>
       <Show when={flightActive()}>
         <div class="geometry-flight-reticle" classList={{ "has-target": Boolean(flightPivot() || flightTarget()) }} role="status">
           <span>{flightPivot() ? `Центр вращения · ${flightPivot().label}` : flightTarget()?.label ?? "Наведите прицел на узел или элемент"}</span>
