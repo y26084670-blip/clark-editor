@@ -1,3 +1,4 @@
+import { readTaskDirectoryLists } from "../services/taskDirectoryRefresh.js";
 //
 // вкладка выбора задания
 //
@@ -60,6 +61,7 @@ export function Tasks(props) {
   const [catalogsBound, setCatalogsBound] = createSignal(false);
   let catalogSelect;
   const [projectListBusy, setProjectListBusy] = createSignal(false);
+  const [taskListBusy, setTaskListBusy] = createSignal(false);
   const [projectBrowseNotice, setProjectBrowseNotice] = createSignal("");
   const [rootHandle, setRootHandle] = createSignal(null);
   const [rootName, setRootName] = createSignal("");
@@ -111,7 +113,7 @@ export function Tasks(props) {
     });
   });
 
-  const galleryDisabled = () => sketchOpen() || accessBusy() || projectListBusy() || Boolean(operation()) || demoLoading() || bindingBusy()
+  const galleryDisabled = () => sketchOpen() || accessBusy() || projectListBusy() || taskListBusy() || Boolean(operation()) || demoLoading() || bindingBusy()
     || launchBusy() || taskLaunchOpen() || omClientState().busy || props.editorBusy || selectionReceiving();
   const operationsBlocked = () => galleryDisabled() || galleryBusy();
   createEffect(() => props.onTaskActionsChange?.({
@@ -581,25 +583,30 @@ export function Tasks(props) {
     }
   }
 
-  async function refreshProjects() {
-    const handle = rootHandle();
-    if (!handle || operationsBlocked()) return;
+  async function refreshDirectoryLists(refreshProjects) {
+    const handle = rootHandle(), name = selectedProject();
+    if (!handle || operationsBlocked() || (!refreshProjects && !name)) return;
     const request = invalidateBrowserSelection();
-    setProjectListBusy(true);
+    const setBusy = refreshProjects ? setProjectListBusy : setTaskListBusy;
+    setBusy(true);
     try {
-      const entries = await getSubdirs(handle);
+      const snapshot = await readTaskDirectoryLists({ root: handle, projectName: name, projects: projects(), refreshProjects });
       if (disposed || request !== selectionRevision || handle !== rootHandle()) return;
+      const selected = snapshot.tasks.find(item => item.name === selectedTask()?.name) ?? null;
       batch(() => {
-        setProjects(entries);
-        if (!entries.some(item => item.name === selectedProject())) {
-          setSelectedProject(""); setTasks([]); setSelectedTask(null);
-          setTaskInfo(EMPTY_TASK_INFO); setTaskResultsText("");
+        setProjects(snapshot.projects); setSelectedProject(snapshot.projectName); setTasks(snapshot.tasks);
+        if (!selected) {
+          setSelectedTask(null); setTaskInfo(EMPTY_TASK_INFO); setTaskResultsText("");
         }
       });
+      if (selected) await selectTaskCandidate(selected);
+      await taskStatus.refresh();
     } catch (error) {
-      if (!disposed && request === selectionRevision) showTaskError("Не удалось обновить список проектов: " + error.message);
-    } finally { if (!disposed) setProjectListBusy(false); }
+      if (!disposed && request === selectionRevision) showTaskError(`Не удалось обновить список ${refreshProjects ? "проектов" : "заданий"}: ${error.message}`);
+    } finally { if (!disposed) setBusy(false); }
   }
+  const refreshProjects = () => refreshDirectoryLists(true);
+  const refreshTasks = () => refreshDirectoryLists(false);
 
   // выбор проекта
   const handleProjectChange = async (event) => {
@@ -875,11 +882,11 @@ export function Tasks(props) {
               <button
                 type="button"
                 class="task-status-refresh"
-                disabled={!tasks().length || taskStatus.busy() || galleryBusy() || operationBusy()}
+                disabled={!selectedProject() || operationsBlocked() || taskStatus.busy()}
                 aria-label="Обновить список заданий"
-                aria-busy={taskStatus.busy()}
+                aria-busy={taskListBusy() || taskStatus.busy()}
                 title="Обновить список заданий"
-                onClick={() => { void taskStatus.refresh(); }}
+                onClick={refreshTasks}
               >↻</button>
             </div>
             <div

@@ -1,3 +1,4 @@
+import { formatGraphNumber } from "../../services/graphs/graphNumbers.js";
 import {
   createEffect,
   createSignal,
@@ -88,6 +89,7 @@ function GeneratorPreviewGraph(props) {
           maintainAspectRatio: false,
           animation: false,
           normalized: true,
+            locale: "ru-RU",
           plugins: {
             legend: { labels: { color: "#334552" } },
           },
@@ -99,7 +101,7 @@ function GeneratorPreviewGraph(props) {
                 text: "Время",
                 color: "#334552",
               },
-              ticks: { color: "#596b78" },
+              ticks: { color: "#596b78", callback: formatGraphNumber },
               grid: { color: "rgba(90, 112, 128, .16)" },
             },
             y: {
@@ -109,7 +111,7 @@ function GeneratorPreviewGraph(props) {
                 text: props.label || "Значение",
                 color: "#334552",
               },
-              ticks: { color: "#596b78" },
+              ticks: { color: "#596b78", callback: formatGraphNumber },
               grid: { color: "rgba(90, 112, 128, .16)" },
             },
           },

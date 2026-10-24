@@ -147,3 +147,21 @@ test("malformed record graph rows fail before Chart creation", () => {
         /не содержит таблицу/u,
     );
 });
+
+
+test("impulse and trajectory ticks show the full value independently of browser locale", () => {
+    for (const [schema, records, mode] of [
+        [ampsSchema, [{ impuls: [[0, 0], [.02, 5000]] }], "amplitude"],
+        [movesSchema, [{ position: [[0, 0, 0, 0], [.02, 5000, -5000, .0002]] }], "position"],
+    ]) {
+        const config = recordGraphConfig(schema, records, mode);
+        for (const axis of ["x", "y"]) {
+            const format = config.options.scales[axis].ticks.callback;
+            assert.equal(format(5000), "5000");
+            assert.equal(format(-5000), "-5000");
+            assert.equal(format(.0002), "0,0002");
+            assert.match(format(1e-12), /1.*12/u);
+            assert.notEqual(format(1e-12), "0");
+        }
+    }
+});

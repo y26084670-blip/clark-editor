@@ -1023,6 +1023,7 @@ export function GeometryViewerWindow(props) {
           </Show>
           <Show when={flightNotice()}><div class="geometry-flight-hint" role="status">{flightNotice()}</div></Show>
           <ThreeGeometryViewport
+            enableLens={true}
             allowFlight={true} flightFrameKey={timeState().index}
             onFlightReady={control => { flightControl = control; setFlightReady(Boolean(control)); }}
             onFlightStateChange={onFlightStateChange}

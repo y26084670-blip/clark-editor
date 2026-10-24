@@ -1,3 +1,4 @@
+import { formatGraphNumber } from "./graphNumbers.js";
 const COLORS = Object.freeze([
     "#4e9af1",
     "#e36d67",
@@ -96,6 +97,7 @@ export function recordGraphConfig(schema, records, modeValue) {
             maintainAspectRatio: false,
             animation: false,
             normalized: true,
+            locale: "ru-RU",
             plugins: {
                 legend: {
                     display: true,
@@ -110,7 +112,7 @@ export function recordGraphConfig(schema, records, modeValue) {
                         text: mode.x.title,
                         color: "#dce4ec",
                     },
-                    ticks: { color: "#b8c3cd" },
+                    ticks: { color: "#b8c3cd", callback: formatGraphNumber },
                     grid: { color: "rgba(180, 195, 208, .16)" },
                 },
                 y: {
@@ -120,7 +122,7 @@ export function recordGraphConfig(schema, records, modeValue) {
                         text: mode.y.title,
                         color: "#dce4ec",
                     },
-                    ticks: { color: "#b8c3cd" },
+                    ticks: { color: "#b8c3cd", callback: formatGraphNumber },
                     grid: { color: "rgba(180, 195, 208, .16)" },
                 },
             },
