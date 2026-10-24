@@ -128,8 +128,11 @@ try {
     for (const category of ["Интерфейс", "Алгоритмы"]) {
       await appPage.getByRole("tab", { name: new RegExp(`^${category} \\(`) }).click();
       const status = appPage.locator(".whats-new-entry-title .whats-new-entry-status");
-      assert.equal(await status.textContent(), "статус: модель отлаживается");
-      assert.equal(await status.evaluate(el => getComputedStyle(el).color), "rgb(139, 0, 0)");
+      if (category === "Интерфейс") assert.equal(await status.count(), 0);
+      else {
+        assert.equal(await status.textContent(), "статус: модель готова к использованию");
+        assert.equal(await status.evaluate(el => getComputedStyle(el).color), "rgb(139, 0, 0)");
+      }
       for (const width of [1280, 480]) {
         await appPage.setViewportSize({ width, height: 900 });
         const widths = await appPage.getByRole("tab").evaluateAll(tabs => tabs.map(el => el.getBoundingClientRect().width));
@@ -140,7 +143,7 @@ try {
     }
     assert.match(await appPage.locator(".whats-new-entry").textContent(), /Ограничения: Для инструмента Editor добавление строк при наличии jweak_local\.json пока запрещено\./);
   }
-  pass("curated feed in both apps: MED first with details, obsolete entries removed, dark-red contact status and equal-width category buttons at desktop and mobile sizes");
+  pass("curated feed in both apps: MED first with details, obsolete entries removed, interface without status, ready-to-use algorithm status and equal-width category buttons at desktop and mobile sizes");
   assert.deepEqual(errors, []);
   console.log(`${checks.length} browser checks passed; screenshots: ${output}`);
 } finally { await context.close(); await browser.close(); await server.close(); }

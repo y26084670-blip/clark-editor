@@ -26,7 +26,7 @@ page.on("pageerror", error => errors.push(error.message));
 const near = (a, b, label) => assert.ok(Math.abs(a - b) < 1, `${label}: ${a} vs ${b}`);
 const selectors = {
   folder: ".task-info-leading > .validate-button", tasks: '[data-tab-id="tasks"]',
-  geometry: ".validation-controls > .geometry-button", validate: ".model-validation-button", save: ".save-button", quick: ".general-information-button",
+  geometry: ".header-geometry-actions > .geometry-button", validate: ".model-validation-button", save: ".save-button", quick: ".general-information-button",
   circle: ".header-validation-indicator",
   validationLabel: ".validation-button-label",
   news: ".whats-new-button", about: ".about-button", docs: ".documentation-button", leading: ".task-info-leading",
@@ -105,7 +105,8 @@ async function check(label) {
   assert.ok(rects.about.left >= rects.docs.left && rects.about.top >= rects.docs.top && rects.about.bottom <= rects.docs.bottom,
     "About fits entirely inside Documentation's bounds");
   near(rects.quick.left, rects.fmm.left, "Quick start/FMM left");
-  near(rects.save.right, rects.fmm.right, "Save/FMM right");
+  near(rects.quick.right, rects.fmm.right, "Quick start/FMM right");
+  near(rects.quick.width, rects.fmm.width, "Quick start/FMM width");
   near(rects.validate.left, rects.sources.left, "Validate/Sources left");
   near(rects.validate.width, rects.sources.width, "Validate/Sources width");
   near(rects.validate.right, rects.sources.right, "Validate/Sources right");
@@ -120,8 +121,12 @@ async function check(label) {
       near(leftGap, button.right - accessory.right, `${buttonName}: left and right gaps match`);
     } else near(leftGap, button.right - text.right, `${buttonName}: label centered without an accessory`);
   }
-  near(rects.geometry.right, rects.trajectory.right, "3D/Trajectory right");
-  const order = ["leading", "geometry", "validate", "quick", "save", "news", "docs"];
+  near(rects.save.right, rects.trajectory.right, "Save/Trajectory right");
+  near(rects.save.left - rects.geometry.right, 6, "3D/Save gap");
+  near(rects.geometry.top, rects.save.top, "3D/Save vertical alignment");
+  near(rects.save.width, 32, "Save icon width");
+  assert.ok(rects.geometry.left >= rects.trajectory.left, "3D and Save fit above Trajectories");
+  const order = ["leading", "geometry", "save", "validate", "quick", "news", "docs"];
   for (let i = 1; i < order.length; i++) assert.ok(rects[order[i - 1]].right <= rects[order[i]].left + 1, `overlap ${order[i - 1]}/${order[i]}: ${JSON.stringify(rects)}`);
   for (const name of ["validate", "quick", "news", "docs"]) {
     assert.ok(await page.locator(selectors[name]).evaluate(el => el.scrollWidth <= el.clientWidth), `${name}: header label fits`);

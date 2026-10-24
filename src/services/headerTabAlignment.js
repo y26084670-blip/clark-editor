@@ -7,7 +7,7 @@ export function installHeaderTabAlignment({ header, tabs }) {
   if (ids.some(id => !buttons.get(id))) return () => {};
   const tabButtons = Array.from(tabs.querySelectorAll("[data-tab-id]"));
   const actions = Array.from(header.querySelectorAll(
-    ".validation-controls > .model-validation-button, .header-save-start > .general-information-button, " +
+    ".validation-controls > .model-validation-button, .header-quick-start > .general-information-button, " +
     ".header-documentation > .documentation-button, .header-news > .whats-new-button, .task-info-title",
   ));
   const caps = new Map([...tabButtons, ...actions].map(button => [button, parseFloat(view.getComputedStyle(button).fontSize)]));
