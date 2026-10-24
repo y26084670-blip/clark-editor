@@ -1,5 +1,6 @@
 import { GEOMETRY_FLIGHT_HELP, formatGeometryFlightSpeed } from "../../services/visualization/geometryFlightController.js";
 import { createGeometryViewSetting } from "../../services/visualization/geometryViewSettings.js";
+import { SOURCE_SCALE_MIN_EXPONENT, SOURCE_SCALE_MAX_EXPONENT, sourceScaleLabel } from "../../services/visualization/sourceVectorScale.js";
 import { installGeometryOverlayDrag } from "../../services/visualization/geometryOverlayDrag.js";
 import {
   For,
@@ -74,9 +75,6 @@ const OBJECT_MODE_LABELS = Object.freeze({
 
 const OPTIONS_PANEL_ID = "geometry-viewer-options-panel";
 const FLOATING_FIT_ALL_PADDING = 1 + 0.08 / 3;
-
-const sourceScaleLabel = (scale) =>
-  `×${scale.toLocaleString("ru-RU", { maximumFractionDigits: 2 })}`;
 
 function diagnosticDetail(diagnostic) {
   if (typeof diagnostic === "string") return diagnostic;
@@ -966,8 +964,8 @@ export function GeometryViewerWindow(props) {
                 </span>
                 <input
                   type="range"
-                  min="-1"
-                  max="1"
+                  min={SOURCE_SCALE_MIN_EXPONENT}
+                  max={SOURCE_SCALE_MAX_EXPONENT}
                   step="0.01"
                   value={Math.log10(currentSourceScale())}
                   aria-label="Масштаб длины стрелок плотности тока"
@@ -976,7 +974,7 @@ export function GeometryViewerWindow(props) {
                     setCurrentSourceScale(10 ** event.currentTarget.valueAsNumber)}
                 />
                 <span class="geometry-viewer-source-scale-ticks" aria-hidden="true">
-                  <span>×0,1</span><span>×1</span><span>×10</span>
+                  <span>×0,0001</span><span>×1</span><span>×10000</span>
                 </span>
               </label>
               <label class="geometry-viewer-source-scale is-magnetization">
@@ -986,8 +984,8 @@ export function GeometryViewerWindow(props) {
                 </span>
                 <input
                   type="range"
-                  min="-1"
-                  max="1"
+                  min={SOURCE_SCALE_MIN_EXPONENT}
+                  max={SOURCE_SCALE_MAX_EXPONENT}
                   step="0.01"
                   value={Math.log10(magnetizationSourceScale())}
                   aria-label="Масштаб длины стрелок намагниченности"
@@ -996,7 +994,7 @@ export function GeometryViewerWindow(props) {
                     setMagnetizationSourceScale(10 ** event.currentTarget.valueAsNumber)}
                 />
                 <span class="geometry-viewer-source-scale-ticks" aria-hidden="true">
-                  <span>×0,1</span><span>×1</span><span>×10</span>
+                  <span>×0,0001</span><span>×1</span><span>×10000</span>
                 </span>
               </label>
               <button
