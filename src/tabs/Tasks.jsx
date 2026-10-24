@@ -54,6 +54,7 @@ export function Tasks(props) {
   const [diskHandle, setDiskHandle] = createSignal(null);
   const [catalogs, setCatalogs] = createSignal([]);
   const [accessOpen, setAccessOpen] = createSignal(true);
+  const [diskPicked, setDiskPicked] = createSignal(false);
   const [accessBusy, setAccessBusy] = createSignal(false);
   const [bindingRequest, setBindingRequest] = createSignal(null);
   const [catalogsBound, setCatalogsBound] = createSignal(false);
@@ -525,7 +526,7 @@ export function Tasks(props) {
 
   // Выбор диска не открывает служебные каталоги и не изменяет прежнюю привязку.
   const handlePickDirectory = async () => {
-    if (accessDisabled()) return;
+    if (accessDisabled() || diskPicked()) return;
     const pickRevision = ++directoryPickRevision;
     setAccessBusy(true);
     try {
@@ -538,6 +539,8 @@ export function Tasks(props) {
         setBindingRequest(null); setBindingNotice(""); setCatalogsBound(false);
       });
       await selectCatalog(selected.catalogs.find(item => item.name === previousName) ?? selected.catalogs[0]);
+      if (disposed || pickRevision !== directoryPickRevision) return;
+      setDiskPicked(true);
       try { await saveProjectDisk(selected.handle); }
       catch {
         if (!disposed && pickRevision === directoryPickRevision) {
@@ -812,7 +815,7 @@ export function Tasks(props) {
     <div class="tasks-scroll-viewport">
     <div class="tasks-layout" ref={taskPanels}>
       <TaskAccessDialog open={accessOpen() && props.active !== false && !props.helpOpen}
-        disk={diskHandle()} count={catalogs().length} busy={accessBusy() || bindingBusy()}
+        disk={diskHandle()} picked={diskPicked()} count={catalogs().length} busy={accessBusy() || bindingBusy()}
         notice={bindingNotice()} bound={catalogsBound()} onPick={handlePickDirectory} onBind={bindWorkspace} onClose={closeAccess} />
       <div class="task-browser-panel">
         <div class="task-browser-content">

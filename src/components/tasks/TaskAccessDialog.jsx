@@ -11,10 +11,11 @@ export function TaskAccessDialog(props) {
   return <dialog ref={dialog} class="task-access-dialog" aria-labelledby="task-access-title"
     onCancel={event => { event.preventDefault(); if (!props.busy) props.onClose(); }}>
     <h2 id="task-access-title">Доступ к проектам</h2>
-    <p>Выберите диск с проектами и разрешите чтение и запись. Каталоги clark.* появятся в верхнем списке; clark.app исключён.</p>
+    <p>Выберите диск с проектами и разрешите чтение и запись.</p>
+    <p>Каталоги clark.* с проектами появятся в верхнем списке.</p>
     <div class="task-access-row">
-      <button ref={picker} type="button" onClick={props.onPick} disabled={props.busy}>Выбрать диск с проектами</button>
-      <p class="task-access-location">{props.disk ? `Выбрано: ${props.disk.name || "корень диска"}. Каталогов: ${props.count}.` : "Диск ещё не выбран."}</p>
+      <button ref={picker} type="button" onClick={props.onPick} disabled={props.busy || props.picked}>Выбрать диск с проектами</button>
+      <p class="task-access-location">Выбрано каталогов: {props.count}</p>
     </div>
     <Show when={props.disk && !props.count}><p>В корне выбранного диска нет каталогов clark.* с проектами.</p></Show>
     <div class="task-access-row">

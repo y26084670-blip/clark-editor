@@ -52,7 +52,7 @@ const reloadEditorAccess = async () => {
 };
 const pickEditor = async () => {
   await access.getByRole("button", { name: "Выбрать диск с проектами", exact: true }).click();
-  await editor.waitForFunction(() => !document.querySelector(".task-access-dialog button").disabled);
+  await editor.waitForFunction(() => !document.querySelector(".task-access-actions button:last-child").disabled);
 };
 try {
   await viewerPage.goto(`${origin}/__shared-disk/viewer`);
@@ -231,7 +231,7 @@ try {
   assert.equal(await viewerPage.locator("#projectCatalog").inputValue(), "CLARK.Tests");
   assert.equal(await viewerPage.evaluate(() => diskFixture.path()), viewerLoadedPath);
   pass("another tab changing the shared disk does not switch an existing Viewer task");
-  await editor.evaluate(() => accessFixture.mode("disk")); await pickEditor(); await editor.close();
+  await reloadEditorAccess(); await pickEditor(); await editor.close();
   await viewerPage.reload(); await waitCatalog(viewerPage, "clark.projects");
   assert.equal(await viewerPage.evaluate(() => diskFixture.calls.length), 0);
   pass("Viewer restores the saved disk after the Editor tab is closed and Viewer is reloaded");
@@ -253,16 +253,32 @@ try {
     await viewerPage.evaluate(value => diskFixture.mode(value), mode);
     await viewerPage.getByRole("button", { name: "Выбрать диск с проектами", exact: true }).click();
     await waitCatalog(viewerPage, "clark.projects");
+    await viewerPage.waitForFunction(() => !document.querySelector('.task-disk-dialog-actions button:last-child').disabled);
+    assert.equal(await viewerPage.getByRole("button", { name: "Выбрать диск с проектами", exact: true }).isEnabled(), true);
   }
   pass("cancelled and denied disk pickers preserve the current catalog");
   await viewerPage.goto(`${origin}/__shared-disk/viewer?permission=delay`);
   await viewerPage.waitForFunction(() => window.diskFixture?.queries.length === 1);
   await viewerPage.getByRole("button", { name: "Выбрать диск с проектами", exact: true }).click();
   await waitCatalog(viewerPage, "clark.viewer");
+  await viewerPage.waitForFunction(() => !document.querySelector('.task-disk-dialog-actions button:last-child').disabled);
+  assert.equal(await viewerPage.getByRole("button", { name: "Выбрать диск с проектами", exact: true }).isDisabled(), true);
+  assert.equal(await viewerPage.locator('.task-disk-dialog-row p').textContent(), 'Выбрано каталогов: 1');
   await viewerPage.evaluate(() => diskFixture.release());
   await viewerPage.waitForLoadState("networkidle");
   assert.equal(await viewerPage.locator("#projectCatalog").inputValue(), "clark.viewer");
   pass("late restoration cannot overwrite a newer explicit disk selection");
+  assert.deepEqual(await viewerPage.locator('.task-disk-dialog > p').allTextContents(), [
+    'Выберите диск с проектами и разрешите чтение и запись.',
+    'Каталоги clark.* с проектами появятся в верхнем списке.',
+  ]);
+  assert.equal(await viewerPage.locator('.task-disk-dialog').evaluate(el => el.getBoundingClientRect().width), 550);
+  await viewerPage.screenshot({ path: `${output}/viewer-access.png` });
+  await viewerPage.reload();
+  await waitCatalog(viewerPage, "clark.viewer");
+  await viewerPage.waitForFunction(() => !document.querySelector('.task-disk-dialog-actions button:last-child').disabled);
+  assert.equal(await viewerPage.getByRole("button", { name: "Выбрать диск с проектами", exact: true }).isEnabled(), true);
+  pass("Viewer selection stays disabled after success; F5 restores access to the picker");
   await closeViewerAccess(viewerPage);
   for (const width of [1100, 1440]) {
     await viewerPage.setViewportSize({ width, height: width === 1100 ? 600 : 900 });
