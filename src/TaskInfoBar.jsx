@@ -188,21 +188,48 @@ export function TaskInfoBar(props) {
         </div>
       </div>
       <div class="validation-controls">
-        <button
-          ref={props.geometryViewerButtonRef}
-          class="geometry-button"
-          disabled={!props.path}
-          onClick={props.onGeometryViewerToggle}
-          title={props.geometryViewerOpen
-            ? "Закрыть 3D-просмотр геометрии"
-            : "Открыть 3D-просмотр геометрии"}
-          aria-label={props.geometryViewerOpen
-            ? "Закрыть 3D-просмотр геометрии"
-            : "Открыть 3D-просмотр геометрии"}
-          aria-pressed={props.geometryViewerOpen}
-        >
-          3D
-        </button>
+        <div class="header-geometry-actions">
+          <button
+            ref={props.geometryViewerButtonRef}
+            class="geometry-button"
+            disabled={!props.path}
+            onClick={props.onGeometryViewerToggle}
+            title={props.geometryViewerOpen
+              ? "Закрыть 3D-просмотр геометрии"
+              : "Открыть 3D-просмотр геометрии"}
+            aria-label={props.geometryViewerOpen
+              ? "Закрыть 3D-просмотр геометрии"
+              : "Открыть 3D-просмотр геометрии"}
+            aria-pressed={props.geometryViewerOpen}
+          >
+            3D
+          </button>
+          <button
+            class="save-button"
+            classList={{
+              "save-button-saving": props.saving,
+              "save-button-success": props.saveFeedback?.status === "success",
+              "save-button-error": props.saveFeedback?.status === "error",
+            }}
+            disabled={!props.path || props.isDemo || props.saveBusy}
+            onClick={props.onSave}
+            title={saveButtonTitle()}
+            aria-label="Сохранить модель"
+            aria-busy={Boolean(props.saving)}
+          >
+            <span class="save-button-symbol" aria-hidden="true">
+              <img class="header-action-icon" src={saveIconUrl} alt="" draggable={false} />
+            </span>
+            <Show when={props.saveFeedback}>
+              <span class="save-button-confirmation" aria-hidden="true">
+                {props.saveFeedback?.status === "success" ? "✓" : "!"}
+              </span>
+            </Show>
+          </button>
+          <span class="save-feedback-announcement" role="status" aria-live="polite">
+            {props.saveFeedback?.message ?? (props.saving ? "Сохранение модели…" : "")}
+          </span>
+        </div>
 
         <button
           class="validate-button model-validation-button"
@@ -230,7 +257,7 @@ export function TaskInfoBar(props) {
 
         <div class="header-validation-indicator"><ValidationIndicator /></div>
 
-        <div class="header-save-start">
+        <div class="header-quick-start">
           <button
             ref={(el) => (generalInformationButton = el)}
             type="button"
@@ -242,33 +269,6 @@ export function TaskInfoBar(props) {
           >
             Быстрый старт
           </button>
-
-          <button
-            class="save-button"
-            classList={{
-              "save-button-saving": props.saving,
-              "save-button-success": props.saveFeedback?.status === "success",
-              "save-button-error": props.saveFeedback?.status === "error",
-            }}
-            disabled={!props.path || props.isDemo || props.saveBusy}
-            onClick={props.onSave}
-            title={saveButtonTitle()}
-            aria-label="Сохранить модель"
-            aria-busy={Boolean(props.saving)}
-          >
-            <span class="save-button-symbol" aria-hidden="true">
-              <img class="header-action-icon" src={saveIconUrl} alt="" draggable={false} />
-            </span>
-            <Show when={props.saveFeedback}>
-              <span class="save-button-confirmation" aria-hidden="true">
-                {props.saveFeedback?.status === "success" ? "✓" : "!"}
-              </span>
-            </Show>
-          </button>
-          <span class="save-feedback-announcement" role="status" aria-live="polite">
-            {props.saveFeedback?.message ?? (props.saving ? "Сохранение модели…" : "")}
-          </span>
-
         </div>
 
         <div class="header-news">

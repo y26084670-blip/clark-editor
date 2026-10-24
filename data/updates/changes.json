@@ -17,7 +17,7 @@
     },
     {
       "id": "contact-editor-input-20261023",
-      "revision": 2,
+      "revision": 3,
       "category": "interface",
       "release": "editor-4.76.2",
       "date": "2026-10-23",
@@ -26,12 +26,11 @@
       "versions": {
         "Editor": "4.76.2"
       },
-      "detailsUrl": "user-guide/index.html#contact-element",
-      "status": "статус: модель отлаживается"
+      "detailsUrl": "user-guide/index.html#contact-element"
     },
     {
       "id": "contact-current-20261022",
-      "revision": 3,
+      "revision": 4,
       "category": "computation",
       "release": "contact-current-20261022",
       "date": "2026-10-22",
@@ -40,7 +39,7 @@
       "action": "Для подготовки источника используйте «Контактное возбуждение» на вкладке «Элементы» Editor.",
       "limitations": "Для инструмента Editor добавление строк при наличии jweak_local.json пока запрещено. Приёмка контактного режима в установленном комплекте остаётся отдельной проверкой.",
       "detailsUrl": "user-guide/index.html#prescribed-current-contact",
-      "status": "статус: модель отлаживается"
+      "status": "статус: модель готова к использованию"
     }
   ]
 }

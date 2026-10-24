@@ -18,7 +18,8 @@
     gap: 10px;
 }
 
-.header-save-start,
+.header-geometry-actions,
+.header-quick-start,
 .header-news,
 .header-documentation {
     display: flex;
@@ -32,7 +33,7 @@
 
 .task-info-bar--aligned .task-info-leading {
     flex: 0 1 auto;
-    width: max(0px, calc(var(--header-moves-right) - 62px));
+    width: max(0px, calc(var(--header-moves-right) - 100px));
 }
 
 .task-info-bar--aligned .task-info-leading > .validate-button {
@@ -55,14 +56,14 @@
     position: absolute;
     top: 50%;
     left: max(128px, calc(var(--header-tasks-right) + 10px));
-    right: calc(100% - var(--header-moves-right) + 54px);
+    right: calc(100% - var(--header-moves-right) + 92px);
     transform: translateY(-50%);
 }
 
-.task-info-bar--aligned .validation-controls > .geometry-button,
+.task-info-bar--aligned .header-geometry-actions,
 .task-info-bar--aligned .model-validation-button,
 .task-info-bar--aligned .header-validation-indicator,
-.task-info-bar--aligned .header-save-start,
+.task-info-bar--aligned .header-quick-start,
 .task-info-bar--aligned .header-news,
 .task-info-bar--aligned .header-documentation {
     position: absolute;
@@ -70,7 +71,7 @@
     transform: translateY(-50%);
 }
 
-.task-info-bar--aligned .validation-controls > .geometry-button {
+.task-info-bar--aligned .header-geometry-actions {
     right: calc(100% - var(--header-moves-right));
 }
 
@@ -93,20 +94,24 @@
     max-width: max(0px, calc(var(--header-validation-center) - 8px));
 }
 
-.task-info-bar--aligned .header-save-start {
+.task-info-bar--aligned .header-quick-start {
     left: var(--header-fmmLibrary-left);
     width: var(--header-fmmLibrary-width);
-    gap: 6px;
 }
 
-.task-info-bar--aligned .header-save-start .save-button {
+.header-geometry-actions {
+    gap: 6px;
+    flex: 0 0 auto;
+}
+
+.task-info-bar .header-geometry-actions .save-button {
     flex: 0 0 32px;
     width: 32px;
     padding-left: 0;
     padding-right: 0;
 }
 
-.task-info-bar--aligned .header-save-start .general-information-button {
+.task-info-bar--aligned .header-quick-start .general-information-button {
     flex: 1 1 0;
     min-width: 0;
     width: auto;
