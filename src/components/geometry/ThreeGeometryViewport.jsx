@@ -1,4 +1,5 @@
 import { createLensVectorDetails } from "../../services/visualization/lensVectorDetails.js";
+import { normalizeSourceVectorScale } from "../../services/visualization/sourceVectorScale.js";
 import { createViewportLens } from "../../services/visualization/viewportLens.js";
 import { createThinVectorHover } from "../../services/visualization/thinVectorHover.js";
 import {
@@ -349,8 +350,7 @@ function updateMotionBuffer(THREE, buffer, resolveInstances) {
 export { createPrescribedSourceVectors, captureMotionBuffer, updateMotionBuffer };
 
 function prescribedSourceScale(value) {
-  const scale = Number(value ?? 1);
-  return Number.isFinite(scale) ? Math.max(0.1, Math.min(10, scale)) : 1;
+  return normalizeSourceVectorScale(value);
 }
 
 function validMatrix(value) {
