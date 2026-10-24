@@ -2216,7 +2216,7 @@ export function ThreeGeometryViewport(props) {
       renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
       if (THREE.SRGBColorSpace) renderer.outputColorSpace = THREE.SRGBColorSpace;
       host.append(renderer.domElement);
-      viewportLens = createViewportLens({ THREE, renderer, enabled: () => props.enableLens === true && !contextLost && !flightController?.active, requestRender });
+      viewportLens = createViewportLens({ THREE, renderer, enabled: () => props.enableLens === true && !contextLost, requestRender });
       vectorHover = createThinVectorHover({ scene: threeScene, requestRender });
 
       OrbitControlsClass = controlsModule.OrbitControls;
