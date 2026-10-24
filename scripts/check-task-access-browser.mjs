@@ -28,7 +28,12 @@ const access = page.locator('.task-access-dialog'), help = page.locator('.genera
 const button = name => access.getByRole('button', { name, exact: true });
 const pick = async () => {
   await button('Выбрать диск с проектами').click();
-  await page.waitForFunction(() => !document.querySelector('.task-access-dialog button').disabled);
+  await page.waitForFunction(() => !document.querySelector('.task-access-actions button:last-child').disabled);
+};
+const reloadAccess = async () => {
+  await page.evaluate(() => localStorage.setItem('e3d.generalInformation.openAtStartup', 'false'));
+  await page.reload(); await page.waitForFunction(() => window.accessFixture?.ready);
+  await access.waitFor({ state: 'visible' });
 };
 const bound = () => page.waitForFunction(() => document.querySelector('.task-access-bind--bound'));
 try {
@@ -39,10 +44,25 @@ try {
   await help.getByRole('button', { name: 'Закрыть', exact: true }).click();
   await access.waitFor({ state: 'visible' });
   check('only one modal and focus inside access panel', await page.locator('dialog[open]').count() === 1 && await access.evaluate(el => el.contains(document.activeElement)));
+  check('instructions are separate paragraphs and catalog count starts at zero',
+    JSON.stringify(await access.locator(':scope > p').allTextContents()) === JSON.stringify([
+      'Выберите диск с проектами и разрешите чтение и запись.',
+      'Каталоги clark.* с проектами появятся в верхнем списке.', ''
+    ]) && await access.locator('.task-access-location').textContent() === 'Выбрано каталогов: 0');
+  for (const mode of ['cancel', 'denied']) {
+    await page.evaluate(value => accessFixture.mode(value), mode); await pick();
+    check(`${mode} keeps the picker available for retry`, await button('Выбрать диск с проектами').isEnabled());
+  }
+  await page.evaluate(() => accessFixture.mode('disk'));
   await pick();
   await page.waitForFunction(() => document.querySelector('#projectCatalog')?.options.length === 2);
   check('service directories, clark.app and files excluded', JSON.stringify(await page.locator('#projectCatalog option').allTextContents()) === JSON.stringify(['clark.projects', 'CLARK.Tests']));
-  check('one picker requests entire selected disk read-write', await page.evaluate(() => accessFixture.calls.length === 1 && accessFixture.calls[0].mode === 'readwrite'));
+  check('picker requests entire selected disk read-write', await page.evaluate(() => accessFixture.calls.every(call => call.mode === 'readwrite')));
+  check('completed selection disables picker and displays catalog count', await button('Выбрать диск с проектами').isDisabled()
+    && await access.locator('.task-access-location').textContent() === 'Выбрано каталогов: 2');
+  const picks = await page.evaluate(() => accessFixture.calls.length);
+  await button('Выбрать диск с проектами').evaluate(el => el.click());
+  check('disabled picker cannot open another selection', await page.evaluate(() => accessFixture.calls.length) === picks);
   await button('Связать с Решателем').click();
   await page.waitForFunction(async () => { try { return !!(await accessFixture.read('clark.catalogs-request.json')).requestId; } catch { return false; } });
   const request = await page.evaluate(() => accessFixture.read('clark.catalogs-request.json'));
@@ -53,29 +73,31 @@ try {
   check('stale result does not confirm binding', !await access.locator('.task-access-bind--bound').count());
   await page.evaluate(() => accessFixture.ack()); await bound();
   check('full confirmation changes button label and color', await button('Связано с Решателем').evaluate(el => el.classList.contains('task-access-bind--bound') && getComputedStyle(el).backgroundColor === 'rgb(152, 229, 181)'));
-  for (const mode of ['cancel', 'denied']) {
-    await page.evaluate(value => accessFixture.mode(value), mode); await pick();
-    check(`${mode} preserves binding confirmation`, await button('Связано с Решателем').isVisible());
-    check(`${mode} preserves selected catalog`, await page.locator('#projectCatalog').inputValue() === 'clark.projects');
-  }
-  await page.evaluate(() => accessFixture.mode('disk')); await pick();
-  check('new disk selection resets confirmation', await button('Связать с Решателем').evaluate(el => !el.classList.contains('task-access-bind--bound')));
+  await reloadAccess();
+  check('F5 enables disk selection again', await button('Выбрать диск с проектами').isEnabled());
+  await pick();
+  check('new disk selection after F5 resets confirmation', await button('Связать с Решателем').evaluate(el => !el.classList.contains('task-access-bind--bound')));
   await button('Связать с Решателем').click();
-  await page.waitForFunction(old => accessFixture.read('clark.catalogs-request.json').then(r => r.requestId !== old), request.requestId);
+  await page.waitForFunction(old => accessFixture.read('clark.catalogs-request.json').then(r => r.requestId !== old).catch(() => false), request.requestId);
   await page.evaluate(() => accessFixture.ack('error'));
   await page.waitForFunction(() => document.querySelector('.task-access-notice')?.textContent.includes('1 из 2'));
   check('partial error remains yellow and retry is enabled', await button('Связать с Решателем').isEnabled() && await button('Связать с Решателем').evaluate(el => getComputedStyle(el).backgroundColor === 'rgb(255, 223, 85)'));
   const partialRequest = await page.evaluate(() => accessFixture.read('clark.catalogs-request.json'));
   await button('Связать с Решателем').click();
-  await page.waitForFunction(old => accessFixture.read('clark.catalogs-request.json').then(r => r.requestId !== old), partialRequest.requestId);
+  await page.waitForFunction(old => accessFixture.read('clark.catalogs-request.json').then(r => r.requestId !== old).catch(() => false), partialRequest.requestId);
   await page.evaluate(() => accessFixture.ack()); await bound();
-  await page.evaluate(() => accessFixture.mode('empty')); await pick();
+  await reloadAccess(); await page.evaluate(() => accessFixture.mode('empty')); await pick();
   check('empty disk clears catalog and project lists', await page.locator('#projectCatalog').isDisabled() && await button('Продолжить').isDisabled() && await page.locator('#listProject option').count() === 1);
-  await page.evaluate(() => accessFixture.mode('disk')); await pick();
+  check('completed empty-disk selection also disables picker', await button('Выбрать диск с проектами').isDisabled());
+  await reloadAccess(); await pick();
   await mkdir('/tmp/clark-disk-browser', { recursive: true });
   for (const width of [1100, 1440]) {
     await page.setViewportSize({ width, height: width === 1100 ? 600 : 900 });
     check(`dialog fits ${width}px`, await access.evaluate(el => { const r = el.getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight; }));
+    check(`dialog is narrower and footer buttons remain aligned at ${width}px`, await access.evaluate(el => {
+      const buttons = [...el.querySelectorAll('.task-access-actions button')].map(button => button.getBoundingClientRect());
+      return el.getBoundingClientRect().width === 550 && Math.abs(buttons[0].top - buttons[1].top) < 1;
+    }));
     await page.screenshot({ path: `/tmp/clark-disk-browser/access-${width}.png` });
   }
   await button('Продолжить').click();

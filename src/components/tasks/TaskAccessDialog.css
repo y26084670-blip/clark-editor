@@ -1,6 +1,6 @@
 .task-access-dialog {
   --task-access-action-height: 31px;
-  width: min(560px, calc(100vw - 48px));
+  width: min(550px, calc(100vw - 48px));
   max-height: calc(100dvh - 48px);
   box-sizing: border-box;
   overflow: auto;
@@ -25,7 +25,7 @@
 .task-access-notice:empty { margin: 0; }
 .task-access-actions { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; margin-left: 226px; padding: calc(var(--task-access-action-height) / 2) 3px calc(var(--task-access-action-height) / 2) 0; }
 .task-access-actions > button { width: 120px; height: var(--task-access-action-height); box-sizing: border-box; }
-@media (max-width: 560px) {
+@media (max-width: 598px) {
   .task-access-row { grid-template-columns: minmax(0, 1fr); gap: 8px; }
   .task-access-row > button { width: min(210px, 100%); }
   .task-access-actions { margin-left: 0; }
