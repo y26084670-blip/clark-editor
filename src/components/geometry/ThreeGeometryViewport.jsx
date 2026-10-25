@@ -2491,7 +2491,7 @@ export function ThreeGeometryViewport(props) {
       aria-busy={loading()}
     >
       <Show when={props.enableLens === true && ready() && !error() && showLensHint()}>
-        <span class="viewport-lens-hint" style={{ "--viewport-lens-hint-left": `${AXES_GIZMO_SIZE + AXES_GIZMO_MARGIN + 8}px` }}>Нажми Пробел !</span>
+        <span class="viewport-lens-hint" style={{ "--viewport-lens-hint-left": `${AXES_GIZMO_SIZE + AXES_GIZMO_MARGIN + 8}px` }}>Щелкни и нажми Пробел!</span>
       </Show>
       <Show when={flightActive()}>
         <div class="geometry-flight-reticle" classList={{ "has-target": Boolean(flightPivot() || flightTarget()) }} role="status">
