@@ -476,6 +476,14 @@
     cursor: default;
 }
 
+.task-info-bar .validation-controls .save-button.save-button-dirty,
+.task-info-bar .validation-controls .save-button.save-button-dirty:hover:not(:disabled),
+.task-info-bar .validation-controls .save-button.save-button-dirty:disabled {
+    background: #e88837;
+    border-color: #a84b12;
+    color: #30200e;
+}
+
 .about-button {
     flex: 0 0 30px;
     width: 30px;

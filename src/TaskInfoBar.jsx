@@ -54,7 +54,7 @@ export function TaskInfoBar(props) {
   const saveButtonTitle = () => props.isDemo
     ? "Сохранение демонстрационной задачи недоступно"
     : props.saveFeedback?.message
-      ?? (props.saveBusy ? "Сохранение модели…" : "Сохранить модель");
+      ?? (props.saveBusy ? "Сохранение модели…" : props.modelDirty ? "Сохранить изменения модели" : "Сохранить модель");
   const validationButtonTitle = () => props.validationFeedback?.message
     ?? (props.validationBusy ? "Проверка модели…" : "Проверить модель");
 
@@ -207,6 +207,7 @@ export function TaskInfoBar(props) {
           <button
             class="save-button"
             classList={{
+              "save-button-dirty": props.modelDirty || props.saving,
               "save-button-saving": props.saving,
               "save-button-success": props.saveFeedback?.status === "success",
               "save-button-error": props.saveFeedback?.status === "error",

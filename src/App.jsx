@@ -738,6 +738,7 @@ export default function App() {
           && validationPending().taskHandle === selectionService.loadedTaskHandle()}
         validationFeedback={validationFeedback()}
         onSave={handleSave}
+        modelDirty={unsavedChangesService.hasDirty()}
         saveBusy={Boolean(savePending())}
         saving={Boolean(savePending())
           && savePending().taskHandle === selectionService.loadedTaskHandle()}

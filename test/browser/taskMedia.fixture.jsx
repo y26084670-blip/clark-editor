@@ -68,13 +68,13 @@ function Fixture() {
       <strong>Выбор задания — GIF / DOCS</strong><p>Тестовое задание «{selected()?.name}»</p>
     </div>
     <div style={{ position: "relative", flex: "1", "min-height": "0" }}>
-      <div class="tasks-layout">
+      <div class="tasks-scroll-viewport"><div class="tasks-layout">
         <section class="task-browser-panel"><div class="task-browser-content">Исходный эскиз и документация</div></section>
         <section class="task-summary-panel"><div class="task-geometry-preview" /><textarea readOnly value="Сводка исходных данных" /><footer>исходные данные</footer></section>
         <Show when={mounted()}><TaskMediaPanel taskHandle={selected()} active={active()} refreshKey={revision()}
           disabled={busy()} onBusyChange={value => { metrics.busy.push(value); setBusy(value); }}
           resultsSummary="Сводка результатов расчёта" /></Show>
-      </div>
+      </div></div>
     </div>
   </div>;
 }
