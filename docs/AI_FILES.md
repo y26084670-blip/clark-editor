@@ -1,6 +1,15 @@
 # Карта файлов и компонентов web-gui
 
-Обновлено: 2026-10-25 21:04 UTC+3.
+Обновлено: 2026-10-25 21:46 UTC+3.
+
+Протоколы сравнения по T (4.78.0): `src/tabs/Tasks.jsx` связывает строку
+с кнопкой `src/components/tasks/TaskStatusCells.jsx`/`.css`.
+`src/services/taskTestProtocolService.js` рекурсивно читает HTML из comparison;
+`taskTestProtocolWindow.js` владеет отдельным окном и ресурсами. Оба сервиса
+совпадают с Viewer 4.51.0. Их проверки: `test/taskTestProtocolService.test.js`,
+`test/taskTestProtocolWindow.test.js`, `scripts/check-task-protocols-browser.mjs`
+на существующем `test/browser/taskOperations.fixture.jsx`.
+[Контракт](AI_UI_CONTRACTS.md#task-comparison-protocols).
 
 Пакет по эскизу (4.70.0): `SketchRequestDialog.jsx`/`.css` в
 `src/components/tasks/` — ввод и выдача файлов; `Tasks.jsx` владеет открытием,

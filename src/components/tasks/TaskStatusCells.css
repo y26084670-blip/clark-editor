@@ -32,9 +32,17 @@
 }
 .task-status-movie svg { stroke-width: 1.8; }
 .task-status-comparison { color: #86d6ff; font: 800 16px/1 Arial, sans-serif; }
+.task-status-protocol-button {
+    width: 100%;
+    min-height: 22px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+}
+.task-status-protocol-button:hover:not(:disabled) { background: #476078; }
 .task-status-name { min-width: 0; }
 
 .task-status-om-active { background: #d8efda; border-radius: 2px; }
-.task-status-om-disabled { background: #e97132; border-radius: 2px; }
+.task-status-om-disabled { background: #fff0b3; border-radius: 2px; }
 .task-status-om-active .task-status-solution,
 .task-status-om-disabled .task-status-solution { color: #226c37; }

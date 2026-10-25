@@ -20,6 +20,7 @@ import { OMClientWindow } from "../components/tasks/OMClientWindow.jsx";
 import { TaskStatusCells } from "../components/tasks/TaskStatusCells.jsx";
 import { LastOpenedTaskMarker, ProjectSelectValue } from "../components/tasks/LastOpenedTaskMarker.jsx";
 import { useTaskStatuses } from "../services/taskStatusMonitor.js";
+import { createTaskTestProtocolWindow } from "../services/taskTestProtocolWindow.js";
 import { createLastOpenedTaskHistory, sortTaskDirectories } from "../services/taskLastOpenedService.js";
 import { createTaskSelectionChannel, readTaskSelection } from "../services/taskSelectionChannel.js";
 import { importUsedTaskMaterials } from "../services/taskImportMaterialsService.js";
@@ -100,6 +101,7 @@ export function Tasks(props) {
   const [operationError, setOperationError] = createSignal("");
   const [operationFailed, setOperationFailed] = createSignal(false);
   const [galleryBusy, setGalleryBusy] = createSignal(false);
+  const [protocolBusy, setProtocolBusy] = createSignal(false);
   const [selectionReceiving, setSelectionReceiving] = createSignal(false);
   const [selectionSending, setSelectionSending] = createSignal(false);
   const [selectionNotice, setSelectionNotice] = createSignal("");
@@ -114,7 +116,7 @@ export function Tasks(props) {
   });
 
   const galleryDisabled = () => sketchOpen() || accessBusy() || projectListBusy() || taskListBusy() || Boolean(operation()) || demoLoading() || bindingBusy()
-    || launchBusy() || taskLaunchOpen() || omClientState().busy || props.editorBusy || selectionReceiving();
+    || launchBusy() || taskLaunchOpen() || omClientState().busy || props.editorBusy || selectionReceiving() || protocolBusy();
   const operationsBlocked = () => galleryDisabled() || galleryBusy();
   createEffect(() => props.onTaskActionsChange?.({
     createProjectEnabled: Boolean(rootHandle()) && !operationsBlocked() && !omClientState().open,
@@ -297,6 +299,15 @@ export function Tasks(props) {
   let bindingRevision = 0;
   let bindingPolling = false;
   let disposed = false;
+  const protocolWindow = createTaskTestProtocolWindow();
+  onCleanup(() => protocolWindow.dispose());
+  async function openTestProtocols(task) {
+    if (operationsBlocked() || pendingTaskLoad()) return;
+    setProtocolBusy(true);
+    try { await protocolWindow.open(task.handle, { label: `${selectedProject()}/${task.name}` }); }
+    catch (error) { if (!disposed && error.name !== "AbortError") showTaskError(error.message); }
+    finally { if (!disposed) setProtocolBusy(false); }
+  }
   const selectionChannel = createTaskSelectionChannel({ app: "editor", onSelection: receiveTaskSelection });
   onCleanup(() => selectionChannel.dispose());
 
@@ -649,7 +660,7 @@ export function Tasks(props) {
   };
 
   const selectTaskCandidate = async (task, { external = false } = {}) => {
-    if (galleryBusy() || (selectionReceiving() && !external)) return;
+    if (galleryBusy() || protocolBusy() || (selectionReceiving() && !external)) return;
     taskLoadRevision += 1;
     const requestId = ++taskInfoRevision;
     const summaryRequest = ++inputSummaryRevision;
@@ -750,7 +761,7 @@ export function Tasks(props) {
   };
 
   const requestDemoLoad = async () => {
-    if (operation() || galleryBusy()) return;
+    if (operation() || galleryBusy() || protocolBusy()) return;
     if (demoLoading()) return;
     const requestId = ++taskLoadRevision;
     setDemoLoading(true);
@@ -773,7 +784,7 @@ export function Tasks(props) {
   };
 
   const requestTaskLoad = async () => {
-    if (operation() || galleryBusy()) return;
+    if (operation() || galleryBusy() || protocolBusy()) return;
     const task = selectedTask();
     if (!task || task.handle === loadedTaskHandle()) return;
     const requestId = ++taskLoadRevision;
@@ -872,7 +883,7 @@ export function Tasks(props) {
               <button
                 type="button"
                 class="task-demo-button"
-                disabled={demoLoading() || galleryBusy()}
+                disabled={demoLoading() || galleryBusy() || protocolBusy()}
                 aria-busy={demoLoading()}
                 title="Загрузить демонстрационную задачу для редактирования"
                 onClick={requestDemoLoad}
@@ -908,7 +919,8 @@ export function Tasks(props) {
                   }}
                   title="Двойной щелчок — загрузить задание для редактирования"
                 >
-                  <TaskStatusCells status={taskStatus(task.handle)} />
+                  <TaskStatusCells status={taskStatus(task.handle)} disabled={operationsBlocked() || Boolean(pendingTaskLoad())}
+                    onOpenProtocols={() => { void openTestProtocols(task); }} />
                   <span class="task-status-name"><Show when={isLastTask(task)}><LastOpenedTaskMarker label="Последнее открытое задание" /></Show>{task.name}</span>
                 </div>
               ))}
@@ -918,7 +930,7 @@ export function Tasks(props) {
         <div class="task-browser-actions">
           <button
             class="task-load-button"
-            disabled={!selectedTask() || taskLoaded() || galleryBusy() || selectionReceiving()}
+            disabled={!selectedTask() || taskLoaded() || galleryBusy() || selectionReceiving() || protocolBusy()}
             onClick={requestTaskLoad}
           >
             <span class="task-load-label">

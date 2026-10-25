@@ -1,6 +1,33 @@
 # Проверка web-gui
 
-Обновлено: 2026-10-25 21:07 UTC+3.
+Обновлено: 2026-10-25 21:47 UTC+3.
+
+<a id="verification-task-comparison-protocols"></a>
+## Протоколы comparison по T — Editor 4.78.0
+
+2026-10-25; база main `b4332a8`, Linux/Node.js 24.22.1, Chromium 156/Playwright.
+[Контракт](AI_UI_CONTRACTS.md#task-comparison-protocols).
+
+Фактически выполнено:
+
+- `node --test test/taskTestProtocolService.test.js test/taskTestProtocolWindow.test.js test/taskStatusService.test.js test/taskStatusMonitor.test.js` — **36/36**: рекурсивный поиск, исходные байты, сортировка,
+  доступ/отмена, частичные ошибки, блокировка окна и освобождение URL.
+- `node --test test/userGuideAssets.test.js test/taskLastOpenedService.test.js test/taskSelectionChannel.test.js` — **51/51**: ссылки/ресурсы руководства, история и канал выбора задания.
+- `scripts/check-task-protocols-browser.mjs` — **9/9 групп** на настоящем App
+  и OPFS: T для пустого/непустого comparison, три HTML на разных уровнях,
+  работа скрипта и выгрузки CSV, неизменность выделения/dirty-модели/истории,
+  блокировка повторных действий при задержанном чтении, Enter/Пробел,
+  ошибки пустого каталога и запрещённого popup. JS-исключений нет.
+  Скриншоты списка и окна протоколов просмотрены.
+- `npm run build:pages` завершён успешно; штатные проверки ресурсов и SHA-256
+  руководства пройдены. Версии package.json/package-lock.json согласованы.
+- Оба сервиса taskTestProtocol и их Node-тесты побайтно совпадают с Viewer 4.51.0.
+  Раздел «Неформальные замечания» в resume.md сохранён без изменений.
+
+Браузерный скрипт использует существующий taskOperations fixture и переменные
+PLAYWRIGHT_MODULE, CHROMIUM_EXECUTABLE, CHECK_OUTPUT. Системный выбор каталога
+подменён; разрешения установленного Windows-браузера не проверялись. Полный
+набор Editor для этой правки не запускался.
 
 <a id="verification-docs-save-warning"></a>
 ## DOCS и фон дискеты — Editor 4.77.0 / Viewer 4.51.0
