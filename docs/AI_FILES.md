@@ -1,6 +1,6 @@
 # Карта файлов и компонентов web-gui
 
-Обновлено: 2026-10-22 22:05 UTC+3.
+Обновлено: 2026-10-25 21:04 UTC+3.
 
 Пакет по эскизу (4.70.0): `SketchRequestDialog.jsx`/`.css` в
 `src/components/tasks/` — ввод и выдача файлов; `Tasks.jsx` владеет открытием,
@@ -14,7 +14,7 @@
 
 Общий диск (4.69.0): `src/services/projectDiskAccessService.js` — маска,
 перечисление каталогов, IndexedDB, уведомление и проверка разрешения; файл
-совпадает с Viewer. `TaskDocsGallery.jsx` — подсказка в нижнем списке DOCS.
+совпадает с Viewer. `TaskDocsGallery.jsx` — одинаковый просмотр DOCS с Viewer.
 `scripts/check-shared-disk-browser.mjs` проверяет два GUI на одном origin;
 стенд `test/browser/projectDisk.fixture.jsx` находится в Viewer.
 
@@ -145,9 +145,9 @@
 | Предпросмотр | `src/services/taskGeometryPreviewService.js`, `src/components/geometry/TaskGeometryPreview.jsx` | Подготовка и показ геометрии выбранного, но ещё не загруженного задания. |
 | Вкладки GIF/DOCS | `src/components/tasks/TaskMediaPanel.jsx`, `TaskMediaPanel.css` | Локальные вкладки и счётчики, отдельные области изображений/текста; подключение к выбранному заданию в `src/tabs/Tasks.jsx`. [Контракт](AI_UI_CONTRACTS.md#task-docs-gallery). |
 | Галереи и окно | `src/components/tasks/TaskImageGallery.jsx`, `TaskMediaDialog.jsx`, `TaskGifGallery.css` | Общая сетка, действия, видимость миниатюр, модальное окно изображений и текста. Префикс CSS `task-gif-` сохранён для общей оболочки. |
-| Специализация галерей | `src/components/tasks/TaskGifGallery.jsx`, `TaskDocsGallery.jsx` | GIF подключает плеер и удаление; DOCS — изображения и текст только для чтения. |
+| Специализация галерей | `src/components/tasks/TaskGifGallery.jsx`, `TaskDocsGallery.jsx` | GIF подключает плеер и удаление; DOCS — изображения, TXT/MD/HTML и действия только для выбранного README.txt. |
 | Жизненный цикл изображений | `src/services/taskImageGalleryController.js`, `taskGifGalleryController.js` | Общая ограниченная очередь, счётчик скрытой галереи, отмена и освобождение URL; GIF-обёртка задаёт файловый сервис и удаление. |
-| Документация задания | `src/services/taskDocsService.js`, `taskDocsTextController.js` | Чтение DOCS, форматы, порядок и выбор README; отдельная очередь и защита актуальности выбранного текста. |
+| Документация задания | `src/services/taskDocsService.js`, `taskDocsTextController.js`, `taskDocsBrowser.js` | Чтение DOCS, выбор документа, очередь и защита актуальности; открытие исходного HTML отдельной вкладкой браузера и время жизни Blob URL. |
 | Файлы GIF | `src/services/taskGifService.js` | File System Access API для списка, чтения, записи, удаления и уведомлений об изменении. Editor использует просмотр и удаление; сохранение фильма вызывает Viewer. |
 | Проверки GIF | `test/taskGifGallery.test.js`, `test/taskGifService.test.js` | Проверки контроллера, обработчиков компонента и файлового сервиса. [Методика](AI_VERIFICATION.md#verification-task-gifs-441). |
 | Проверки DOCS и общей панели | `test/taskDocs.test.js`, `test/browser/taskMedia.html`, `test/browser/taskMedia.fixture.jsx`, `scripts/check-task-media-browser.mjs` | Файловый сервис и контроллер текста; браузерные сценарии с реальным Solid, OPFS, изображениями и диалогами. [Методика](AI_VERIFICATION.md#verification-task-docs). |
