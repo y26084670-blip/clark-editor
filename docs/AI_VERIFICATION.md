@@ -1,6 +1,42 @@
 # Проверка web-gui
 
-Обновлено: 2026-10-25 21:47 UTC+3.
+Обновлено: 2026-10-26 00:22 UTC+3.
+
+<a id="verification-webm-speed"></a>
+## Скорость WebM — Editor 4.79.0 / Viewer 4.52.0
+
+2026-10-26; база Editor `eb4dc9a`, Viewer `ed2fd60`; Linux, Node.js 24.22.1,
+Chromium 156/Playwright, настоящие OPFS и декодер WebM.
+[Контракт](AI_UI_CONTRACTS.md#task-webm-speed).
+
+Фактически выполнено:
+
+- В каждом приложении `node --test test/taskGifGallery.test.js test/taskGifPlayback.test.js test/taskGifService.test.js test/taskDocs.test.js` — **58/58**.
+- `scripts/check-webm-speed-browser.mjs` — **11/11 групп в каждом приложении**:
+  точный набор 0,1× / 0,3× / 0,5× / 1× / 2×; изменение playbackRate без смены
+  URL, currentTime и паузы; фактический ход медиа-времени при всех пяти
+  скоростях; сохранение скорости при refresh/размере; отсутствие перетаскивания
+  и навигации при выборе в SELECT; сброс при переходах, повторном открытии
+  и смене задания; отсутствие регулятора у GIF/DOCS; неизменность байтов
+  исходных WebM и освобождение всех Blob URL. Отношение изменения currentTime
+  к прошедшему времени соответствует выбранной скорости в обоих приложениях.
+- `scripts/check-task-media-browser.mjs` — **9/9 Editor**, **10/10 Viewer**.
+  Общие окна GIF/изображений/документов, клавиатура, перетаскивание, размеры,
+  удаление и cleanup сохранены. JS-исключений нет.
+- `node --test test/userGuideAssets.test.js` — **12/12 Editor**.
+- `npm run build:pages` успешен в обоих приложениях. Editor: 185 файлов
+  характеристик и 32 файла руководства сверены по SHA-256.
+- Снимки регулятора при 1100×600 просмотрены в обоих приложениях; размеры
+  1100×600 и 1440×900 проверены браузерным сценарием. Общие четыре файла
+  компонента и сценарий проверки побайтно совпадают. Версии согласованы;
+  «Неформальные замечания» в resume.md сохранены.
+
+Воспроизведение: npm ci, указанные Node-команды и браузерные скрипты;
+при необходимости PLAYWRIGHT_MODULE, CHROMIUM_EXECUTABLE, CHECK_OUTPUT.
+Скрипт скорости содержит короткий VP9 WebM и использует существующий taskMedia
+fixture. Системные разрешения Windows и полный набор тестов для этого
+изменения не проверялись.
+
 
 <a id="verification-task-comparison-protocols"></a>
 ## Протоколы comparison по T — Editor 4.78.0

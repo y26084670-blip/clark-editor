@@ -1,6 +1,14 @@
 # Карта файлов и компонентов web-gui
 
-Обновлено: 2026-10-25 21:46 UTC+3.
+Обновлено: 2026-10-26 00:20 UTC+3.
+
+Скорость WebM (4.79.0): `src/components/tasks/TaskGifGallery.jsx` — значение
+и список скоростей; `TaskImageGallery.jsx` — смена URL предпросмотра;
+`TaskMediaDialog.jsx` — дополнительные элементы заголовка; `TaskGifGallery.css`
+— оформление. Все четыре файла синхронны с Viewer 4.52.0.
+`scripts/check-webm-speed-browser.mjs` использует существующий taskMedia fixture
+и встроенный короткий WebM для проверки реального воспроизведения.
+[Контракт](AI_UI_CONTRACTS.md#task-webm-speed).
 
 Протоколы сравнения по T (4.78.0): `src/tabs/Tasks.jsx` связывает строку
 с кнопкой `src/components/tasks/TaskStatusCells.jsx`/`.css`.
