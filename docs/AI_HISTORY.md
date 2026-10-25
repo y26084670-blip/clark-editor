@@ -1,6 +1,6 @@
 # История решений web-gui
 
-Обновлено: 2026-10-22 22:31 UTC+3.
+Обновлено: 2026-10-25 21:50 UTC+3.
 
 ## Назначение
 
@@ -9,9 +9,19 @@
 проблемы — [`AI_ARCHITECTURE_AUDIT.md`](AI_ARCHITECTURE_AUDIT.md), порядок
 будущих работ — [`AI_ROADMAP.md`](AI_ROADMAP.md).
 
-Последнее обновление: приложение 4.75.0, [PR #139](https://github.com/y26084670-blip/clark-editor/pull/139).
+Последнее обновление: приложение 4.78.0, [PR #167](https://github.com/y26084670-blip/clark-editor/pull/167).
 
 ## Основные этапы
+
+### 2026-10-25 21:50 UTC+3 — протоколы сравнения по T, 4.78.0
+
+[PR #167](https://github.com/y26084670-blip/clark-editor/pull/167) слит в main
+коммитом `aa479f94296f63bda20bdb366af15918fba77a3a` в рамках поручения
+обновить/опубликовать Editor и дополнения о недостающем действии T.
+Кнопка в списке заданий открывает все HTML из comparison и подкаталогов
+с работающими скриптами, сохраняя текущую модель и выделение.
+[Контракт](AI_UI_CONTRACTS.md#task-comparison-protocols),
+[87 Node-проверок, 9 браузерных групп и Pages-сборка](AI_VERIFICATION.md#verification-task-comparison-protocols).
 
 ### 2026-10-22 22:31 UTC+3 — работа с проектами, 4.75.0
 
