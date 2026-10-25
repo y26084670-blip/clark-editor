@@ -1,6 +1,6 @@
 # Проверка web-gui
 
-Обновлено: 2026-10-26 00:22 UTC+3.
+Обновлено: 2026-10-26 00:26 UTC+3.
 
 <a id="verification-webm-speed"></a>
 ## Скорость WebM — Editor 4.79.0 / Viewer 4.52.0
@@ -34,8 +34,11 @@ Chromium 156/Playwright, настоящие OPFS и декодер WebM.
 Воспроизведение: npm ci, указанные Node-команды и браузерные скрипты;
 при необходимости PLAYWRIGHT_MODULE, CHROMIUM_EXECUTABLE, CHECK_OUTPUT.
 Скрипт скорости содержит короткий VP9 WebM и использует существующий taskMedia
-fixture. Системные разрешения Windows и полный набор тестов для этого
-изменения не проверялись.
+fixture. Системные разрешения Windows и полный набор Editor для этого
+изменения не проверялись. Полный npm test Viewer и Pages-сборка прошли в
+[Verify Viewer 40235319860](https://github.com/y26084670-blip/clark-viewer/actions/runs/40235319860).
+Сборки Editor на Linux/Windows прошли в
+[Build editor 40235317442](https://github.com/y26084670-blip/clark-editor/actions/runs/40235317442).
 
 
 <a id="verification-task-comparison-protocols"></a>

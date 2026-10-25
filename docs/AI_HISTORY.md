@@ -1,6 +1,6 @@
 # История решений web-gui
 
-Обновлено: 2026-10-25 21:50 UTC+3.
+Обновлено: 2026-10-26 00:26 UTC+3.
 
 ## Назначение
 
@@ -9,9 +9,21 @@
 проблемы — [`AI_ARCHITECTURE_AUDIT.md`](AI_ARCHITECTURE_AUDIT.md), порядок
 будущих работ — [`AI_ROADMAP.md`](AI_ROADMAP.md).
 
-Последнее обновление: приложение 4.78.0, [PR #167](https://github.com/y26084670-blip/clark-editor/pull/167).
+Последнее обновление: приложение 4.79.0, [PR #169](https://github.com/y26084670-blip/clark-editor/pull/169).
 
 ## Основные этапы
+
+### 2026-10-26 00:26 UTC+3 — скорость WebM, Editor 4.79.0 / Viewer 4.52.0
+
+[Editor PR #169](https://github.com/y26084670-blip/clark-editor/pull/169)
+слит в main коммитом `ea64c67f1ee6fc2778a74a8ade2d107196be78e2`;
+[Viewer PR #116](https://github.com/y26084670-blip/clark-viewer/pull/116) —
+`dbe3a61233c4e684fef003ee00e57ba1eac6eb25`.
+Пять скоростей в заголовке просмотра: 0,1× / 0,3× / 0,5× / 1× / 2×.
+Настройка действует только для текущего открытия ролика; при навигации
+или повторном открытии возвращается 1×. Позиция и пауза сохраняются.
+[Контракт](AI_UI_CONTRACTS.md#task-webm-speed),
+[локальные проверки и успешный CI](AI_VERIFICATION.md#verification-webm-speed).
 
 ### 2026-10-25 21:50 UTC+3 — протоколы сравнения по T, 4.78.0
 
