@@ -51,32 +51,32 @@ export function SketchRequestDialog(props) {
   }
   return <dialog ref={dialog} class="sketch-request-dialog" aria-labelledby="sketch-request-title"
     onCancel={event => { event.preventDefault(); props.onClose(); }}>
-    <header><h2 id="sketch-request-title">Создать геометрию по эскизу</h2><button type="button" aria-label="Закрыть подготовку по эскизу" onClick={props.onClose}>×</button></header>
+    <header><h2 id="sketch-request-title">ZIP по эскизу для ИИ</h2><button type="button" aria-label="Закрыть подготовку по эскизу" onClick={props.onClose}>×</button></header>
     <div class="sketch-request-content">
-      <p>Подготовьте пакет для нового чата ChatGPT. Модель получит эскиз, ваше условие и правила CLARK, задаст уточнения и подготовит исходные данные.</p>
-      <label>Название задания<input ref={titleInput} value={title()} maxLength={120} placeholder="Например, кольца и стержень"
+      <p>Добавьте эскиз и скачайте ZIP для передачи ИИ: в архив войдут рисунок, ваше условие и правила CLARK. Создание задания — отдельный этап.</p>
+      <label>Название запроса<input ref={titleInput} value={title()} maxLength={120} placeholder="Необязательно, например: кольца и стержень"
         onInput={e => { invalidate(); setTitle(e.currentTarget.value); }} /></label>
       <label>Эскизы<input ref={fileInput} type="file" accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp" multiple onChange={selectImages} /></label>
       <small>От 1 до 3 изображений, до 8 МиБ каждое и 16 МиБ вместе. Исходные изображения сохраняются без преобразования.</small>
       <div class="sketch-request-previews"><For each={previews()}>{entry => <figure><img src={entry.url} alt={`Эскиз: ${entry.file.name}`}
         onError={() => setError("Не удалось показать изображение. Проверьте выбранный файл.")} /><figcaption>{entry.file.name}</figcaption></figure>}</For></div>
-      <label>Условие и известные размеры<textarea rows={5} value={description()} maxLength={SKETCH_LIMITS.description}
-        placeholder="Что изображено? Какие размеры известны? Что должно двигаться и что требуется определить? Неизвестные данные можно уточнить в чате."
+      <p>Для начала геометрического черновика достаточно обозначить на эскизе опорный размер <strong>d</strong> и указать его в миллиметрах, например <strong>d = 10 мм</strong>. Остальные размеры ИИ оценит как пробные, сохраняя изображённые положение и ориентацию тел. Дополнительные условия можно добавить по необходимости.</p>
+      <label>Масштаб и уточнения<textarea rows={3} value={description()} maxLength={SKETCH_LIMITS.description}
+        placeholder="d = 10 мм"
         onInput={e => { invalidate(); setDescription(e.currentTarget.value); }} /></label>
       <details><summary>Что получит модель</summary><p>Выбранные Вами изображения и введённое условие, а также полученные от Editor инструкцию CLARK и формальное описание исходных данных. Пакет как zip архив передаёте вы; Editor ничего не отправляет к ИИ.</p></details>
       <p class="sketch-request-error" role="alert">{error()}</p>
       <p role="status">{busy() ? "Подготовка пакета…" : prepared() ? "Пакет готов к скачиванию" : ""}</p>
-      <button class="sketch-request-primary" type="button" disabled={busy() || !previews().length} onClick={prepare}>Подготовить пакет</button>
+      <button class="sketch-request-primary" type="button" disabled={busy() || !previews().length} onClick={prepare}>Подготовить ZIP</button>
       <Show when={prepared()}>{result => <section class="sketch-request-result" aria-label="Готовый пакет">
         <div class="sketch-request-downloads"><a href={result().zipUrl} download={result().filename}>Скачать пакет ZIP</a>
           <a href={result().textUrl} download="REQUEST.md">Скачать REQUEST.md отдельно</a></div>
         <ol><li>Откройте <a href="https://chatgpt.com/" target="_blank" rel="noopener noreferrer">ChatGPT</a> и приложите пакет. Если архив не читается, приложите REQUEST.md и исходные изображения отдельно.</li>
-          <li>Отправьте инструкцию ниже и ответьте на вопросы модели. Возможность выполнить весь цикл на Free зависит от доступных инструментов и лимитов.</li>
-          <li>Полученный каталог с input3XX распакуйте в <strong>новое место</strong> выбранного проекта CLARK. Вернитесь в Editor, обновите список, загрузите задание, проверьте 3D и данные, затем сохраните.</li></ol>
+          <li>Отправьте инструкцию ниже. Построение геометрии и необходимые уточнения продолжатся в чате.</li></ol>
         <label>Инструкция для начала чата<textarea rows={4} readonly value={SKETCH_CHAT_PROMPT} /></label>
         <button type="button" onClick={copyPrompt}>Скопировать инструкцию</button><span role="status">{copyStatus()}</span>
       </section>}</Show>
     </div>
-    <footer><button type="button" onClick={props.onClose}>Вернуться к заданиям</button></footer>
+    <footer><button type="button" onClick={props.onClose}>Закрыть</button></footer>
   </dialog>;
 }

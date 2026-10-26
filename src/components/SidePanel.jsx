@@ -90,11 +90,14 @@ export function SidePanel(props) {
         </section>}
 
         {props.taskActions && <section class="side-panel-section">
+          <button class="side-panel-option" disabled={!props.open || !props.taskActions.sketchEnabled}
+            title="Подготовить ZIP с эскизом и правилами CLARK для передачи ИИ"
+            onClick={() => props.onTaskAction?.("sketch")}>ZIP по эскизу для ИИ</button>
+        </section>}
+
+        {props.taskActions && <section class="side-panel-section">
           <div class="side-panel-section-title">Работа с заданиями</div>
           <div class="side-panel-options">
-            <button class="side-panel-option" disabled={!props.open || !props.taskActions.createEnabled}
-              title="Подготовить эскиз, условие и контекст CLARK для внешнего чата"
-              onClick={() => props.onTaskAction?.("sketch")}>Создать геометрию по эскизу</button>
             {Object.entries(TASK_OPERATION_LABELS).map(([kind, label]) => <button
               class="side-panel-option"
               disabled={!props.open || !(kind === "create" ? props.taskActions.createEnabled : props.taskActions.selectedEnabled)}
