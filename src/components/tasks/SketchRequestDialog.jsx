@@ -63,7 +63,7 @@ export function SketchRequestDialog(props) {
       <label>Условие и известные размеры<textarea rows={5} value={description()} maxLength={SKETCH_LIMITS.description}
         placeholder="Что изображено? Какие размеры известны? Что должно двигаться и что требуется определить? Неизвестные данные можно уточнить в чате."
         onInput={e => { invalidate(); setDescription(e.currentTarget.value); }} /></label>
-      <details><summary>Что получит модель</summary><p>Выбранные изображения, введённое условие, инструкция CLARK и описание семи файлов input3XX из схем этой сборки. Открытое задание, личная переписка и результаты расчёта в пакет не входят. Пакет как zip архив передаёте вы; Editor ничего не отправляет в ChatGPT.</p></details>
+      <details><summary>Что получит модель</summary><p>Выбранные Вами изображения и введённое условие, а также полученные от Editor инструкцию CLARK и формальное описание исходных данных. Пакет как zip архив передаёте вы; Editor ничего не отправляет к ИИ.</p></details>
       <p class="sketch-request-error" role="alert">{error()}</p>
       <p role="status">{busy() ? "Подготовка пакета…" : prepared() ? "Пакет готов к скачиванию" : ""}</p>
       <button class="sketch-request-primary" type="button" disabled={busy() || !previews().length} onClick={prepare}>Подготовить пакет</button>
