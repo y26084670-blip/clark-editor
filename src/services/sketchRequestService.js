@@ -1,7 +1,9 @@
 import { readTaskDocsImage } from "./taskDocsService.js";
 import { createStoredZip } from "./zipStore.js";
 export const SKETCH_LIMITS = Object.freeze({ files: 3, eachBytes: 8 * 1024 * 1024, totalBytes: 16 * 1024 * 1024, description: 12000 });
-export const SKETCH_CHAT_PROMPT = "Прочитай REQUEST.md и посмотри эскизы. Начни геометрический черновик CLARK: масштаба d в миллиметрах достаточно для начала. Сохраняй изображённые положение и ориентацию тел; остальные размеры оцени как именованные ПРОБНЫЕ параметры. Уточняй только существенные неоднозначности, продолжая понятную часть. Материалы и возбуждение не выдумывай. Укажи фактически выполненные проверки.";
+// Editable UI example only. The packager must preserve a changed or empty condition.
+export const SKETCH_DEFAULT_DESCRIPTION = "d=10 мм, использовать не более 20 шестигранников";
+export const SKETCH_CHAT_PROMPT = "Прочитай REQUEST.md и посмотри эскизы. Начни геометрический черновик CLARK: масштаба d в миллиметрах достаточно для начала. Сохраняй форму, просветы, положение и ориентацию тел; остальные размеры оцени как именованные ПРОБНЫЕ параметры. Скругления аппроксимируй допустимыми ШГ с оценкой отклонения, соблюдая указанный пользователем предел ШГ. Уточняй только существенные неоднозначности, продолжая понятную часть. Материалы и возбуждение не выдумывай. Проверь фактические файлы и укажи выполненные проверки.";
 const encoder = new TextEncoder();
 function current(signal) { if (signal?.aborted) throw new DOMException("Подготовка пакета отменена", "AbortError"); }
 export async function sha256(data) {

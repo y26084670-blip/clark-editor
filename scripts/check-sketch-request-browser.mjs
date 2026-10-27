@@ -79,8 +79,28 @@ try {
     return c.toDataURL("image/png").split(",")[1];
   }), "base64");
   await command.click(); await dialog.waitFor({ state: "visible" });
+  const condition = dialog.getByLabel("Масштаб и уточнения", { exact: true });
+  const defaultCondition = "d=10 мм, использовать не более 20 шестигранников";
+  check("condition starts with editable content, not a placeholder", await condition.inputValue() === defaultCondition
+    && !(await condition.getAttribute("placeholder")));
   await addImage(png);
-  await dialog.getByLabel("Масштаб и уточнения", { exact: true }).fill("d = 10 мм");
+  await prepare.click(); await dialog.getByRole("link", { name: "Скачать REQUEST.md отдельно", exact: true }).waitFor();
+  await download("Скачать REQUEST.md отдельно", "REQUEST-default.md");
+  const defaultRequest = await readFile(path.join(out, "REQUEST-default.md"), "utf8");
+  check("unchanged example is exported as the user condition", defaultRequest.includes(defaultCondition));
+  await condition.focus(); await condition.press("End"); await condition.pressSequentially("; материал назначу позже");
+  check("typing preserves the starting text", await condition.inputValue() === defaultCondition + "; материал назначу позже");
+  await condition.fill("d=12 мм, использовать не более 12 шестигранников");
+  await prepare.click(); await dialog.getByRole("link", { name: "Скачать REQUEST.md отдельно", exact: true }).waitFor();
+  await download("Скачать REQUEST.md отдельно", "REQUEST-custom-limit.md");
+  const custom = (await readFile(path.join(out, "REQUEST-custom-limit.md"), "utf8")).split("## Условие пользователя")[1].split("## Эскизы")[0];
+  check("edited scale and limit replace the example", custom.includes("d=12 мм, использовать не более 12 шестигранников") && !custom.includes("20"));
+  await condition.fill("");
+  await prepare.click(); await dialog.getByRole("link", { name: "Скачать REQUEST.md отдельно", exact: true }).waitFor();
+  await download("Скачать REQUEST.md отдельно", "REQUEST-empty.md");
+  const empty = (await readFile(path.join(out, "REQUEST-empty.md"), "utf8")).split("## Условие пользователя")[1].split("## Эскизы")[0];
+  check("cleared condition does not silently restore scale or limit", empty.includes("условие пока не задано") && !empty.includes("20"));
+  await condition.fill("d = 10 мм");
   await prepare.click(); await dialog.getByRole("link", { name: "Скачать пакет ZIP", exact: true }).waitFor();
   await download("Скачать пакет ZIP", "request-d-only.zip");
   await download("Скачать REQUEST.md отдельно", "REQUEST-d-only.md");
@@ -133,7 +153,7 @@ try {
   await download("Скачать REQUEST.md отдельно", "REQUEST-updated.md");
   check("rebuilt package uses the current condition", (await readFile(path.join(out, "REQUEST-updated.md"), "utf8")).includes("длина 50 мм"));
   await close(); await open();
-  check("reopening starts an empty request", await prepare.isDisabled() && await dialog.getByLabel("Название запроса", { exact: true }).inputValue() === ""
+  check("reopening starts a new request with the editable example", await condition.inputValue() === defaultCondition && await prepare.isDisabled() && await dialog.getByLabel("Название запроса", { exact: true }).inputValue() === ""
     && await dialog.locator("figure").count() === 0 && await dialog.locator(".sketch-request-result").count() === 0);
   await addImage(png);
   await page.evaluate(() => {
