@@ -1,11 +1,11 @@
 import { createEffect, createSignal, For, onCleanup, Show, untrack } from "solid-js";
-import { buildSketchRequest, checkSketchFiles, SKETCH_CHAT_PROMPT, SKETCH_LIMITS } from "../../services/sketchRequestService.js";
+import { buildSketchRequest, checkSketchFiles, SKETCH_CHAT_PROMPT, SKETCH_DEFAULT_DESCRIPTION, SKETCH_LIMITS } from "../../services/sketchRequestService.js";
 import "./SketchRequestDialog.css";
 
 export function SketchRequestDialog(props) {
   let dialog, titleInput, fileInput, controller, epoch = 0;
   const [title, setTitle] = createSignal("");
-  const [description, setDescription] = createSignal("");
+  const [description, setDescription] = createSignal(SKETCH_DEFAULT_DESCRIPTION);
   const [previews, setPreviews] = createSignal([]);
   const [busy, setBusy] = createSignal(false);
   const [error, setError] = createSignal("");
@@ -20,7 +20,7 @@ export function SketchRequestDialog(props) {
   function cleanup() { invalidate(); clearImages(); }
   createEffect(() => {
     if (props.open) {
-      untrack(() => { cleanup(); setTitle(""); setDescription(""); if (fileInput) fileInput.value = ""; });
+      untrack(() => { cleanup(); setTitle(""); setDescription(SKETCH_DEFAULT_DESCRIPTION); if (fileInput) fileInput.value = ""; });
       if (!dialog.open) dialog.showModal(); queueMicrotask(() => { if (dialog.open) titleInput?.focus(); });
     } else { untrack(cleanup); if (dialog.open) dialog.close(); }
   });
@@ -60,9 +60,8 @@ export function SketchRequestDialog(props) {
       <small>От 1 до 3 изображений, до 8 МиБ каждое и 16 МиБ вместе. Исходные изображения сохраняются без преобразования.</small>
       <div class="sketch-request-previews"><For each={previews()}>{entry => <figure><img src={entry.url} alt={`Эскиз: ${entry.file.name}`}
         onError={() => setError("Не удалось показать изображение. Проверьте выбранный файл.")} /><figcaption>{entry.file.name}</figcaption></figure>}</For></div>
-      <p>Для начала геометрического черновика достаточно обозначить на эскизе опорный размер <strong>d</strong> и указать его в миллиметрах, например <strong>d = 10 мм</strong>. Остальные размеры ИИ оценит как пробные, сохраняя изображённые положение и ориентацию тел. Дополнительные условия можно добавить по необходимости.</p>
+      <p>Для начала геометрического черновика достаточно обозначить на эскизе опорный размер <strong>d</strong> и указать его в миллиметрах. В поле ниже — редактируемый пример: измените масштаб и предел числа шестигранников под свой эскиз. Остальные размеры ИИ оценит как пробные, сохраняя форму и расположение тел.</p>
       <label>Масштаб и уточнения<textarea rows={3} value={description()} maxLength={SKETCH_LIMITS.description}
-        placeholder="d = 10 мм"
         onInput={e => { invalidate(); setDescription(e.currentTarget.value); }} /></label>
       <details><summary>Что получит модель</summary><p>Выбранные Вами изображения и введённое условие, а также полученные от Editor инструкцию CLARK и формальное описание исходных данных. Пакет как zip архив передаёте вы; Editor ничего не отправляет к ИИ.</p></details>
       <p class="sketch-request-error" role="alert">{error()}</p>

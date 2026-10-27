@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { createServer } from "vite";
-import { buildSketchRequest, sha256, checkSketchFiles, SKETCH_LIMITS } from "../src/services/sketchRequestService.js";
+import { buildSketchRequest, sha256, checkSketchFiles, SKETCH_DEFAULT_DESCRIPTION, SKETCH_LIMITS } from "../src/services/sketchRequestService.js";
 import { createStoredZip } from "../src/services/zipStore.js";
 
 const server = await createServer({ server: { middlewareMode: true }, appType: "custom" });
@@ -53,6 +53,51 @@ assert m['knowledge']['sha256']
 
 test("sketch may have no dimensions or text; request keeps the gap explicit", async () => {
   assert.match((await build()).request, /условие пока не задано/);
+});
+test("packager uses the edited condition without enforcing the UI example", async () => {
+  const condition = request => request.split("## Условие пользователя\n")[1].split("## Эскизы")[0];
+  assert.ok(condition((await build({description:SKETCH_DEFAULT_DESCRIPTION})).request).includes(SKETCH_DEFAULT_DESCRIPTION));
+  const changed = condition((await build({description:"d=12 мм, использовать не более 36 шестигранников"})).request);
+  assert.match(changed,/не более 36/); assert.doesNotMatch(changed,/не более 20/);
+  const cleared = condition((await build({description:""})).request);
+  assert.match(cleared,/условие пока не задано/); assert.doesNotMatch(cleared,/не более 20/);
+});
+test("the profile's collapsed-edge prism remains a valid volume after discretization", async () => {
+  const section=context.profile.split('<a id="sketch-wedge-01"></a>')[1];
+  assert.ok(section,"The self-contained profile must include the worked prism");
+  const recipe=JSON.parse(section.match(/```json\n([\s\S]*?)\n```/u)[1]);
+  const {unpackKvVertices,validateKvVerticesDetailed}=await server.ssrLoadModule('/src/services/solver/geometryKv.js');
+  const {physicalHex,hexPoint,medTolerance}=await server.ssrLoadModule('/src/services/solver/medContactGeometry.js');
+  const edges=[[0,1],[2,3],[4,5],[6,7],[0,2],[1,3],[4,6],[5,7],[0,4],[1,5],[2,6],[3,7]];
+  const sub=(a,b)=>a.map((x,i)=>x-b[i]);
+  const cross=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
+  const dot=(a,b)=>a.reduce((s,x,i)=>s+x*b[i],0);
+  const gauss=[(1-1/Math.sqrt(3))/2,(1+1/Math.sqrt(3))/2];
+  for(const doubleFloat of [false,true]) {
+    const cast=doubleFloat?x=>x:Math.fround;
+    const {vertices:v,err}=unpackKvVertices(recipe.geo.map(cast),recipe.geoType);
+    assert.equal(err,0);assert(validateKvVerticesDetailed(v,{GEO_ANGLE:.1}).valid);
+    const tol=medTolerance(10,doubleFloat),hex=physicalHex(v,tol,doubleFloat);
+    assert.equal(hex.error,undefined);assert.deepEqual(hex.faces.filter(f=>f.collapsed).map(f=>f.index),[5]);
+    assert.equal(recipe.med[5],-1);
+    let volume=0,minimumEdge=Infinity,count=0,collapsedEdges=0;
+    const [nx,ny,nz]=recipe.dp;
+    for(let i=0;i<nx;i++)for(let j=0;j<ny;j++)for(let k=0;k<nz;k++) {
+      const c=Array.from({length:8},(_,p)=>hexPoint(v,(i+(p&1))/nx,(j+((p>>1)&1))/ny,(k+((p>>2)&1))/nz));
+      assert(validateKvVerticesDetailed(c,{GEO_ANGLE:.1}).valid);
+      assert.equal(physicalHex(c,tol,doubleFloat).error,undefined);count++;
+      for(const [a,b] of edges){const length=Math.hypot(...sub(c[a],c[b]));if(length===0)collapsedEdges++;else minimumEdge=Math.min(minimumEdge,length);}
+      for(const x of gauss)for(const y of gauss)for(const z of gauss) {
+        const u=sub(hexPoint(c,1,y,z),hexPoint(c,0,y,z));
+        const t=sub(hexPoint(c,x,1,z),hexPoint(c,x,0,z));
+        const w=sub(hexPoint(c,x,y,1),hexPoint(c,x,y,0));
+        const det=dot(u,cross(t,w));assert(det>0);volume+=det/8;
+      }
+    }
+    assert.equal(count,8);assert.equal(collapsedEdges,8);assert.equal(minimumEdge,1.5);assert(Math.abs(volume-120)<1e-10);
+    const bad=structuredClone(v);bad[2]=[...bad[0]];bad[6]=[...bad[4]];
+    assert.equal(validateKvVerticesDetailed(bad,{GEO_ANGLE:.1}).checks.edge13,false);
+  }
 });
 test("unsupported, empty, too many and oversized images fail before packaging", () => {
   assert.throws(() => checkSketchFiles([]));
