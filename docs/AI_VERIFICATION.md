@@ -1,6 +1,50 @@
 # Проверка web-gui
 
-Обновлено: 2026-10-26 00:26 UTC+3.
+Обновлено: 2026-10-27 02:48 UTC+3.
+
+<a id="verification-sketch-independent"></a>
+## Независимый ZIP по эскизу — 4.79.1
+
+2026-10-27, база Editor `7558be3589378640ced726efb83a49c2522acf79`;
+Linux, Node.js 24.22.1, Chromium 153 / Playwright. Профиль 1.2 совпадает
+с clark.knowledge `b3535fd857b44fa64b20b11f961c5d8e58af8028`; его PR #13
+включён в main `6a87d7ec21b2b6167363628bbe69aef1d4ed9d85`.
+[Контракт](AI_UI_CONTRACTS.md#sketch-request-ui).
+
+Фактически выполнено:
+
+- `node --test test/sketchRequest.test.js test/taskOperationDialogUI.test.js test/taskGeometryPreviewContract.test.js test/userGuideAssets.test.js` — **24/24**.
+- `node scripts/check-sketch-request-browser.mjs` — **20/20** на настоящем App.
+  Без выбора диска, проекта и задания успешно скачан ZIP с одним эскизом и
+  условием `d = 10 мм`, без названия запроса. Проверены отсутствие вызова
+  выбора каталога, неизменность дерева файлов OPFS по SHA-256, состояния модели
+  и dirty; отдельно — сохранность уже открытого dirty-задания. Проверены
+  аннулирование старого ZIP, отмена, повторное открытие, неверная сигнатура,
+  ручное копирование при отказе clipboard и отсутствие отправки ИИ/JS-исключений.
+  Диалог проверен при 1100×600 и 1440×900; снимки просмотрены.
+- `node scripts/check-project-operations-browser.mjs` — **19/19**: операции
+  проектов и сохранность загруженных данных после выделения команды ZIP
+  в самостоятельный пункт меню.
+- Скачанный браузером `request-d-only.zip` дополнительно прочитан Python zipfile:
+  пять записей, CRC, SHA-256 REQUEST.md/изображения, версия Editor и ревизия
+  профиля совпадают; START.txt согласован с правилом пробных размеров.
+- `npm run build:pages` успешен; проверены 185 файлов библиотек и 32 файла
+  руководства по SHA-256. Обычное предупреждение Vite о размере чанков сохранено.
+
+Браузерный скрипт принимает `PLAYWRIGHT_MODULE`, `CHROMIUM_EXECUTABLE`,
+`CHECK_OUTPUT`. В этой среде использован отдельный бинарный пакет
+@sparticuz/chromium 153.0.0, системный FONTCONFIG_PATH=/etc/fonts и каталог
+SwiftShader в LD_LIBRARY_PATH; зависимости приложения не менялись. Обычная
+загрузка браузера Playwright вернула повреждённый архив; этот неуспешный
+запуск не входит в 20/20. Picker управляется стендом; OPFS, Blob и скачивание
+настоящие. Проверка нативного Windows-picker и генерация геометрии внешней
+моделью не выполнялись.
+
+Дополнительный `test/taskUnsavedChangesContract.test.js` имеет 7 одинаковых
+отказов из 13 и на исходном main, и с правкой ZIP: существующая ошибка
+[WGUI-014](AI_ARCHITECTURE_AUDIT.md#wgui-014-test-context).
+Она не объявляется исправленной. Полный npm test не запускался; сохранность
+открытого задания подтверждена указанным браузерным сценарием.
 
 <a id="verification-webm-speed"></a>
 ## Скорость WebM — Editor 4.79.0 / Viewer 4.52.0

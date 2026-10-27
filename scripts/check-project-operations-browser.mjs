@@ -49,7 +49,7 @@ try {
     && await page.locator('.side-panel-section-title').allTextContents().then(t => t.indexOf('Работа с проектами') < t.indexOf('Работа с заданиями')));
   await section.locator('summary').click();
   check('project commands disabled without catalog', await button('Создать проект').isDisabled() && await button('Переименовать проект').isDisabled());
-  check('task commands have explicit names', await button('Создать геометрию по эскизу').count() === 1
+  check('task commands have explicit names', await button('ZIP по эскизу для ИИ').count() === 1
     && await button('Переименовать задание').count() === 1 && await button('Создать задание').count() === 1);
   await page.screenshot({ path: path.join(out, 'project-menu.png') });
   await button('Закрыть дополнительные функции').click();

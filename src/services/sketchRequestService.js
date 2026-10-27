@@ -1,7 +1,7 @@
 import { readTaskDocsImage } from "./taskDocsService.js";
 import { createStoredZip } from "./zipStore.js";
 export const SKETCH_LIMITS = Object.freeze({ files: 3, eachBytes: 8 * 1024 * 1024, totalBytes: 16 * 1024 * 1024, description: 12000 });
-export const SKETCH_CHAT_PROMPT = "Прочитай REQUEST.md и приложенные эскизы. Уточни существенные неоднозначности, затем подготовь каталог задания CLARK с input3XX и DOCS по приложенным правилам и схемам. Не подменяй неизвестные размеры и материалы догадками. Укажи фактически выполненные проверки.";
+export const SKETCH_CHAT_PROMPT = "Прочитай REQUEST.md и посмотри эскизы. Начни геометрический черновик CLARK: масштаба d в миллиметрах достаточно для начала. Сохраняй изображённые положение и ориентацию тел; остальные размеры оцени как именованные ПРОБНЫЕ параметры. Уточняй только существенные неоднозначности, продолжая понятную часть. Материалы и возбуждение не выдумывай. Укажи фактически выполненные проверки.";
 const encoder = new TextEncoder();
 function current(signal) { if (signal?.aborted) throw new DOMException("Подготовка пакета отменена", "AbortError"); }
 export async function sha256(data) {
@@ -20,7 +20,7 @@ export function checkSketchFiles(files) {
 }
 export async function buildSketchRequest({ files, title = "", description = "", context }, { signal, requestId = crypto.randomUUID(), createdAt = new Date().toISOString() } = {}) {
   current(signal); checkSketchFiles(files);
-  if (typeof title !== "string" || title.length > 120 || typeof description !== "string" || description.length > SKETCH_LIMITS.description) throw new Error("Слишком длинное название или условие задания");
+  if (typeof title !== "string" || title.length > 120 || typeof description !== "string" || description.length > SKETCH_LIMITS.description) throw new Error("Слишком длинное название или условие запроса");
   if (!context?.profile || !Array.isArray(context.schemas) || context.schemas.length !== 7) throw new Error("Недоступен полный контекст CLARK. Пакет не создан.");
   if (await sha256(context.profile) !== context.sourceLock?.sha256) throw new Error("Контекст CLARK не совпадает с зафиксированной версией. Пакет не создан.");
   const entries = [], images = [];
@@ -34,14 +34,14 @@ export async function buildSketchRequest({ files, title = "", description = "", 
   const schemaText = JSON.stringify(context.schemas, null, 2);
   const lock = { schema: "clark-sketch-request/1", requestId, createdAt, editorVersion: context.editorVersion,
     knowledge: context.sourceLock, schemasSha256: await sha256(schemaText), images };
-  const request = `# Задание CLARK по эскизу\n\nID запроса: ${requestId}\nEditor: ${context.editorVersion}\nСоздано: ${createdAt}\n\n` +
-    `## Условие пользователя\n\nНазвание: ${title.trim() || "Задание по эскизу"}\n\n${description.trim() || "Текстовое условие пока не задано. Начни с интерпретации эскиза и существенных вопросов."}\n\n` +
+  const request = `# Запрос ИИ: геометрия CLARK по эскизу\n\nID запроса: ${requestId}\nEditor: ${context.editorVersion}\nСоздано: ${createdAt}\n\n` +
+    `## Условие пользователя\n\nНазвание: ${title.trim() || "Геометрия по эскизу"}\n\n${description.trim() || "Текстовое условие пока не задано. Начни с интерпретации эскиза; при отсутствии масштаба используй явно ПРОБНЫЙ опорный размер по приложенным правилам."}\n\n` +
     `## Эскизы\n\n${images.map(i => `- ${i.path} — исходное имя ${JSON.stringify(i.originalName)}`).join("\n")}\n\n` +
     "Изображения — исходные данные. Сначала посмотри их; не восстанавливай геометрию только по имени. Если архив не читается, попроси приложить REQUEST.md и изображения отдельно.\n\n" +
     `## Инструкция помощнику\n\n${context.profile}\n\n## Действующие схемы Editor\n\n` +
     "Далее JSON-описание хранимых полей, полученное из схем и сериализатора этой сборки. Это не готовое задание. exampleOnlyNotTask показывает форму записи, а значения по умолчанию не задают намерение человека. Прикладные валидаторы и физическая постановка требуют дополнительных проверок.\n\n```json\n" + schemaText + "\n```\n";
   lock.requestSha256 = await sha256(request);
-  const readme = "ПАКЕТ ДЛЯ ВНЕШНЕГО ЧАТА\n\n1. Откройте новый чат ChatGPT или другой модели, принимающей изображения и файлы.\n2. Приложите ZIP. Если чат не читает архивы, распакуйте и приложите REQUEST.md и файлы sketch отдельно.\n3. Отправьте инструкцию из START.txt и ответьте на вопросы модели.\n4. Полученный каталог задания распакуйте в НОВОЕ место выбранного проекта CLARK.\n5. В Editor обновите список, загрузите задание, сопоставьте 3D и DOCS с эскизом, выполните проверку и сохраните.\n\nПакет не отправляется автоматически. В нём только выбранные эскизы, введённое условие и контекст из поставки Editor. Открытое задание и результаты расчёта в него не входят. Возможности Free и качество подготовки данных требуют проверки в выбранном чате.\n";
+  const readme = "ZIP ДЛЯ ПЕРЕДАЧИ ИИ\n\n1. Откройте новый чат ChatGPT или другой модели, принимающей изображения и файлы.\n2. Приложите ZIP. Если чат не читает архивы, распакуйте и приложите REQUEST.md и файлы sketch отдельно.\n3. Отправьте инструкцию из START.txt. Построение геометрии и необходимые уточнения продолжатся в чате.\n\nДля начала геометрического черновика достаточно эскиза и d = … мм для опорного размера на рисунке. Остальные размеры допускают именованные ПРОБНЫЕ оценки с сохранением изображённой компоновки.\n\nНа выдаче архива работа инструмента Editor закончена. Создание задания CLARK, его размещение в проекте и загрузка — самостоятельный последующий процесс.\nПакет передаёт пользователь. В нём только выбранные эскизы, введённое условие и контекст из поставки Editor. Существующее задание и результаты расчёта в него не входят.\n";
   current(signal);
   const zip = createStoredZip([{ name: "README.txt", data: readme }, { name: "START.txt", data: SKETCH_CHAT_PROMPT },
     { name: "REQUEST.md", data: request }, { name: "context-lock.json", data: JSON.stringify(lock, null, 2) + "\n" }, ...entries]);

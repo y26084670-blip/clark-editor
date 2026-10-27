@@ -119,6 +119,7 @@ export function Tasks(props) {
     || launchBusy() || taskLaunchOpen() || omClientState().busy || props.editorBusy || selectionReceiving() || protocolBusy();
   const operationsBlocked = () => galleryDisabled() || galleryBusy();
   createEffect(() => props.onTaskActionsChange?.({
+    sketchEnabled: !operationsBlocked() && !omClientState().open,
     createProjectEnabled: Boolean(rootHandle()) && !operationsBlocked() && !omClientState().open,
     projectEnabled: Boolean(selectedProject()) && !operationsBlocked() && !omClientState().open,
     createEnabled: Boolean(selectedProject()) && !operationsBlocked() && !omClientState().open,
@@ -128,7 +129,7 @@ export function Tasks(props) {
 
   function openTaskOperation(kind) {
     if (kind === "sketch") {
-      if (!operationsBlocked() && !omClientState().open && selectedProject()) setSketchOpen(true);
+      if (!operationsBlocked() && !omClientState().open) setSketchOpen(true);
       return;
     }
     if (kind.startsWith("project-")) {
