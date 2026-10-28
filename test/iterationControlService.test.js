@@ -46,8 +46,18 @@ test("task changes and invalid requests produce no write", async () => {
   root.status={...root.status,taskId:5};
   await assert.rejects(()=>sendIterationRequest(root,binding,status,{TAU:".5"}),/изменилось/);
   root.status=status;
-  for (const values of [{}, {TAU:"2"}, {EPS:"0"}, {TAU:".5",EPS:"-1"}, {DTK:"1"}]) {
+  for (const values of [{}, {TAU:"2"}, {EPS:"0"}, {TAU:".5",EPS:"-1"}, {DTK:"1"},
+    {MResidual:false}, {JResidual:1}, {MResidual:"true"}, {MResidual:true,EPS:"0"}]) {
     await assert.rejects(()=>sendIterationRequest(root,binding,status,values));
   }
   assert.equal(root.writes.length,0);
+});
+
+test("one-shot residual flags can be sent separately, together and with parameters", async () => {
+  for (const parameters of [{ MResidual: true }, { JResidual: true }, { MResidual: true, JResidual: true },
+    { TAU: .5, EPS: .001, MResidual: true, JResidual: true }]) {
+    const root = fixture(), status = await readIterationStatus(root, binding);
+    await sendIterationRequest(root, binding, status, parameters);
+    assert.deepEqual(root.writes[0].parameters, parameters);
+  }
 });

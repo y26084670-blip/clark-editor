@@ -46,9 +46,14 @@ export async function readIterationStatus(root, binding, now = Date.now()) {
 }
 
 export async function sendIterationRequest(root, binding, status, values) {
-  if (!values || !Object.keys(values).length) throw new Error("Отметьте TAU и/или EPS.");
+  if (!values || !Object.keys(values).length) throw new Error("Отметьте TAU, EPS, M-невязку и/или J-невязку.");
   const parameters = {};
   for (const name of Object.keys(values)) {
+    if (name === "MResidual" || name === "JResidual") {
+      if (values[name] !== true) throw new Error("Признак записи невязки должен быть true.");
+      parameters[name] = true;
+      continue;
+    }
     if (name !== "TAU" && name !== "EPS") throw new Error("Неизвестный параметр итераций.");
     parameters[name] = parseIterationValue(values[name], name);
   }

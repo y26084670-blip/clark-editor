@@ -6,13 +6,15 @@ export function IterationControl(props) {
   const [status, setStatus] = createSignal(null);
   const [tau, setTau] = createSignal("0.0000"), [eps, setEps] = createSignal("0.0000000000");
   const [useTau, setUseTau] = createSignal(false), [useEps, setUseEps] = createSignal(false);
+  const [useMResidual, setUseMResidual] = createSignal(false), [useJResidual, setUseJResidual] = createSignal(false);
   const [sending, setSending] = createSignal(false), [pending, setPending] = createSignal(null);
   const [error, setError] = createSignal(""), [notice, setNotice] = createSignal("");
   let revision = 0, polling = false, disposed = false;
   const enabled = () => Boolean(status()) && !sending() && !pending();
   function reset() {
     batch(() => { setStatus(null); setTau("0.0000"); setEps("0.0000000000");
-      setUseTau(false); setUseEps(false); setPending(null); setError(""); setNotice(""); });
+      setUseTau(false); setUseEps(false); setUseMResidual(false); setUseJResidual(false);
+      setPending(null); setError(""); setNotice(""); });
   }
   async function poll() {
     const root = props.rootHandle, binding = props.binding, version = revision;
@@ -24,14 +26,15 @@ export function IterationControl(props) {
       const changed = iterationTaskKey(next) !== iterationTaskKey(status());
       if (!next) { reset(); return; }
       batch(() => {
-        if (changed) { setUseTau(false); setUseEps(false); setPending(null); setError(""); setNotice(""); }
+        if (changed) { setUseTau(false); setUseEps(false); setUseMResidual(false); setUseJResidual(false);
+          setPending(null); setError(""); setNotice(""); }
         setStatus(next);
         if (!useTau()) setTau(formatIterationValue(next.tau, "TAU"));
         if (!useEps()) setEps(formatIterationValue(next.eps, "EPS"));
         if (pending() && next.request?.requestId === pending()
           && ["applied", "rejected"].includes(next.request.state)) {
           setPending(null);
-          if (next.request.state === "applied") setNotice(`Значения применены: итерация ${next.request.iteration}.`);
+          if (next.request.state === "applied") setNotice(`Запрос выполнен: итерация ${next.request.iteration}.`);
           else { setNotice(""); setError(next.request.message || "Запрос отклонён."); }
         }
       });
@@ -56,10 +59,12 @@ export function IterationControl(props) {
     const root = props.rootHandle, binding = props.binding, version = revision, task = status();
     setSending(true); setError(""); setNotice("");
     try {
-      const values = { ...(useTau() ? { TAU: tau() } : {}), ...(useEps() ? { EPS: eps() } : {}) };
+      const values = { ...(useTau() ? { TAU: tau() } : {}), ...(useEps() ? { EPS: eps() } : {}),
+        ...(useMResidual() ? { MResidual: true } : {}), ...(useJResidual() ? { JResidual: true } : {}) };
       const id = await sendIterationRequest(root, binding, task, values);
       if (disposed || revision !== version || iterationTaskKey(status()) !== iterationTaskKey(task)) return;
-      batch(() => { setPending(id); setUseTau(false); setUseEps(false); setNotice("Запрос передан. Ожидание границы итерации…"); });
+      batch(() => { setPending(id); setUseTau(false); setUseEps(false); setUseMResidual(false); setUseJResidual(false);
+        setNotice("Запрос передан. Ожидание границы итерации…"); });
     } catch (failure) { if (!disposed && revision === version) setError(failure.message); }
     finally { if (!disposed) setSending(false); }
   }
@@ -77,6 +82,12 @@ export function IterationControl(props) {
         onChange={event => setUseEps(event.currentTarget.checked)} />
       <label>EPS <input type="text" inputMode="decimal" aria-label="Новое значение EPS" value={eps()}
         disabled={!enabled() || !useEps()} onInput={event => setEps(event.currentTarget.value)} onBlur={() => normalize("EPS")} /></label>
+    </div>
+    <div class="iteration-control-residuals" aria-label="Запись невязок активного задания">
+      <label><input type="checkbox" checked={useMResidual()} disabled={!enabled()}
+        onChange={event => setUseMResidual(event.currentTarget.checked)} /> M-невязка</label>
+      <label><input type="checkbox" checked={useJResidual()} disabled={!enabled()}
+        onChange={event => setUseJResidual(event.currentTarget.checked)} /> J-невязка</label>
     </div>
     <Show when={error()}><div class="iteration-control-message task-launch-error" role="alert">{error()}</div></Show>
     <Show when={notice()}><div class="iteration-control-message task-launch-notice" role="status">{notice()}</div></Show>
