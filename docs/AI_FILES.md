@@ -1,6 +1,13 @@
 # Карта файлов и компонентов web-gui
 
-Обновлено: 2026-10-26 00:20 UTC+3.
+Обновлено: 2026-10-28 15:52 UTC+3.
+
+Скачивание протокола (4.80.0): `TaskProtocolDownload.jsx`/`.css` в
+`src/components/tasks/` и `src/services/protocol/protocolDownloads.js` подключены
+к строкам `src/tabs/Tasks.jsx`. Компонент общий с Viewer, адаптер не зависит от
+его формата HTML. Проверки: `test/protocolDownloads.test.js`,
+`test/taskUnsavedChangesContract.test.js`, `scripts/check-protocol-download-browser.mjs`.
+[Контракт](AI_UI_CONTRACTS.md#task-protocol-download).
 
 Скорость WebM (4.79.0): `src/components/tasks/TaskGifGallery.jsx` — значение
 и список скоростей; `TaskImageGallery.jsx` — смена URL предпросмотра;
