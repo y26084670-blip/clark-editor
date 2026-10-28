@@ -42,9 +42,24 @@ const close = () => dialog.getByRole("button", { name: "Закрыть", exact: 
 const open = async () => { if (!(await command.isVisible())) await button("Открыть дополнительные функции").click(); await command.click(); };
 const snapshot = () => page.evaluate(() => taskFixture.snapshot());
 const addImage = buffer => dialog.locator('input[type="file"]').setInputFiles({ name: "Эскиз.png", mimeType: "image/png", buffer });
-async function download(name, filename) {
-  const pending = page.waitForEvent("download"); await dialog.getByRole("link", { name, exact: true }).click();
+async function downloadZip(filename) {
+  const pending = page.waitForEvent("download"); await dialog.getByRole("button", { name: "Скачать пакет ZIP", exact: true }).click();
   const result = await pending; await result.saveAs(path.join(out, filename)); return result;
+}
+const readyZip = () => page.waitForFunction(() => [...document.querySelectorAll('.sketch-request-dialog footer button')]
+  .some(button => button.textContent === 'Скачать пакет ZIP' && !button.disabled));
+async function requestFromZip(filename) {
+  const zipName = filename.replace(/\.md$/i, '.zip'); await downloadZip(zipName);
+  const bytes = await readFile(path.join(out, zipName));
+  for (let offset = 0; bytes.readUInt32LE(offset) === 0x04034b50;) {
+    assert.equal(bytes.readUInt16LE(offset + 8), 0, 'expected ZIP/STORE');
+    const size = bytes.readUInt32LE(offset + 18), nameSize = bytes.readUInt16LE(offset + 26), extraSize = bytes.readUInt16LE(offset + 28);
+    const name = bytes.subarray(offset + 30, offset + 30 + nameSize).toString('utf8');
+    const start = offset + 30 + nameSize + extraSize;
+    if (name === 'REQUEST.md') { const text = bytes.subarray(start, start + size).toString('utf8');await writeFile(path.join(out, filename), text);return text; }
+    offset = start + size;
+  }
+  throw Error('REQUEST.md missing from downloaded ZIP');
 }
 try {
   await page.goto(base + "/clark-editor/__sketch-fixture");
@@ -83,27 +98,30 @@ try {
   const defaultCondition = "d=10 мм, использовать не более 20 шестигранников";
   check("condition starts with editable content, not a placeholder", await condition.inputValue() === defaultCondition
     && !(await condition.getAttribute("placeholder")));
+  check("all four actions share the bottom row and ZIP is disabled until prepared", await dialog.locator('footer button').count() === 4
+    && await dialog.getByRole('button', {name:'Скачать пакет ZIP',exact:true}).isDisabled()
+    && await dialog.getByRole('link',{name:'Скачать REQUEST.md отдельно',exact:true}).count() === 0);
   await addImage(png);
-  await prepare.click(); await dialog.getByRole("link", { name: "Скачать REQUEST.md отдельно", exact: true }).waitFor();
-  await download("Скачать REQUEST.md отдельно", "REQUEST-default.md");
+  await prepare.click(); await readyZip();
+  await requestFromZip("REQUEST-default.md");
   const defaultRequest = await readFile(path.join(out, "REQUEST-default.md"), "utf8");
   check("unchanged example is exported as the user condition", defaultRequest.includes(defaultCondition));
   await condition.focus(); await condition.press("End"); await condition.pressSequentially("; материал назначу позже");
   check("typing preserves the starting text", await condition.inputValue() === defaultCondition + "; материал назначу позже");
   await condition.fill("d=12 мм, использовать не более 12 шестигранников");
-  await prepare.click(); await dialog.getByRole("link", { name: "Скачать REQUEST.md отдельно", exact: true }).waitFor();
-  await download("Скачать REQUEST.md отдельно", "REQUEST-custom-limit.md");
+  await prepare.click(); await readyZip();
+  await requestFromZip("REQUEST-custom-limit.md");
   const custom = (await readFile(path.join(out, "REQUEST-custom-limit.md"), "utf8")).split("## Условие пользователя")[1].split("## Эскизы")[0];
   check("edited scale and limit replace the example", custom.includes("d=12 мм, использовать не более 12 шестигранников") && !custom.includes("20"));
   await condition.fill("");
-  await prepare.click(); await dialog.getByRole("link", { name: "Скачать REQUEST.md отдельно", exact: true }).waitFor();
-  await download("Скачать REQUEST.md отдельно", "REQUEST-empty.md");
+  await prepare.click(); await readyZip();
+  await requestFromZip("REQUEST-empty.md");
   const empty = (await readFile(path.join(out, "REQUEST-empty.md"), "utf8")).split("## Условие пользователя")[1].split("## Эскизы")[0];
   check("cleared condition does not silently restore scale or limit", empty.includes("условие пока не задано") && !empty.includes("20"));
   await condition.fill("d = 10 мм");
-  await prepare.click(); await dialog.getByRole("link", { name: "Скачать пакет ZIP", exact: true }).waitFor();
-  await download("Скачать пакет ZIP", "request-d-only.zip");
-  await download("Скачать REQUEST.md отдельно", "REQUEST-d-only.md");
+  await prepare.click(); await readyZip();
+  await downloadZip("request-d-only.zip");
+  await requestFromZip("REQUEST-d-only.md");
   const minimal = await readFile(path.join(out, "REQUEST-d-only.md"), "utf8");
   check("sketch and d alone produce a request with layout and trial-dimension rules", minimal.includes("d = 10 мм")
     && minimal.includes("SKETCH-LAYOUT-01") && minimal.includes("ПРОБНЫЕ"));
@@ -114,7 +132,7 @@ try {
   if (await button("Закрыть дополнительные функции").isVisible()) await button("Закрыть дополнительные функции").click();
   await chooseProjectDisk(page);
   await page.locator("#listProject").selectOption("Project");
-  await page.locator("#listTask .listTask-item").filter({ hasText: /^Original$/ }).click();
+  await page.locator("#listTask .listTask-item").filter({ has: page.locator(".task-status-label", { hasText: /^(?:▶\s*)?Original$/ }) }).click();
   await button("Загрузить для редактирования").click();
   await page.waitForFunction(() => taskFixture.snapshot().model.general);
   await page.evaluate(() => taskFixture.dirty());
@@ -128,11 +146,11 @@ try {
   await dialog.getByLabel("Масштаб и уточнения", { exact: true }).fill("Длина 40 мм; остальные размеры уточнить.");
   await page.waitForFunction(() => document.querySelector(".sketch-request-previews img")?.naturalWidth === 200);
   check("selected image is decoded and previewed", await dialog.locator("figure").count() === 1);
-  await prepare.click(); await dialog.getByRole("link", { name: "Скачать пакет ZIP", exact: true }).waitFor();
-  const zip = await download("Скачать пакет ZIP", "request.zip");
-  await download("Скачать REQUEST.md отдельно", "REQUEST.md");
+  await prepare.click(); await readyZip();
+  const zip = await downloadZip("request.zip");
+  await requestFromZip("REQUEST.md");
   const request = await readFile(path.join(out, "REQUEST.md"), "utf8");
-  check("browser downloads request with condition and seven actual schemas", /^clark-sketch-[\w-]+\.zip$/u.test(zip.suggestedFilename())
+  check("downloaded ZIP contains REQUEST.md with the condition and seven actual schemas", /^clark-sketch-[\w-]+\.zip$/u.test(zip.suggestedFilename())
     && request.includes("Длина 40 мм") && (request.match(/"exampleOnlyNotTask":/gu) || []).length === 7);
   check("selected images and loaded model remain independent", JSON.stringify(await snapshot()) === JSON.stringify(before)
     && !request.includes('"timeStep": 42'));
@@ -145,12 +163,18 @@ try {
     check(`dialog remains within viewport ${width}x${height}`, await dialog.evaluate(el => {
       const r = el.getBoundingClientRect(); return r.x >= 0 && r.y >= 0 && r.right <= innerWidth + 1 && r.bottom <= innerHeight + 1 && el.scrollWidth <= el.clientWidth + 1;
     }));
+    check(`footer actions are aligned with ZIP immediately after Prepare at ${width}px`, await dialog.locator('footer').evaluate(footer => {
+      const buttons=[...footer.querySelectorAll('button')], rects=buttons.map(button=>button.getBoundingClientRect());
+      return buttons.map(button=>button.textContent).join('|')==='Подготовить ZIP|Скачать пакет ZIP|Скопировать инструкцию|Закрыть'
+        && rects.every(rect=>Math.abs(rect.top-rects[0].top)<1&&Math.abs(rect.bottom-rects[0].bottom)<1)
+        && rects[1].left>rects[0].right && rects[2].left>rects[1].right;
+    }));
     await page.screenshot({ path: path.join(out, `sketch-${width}.png`) });
   }
   await dialog.getByLabel("Масштаб и уточнения", { exact: true }).fill("Исправлено: длина 50 мм.");
   check("editing the condition invalidates the previous package", await dialog.locator(".sketch-request-result").count() === 0);
-  await prepare.click(); await dialog.getByRole("link", { name: "Скачать пакет ZIP", exact: true }).waitFor();
-  await download("Скачать REQUEST.md отдельно", "REQUEST-updated.md");
+  await prepare.click(); await readyZip();
+  await requestFromZip("REQUEST-updated.md");
   check("rebuilt package uses the current condition", (await readFile(path.join(out, "REQUEST-updated.md"), "utf8")).includes("длина 50 мм"));
   await close(); await open();
   check("reopening starts a new request with the editable example", await condition.inputValue() === defaultCondition && await prepare.isDisabled() && await dialog.getByLabel("Название запроса", { exact: true }).inputValue() === ""
@@ -165,7 +189,7 @@ try {
   await close(); await page.evaluate(() => window.resumeSketchDigest());
   await open(); await dialog.waitFor({ state: "visible" });
   // A new successful generation runs after the old async digest has resumed.
-  await addImage(png); await prepare.click(); await dialog.getByRole("link", { name: "Скачать пакет ZIP", exact: true }).waitFor();
+  await addImage(png); await prepare.click(); await readyZip();
   check("late completion after close does not prevent a fresh request", await dialog.locator(".sketch-request-result").count() === 1);
   await dialog.locator('input[type="file"]').setInputFiles({ name: "bad.png", mimeType: "image/png", buffer: Buffer.from("not an image") });
   await prepare.click(); await page.waitForFunction(() => document.querySelector(".sketch-request-error")?.textContent.includes("не соответствует расширению"));

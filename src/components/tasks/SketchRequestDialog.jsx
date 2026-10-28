@@ -13,7 +13,7 @@ export function SketchRequestDialog(props) {
   const [copyStatus, setCopyStatus] = createSignal("");
   function invalidate() {
     epoch++; controller?.abort(); controller = null; setBusy(false); setCopyStatus("");
-    const previous = prepared(); if (previous) { URL.revokeObjectURL(previous.zipUrl); URL.revokeObjectURL(previous.textUrl); }
+    const previous = prepared(); if (previous) URL.revokeObjectURL(previous.zipUrl);
     setPrepared(null); setError("");
   }
   function clearImages() { for (const entry of previews()) URL.revokeObjectURL(entry.url); setPreviews([]); }
@@ -40,7 +40,7 @@ export function SketchRequestDialog(props) {
       const { getSketchContext } = await import("../../services/sketchContextService.js");
       const result = await buildSketchRequest({ title: title(), description: description(), files: previews().map(p => p.file), context: getSketchContext() }, { signal });
       if (signal.aborted || ownEpoch !== epoch || !props.open) return;
-      setPrepared({ ...result, zipUrl: URL.createObjectURL(result.zip), textUrl: URL.createObjectURL(new Blob([result.request], { type: "text/markdown;charset=utf-8" })) });
+      setPrepared({ ...result, zipUrl: URL.createObjectURL(result.zip) });
     } catch (err) { if (ownEpoch === epoch && err.name !== "AbortError") setError(err.message); }
     finally { if (ownEpoch === epoch) { controller = null; setBusy(false); } }
   }
@@ -48,6 +48,14 @@ export function SketchRequestDialog(props) {
     const ownEpoch = epoch;
     try { await navigator.clipboard.writeText(SKETCH_CHAT_PROMPT); if (ownEpoch === epoch) setCopyStatus("Инструкция скопирована"); }
     catch { if (ownEpoch === epoch) setCopyStatus("Не удалось скопировать. Выделите текст инструкции ниже и скопируйте вручную."); }
+  }
+  function downloadZip() {
+    const result = prepared();
+    if (!result || busy()) return;
+    const link = document.createElement("a");
+    link.href = result.zipUrl; link.download = result.filename; link.hidden = true;
+    document.body.append(link);
+    try { link.click(); } finally { link.remove(); }
   }
   return <dialog ref={dialog} class="sketch-request-dialog" aria-labelledby="sketch-request-title"
     onCancel={event => { event.preventDefault(); props.onClose(); }}>
@@ -66,16 +74,18 @@ export function SketchRequestDialog(props) {
       <details><summary>Что получит модель</summary><p>Выбранные Вами изображения и введённое условие, а также полученные от Editor инструкцию CLARK и формальное описание исходных данных. Пакет как zip архив передаёте вы; Editor ничего не отправляет к ИИ.</p></details>
       <p class="sketch-request-error" role="alert">{error()}</p>
       <p role="status">{busy() ? "Подготовка пакета…" : prepared() ? "Пакет готов к скачиванию" : ""}</p>
-      <button class="sketch-request-primary" type="button" disabled={busy() || !previews().length} onClick={prepare}>Подготовить ZIP</button>
-      <Show when={prepared()}>{result => <section class="sketch-request-result" aria-label="Готовый пакет">
-        <div class="sketch-request-downloads"><a href={result().zipUrl} download={result().filename}>Скачать пакет ZIP</a>
-          <a href={result().textUrl} download="REQUEST.md">Скачать REQUEST.md отдельно</a></div>
-        <ol><li>Откройте <a href="https://chatgpt.com/" target="_blank" rel="noopener noreferrer">ChatGPT</a> и приложите пакет. Если архив не читается, приложите REQUEST.md и исходные изображения отдельно.</li>
+      <Show when={prepared()}><section class="sketch-request-result" aria-label="Готовый пакет">
+        <ol><li>Откройте <a href="https://chatgpt.com/" target="_blank" rel="noopener noreferrer">ChatGPT</a> и приложите пакет. Если архив не читается, извлеките REQUEST.md из ZIP и приложите его с исходными изображениями.</li>
           <li>Отправьте инструкцию ниже. Построение геометрии и необходимые уточнения продолжатся в чате.</li></ol>
         <label>Инструкция для начала чата<textarea rows={4} readonly value={SKETCH_CHAT_PROMPT} /></label>
-        <button type="button" onClick={copyPrompt}>Скопировать инструкцию</button><span role="status">{copyStatus()}</span>
-      </section>}</Show>
+        <span role="status">{copyStatus()}</span>
+      </section></Show>
     </div>
-    <footer><button type="button" onClick={props.onClose}>Закрыть</button></footer>
+    <footer>
+      <button class="sketch-request-primary" type="button" disabled={busy() || !previews().length} onClick={prepare}>Подготовить ZIP</button>
+      <button type="button" disabled={busy() || !prepared()} onClick={downloadZip}>Скачать пакет ZIP</button>
+      <button type="button" disabled={busy() || !prepared()} onClick={copyPrompt}>Скопировать инструкцию</button>
+      <button class="sketch-request-close" type="button" onClick={props.onClose}>Закрыть</button>
+    </footer>
   </dialog>;
 }
