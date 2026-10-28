@@ -3,14 +3,16 @@
 .sketch-request-dialog[open] { display: flex; flex-direction: column; }
 .sketch-request-dialog header, .sketch-request-dialog footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 18px; flex-shrink: 0; }
 .sketch-request-dialog header { border-bottom: 1px solid #46515e; }
-.sketch-request-dialog footer { border-top: 1px solid #46515e; justify-content: flex-end; }
+.sketch-request-dialog footer { border-top: 1px solid #46515e; justify-content: flex-start; flex-wrap: nowrap; gap: 8px; overflow-x: auto; }
+.sketch-request-dialog footer button { flex: 0 0 auto; white-space: nowrap; min-height: 36px; }
+.sketch-request-dialog footer .sketch-request-close { margin-left: auto; }
 .sketch-request-dialog h2 { margin: 0; font-size: 20px; }
 .sketch-request-content { overflow: auto; padding: 0 18px 18px; min-height: 0; line-height: 1.45; }
 .sketch-request-dialog label { display: block; margin: 12px 0 6px; }
 .sketch-request-dialog input, .sketch-request-dialog textarea { display: block; width: 100%; box-sizing: border-box; margin-top: 5px; padding: 8px; border: 1px solid #647180; border-radius: 4px; background: #131a21; color: inherit; font: inherit; }
 .sketch-request-dialog textarea { resize: vertical; min-height: 72px; }
 .sketch-request-dialog small { color: #b6c3d0; }
-.sketch-request-dialog button, .sketch-request-downloads a { border: 1px solid #647180; border-radius: 4px; padding: 7px 12px; background: #303b48; color: #edf2f7; cursor: pointer; font: inherit; }
+.sketch-request-dialog button { border: 1px solid #647180; border-radius: 4px; padding: 7px 12px; background: #303b48; color: #edf2f7; cursor: pointer; font: inherit; }
 .sketch-request-dialog button:disabled { opacity: .5; cursor: default; }
 .sketch-request-dialog a { color: #9ed0ff; }
 .sketch-request-dialog summary { cursor: pointer; }
@@ -24,4 +26,3 @@
 .sketch-request-result { border-top: 1px solid #46515e; margin-top: 16px; padding-top: 14px; }
 .sketch-request-result li { margin-bottom: 8px; }
 .sketch-request-result [role="status"] { display: block; margin-top: 8px; }
-.sketch-request-downloads { display: flex; gap: 10px; flex-wrap: wrap; }
