@@ -18,6 +18,7 @@ import { TaskGeometryPreview } from "../components/geometry/TaskGeometryPreview.
 import { TaskLaunchWindow } from "../components/tasks/TaskLaunchWindow.jsx";
 import { OMClientWindow } from "../components/tasks/OMClientWindow.jsx";
 import { TaskStatusCells } from "../components/tasks/TaskStatusCells.jsx";
+import { TaskProtocolDownload, useTaskProtocolDownloads } from "../components/tasks/TaskProtocolDownload.jsx";
 import { LastOpenedTaskMarker, ProjectSelectValue } from "../components/tasks/LastOpenedTaskMarker.jsx";
 import { useTaskStatuses } from "../services/taskStatusMonitor.js";
 import { createTaskTestProtocolWindow } from "../services/taskTestProtocolWindow.js";
@@ -69,6 +70,8 @@ export function Tasks(props) {
   const [projects, setProjects] = createSignal([]);
   const [selectedProject, setSelectedProject] = createSignal("");
   const [tasks, setTasks] = createSignal([]);
+  const [protocolDownloadRevision, setProtocolDownloadRevision] = createSignal(0);
+  const protocolDownloads = useTaskProtocolDownloads(() => props.active === false ? [] : tasks(), protocolDownloadRevision);
   const [lastTask, setLastTask] = createSignal(null);
   const [lastTaskNotice, setLastTaskNotice] = createSignal("");
   const lastTaskHistory = createLastOpenedTaskHistory({ app: "editor", onChange: setLastTask, onNotice: setLastTaskNotice });
@@ -488,7 +491,7 @@ export function Tasks(props) {
 
   onMount(() => {
     const timer = window.setInterval(() => { void pollWorkspaceBinding(); }, 1000);
-    const onFocus = () => { void pollWorkspaceBinding(); };
+    const onFocus = () => { void pollWorkspaceBinding(); setProtocolDownloadRevision(value => value + 1); };
     window.addEventListener("focus", onFocus);
     onCleanup(() => {
       window.clearInterval(timer);
@@ -787,10 +790,21 @@ export function Tasks(props) {
   const requestTaskLoad = async () => {
     if (operation() || galleryBusy() || protocolBusy()) return;
     const task = selectedTask();
-    if (!task || task.handle === loadedTaskHandle()) return;
+    if (!task) return;
     const requestId = ++taskLoadRevision;
 
     try {
+      const loaded = loadedTaskHandle();
+      let same = task.handle === loaded;
+      if (!same && loaded && typeof task.handle.isSameEntry === "function") {
+        try { same = await task.handle.isSameEntry(loaded); }
+        catch { /* A stale handle follows the regular task-opening path. */ }
+      }
+      if (requestId !== taskLoadRevision || selectedTask()?.handle !== task.handle) return;
+      if (same && loaded === loadedTaskHandle()) {
+        props.onOpenTab?.(TABS.GENERAL.id);
+        return;
+      }
       const root = rootHandle();
       if (!root) return;
       const lastTaskSnapshot = lastTaskHistory.capture(projects(), selectedProject(), tasks(), task);
@@ -825,10 +839,6 @@ export function Tasks(props) {
     unsavedDialog.close();
     props.onReturnToEditing?.();
   };
-
-  const taskLoaded = () =>
-    Boolean(selectedTask()?.handle)
-    && selectedTask()?.handle === loadedTaskHandle();
 
   return (
     <div class="tasks-scroll-viewport">
@@ -922,7 +932,11 @@ export function Tasks(props) {
                 >
                   <TaskStatusCells status={taskStatus(task.handle)} disabled={operationsBlocked() || Boolean(pendingTaskLoad())}
                     onOpenProtocols={() => { void openTestProtocols(task); }} />
-                  <span class="task-status-name"><Show when={isLastTask(task)}><LastOpenedTaskMarker label="Последнее открытое задание" /></Show>{task.name}</span>
+                  <span class="task-status-name">
+                    <span class="task-status-label"><Show when={isLastTask(task)}><LastOpenedTaskMarker label="Последнее открытое задание" /></Show>{task.name}</span>
+                    <TaskProtocolDownload taskHandle={task.handle} taskName={task.name} record={protocolDownloads(task.handle)}
+                      disabled={operationsBlocked() || Boolean(pendingTaskLoad())} />
+                  </span>
                 </div>
               ))}
             </div>
@@ -931,7 +945,7 @@ export function Tasks(props) {
         <div class="task-browser-actions">
           <button
             class="task-load-button"
-            disabled={!selectedTask() || taskLoaded() || galleryBusy() || selectionReceiving() || protocolBusy()}
+            disabled={!selectedTask() || galleryBusy() || selectionReceiving() || protocolBusy()}
             onClick={requestTaskLoad}
           >
             <span class="task-load-label">

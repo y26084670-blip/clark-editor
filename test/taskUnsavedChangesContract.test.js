@@ -18,14 +18,14 @@ const createTaskLoading = new Function("dependencies", `
         setSelectedTask, selectedTask, setTaskInfo, setTaskResultsText, EMPTY_TASK_INFO,
         readTaskSummary, readTaskResultsSummary, loadedTaskHandle, unsavedChangesService,
         setPendingTaskLoad, pendingTaskLoad, unsavedDialog, returnToEditingButton,
-        operation, galleryBusy, selectionReceiving, rootHandle, getFullPath, showLoadError, console,
+        operation, galleryBusy, protocolBusy, selectionReceiving, rootHandle, getFullPath, showLoadError, console,
         lastTaskHistory, projects, selectedProject, tasks, omClientState, showTaskError,
         operationsBlocked, loadedTaskPath, setOMClientRequest } = dependencies;
     let taskLoadRevision = 0, taskInfoRevision = 0, inputSummaryRevision = 0;
     // Summary notification effects have their own reactive/browser coverage.
     const createEffect = () => {}, on = () => {};
     ${taskFunctions("  const commitTaskLoad =", "  const handleLaunchComplete =")}
-    ${taskFunctions("  const requestTaskLoad =", "  const taskLoaded =")}
+    ${taskFunctions("  const requestTaskLoad =", "  return (\n")}
     ${taskFunctions("  function openOMClient()", "  async function bindWorkspace()")}
     return { commitTaskLoad, selectTaskCandidate, requestTaskLoad, confirmTaskLoad, returnToEditing, openOMClient };
 `);
@@ -57,6 +57,7 @@ function taskLoadingRuntime() {
         unsavedDialog: { open: false, showModal() { this.open = true; }, close() { this.open = false; } },
         returnToEditingButton: null, operation: () => null, rootHandle: () => ({ name: "Projects" }),
         galleryBusy: () => state.galleryBusy,
+        protocolBusy: () => false,
         selectionReceiving: () => false,
         projects: () => [{ name: "Project" }], selectedProject: () => "Project",
         tasks: () => state.selected ? [state.selected] : [],
@@ -215,4 +216,25 @@ test("opening the demo never writes a base directory's last-task record", () => 
     const h = taskLoadingRuntime();
     h.commitTaskLoad({ task: { ...taskCandidate("Demo"), isDemo: true }, fullPath: "Demo", lastTaskSnapshot: { task: {} } });
     assert.deepEqual(h.state.remembered, []);
+});
+
+test("reopening the loaded task goes to General without replacing dirty state or reading input again", async () => {
+    const h = taskLoadingRuntime(), task = taskCandidate("Loaded", () => assert.fail("must not reread loaded input"));
+    h.commitTaskLoad({ task, fullPath: "Projects/Loaded" });
+    h.state.selected = task; h.state.active = TABS.TASKS.id; h.state.dirty = true;
+    const remembered = [...h.state.remembered];
+    await h.requestTaskLoad();
+    assert.equal(h.state.active, TABS.GENERAL.id); assert.equal(h.state.loaded, task.handle);
+    assert.equal(h.state.dirty, true); assert.equal(h.state.pending, null);
+    assert.deepEqual(h.state.remembered, remembered);
+});
+
+test("a fresh native handle for the same loaded directory also only navigates to General", async () => {
+    const h = taskLoadingRuntime(), loaded = taskCandidate("Loaded");
+    h.commitTaskLoad({ task: loaded, fullPath: "Projects/Loaded" });
+    const next = taskCandidate("Loaded", () => assert.fail("same directory must not be reloaded"));
+    next.handle.isSameEntry = async other => other === loaded.handle;
+    h.state.selected = next; h.state.active = TABS.TASKS.id; h.state.dirty = true;
+    await h.requestTaskLoad();
+    assert.equal(h.state.active, TABS.GENERAL.id); assert.equal(h.state.loaded, loaded.handle); assert.equal(h.state.dirty, true);
 });
