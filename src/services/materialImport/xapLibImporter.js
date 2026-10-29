@@ -1,4 +1,5 @@
 import { decodeLegacyCharacterCodes } from "./legacyCharacterTable.js";
+import { FMM_MIN_TABLE_ROWS } from "../materials/materialConstants.js";
 import {
     legacyMaterialFileName,
     validateUniqueLegacyMaterialNames,
@@ -6,7 +7,7 @@ import {
 
 export const XAP_RECORD_FLOATS = 547;
 export const XAP_RECORD_BYTES = XAP_RECORD_FLOATS * Float32Array.BYTES_PER_ELEMENT;
-export const XAP_TABLE_ROWS = 12;
+export const XAP_TABLE_ROWS = 12; // Fixed layout of legacy binary XAP.lib only.
 
 const NAME_OFFSET = 0;
 const TEXT_FIELD_LENGTH = 256;
@@ -143,8 +144,8 @@ export function fmmMaterialStorageRecord(record) {
     if (!record || typeof record !== "object" || Array.isArray(record)) {
         throw new TypeError("Характеристика ФММ должна быть объектом.");
     }
-    if (!Array.isArray(record.tabl) || record.tabl.length !== XAP_TABLE_ROWS) {
-        throw new Error(`Таблица ФММ должна содержать ${XAP_TABLE_ROWS} строк.`);
+    if (!Array.isArray(record.tabl) || record.tabl.length < FMM_MIN_TABLE_ROWS) {
+        throw new Error(`Таблица ФММ должна содержать не менее ${FMM_MIN_TABLE_ROWS} строк.`);
     }
 
     const rows = record.tabl.map((row, rowIndex) => {

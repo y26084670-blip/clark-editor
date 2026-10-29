@@ -10,6 +10,7 @@ import { materialLibraryHistoryService } from '../../src/services/materialLibrar
 import { materialLibraryRevisionService } from '../../src/services/materialLibraryRevisionService.js';
 import { toFmmLibraryModel, toHtsLibraryModel } from '../../src/services/materials/materialLibraryModel.js';
 import { TabulatorFull } from 'tabulator-tables';
+import Chart from 'chart.js/auto';
 import { createMaterialLibraryLoadQueue } from '../../src/services/materials/materialLibraryLoadQueue.js';
 
 const [kind, setKind] = createSignal('FMM');
@@ -89,6 +90,14 @@ window.guideMaterials = {
     release(which) { if (which === 'base') { releaseBase?.(); baseDelay = null; } else { releaseLocal?.(); localDelay = null; } },
     counters() { return { baseCalls, baseCompleted, localCalls, writes }; },
     table() { return TabulatorFull.findTable('.material-library-table')[0]; },
+    graphPointCounts() { return Object.values(Chart.instances).flatMap(chart => chart.data.datasets.map(dataset => dataset.data.length)); },
+    detailTable() { return TabulatorFull.findTable('.tabulator').find(table => table.getColumns().some(column => column.getField() === 'c0')); },
+    async savedFmm(id = 'A') {
+        const input = await tasks[id].getDirectoryHandle('input3XX');
+        const dir = await input.getDirectoryHandle('xapLibFMM');
+        const handle = await dir.getFileHandle(`Task${id}_FMM.txt`);
+        return JSON.parse(new TextDecoder().decode(await (await handle.getFile()).arrayBuffer()));
+    },
     snapshot() {
         const table = this.table();
         return { value: document.querySelector('.material-library-source select')?.value,

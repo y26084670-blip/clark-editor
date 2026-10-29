@@ -257,6 +257,18 @@
   overflow: auto;
 }
 
+.fmm-clipboard-range {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 18px;
+}
+
+.fmm-clipboard-preview-scroll {
+  max-height: 42vh;
+  overflow: auto;
+  margin-bottom: 12px;
+}
+
 .fmm-clipboard-start {
   display: flex;
   align-items: center;
@@ -272,11 +284,12 @@
 .fmm-clipboard-preview {
   width: 100%;
   border-collapse: collapse;
-  margin-bottom: 12px;
+  margin-bottom: 0;
 }
 
 .fmm-clipboard-preview th,
 .fmm-clipboard-preview td {
+  color: #edf2f7;
   padding: 3px 8px;
   border: 1px solid #596674;
   text-align: right;

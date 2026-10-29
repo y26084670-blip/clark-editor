@@ -1,5 +1,6 @@
 import { MaterialBatchConflictError } from "../taskMaterialLibraryService.js";
-import { createFmmMaterialFile, XAP_TABLE_ROWS } from "../materialImport/xapLibImporter.js";
+import { createFmmMaterialFile } from "../materialImport/xapLibImporter.js";
+import { FMM_DEFAULT_TABLE_ROWS } from "./materialConstants.js";
 
 function positiveNumber(value, label) {
   if (value == null || (typeof value === "string" && !value.trim())) {
@@ -21,8 +22,8 @@ export function createConstantMuFmm({ mu, hMax } = {}) {
     useGrouping: false, minimumFractionDigits: 2, maximumFractionDigits: 2,
   });
   const hip = mu - 1;
-  const tabl = Array.from({ length: XAP_TABLE_ROWS }, (_, i) => {
-    const h = i === XAP_TABLE_ROWS - 1 ? hMax : hMax * (i / (XAP_TABLE_ROWS - 1));
+  const tabl = Array.from({ length: FMM_DEFAULT_TABLE_ROWS }, (_, i) => {
+    const h = i === FMM_DEFAULT_TABLE_ROWS - 1 ? hMax : hMax * (i / (FMM_DEFAULT_TABLE_ROWS - 1));
     const m = hip * h;
     if (!Number.isFinite(m)) throw new Error("Значения M выходят за допустимый числовой диапазон.");
     return [h, m === 0 ? 0 : m];
