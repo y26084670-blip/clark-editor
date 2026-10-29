@@ -28,11 +28,45 @@ const ORIGINAL_OBJECT_FILTERS = Object.freeze({
 
 export function TaskGeometryPreview(props) {
   const [scene, setScene] = createSignal(null);
+  const [savedModel, setSavedModel] = createSignal(null);
+  const [sameAsLoaded, setSameAsLoaded] = createSignal(false);
   const [loading, setLoading] = createSignal(false);
   const [message, setMessage] = createSignal("Выберите задание для просмотра");
   const [viewRequest, setViewRequest] = createSignal(null);
   let previewElement;
   let loadRevision = 0;
+  let identityRevision = 0;
+
+  createEffect(() => {
+    const task = props.taskHandle, loaded = props.loadedTaskHandle;
+    const revision = ++identityRevision;
+    setSameAsLoaded(Boolean(task && task === loaded));
+    if (!task || !loaded || task === loaded || typeof task.isSameEntry !== "function") return;
+    void Promise.resolve().then(() => task.isSameEntry(loaded)).then(same => {
+      if (revision === identityRevision) setSameAsLoaded(same);
+    }).catch(() => { /* An unavailable handle keeps its own saved preview. */ });
+  });
+
+  createEffect(() => {
+    const saved = savedModel();
+    if (!saved) return;
+    // Loaded tabs can arrive independently. Merge only the available live parts
+    // into the selected task's preview; another selected task always uses disk.
+    const live = sameAsLoaded() ? props.model : null;
+    const model = { ...saved };
+    for (const key of ["general", "elements", "regions"]) {
+      if (live?.[key] !== undefined) model[key] = live[key];
+    }
+    try {
+      const nextScene = buildGeometryScene(model);
+      setScene(nextScene);
+      setMessage(nextScene.primitives.length === 0 ? "Нет геометрии для предварительного просмотра" : "");
+    } catch (error) {
+      console.error("Ошибка предварительного просмотра задания:", error);
+      setScene(null);
+      setMessage("Не удалось подготовить предварительный просмотр");
+    }
+  });
 
   const requestView = (command) => {
     setViewRequest((previous) => ({
@@ -54,6 +88,7 @@ export function TaskGeometryPreview(props) {
     const active = props.active !== false;
     const revision = ++loadRevision;
 
+    setSavedModel(null);
     setScene(null);
     setViewRequest(null);
     setLoading(false);
@@ -71,13 +106,7 @@ export function TaskGeometryPreview(props) {
           return;
         }
 
-        const nextScene = buildGeometryScene(result.model);
-        setScene(nextScene);
-        setMessage(
-          nextScene.primitives.length === 0
-            ? "Нет геометрии для предварительного просмотра"
-            : "",
-        );
+        setSavedModel(result.model);
       })
       .catch((error) => {
         if (revision !== loadRevision) return;
@@ -89,6 +118,7 @@ export function TaskGeometryPreview(props) {
 
   onCleanup(() => {
     loadRevision += 1;
+    identityRevision += 1;
   });
 
   return (

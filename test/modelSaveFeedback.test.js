@@ -24,7 +24,7 @@ const createSaveRuntime = new Function("dependencies", `
   "use strict";
   const {
     createSignal, createEffect, onCleanup, selectionService, modelService,
-    taskApprovalService, writeTaskSummary, dataService, unsavedChangesService, diagnosticService,
+    taskApprovalService, clearPlanarModeMarker, refreshPlanarModeMarker, writeTaskSummary, dataService, unsavedChangesService, diagnosticService,
     collectModelDiagnostics, assertJweakLocalUnchanged, createError, TABS, tabRegistry, VALIDATION_LEVELS,
     setTimeout, clearTimeout, console,
   } = dependencies;
@@ -116,6 +116,14 @@ function createHarness(t, options = {}) {
           events.push({ type: "clear", handle });
           return options.clear?.(handle);
         },
+      },
+      async clearPlanarModeMarker(handle) {
+        events.push({ type: "planar-clear", handle });
+        return options.planarClear?.(handle);
+      },
+      async refreshPlanarModeMarker(handle) {
+        events.push({ type: "planar-refresh", handle });
+        return options.planarRefresh?.(handle);
       },
       async writeTaskSummary(handle, snapshot) {
         events.push({ type: "summary", handle, snapshot });
@@ -215,8 +223,8 @@ test("save stays pending until the last write and rejects duplicate clicks", asy
   assert.equal(h.savePending(), null);
   assert.equal(h.calls("baseline").length, 3);
   assert.deepEqual(h.events.map(event => event.type), [
-    "mark", "write", "baseline", "write", "baseline", "write", "baseline",
-    "summary", "validate", "diagnostics", "clear",
+    "mark", "planar-clear", "write", "baseline", "write", "baseline", "write", "baseline",
+    "planar-refresh", "summary", "validate", "diagnostics", "clear",
   ]);
 });
 
@@ -493,4 +501,26 @@ test("external companion changes no longer block an explicit save", async t => {
   assert.equal(h.calls("write").length, 3);
   assert.equal(h.calls("clear").length, 1);
   assertFeedback(h, "success");
+});
+
+
+test("a failed input save leaves the 2D marker removed; failed marker invalidation stops writes", async t => {
+  const partial = createHarness(t, { save: (_h, schema) => schema.id !== "regions" });
+  await partial.handleSave();
+  assert.equal(partial.calls("planar-clear").length, 1);
+  assert.equal(partial.calls("planar-refresh").length, 0);
+  const denied = createHarness(t, { planarClear: () => { throw new Error("denied"); } });
+  await denied.handleSave();
+  assert.equal(denied.calls("write").length, 0); assertFeedback(denied, "error");
+});
+
+test("2D marker follows saved geometry even with MED errors; marker write failures report failure", async t => {
+  const med = createHarness(t, { validate: () => [{ level: "error", message: "MED" }] });
+  await med.handleSave();
+  assert.equal(med.calls("planar-refresh").length, 1);
+  assert.equal(med.calls("clear").length, 0);
+  const denied = createHarness(t, { planarRefresh: () => { throw new Error("denied"); } });
+  await denied.handleSave(); assertFeedback(denied, "error");
+  assert.match(denied.saveFeedback().message, /_2d.e3d/);
+  assert.equal(denied.calls("clear").length, 0);
 });

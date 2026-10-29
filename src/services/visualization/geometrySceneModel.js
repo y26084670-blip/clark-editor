@@ -9,6 +9,7 @@ import { tessellateBilinearRegionSurface }
     from "./geometryDiscretization.js";
 import { classifyGeometryMaterial }
     from "./geometryMaterialStyle.js";
+import { detectPlanarGeometry } from "./planarGeometry.js";
 
 const ELEMENT_GEO_TYPES = new Set([0, 1, 2, 3, 4]);
 const REGION_GEO_TYPES = new Set([0, 1, 2, 3]);
@@ -703,6 +704,7 @@ export function buildGeometryScene(model = {}) {
     return {
         primitives,
         diagnostics,
+        planar2D: Boolean(detectPlanarGeometry(primitives, general, model?.elements?.length ?? 0)),
         bounds: createBounds(primitives),
         counts: createCounts(primitives, skipped),
     };

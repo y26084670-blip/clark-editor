@@ -30,6 +30,7 @@ import { selectionContextService } from "./services/selectionContextService.js";
 import { unsavedChangesService } from "./services/unsavedChangesService.js";
 import { writeTaskSummary } from "./services/taskSummaryService.js";
 import { taskApprovalService } from "./services/taskApprovalService.js";
+import { clearPlanarModeMarker, refreshPlanarModeMarker } from "./services/taskPlanarModeService.js";
 import {
   assignSelectedElementMaterial,
   clearSelectedElementMaterials,
@@ -374,7 +375,7 @@ export default function App() {
 
   async function performModelValidation({restart=false} = {}) {
     const taskHandle = selectionService.loadedTaskHandle();
-    if (!taskHandle || (validationPending() && !restart)) return;
+    if (!taskHandle || savePending() || (validationPending() && !restart)) return;
 
     const modelSnapshot = modelService.getModel();
     const context = {
@@ -393,6 +394,12 @@ export default function App() {
       );
       if (!isValidationContextCurrent(context)) return;
 
+      if (!selectionService.loadedTaskIsDemo()) {
+        await refreshPlanarModeMarker(taskHandle, {
+          isCurrent: () => isValidationContextCurrent(context) && !savePending(),
+        });
+        if (!isValidationContextCurrent(context)) return;
+      }
       diagnosticService.setValidationResult(diagnostics);
       showValidationFeedback(
         context,
@@ -598,6 +605,7 @@ export default function App() {
     try {
       try {
         await taskApprovalService.markUnapproved(dirHandle);
+        await clearPlanarModeMarker(dirHandle);
       } catch (error) {
         feedbackResult = {
           status: "error",
@@ -649,6 +657,13 @@ export default function App() {
       // Publish only after all present input files were written successfully.
       // Missing optional tabs retain the existing approval-marker semantics.
       if (saveErrors.length === 0 && savedCount > 0) {
+        try {
+          await refreshPlanarModeMarker(dirHandle);
+        } catch (error) {
+          feedbackResult = { status: "error", message: "Данные сохранены, но не удалось обновить признак _2d.e3d: "
+            + (error?.message ?? String(error)) };
+          return;
+        }
         try {
           await writeTaskSummary(dirHandle, modelSnapshot);
           setSavedSummary({ taskHandle: dirHandle });

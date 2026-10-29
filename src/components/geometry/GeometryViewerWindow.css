@@ -18,6 +18,18 @@
   outline: none;
 }
 
+.geometry-planar-mode {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 4;
+  color: #ffeb3b;
+  background: transparent;
+  font: 700 16px/1.25 Arial, sans-serif;
+  pointer-events: none;
+  user-select: none;
+}
+
 .geometry-viewer-window:focus-visible {
   outline: 2px solid #8fc7ff;
   outline-offset: -2px;
