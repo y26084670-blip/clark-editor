@@ -1,8 +1,9 @@
 import { applyMatrix4ToPoint } from "../solver/rotation3d.js";
 
-// Keep identical in Editor and Viewer. Mirrors solver/src/task/04_planar_geometry.jl.
-// Examine all physical images, before any viewport visibility filters. Observation
-// regions do not define the extent of the infinite-X system.
+// Mirrors solver/src/task/04_planar_geometry.jl (task.kvs[1:NV]). Examine physical
+// elements and prescribed sources with all images, before viewport filters.
+// Virtual elements (targ=3) and observation regions only sample secondary fields;
+// their dimensions do not define the extent of the infinite-X system.
 function longitudinalAxis(vertices, divisions, tolerance) {
     for (let axis = 0; axis < 3; axis++) {
         if (divisions[axis] !== 1) continue;
@@ -32,11 +33,17 @@ function hasCrossSection(vertices, axis) {
     return Number.isFinite(area) && area !== 0;
 }
 
-export function detectPlanarGeometry(primitives, general = {}, elementCount = 0) {
-    if (general.fullAxialSymmetry || general.mirrorSymmetryX >= 0 || elementCount === 0) return null;
-    const elements = primitives.filter(p => p.kind === "element-volume");
-    // Incomplete/invalid scenes must never label a subset as the complete 2D task.
-    if (elements.length !== elementCount) return null;
+export function detectPlanarGeometry(primitives, general = {}, records = []) {
+    if (general.fullAxialSymmetry || general.mirrorSymmetryX >= 0 || !Array.isArray(records)) return null;
+    const physicalIndices = new Set();
+    for (let i = 0; i < records.length; i++) {
+        if (records[i]?.targ !== 3) physicalIndices.add(i);
+    }
+    if (physicalIndices.size === 0) return null;
+    const elements = primitives.filter(p => p.kind === "element-volume"
+        && physicalIndices.has(p.source.recordIndex));
+    // Missing/invalid physical elements must never certify only a subset.
+    if (elements.length !== physicalIndices.size) return null;
     const epsilon = general.doubleFloat ? Number.EPSILON : 2 ** -23;
     const lower = [Infinity, Infinity], upper = [-Infinity, -Infinity];
     let length = null;

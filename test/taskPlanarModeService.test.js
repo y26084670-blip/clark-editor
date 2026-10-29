@@ -63,6 +63,25 @@ test("malformed or missing geometry removes a stale marker instead of certifying
     }
 });
 
+test("saved Virtual geometry with a different centered length retains the 2D marker", async () => {
+    const f = fixture();
+    for (const length of [2, 200]) {
+        const virtual = structuredClone(f.element);
+        virtual.name = "Virtual probe"; virtual.targ = 3;
+        virtual.geo[0][0] = length; virtual.dr[0][0] = -length / 2;
+        const write = () => f.files.set("kvs.txt", serialize([f.element, virtual], elementsSchema)
+            .map(row => JSON.stringify(row)).join("\n"));
+        write();
+        assert.equal(await refreshPlanarModeMarker(f.task), true);
+        assert.equal(f.files.has(marker), true);
+        virtual.targ = 0; write();
+        assert.equal(await refreshPlanarModeMarker(f.task), false);
+        assert.equal(f.files.has(marker), false);
+        virtual.targ = 3; write();
+        assert.equal(await refreshPlanarModeMarker(f.task), true);
+    }
+});
+
 test("a stale validation cannot write, and an in-flight marker write finishes before Save invalidation", async () => {
     const f = fixture();
     assert.equal(await refreshPlanarModeMarker(f.task, { isCurrent: () => false }), null);
