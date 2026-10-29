@@ -704,7 +704,7 @@ export function buildGeometryScene(model = {}) {
     return {
         primitives,
         diagnostics,
-        planar2D: Boolean(detectPlanarGeometry(primitives, general, model?.elements?.length ?? 0)),
+        planar2D: Boolean(detectPlanarGeometry(primitives, general, model?.elements ?? [])),
         bounds: createBounds(primitives),
         counts: createCounts(primitives, skipped),
     };

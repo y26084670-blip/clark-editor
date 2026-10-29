@@ -58,6 +58,31 @@ test("observation regions and display filters do not determine the 2D convention
     assert.equal(scene([element()], {}, [region]).planar2D, true);
 });
 
+test("centered virtual elements may be shorter or longer without defining the physical extent", () => {
+    for (const length of [0.5, 20, 2000]) {
+        const virtual = element({ targ: 3, geo: rows([length, 200, 300]), dr: vector([-length / 2, 0, 0]),
+            symLs: 4, symYl: 90, symAs: 2, symYa: 45 });
+        const model = scene([element(), virtual]);
+        assert.equal(model.planar2D, true, `Virtual length ${length}`);
+        assert.equal(model.primitives.length, 2, "virtual geometry remains visible");
+        // The record index remains its original index when virtual rows precede physical rows.
+        assert.equal(scene([virtual, element()]).planar2D, true);
+    }
+    assert.equal(scene([element({ targ: 3 })]).planar2D, false, "virtual geometry alone is not a physical 2D task");
+});
+
+test("changing Virtual to a physical purpose restores all physical geometry requirements", () => {
+    const probe = element({ targ: 3, geo: rows([40, 2, 3]), dr: vector([-20, 0, 0]) });
+    assert.equal(scene([element(), probe]).planar2D, true);
+    for (const targ of [0, 1, 2]) {
+        assert.equal(scene([element(), { ...probe, targ }]).planar2D, false, `physical purpose ${targ}`);
+    }
+    assert.equal(scene([element(), probe]).planar2D, true);
+    assert.equal(scene([element({ dp: vector([2, 2, 3]) }), probe]).planar2D, false);
+    assert.equal(scene([element(), probe], { mirrorSymmetryX: 0 }).planar2D, false);
+    assert.equal(scene([element(), probe], { fullAxialSymmetry: true }).planar2D, false);
+});
+
 test("invalid or omitted physical elements cannot produce a false 2D label", () => {
     for (const bad of [element({ dp: vector([0, 2, 3]) }), element({ geoType: 99 }),
         element({ geo: rows([20, 0, 0]) }), element({ symPs: 20001 }),
