@@ -27,6 +27,7 @@ const buttonRuntime = new Function("deps", `
     const {createSignal, createEffect, onCleanup, selectionService, modelService,
         diagnosticService, loadMaterialReferenceCatalog, loadJweakLocal,
         modelValidator, createError, TABS, setTimeout, clearTimeout, console} = deps;
+    const savePending = () => false, refreshPlanarModeMarker = async () => {};
     let modelValidationRevision = 0;
     ${region("  const [validationPending, setValidationPending]", "  const [savePending, setSavePending]")}
     ${region("  async function collectModelDiagnostics(", "  const tabs = [")}
@@ -76,7 +77,7 @@ test("Check model button publishes name ERROR and clears it after correction wit
     createRoot(dispose => {
         t.after(dispose);
         app = buttonRuntime({createSignal, createEffect, onCleanup, diagnosticService,
-            selectionService: {loadedTaskHandle: () => taskHandle},
+            selectionService: {loadedTaskHandle: () => taskHandle, loadedTaskIsDemo: () => false},
             modelService: {getModel: () => snapshot}, modelValidator, createError,
             TABS,
             loadMaterialReferenceCatalog: async () => ({catalog: {FMM: [], HTS: []}, errors: []}),

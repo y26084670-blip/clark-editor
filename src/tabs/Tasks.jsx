@@ -996,6 +996,8 @@ export function Tasks(props) {
           {() => (
             <TaskGeometryPreview
               taskHandle={selectedTask()?.handle}
+              loadedTaskHandle={loadedTaskHandle()}
+              model={modelService.getModel()}
               active={props.active}
             />
           )}

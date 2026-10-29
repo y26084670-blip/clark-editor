@@ -25,7 +25,7 @@ const createValidationRuntime = new Function("dependencies", `
   "use strict";
   const {
     createSignal, createEffect, onCleanup, selectionService, modelService,
-    diagnosticService, taskApprovalService, collectModelDiagnostics, createError,
+    diagnosticService, taskApprovalService, collectModelDiagnostics, createError, savePending, refreshPlanarModeMarker,
     setTimeout, clearTimeout, console,
   } = dependencies;
   let modelValidationRevision = 0;
@@ -93,7 +93,12 @@ function createHarness(t, options = {}) {
       createSignal,
       createEffect,
       onCleanup,
-      selectionService: { loadedTaskHandle: task },
+      selectionService: { loadedTaskHandle: task, loadedTaskIsDemo: () => Boolean(options.demo) },
+      savePending: () => options.saving ?? false,
+      async refreshPlanarModeMarker(handle, config) {
+        events.push({ type: "planar-refresh", handle, config });
+        return options.planarRefresh?.(handle, config);
+      },
       modelService: { getModel: model },
       diagnosticService: {
         setValidationResult(diagnostics) {
@@ -165,7 +170,7 @@ test("manual validation stays pending until diagnostics resolve and rejects doub
   assert.equal(h.validationPending(), null);
   assertFeedback(h, "success");
   assert.equal(h.calls("diagnostics")[0].diagnostics, diagnostics);
-  assert.deepEqual(h.events.map(event => event.type), ["validate", "diagnostics"]);
+  assert.deepEqual(h.events.map(event => event.type), ["validate", "planar-refresh", "diagnostics"]);
   h.clock.tick(2999);
   assertFeedback(h, "success");
   h.clock.tick(1);
@@ -184,7 +189,7 @@ test("a completed check preserves error and warning diagnostics and never change
   assertFeedback(h, "success");
   assert.equal(h.validationPending(), null);
   assert.equal(h.calls("diagnostics")[0].diagnostics, diagnostics);
-  assert.deepEqual(h.events.map(event => event.type), ["validate", "diagnostics"]);
+  assert.deepEqual(h.events.map(event => event.type), ["validate", "planar-refresh", "diagnostics"]);
 });
 
 test("a validation exception becomes an error diagnostic and expiring error feedback", async t => {
@@ -378,4 +383,16 @@ test("validation shares save animations and retains static feedback with reduced
   }
   assert.match(rule(reducedMotion, ".validation-button-success"), /box-shadow:\s*0 0 0 3px #ffd600;/u);
   assert.match(rule(reducedMotion, ".validation-button-error"), /box-shadow:\s*0 0 0 3px #dc2626;/u);
+});
+
+
+test("manual Check refreshes the saved marker independently of MED diagnostics, but never writes a demo", async t => {
+  const h = createHarness(t, { validate: () => [{ level: "error", message: "MED" }] });
+  await h.handleModelValidation();
+  assert.equal(h.calls("planar-refresh").length, 1);
+  assert.equal(h.calls("planar-refresh")[0].config.isCurrent(), true);
+  const demo = createHarness(t, { demo: true });
+  await demo.handleModelValidation(); assert.equal(demo.calls("planar-refresh").length, 0);
+  const saving = createHarness(t, { saving: true });
+  await saving.handleModelValidation(); assert.deepEqual(saving.events, []);
 });

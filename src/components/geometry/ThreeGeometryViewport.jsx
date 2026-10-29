@@ -2490,6 +2490,9 @@ export function ThreeGeometryViewport(props) {
       aria-label="Трёхмерная геометрия элементов и областей"
       aria-busy={loading()}
     >
+      <Show when={props.scene?.planar2D}>
+        <span class="geometry-planar-mode">2D расчет</span>
+      </Show>
       <Show when={props.enableLens === true && ready() && !error() && showLensHint()}>
         <span class="viewport-lens-hint" style={{ "--viewport-lens-hint-left": `${AXES_GIZMO_SIZE + AXES_GIZMO_MARGIN + 8}px` }}>Щелкни и нажми Пробел!</span>
       </Show>
