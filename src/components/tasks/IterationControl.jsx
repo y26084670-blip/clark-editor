@@ -73,6 +73,7 @@ export function IterationControl(props) {
       title={status() ? `Активное задание: ${status().taskPath}. Применить выбранные параметры в конце итерации.` : "Нет активного задания с поддержкой общей памяти"}>
       Активная задача: Установить значения:
     </button>
+    <div class="iteration-control-options">
     <div class="iteration-control-fields" aria-label="Параметры активного задания">
       <input type="checkbox" aria-label="Изменить TAU" checked={useTau()} disabled={!enabled()}
         onChange={event => setUseTau(event.currentTarget.checked)} />
@@ -88,6 +89,7 @@ export function IterationControl(props) {
         onChange={event => setUseMResidual(event.currentTarget.checked)} /> M-невязка</label>
       <label><input type="checkbox" checked={useJResidual()} disabled={!enabled()}
         onChange={event => setUseJResidual(event.currentTarget.checked)} /> J-невязка</label>
+    </div>
     </div>
     <Show when={error()}><div class="iteration-control-message task-launch-error" role="alert">{error()}</div></Show>
     <Show when={notice()}><div class="iteration-control-message task-launch-notice" role="status">{notice()}</div></Show>
