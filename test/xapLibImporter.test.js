@@ -105,6 +105,6 @@ test("FMM serializer rejects a malformed detail table", () => {
             hip: 0,
             comment: "",
         }),
-        /12 строк/,
+        /не менее 2 строк/,
     );
 });

@@ -1,3 +1,7 @@
+// Current JSON tables are variable-length; twelve is only the initial template.
+export const FMM_MIN_TABLE_ROWS = 2;
+export const FMM_DEFAULT_TABLE_ROWS = 12;
+
 export const HTS_PARAMETER_NAMES = Object.freeze([
     "j_HC0",
     "JC0",

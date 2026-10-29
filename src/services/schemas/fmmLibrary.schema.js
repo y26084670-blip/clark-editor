@@ -8,6 +8,7 @@ import {
     VIEW_TYPES,
 } from "./common/constants";
 import { createSchema } from "../schemaFactory";
+import { FMM_MIN_TABLE_ROWS } from "../materials/materialConstants.js";
 
 function tableSummary({ presentation }) {
     const count = Array.isArray(presentation?.rows)
@@ -50,14 +51,13 @@ export default createSchema({
             description: "Табличная ферромагнитная характеристика",
             default: [],
             readonly: true,
-            rowsMutable: false,
+            rowsMutable: true,
             nColumns: 2,
             order: "column",
             columns: ["H, кА/м", "M, кА/м"],
             itemLabelTitle: "#",
             itemLabelWidth: 55,
-            minItems: 12,
-            maxItems: 12,
+            minItems: FMM_MIN_TABLE_ROWS,
             summary: tableSummary,
             columnWidth: 150,
             items: {

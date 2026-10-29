@@ -67,7 +67,6 @@ function editableMaterialSchema(schema) {
           ? {
               ...property,
               readonly: false,
-              rowsMutable: false,
               items: { ...property.items, readonly: false },
             }
           : { ...property, readonly: false },
@@ -644,7 +643,7 @@ export function MaterialLibraryTab(props) {
     }
   }
 
-  async function applyFmmClipboard(startRow) {
+  async function applyFmmClipboard(startRow, endRow) {
     const request = clipboardRequest();
     if (!request || actionBusy() || !recordsReady() || !isTaskSource()) return;
     const isCurrent = () => !disposed && librarySession() === request.session
@@ -655,7 +654,7 @@ export function MaterialLibraryTab(props) {
     beginAction();
     try {
       const record = await saveFmmClipboardBlock({
-        taskHandle: taskHandle(), record: request.record, rows: request.rows, startRow,
+        taskHandle: taskHandle(), record: request.record, rows: request.rows, startRow, endRow,
         service: taskMaterialLibraryService,
       });
       if (!isCurrent()) return;
@@ -675,7 +674,7 @@ export function MaterialLibraryTab(props) {
       clearLibraryHistory();
       setClipboardRequest(null);
       notifyAppliedLibraryChange();
-      setActionMessage(`Таблица H–M характеристики «${record.name}» заменена и сохранена.`);
+      setActionMessage(`Таблица H–M характеристики «${record.name}» заменена и сохранена: ${record.tabl.length} точек.`);
     } catch (pasteError) {
       if (isCurrent()) {
         setActionError(`Вставка не сохранена: ${actionErrorMessage(pasteError, "сохранить характеристику")}`);
@@ -1057,6 +1056,18 @@ export function MaterialLibraryTab(props) {
   });
 
   createEffect(() => {
+    if (!isFmm) return;
+    // A pasted/generated detail is mounted while the file action still owns
+    // the library. Refresh structural controls when that action releases it.
+    canEditLibrary();
+    currentFmmRecord();
+    untrack(() => {
+      for (const { view } of recordDetailViews.values()) view.syncStructureContext?.();
+      if (detailRegion.view) detailRegion.buildToolbar(detailRegion.view);
+    });
+  });
+
+  createEffect(() => {
     if (!props.active || !table) return;
 
     requestAnimationFrame(() => {
@@ -1206,7 +1217,7 @@ export function MaterialLibraryTab(props) {
               Создать
             </button>
             <button disabled={!canEditLibrary() || !currentFmmRecord()?._taskLibraryRecord}
-              title="Заменить текущую таблицу H–M блоком из 12 строк первых двух колонок буфера и сохранить характеристику"
+              title="Заменить текущую таблицу H–M выбранными строками первых двух колонок буфера и сохранить характеристику"
               onClick={readFmmClipboard}>
               Из буфера
             </button>

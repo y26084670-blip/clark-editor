@@ -1,4 +1,5 @@
 import {
+    FMM_MIN_TABLE_ROWS,
     HTS_EFFECTIVE_DEFAULTS,
     HTS_PARAMETER_NAMES,
 } from "./materialConstants.js";
@@ -49,11 +50,11 @@ export function decodeFmmTable(value) {
 
     if (value.every(Array.isArray)) {
         if (
-            value.length !== 12 ||
+            value.length < FMM_MIN_TABLE_ROWS ||
             value.some(row => row.length !== 2)
         ) {
             throw new Error(
-                "Таблица ФММ должна содержать 12 строк и две колонки H и M.",
+                `Таблица ФММ должна содержать не менее ${FMM_MIN_TABLE_ROWS} строк и две колонки H и M.`,
             );
         }
         const rows = structuredClone(value);
@@ -61,9 +62,9 @@ export function decodeFmmTable(value) {
         return rows;
     }
 
-    if (value.length !== 24) {
+    if (value.length < 2 * FMM_MIN_TABLE_ROWS || value.length % 2 !== 0) {
         throw new Error(
-            `Таблица ФММ должна содержать 24 значения; получено ${value.length}.`,
+            `Таблица ФММ должна содержать не менее ${FMM_MIN_TABLE_ROWS} пар H–M и чётное число значений; получено ${value.length}.`,
         );
     }
 

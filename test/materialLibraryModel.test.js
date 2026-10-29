@@ -8,6 +8,7 @@ import {
 } from "../src/services/materials/materialLibraryModel.js";
 import { HTS_PARAMETER_NAMES } from "../src/services/materials/materialConstants.js";
 import { createHtsMaterialFile } from "../src/services/materialImport/htsConfigImporter.js";
+import { serializeFmmMaterial } from "../src/services/materialImport/xapLibImporter.js";
 
 test("FMM default-library records become 12x2 RECORDS details", () => {
     const h = Array.from({ length: 12 }, (_, index) => index + 1);
@@ -101,15 +102,15 @@ test("task-local material keeps separate transient file metadata", () => {
 test("malformed FMM table is rejected before rendering", () => {
     assert.throws(
         () => decodeFmmTable(Array(23).fill(0)),
-        /24 значения/,
+        /чётное число значений/,
     );
     assert.throws(
         () => decodeFmmTable([[1, 2, 3]]),
-        /12 строк и две колонки/,
+        /не менее 2 строк и две колонки/,
     );
     assert.throws(
         () => decodeFmmTable([[1, 2]]),
-        /12 строк и две колонки/,
+        /не менее 2 строк и две колонки/,
     );
     assert.throws(
         () => decodeFmmTable([
@@ -118,6 +119,23 @@ test("malformed FMM table is rejected before rendering", () => {
         ]),
         /конечные числовые/,
     );
+});
+
+test("FMM variable-length tables survive load, edit, save and reload without truncation", () => {
+    for (const count of [2, 11, 12, 13, 507, 894]) {
+        const tabl = Array.from({ length: count }, (_, i) => [i / 10, i * 2.5]);
+        const record = { name: "Сталь", tabl, hip: 0, comment: "Все узлы" };
+        const loaded = toFmmLibraryModel([{ name: record.name, data: JSON.parse(serializeFmmMaterial(record)) }])[0];
+        assert.deepEqual(loaded.tabl, tabl);
+        loaded.tabl[count - 1][1] = 12345;
+        const reloaded = decodeFmmTable(JSON.parse(serializeFmmMaterial(loaded)).tabl);
+        assert.equal(reloaded.length, count);
+        assert.deepEqual(reloaded[count - 1], [(count - 1) / 10, 12345]);
+        assert.equal(tabl[count - 1][1], (count - 1) * 2.5);
+    }
+    for (const value of [[], [1, 2], [[0, 0], [1]], [0, 1, 2], [[0, 0], [1, Infinity]]]) {
+        assert.throws(() => decodeFmmTable(value));
+    }
 });
 
 test("HTS model keeps scalar JSON fields and transient filename name", () => {

@@ -9,14 +9,14 @@ import {
     decodeFmmTable,
 } from "../src/services/materials/materialLibraryModel.js";
 
-test("FMM detail projection has twelve H-M rows", () => {
+test("FMM detail projection preserves a long H-M table", () => {
     const storage = [
-        ...Array.from({ length: 12 }, (_, index) => index),
-        ...Array.from({ length: 12 }, (_, index) => 100 + index),
+        ...Array.from({ length: 894 }, (_, index) => index),
+        ...Array.from({ length: 894 }, (_, index) => 100 + index),
     ];
     const rows = decodeFmmTable(storage);
 
-    assert.equal(rows.length, 12);
+    assert.equal(rows.length, 894);
     assert.ok(rows.every(row => row.length === 2));
     assert.deepEqual(rows[4], [4, 104]);
 });
