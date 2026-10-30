@@ -20,6 +20,10 @@ const server = await createServer({ root, cacheDir: `${output}/vite-cache`, reso
     await realpath(resolve(root, "node_modules")), await realpath(resolve(viewer, "node_modules"))] } },
   plugins: [{ name: "update-notifications-fixture", configureServer(server) {
     server.middlewares.use(async (req, res, next) => {
+      if (req.url === "/__updates/examples-config.json") {
+        res.setHeader("Content-Type", "application/json"); res.setHeader("Cache-Control", "no-store");
+        res.end(JSON.stringify({ solverInstallerUrl: "https://example.test/ClarkInstaller.exe" })); return;
+      }
       if (req.url === "/__updates/feed") {
         res.setHeader("Content-Type", "application/json"); res.setHeader("Cache-Control", "no-store");
         res.statusCode = offline ? 503 : 200; res.end(JSON.stringify(feed)); return;
