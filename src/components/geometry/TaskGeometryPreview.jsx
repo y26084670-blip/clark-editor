@@ -31,7 +31,7 @@ export function TaskGeometryPreview(props) {
   const [savedModel, setSavedModel] = createSignal(null);
   const [sameAsLoaded, setSameAsLoaded] = createSignal(false);
   const [loading, setLoading] = createSignal(false);
-  const [message, setMessage] = createSignal("Выберите задание для просмотра");
+  const [message, setMessage] = createSignal("");
   const [viewRequest, setViewRequest] = createSignal(null);
   let previewElement;
   let loadRevision = 0;
@@ -60,7 +60,7 @@ export function TaskGeometryPreview(props) {
     try {
       const nextScene = buildGeometryScene(model);
       setScene(nextScene);
-      setMessage(nextScene.primitives.length === 0 ? "Нет геометрии для предварительного просмотра" : "");
+      setMessage("");
     } catch (error) {
       console.error("Ошибка предварительного просмотра задания:", error);
       setScene(null);
@@ -92,7 +92,7 @@ export function TaskGeometryPreview(props) {
     setScene(null);
     setViewRequest(null);
     setLoading(false);
-    setMessage(taskHandle ? "" : "Выберите задание для просмотра");
+    setMessage("");
     if (!taskHandle || !active) return;
 
     setLoading(true);
@@ -150,9 +150,6 @@ export function TaskGeometryPreview(props) {
             viewRequest={viewRequest()}
           />
         )}
-      </Show>
-      <Show when={loading()}>
-        <div class="task-geometry-preview-overlay">Загрузка геометрии…</div>
       </Show>
       <Show when={!loading() && message()} keyed>
         {(text) => <div class="task-geometry-preview-overlay">{text}</div>}
