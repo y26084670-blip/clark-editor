@@ -23,10 +23,12 @@ const server = await createServer({ root, cacheDir: `${output}/vite-cache`, serv
 await server.listen();
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_EXECUTABLE, headless: true,
   args: ["--no-sandbox", "--disable-dev-shm-usage", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"] });
-const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, acceptDownloads: true });
+const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, acceptDownloads: true });
+const page = await context.newPage();
 page.setDefaultTimeout(20000);
 const checks = [], errors = [], downloads = [];
 page.on("pageerror", error => errors.push(error.message)); page.on("download", download => downloads.push(download));
+page.context().on("page", tab => { tab.on("download", d => downloads.push(d)); tab.on("pageerror", e => errors.push(e.message)); });
 const pass = name => { checks.push(name); console.log(`PASS ${checks.length}: ${name}`); };
 const row = name => page.locator("#listTask .listTask-item").filter({ has: page.locator(".task-status-label", { hasText: new RegExp(`^(?:▶\\s*)?${name}$`) }) });
 const icon = name => row(name).locator(".task-protocol-download-button");
@@ -52,10 +54,17 @@ try {
   await page.evaluate(() => taskFixture.dirty());
   await page.getByRole("button", { name: "Выбор задания", exact: true }).click();
   const before = await snapshot();
-  const [single] = await Promise.all([page.waitForEvent("download"), icon("Original").click()]); await single.saveAs(`${output}/protocol.html`);
+  const [report] = await Promise.all([page.waitForEvent("popup"), icon("Original").click()]);
+  const downloadButton=report.getByRole("link",{name:"Загрузить",exact:true});await downloadButton.waitFor();
+  if (!process.env.VIEWER_PROTOCOL_HTML) await report.frameLocator("iframe").locator("h1").waitFor();
+  if (!process.env.VIEWER_PROTOCOL_HTML) assert.equal(await report.frames()[1].evaluate(()=>window.protocolReady),true);
+  assert.equal(await report.evaluate(()=>window.opener),null);assert.equal(downloads.length,0);
+  const box=await downloadButton.boundingBox();assert.ok(box.x>1200&&box.y<20);
+  await report.screenshot({path:`${output}/opened-protocol.png`});
+  const [single] = await Promise.all([report.waitForEvent("download"), downloadButton.click()]); await single.saveAs(`${output}/protocol.html`);
   assert.equal(single.suggestedFilename(), "protocol.html"); assert.equal(await readFile(`${output}/protocol.html`, "utf8"), protocol);
   assert.deepEqual(await snapshot(), before);
-  pass("One click downloads the original portable HTML byte for byte, preserving the loaded dirty model and last-opened history");
+  pass("The icon opens a working report without downloading; its top-right button downloads original HTML byte for byte, preserving the loaded dirty model and last-opened history");
 
   await icon("Reports").focus(); await page.keyboard.press("Enter");
   const chooser = page.getByRole("dialog", { name: "Протоколы задания «Reports»", exact: true });
@@ -63,15 +72,18 @@ try {
   assert.deepEqual(await chooser.locator(".task-protocol-download-list button > span").allTextContents(), ["protocol-2.HTML", "protocol-10.html"]);
   await page.keyboard.press("Escape"); await chooser.waitFor({ state: "hidden" });
   assert.equal(await icon("Reports").evaluate(node => node === document.activeElement), true);
-  await icon("Reports").click(); const chosen = page.waitForEvent("download");
-  await chooser.getByRole("button", { name: /^protocol-10\.html/ }).click(); const selected = await chosen;
+  await icon("Reports").click(); const chosen = page.waitForEvent("popup");
+  await chooser.getByRole("button", { name: /^protocol-10\.html/ }).click(); const selectedReport = await chosen;
+  await selectedReport.getByRole("link",{name:"Загрузить",exact:true}).waitFor();assert.equal(downloads.length,1);
+  const [selected]=await Promise.all([selectedReport.waitForEvent("download"),selectedReport.getByRole("link",{name:"Загрузить",exact:true}).click()]);
   await selected.saveAs(`${output}/selected.html`); assert.equal(await readFile(`${output}/selected.html`, "utf8"), protocol + "\r\n");
   assert.deepEqual(await snapshot(), before);
   pass("Multiple protocols use a naturally sorted chooser; Enter, Escape, focus return and downloading another task's file leave the model unchanged");
 
-  await page.evaluate(async html => { await taskFixture.put("Project/Failure/DOCS/protocol.html", html); window.dispatchEvent(new Event("focus")); }, protocol);
+  await page.evaluate(async html => { await taskFixture.put("Project/Failure/DOCS/protocol.html", html); }, protocol);
+  await page.getByRole("button", { name: "Обновить список заданий", exact: true }).click();
   await icon("Failure").waitFor();
-  pass("Returning focus to Editor detects a protocol created externally, including a newly created DOCS directory");
+  pass("Refreshing the Editor list detects a protocol created externally, including a newly created DOCS directory");
 
   const load = page.locator(".task-browser-actions .task-load-button");
   await row("Original").click(); assert.equal(await load.isEnabled(), true); await load.click();
@@ -98,16 +110,20 @@ try {
       return getFile.apply(this, args);
     };
   });
-  await icon("Original").click(); await page.waitForFunction(() => taskFixture.releaseDownload);
+  const [pendingReport]=await Promise.all([page.waitForEvent("popup"),icon("Original").click()]); await page.waitForFunction(() => taskFixture.releaseDownload);
   await page.locator("#listProject").selectOption("Second"); await page.evaluate(() => taskFixture.releaseDownload());
-  await page.waitForTimeout(200); assert.equal(downloads.length, beforeCount); assert.deepEqual(await snapshot(), before);
-  pass("Changing projects cancels a pending protocol download without altering the loaded model");
+  await page.waitForTimeout(200); assert.equal(downloads.length, beforeCount); assert.equal(pendingReport.isClosed(),true); assert.deepEqual(await snapshot(), before);
+  pass("Changing projects closes a pending report tab without altering the loaded model");
 
   await page.locator("#listProject").selectOption("Project"); await icon("Original").waitFor();
   await page.screenshot({ path: `${output}/editor-protocol-download.png`, fullPage: true });
+  await page.close();
+  const [independent]=await Promise.all([report.waitForEvent("download"),downloadButton.click()]);
+  await independent.saveAs(`${output}/after-gui-close.html`);assert.equal(await readFile(`${output}/after-gui-close.html`, "utf8"),protocol);
+  pass("The report and original HTML download survive closing Editor");
   assert.deepEqual(errors, []); await writeFile(`${output}/results.json`, JSON.stringify({ checks, errors }, null, 2));
   console.log(`BROWSER_OK ${checks.length}/${checks.length}`);
 } catch (error) {
-  await page.screenshot({path:`${output}/failure.png`,fullPage:true});
+  if (!page.isClosed()) await page.screenshot({path:`${output}/failure.png`,fullPage:true});
   await writeFile(`${output}/results.json`, JSON.stringify({ checks, errors, failure: error.stack }, null, 2)); throw error;
 } finally { await browser.close(); await server.close(); }
