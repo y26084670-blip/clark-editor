@@ -1288,7 +1288,6 @@ export function ThreeGeometryViewport(props) {
   const [ready, setReady] = createSignal(false);
   const [loading, setLoading] = createSignal(true);
   const [error, setError] = createSignal("");
-  const [renderedCount, setRenderedCount] = createSignal(0);
   const [hoverTooltip, setHoverTooltip] = createSignal(null);
   const [flightActive, setFlightActive] = createSignal(false);
   const [flightTarget, setFlightTarget] = createSignal(null);
@@ -2137,7 +2136,6 @@ export function ThreeGeometryViewport(props) {
     }
 
     baseRenderStats = stats;
-    setRenderedCount(stats.renderedInstances);
     if (verticesVisible) materializeVertexPoints();
     if (discretizationLinesVisible) materializeDiscretizationLines();
     if (discretizationPointsVisible) materializeDiscretizationPoints();
@@ -2499,14 +2497,6 @@ export function ThreeGeometryViewport(props) {
       <Show when={flightActive()}>
         <div class="geometry-flight-reticle" classList={{ "has-target": Boolean(flightPivot() || flightTarget()) }} role="status">
           <span>{flightPivot() ? `Центр вращения · ${flightPivot().label}` : flightTarget()?.label ?? "Наведите прицел на узел или элемент"}</span>
-        </div>
-      </Show>
-      <Show when={loading()}>
-        <div class="geometry-viewport-overlay">Загрузка 3D-модуля…</div>
-      </Show>
-      <Show when={!loading() && !error() && renderedCount() === 0}>
-        <div class="geometry-viewport-overlay">
-          Нет геометрии для текущих настроек
         </div>
       </Show>
       <Show when={error()}>
