@@ -63,6 +63,22 @@ test("malformed or missing geometry removes a stale marker instead of certifying
     }
 });
 
+test("saved AC changes preserve the 2D marker; a geometric violation still removes it", async () => {
+    const f = fixture();
+    f.general.useMED = false;
+    for (const axial of [true, false, true]) {
+        f.general.fullAxialSymmetry = axial; f.writeGeometry();
+        assert.equal(await refreshPlanarModeMarker(f.task), true);
+        assert.equal(f.files.has(marker), true);
+    }
+    f.element.dp[0][0] = 2; f.writeGeometry();
+    assert.equal(await refreshPlanarModeMarker(f.task), false);
+    assert.equal(f.files.has(marker), false);
+    f.element.dp[0][0] = 1; f.writeGeometry();
+    assert.equal(await refreshPlanarModeMarker(f.task), true);
+    assert.equal(f.files.has(marker), true);
+});
+
 test("saved Virtual geometry with a different centered length retains the 2D marker", async () => {
     const f = fixture();
     for (const length of [2, 200]) {

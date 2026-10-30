@@ -31,10 +31,19 @@ test("each agreed criterion independently disables 2D, and restoring it enables 
         ["length equals twice the transverse size", [element({ geo: rows([6, 2, 3]), dr: vector([-3, 0, 0]) })], {}],
         ["mirror X symmetric", [element()], { mirrorSymmetryX: 0 }],
         ["mirror X antisymmetric", [element()], { mirrorSymmetryX: 1 }],
-        ["full axial symmetry", [element()], { fullAxialSymmetry: true }],
     ]) {
         assert.equal(scene(elements, changes).planar2D, false, name);
+        assert.equal(scene(elements, { ...changes, fullAxialSymmetry: true }).planar2D, false, `${name} with AC`);
         assert.equal(scene().planar2D, true, `restore after ${name}`);
+    }
+});
+
+test("the full axial symmetry parameter does not participate in planar recognition", () => {
+    for (const fullAxialSymmetry of [false, true]) {
+        assert.equal(scene([element()], { fullAxialSymmetry }).planar2D, true);
+        assert.equal(scene([element({ symAs: 16, symYa: 22.5 })], { fullAxialSymmetry }).planar2D, true);
+        assert.equal(scene([element({ geo: rows([10, 2, 3]), dr: vector([-5, 0, 0]), symAs: 2, symYa: 180 })],
+            { fullAxialSymmetry }).planar2D, false, "physical images still define the full transverse span");
     }
 });
 
@@ -80,7 +89,7 @@ test("changing Virtual to a physical purpose restores all physical geometry requ
     assert.equal(scene([element(), probe]).planar2D, true);
     assert.equal(scene([element({ dp: vector([2, 2, 3]) }), probe]).planar2D, false);
     assert.equal(scene([element(), probe], { mirrorSymmetryX: 0 }).planar2D, false);
-    assert.equal(scene([element(), probe], { fullAxialSymmetry: true }).planar2D, false);
+    assert.equal(scene([element(), probe], { fullAxialSymmetry: true }).planar2D, true);
 });
 
 test("invalid or omitted physical elements cannot produce a false 2D label", () => {
