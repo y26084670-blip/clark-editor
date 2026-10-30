@@ -34,7 +34,7 @@ function hasCrossSection(vertices, axis) {
 }
 
 export function detectPlanarGeometry(primitives, general = {}, records = []) {
-    if (general.fullAxialSymmetry || general.mirrorSymmetryX >= 0 || !Array.isArray(records)) return null;
+    if (general.mirrorSymmetryX >= 0 || !Array.isArray(records)) return null;
     const physicalIndices = new Set();
     for (let i = 0; i < records.length; i++) {
         if (records[i]?.targ !== 3) physicalIndices.add(i);
