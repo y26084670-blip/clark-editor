@@ -14,9 +14,10 @@ export function ExamplesInstaller(props) {
   let disposed = false;
 
   async function loadConfiguration() {
-    if (links() || configController) return;
+    if (configController) return;
     const controller = new AbortController();
     configController = controller;
+    setLinks(null);
     setConfigLoading(true);
     setConfigError("");
     try {

@@ -3,6 +3,15 @@ import solid from "vite-plugin-solid";
 import { examplesAssetsPlugin } from "./scripts/serve-examples-assets.mjs";
 import { readFileSync } from "node:fs";
 
+function publishedUpdates() {
+  const feed = JSON.parse(readFileSync(new URL("./data/updates/changes.json", import.meta.url), "utf8"));
+  const config = JSON.parse(readFileSync(new URL("./public/examples-config.json", import.meta.url), "utf8"));
+  // Older open tabs require this field. It is derived, never edited separately;
+  // current clients read the installer resource directly on every refresh.
+  if (feed.recommendedClark) feed.recommendedClark.installerUrl = config.solverInstallerUrl;
+  return JSON.stringify(feed, null, 2) + "\n";
+}
+
 export default defineConfig({
   plugins: [solid(), examplesAssetsPlugin(), {
     name: "clark-updates",
@@ -11,12 +20,12 @@ export default defineConfig({
         if (req.url?.split("?")[0] !== "/updates.json") return next();
         res.setHeader("Content-Type", "application/json; charset=utf-8");
         res.setHeader("Cache-Control", "no-store");
-        res.end(readFileSync(new URL("./data/updates/changes.json", import.meta.url), "utf8"));
+        res.end(publishedUpdates());
       });
     },
     generateBundle() {
       this.emitFile({ type: "asset", fileName: "updates.json",
-        source: readFileSync(new URL("./data/updates/changes.json", import.meta.url), "utf8") });
+        source: publishedUpdates() });
     },
   }, {
     name: "third-party-notices",
