@@ -2,6 +2,7 @@
 export const ITERATION_STATUS_FILE = "clark.iteration-status.json";
 export const ITERATION_REQUEST_FILE = "clark.iteration-request.json";
 export const ITERATION_STATUS_MAX_AGE = 5000;
+export const matrixIndexNames = ["element", "d1", "d2", "d3", "as", "ps", "ls"];
 const GUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function formatIterationValue(value, parameter) {
@@ -46,9 +47,20 @@ export async function readIterationStatus(root, binding, now = Date.now()) {
 }
 
 export async function sendIterationRequest(root, binding, status, values) {
-  if (!values || !Object.keys(values).length) throw new Error("Отметьте TAU, EPS, M-невязку и/или J-невязку.");
+  if (!values || !Object.keys(values).length) throw new Error("Отметьте нужные параметры активной задачи.");
   const parameters = {};
   for (const name of Object.keys(values)) {
+    if (name === "MatrixBlock") {
+      const address = {};
+      for (const key of matrixIndexNames) {
+        const raw = String(values[name]?.[key] ?? "").trim(), index = Number(raw);
+        if (!/^\d+$/.test(raw) || !Number.isSafeInteger(index) || index < 1 || index > 2147483647)
+          throw new Error(`Матричные элементы: ${key} — целый номер от 1 до 2147483647.`);
+        address[key] = index;
+      }
+      parameters[name] = address;
+      continue;
+    }
     if (name === "MResidual" || name === "JResidual") {
       if (values[name] !== true) throw new Error("Признак записи невязки должен быть true.");
       parameters[name] = true;
@@ -61,6 +73,8 @@ export async function sendIterationRequest(root, binding, status, values) {
   if (!current || iterationTaskKey(current) !== iterationTaskKey(status)) {
     throw new Error("Активное задание изменилось. Повторите ввод для нового задания.");
   }
+  if (parameters.MatrixBlock && current.matrixBlockSupported !== true)
+    throw new Error("Для записи матричных элементов требуется обновлённый Solver и его программа запуска.");
   const requestId = crypto.randomUUID();
   const handle = await root.getFileHandle(ITERATION_REQUEST_FILE, { create: true });
   const writable = await handle.createWritable();

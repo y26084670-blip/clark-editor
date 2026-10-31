@@ -14,7 +14,6 @@
 .task-launch-metadata,
 .task-launch-toolbar,
 .task-launch-counts,
-.task-launch-actions,
 .task-launch-save-prompt,
 .task-launch-import-confirm {
     display: flex;
@@ -64,8 +63,7 @@
     cursor: pointer;
 }
 
-.task-launch-toolbar,
-.task-launch-actions {
+.task-launch-toolbar {
     display: grid;
     width: 100%;
     min-width: 0;
@@ -77,12 +75,7 @@
     grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
-.task-launch-actions {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.task-launch-toolbar > button,
-.task-launch-actions > button {
+.task-launch-toolbar > button {
     width: 100%;
 }
 
@@ -200,67 +193,36 @@
     border-radius: 4px;
 }
 
-.task-launch-actions {
-    padding-top: 2px;
-}
-
-.task-launch-actions button {
-    background: #244e77;
-}
-
-.task-launch-mpi {
-    display: flex;
-    flex: 0 0 auto;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 8px;
-}
-
-.task-launch-mpi input {
-    box-sizing: border-box;
-    width: 105px;
-    padding: 5px 7px;
-    color: #edf2f7;
-    background: #151a20;
-    border: 1px solid #667789;
-    border-radius: 4px;
-    font: inherit;
-}
-
-.task-launch-mpi input[aria-invalid="true"] {
-    border-color: #ffafaf;
-}
-
 .task-launch-runtime {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    align-items: center;
+    grid-template-columns: minmax(6rem, calc((100% - 14px) / 6)) max-content minmax(0, 1fr);
+    align-items: stretch;
     gap: 7px;
 }
-.task-launch-runtime .iteration-control-submit { width: 100%; align-self: stretch; }
-.task-launch-runtime > .task-launch-mpi,
-.task-launch-runtime > .iteration-control-submit,
-.task-launch-runtime > .iteration-control-options { grid-row: 1; }
-.iteration-control-options {
-    display: grid;
-    grid-template-columns: repeat(4, max-content);
-    align-items: center;
-    gap: 2px 4px;
-    white-space: nowrap;
+.task-launch-mode { display: flex; flex-direction: column; justify-content: space-between; gap: 3px; }
+.task-launch-mpi, .task-launch-modes { box-sizing: border-box; width: 100%; }
+.task-launch-mpi { display: flex; align-items: center; gap: 4px; }
+.task-launch-mpi input { flex: 1; min-width: 0; }
+.task-launch-mode .task-launch-start { width: 100%; background: #244e77; }
+.task-launch-modes { display: grid; gap: 1px; padding: 3px 5px; border: 1px solid #536171; border-radius: 3px; }
+.task-launch-modes label, .iteration-control-options label { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
+.task-launch-runtime input:is([type="checkbox"],[type="radio"]) { margin: 0; }
+.task-launch-runtime input[type="text"] {
+    box-sizing: border-box; padding: 3px; font: 12px Consolas, monospace;
+    color: #edf2f7; background: #151a20; border: 1px solid #667789; border-radius: 3px;
 }
-.iteration-control-fields,
-.iteration-control-residuals { display: contents; }
-.iteration-control-residuals label { grid-column: span 2; display: flex; align-items: center; gap: 4px; }
-.iteration-control-residuals input { margin: 0; }
-.iteration-control-fields label { display: flex; align-items: center; gap: 3px; }
-.iteration-control-fields input[type="text"] {
-    box-sizing: border-box; width: 7.5ch; padding: 5px 3px;
-    font: 12px Consolas, monospace; color: #edf2f7; background: #151a20;
-    border: 1px solid #667789; border-radius: 4px;
+.task-launch-runtime input[type="text"]:disabled { color: #7d8791; border-color: #464f59; }
+.task-launch-mpi input[aria-invalid="true"] { border-color: #ffafaf; }
+.task-launch-runtime .iteration-control-submit { padding: 5px 7px; }
+.iteration-control-submit span { display: block; }
+.iteration-control-options { display: grid; align-content: space-between; gap: 2px; }
+.iteration-group-title { color: #acb9c4; font-size: 11px; }
+.iteration-control-fields, .iteration-control-residuals, .iteration-control-matrix {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 3px 6px;
 }
+.iteration-control-fields input[type="text"] { width: 7.5ch; }
 .iteration-control-fields label:last-child input { width: 13.5ch; }
-.iteration-control-fields input:disabled { color: #7d8791; border-color: #464f59; }
-.iteration-control-fields input[type="checkbox"] { margin: 0; }
+.iteration-control-matrix input[type="text"] { width: 4.5ch; }
 .iteration-control-message { grid-column: 1 / -1; }
 .task-launch-modal {
     width: min(500px, calc(100vw - 48px));

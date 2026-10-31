@@ -61,3 +61,16 @@ test("one-shot residual flags can be sent separately, together and with paramete
     assert.deepEqual(root.writes[0].parameters, parameters);
   }
 });
+
+test("matrix address uses seven positive Int32s; unsupported or invalid mixed requests are never written", async () => {
+  const root = fixture(), status = await readIterationStatus(root,binding);
+  const address = { element: "17", d1: "4", d2: "3", d3: "2", as: "2", ps: "1", ls: "3" };
+  await assert.rejects(() => sendIterationRequest(root,binding,status,{MatrixBlock:address}),/обновлённый Solver/);
+  root.status.matrixBlockSupported = true;
+  for (const index of ["", 0, -1, 1.5, "1e1", 2147483648]) {
+    await assert.rejects(() => sendIterationRequest(root,binding,status,{TAU:0.4,MatrixBlock:{...address, d2:index}}),/d2/);
+  }
+  assert.equal(root.writes.length,0);
+  await sendIterationRequest(root,binding,status,{MatrixBlock:address,JResidual:true});
+  assert.deepEqual(root.writes[0].parameters,{MatrixBlock:{element:17,d1:4,d2:3,d3:2,as:2,ps:1,ls:3},JResidual:true});
+});
