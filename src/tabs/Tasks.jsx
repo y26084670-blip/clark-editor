@@ -849,7 +849,12 @@ export function Tasks(props) {
       <div class="task-browser-panel">
         <div class="task-browser-content">
           <div class="box task-catalog-box">
-            <h4><label for="projectCatalog">Каталоги с проектами</label></h4>
+            <div class="task-project-heading">
+              <h4><label for="projectCatalog">Каталоги с проектами</label></h4>
+              <a class="task-app-link" href="https://y26084670-blip.github.io/clark-viewer/"
+                target="_blank" rel="noopener noreferrer" title="Открыть Viewer в новой вкладке"
+                aria-label="Открыть Viewer в новой вкладке">Viewer ↗</a>
+            </div>
             <select id="projectCatalog" ref={catalogSelect} class="task-project-select" aria-label="Каталоги с проектами"
               value={rootHandle()?.name ?? ""} disabled={accessDisabled() || !catalogs().length}
               onChange={handleCatalogChange}>
