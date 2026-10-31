@@ -37,6 +37,7 @@ export function TaskLaunchWindow(props) {
   const [importMessages, setImportMessages] = createSignal([]);
   const [mpiValue, setMpiValue] = createSignal("default");
   const [mpiEdited, setMpiEdited] = createSignal(false);
+  const [launchMode, setLaunchMode] = createSignal("solver");
   const [settingsPending, setSettingsPending] = createSignal(null);
   const mpiError = createMemo(() => {
     try { parseMpiRanks(mpiValue()); return ""; }
@@ -74,6 +75,8 @@ export function TaskLaunchWindow(props) {
     && listExists() && listValid()
     && binding()?.bindingState === "bound" && Boolean(proof());
   const canLaunch = () => launchReady() && enabledEntries().length > 0;
+  const selectedLaunchReady = () => (launchMode() === "modelica" ? launchReady() : canLaunch())
+    && (launchMode() === "import" || !mpiError());
 
   createEffect(() => props.onBusyChange?.(busy() || awaitingAcceptance()));
   createEffect(() => { if (!props.open) modelicaDialog?.close(); });
@@ -579,27 +582,25 @@ export function TaskLaunchWindow(props) {
           </div>
         </Show>
         <div class="task-launch-runtime">
-        <label class="task-launch-mpi">
-          <span>Процессов MPI:</span>
-          <input type="text" inputMode="numeric" value={mpiValue()} disabled={locked()}
-            aria-invalid={Boolean(mpiError())}
-            title="Число процессов для расчёта и полевого решателя цепи. default — значение из настроек Clark. Импорт не использует MPI."
-            onInput={event => { setMpiEdited(true); setMpiValue(event.currentTarget.value); }}
-            onBlur={() => { if (!mpiValue().trim()) setMpiValue("default"); }} />
-          <Show when={mpiError()}><span class="task-launch-error" role="alert">{mpiError()}</span></Show>
-        </label>
-        <IterationControl rootHandle={props.rootHandle} binding={binding()} active={props.open} />
-        </div>
-        <div class="task-launch-actions">
-          <button type="button" disabled={!canLaunch() || Boolean(mpiError())}
-            title="Запустить расчёт всех подключённых заданий независимо от выделения строк."
-            onClick={() => launch("solver")}>Запустить расчёт</button>
-          <button ref={modelicaButton} type="button" disabled={!launchReady() || Boolean(mpiError())}
-            title="Запустить установленную OM-модель для одного задания REAL64. Модель выбирается в input3XX/om-client.json."
-            onClick={() => launch("modelica")}>Запустить OM-клиент</button>
-          <button type="button" disabled={!canLaunch()}
-            title="Открыть подтверждение импорта для всех подключённых заданий. Импорт заменит их исходные данные."
-            onClick={() => setConfirmImport(true)}>Запустить импорт данных</button>
+          <div class="task-launch-mode">
+            <label class="task-launch-mpi">
+              <span>MPI</span>
+              <input type="text" inputMode="numeric" aria-label="Число процессов MPI" value={mpiValue()} disabled={locked() || launchMode() === "import"}
+                aria-invalid={launchMode() !== "import" && Boolean(mpiError())}
+                title="Число процессов для расчёта и полевого решателя цепи. default — значение из настроек Clark. Импорт не использует MPI."
+                onInput={event => { setMpiEdited(true); setMpiValue(event.currentTarget.value); }}
+                onBlur={() => { if (!mpiValue().trim()) setMpiValue("default"); }} />
+            </label>
+            <Show when={launchMode() !== "import" && mpiError()}><span class="task-launch-error" role="alert">{mpiError()}</span></Show>
+            <button ref={modelicaButton} class="task-launch-start" type="button" disabled={!selectedLaunchReady()}
+              onClick={() => launchMode() === "import" ? setConfirmImport(true) : launch(launchMode())}>Запустить</button>
+            <div class="task-launch-modes" role="radiogroup" aria-label="Режим запуска">
+              <For each={[[ "solver", "расчёт" ], [ "modelica", "ОМ клиент" ], [ "import", "импорт" ]]}>{([mode, label]) =>
+                <label><input type="radio" name={`${listId}-launch-mode`} checked={launchMode() === mode} disabled={locked()}
+                  onChange={() => { setConfirmImport(false); setLaunchMode(mode); }} />{label}</label>}</For>
+            </div>
+          </div>
+          <IterationControl rootHandle={props.rootHandle} binding={binding()} active={props.open} />
         </div>
         <dialog ref={modelicaDialog} class="task-launch-modal" aria-labelledby={`${listId}-om-error`}
           onClose={() => modelicaButton?.focus()}>
