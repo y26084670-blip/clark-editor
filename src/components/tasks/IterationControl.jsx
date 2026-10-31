@@ -3,7 +3,7 @@ import { formatIterationValue, iterationTaskKey, parseIterationValue,
   matrixIndexNames, readIterationStatus, sendIterationRequest } from "../../services/iterationControlService.js";
 
 const initialAddress = () => Object.fromEntries(matrixIndexNames.map(name => [name, "1"]));
-const matrixHint = "В 3D включите «Общие опции → Центры и узлы» и наведите указатель на центр ЭО. Если номер образа не показан, используйте 1. Для AS и PS по полю доступен только исходный образ.";
+const matrixHint = "В 3D включите «Общие опции → Центры и узлы» и наведите указатель на центр ЭО. Если номер образа не показан, используйте 1. Для AS и PS по полю доступен только исходный образ. Solver записывает блок после завершения всех итераций шага времени.";
 
 export function IterationControl(props) {
   const [status, setStatus] = createSignal(null);
@@ -72,13 +72,15 @@ export function IterationControl(props) {
       if (disposed || revision !== version || iterationTaskKey(status()) !== iterationTaskKey(task)) return;
       batch(() => { setPending(id); setUseTau(false); setUseEps(false); setUseMResidual(false); setUseJResidual(false);
         setUseMatrix(false);
-        setNotice("Запрос передан. Ожидание границы итерации…"); });
+        setNotice(values.MatrixBlock
+          ? "Запрос передан. Ожидание завершения итераций шага времени…"
+          : "Запрос передан. Ожидание границы итерации…"); });
     } catch (failure) { if (!disposed && revision === version) setError(failure.message); }
     finally { if (!disposed) setSending(false); }
   }
   return <>
     <button type="button" class="iteration-control-submit" disabled={!enabled()} onClick={submit}
-      title={status() ? `Активное задание: ${status().taskPath}. Применить выбранные параметры в конце итерации.` : "Нет активного задания с поддержкой общей памяти"}>
+      title={status() ? `Активное задание: ${status().taskPath}. Передать выбранные параметры решателю.` : "Нет активного задания с поддержкой общей памяти"}>
       <span>Активная задача.</span><span>Установить значения</span><span>параметров справа</span>
     </button>
     <div class="iteration-control-options">
