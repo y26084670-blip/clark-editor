@@ -101,7 +101,7 @@
     },
     {
       "id": "contact-current-20261022",
-      "revision": 4,
+      "revision": 5,
       "category": "computation",
       "release": "contact-current-20261022",
       "date": "2026-10-22",
@@ -109,8 +109,7 @@
       "summary": "Реализовано слабое задание нормального тока на контакте с элементом заданной плотности тока. Поддержаны допустимые иерархии контактов с виртуальными площадками интегрирования.",
       "action": "Для подготовки источника используйте «Контактное возбуждение» на вкладке «Элементы» Editor.",
       "limitations": "Для инструмента Editor добавление строк при наличии jweak_local.json пока запрещено. Приёмка контактного режима в установленном комплекте остаётся отдельной проверкой.",
-      "detailsUrl": "user-guide/index.html#prescribed-current-contact",
-      "status": "статус: модель готова к использованию"
+      "detailsUrl": "user-guide/index.html#prescribed-current-contact"
     }
   ]
 }
