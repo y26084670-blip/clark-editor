@@ -1,6 +1,6 @@
 # История решений web-gui
 
-Обновлено: 2026-10-31 23:44 UTC+3.
+Обновлено: 2026-11-01 14:20 UTC+3.
 
 ## Назначение
 
@@ -9,9 +9,33 @@
 проблемы — [`AI_ARCHITECTURE_AUDIT.md`](AI_ARCHITECTURE_AUDIT.md), порядок
 будущих работ — [`AI_ROADMAP.md`](AI_ROADMAP.md).
 
-Последнее обновление: уточнение заголовка автоматического 2D в общем журнале, Editor 4.86.1.
+Последнее обновление: согласование документации с текущим solver и закрытие WGUI-005/WGUI-014; версия приложения не менялась.
 
 ## Основные этапы
+
+### 2026-11-01 — актуализация интеграции и завершённых пунктов аудита
+
+[PR #203](https://github.com/y26084670-blip/clark-editor/pull/203) опубликован в main:
+уточнены сохранённый HTS_JSP_iterator и выбор полной/упрощённой токовых ветвей.
+Исходники и версия приложения не менялись; сборки CI Linux и Windows успешны.
+
+<a id="history-wgui-005"></a>
+**WGUI-005.** Отдельный HDF5 Viewer уже реализован в
+[clark-viewer](https://github.com/y26084670-blip/clark-viewer/tree/b74c654ce2bfc7e0c1b04075aca70050e28f6b07).
+Создание Viewer снято с очереди Editor; обработка HDF5 остаётся ответственностью
+отдельного проекта. Это документальная сверка существующей реализации,
+а не новая браузерная или численная приёмка.
+
+<a id="history-wgui-014"></a>
+**WGUI-014.** На базе Editor `a4b9b5f553a826235b5fbf0217e565fd0fc8cfc0`
+[стенд](https://github.com/y26084670-blip/clark-editor/blob/a4b9b5f553a826235b5fbf0217e565fd0fc8cfc0/test/taskUnsavedChangesContract.test.js)
+содержит `protocolBusy` в контексте. 01.11.2026 выполнен
+`node --test test/taskUnsavedChangesContract.test.js`: **15 passed, 0 failed**,
+без поздних исключений; blob SHA теста и зависимых исходников совпали с указанным main.
+Исторический результат 27.10.2026 на `7558be3` (6 passed / 7 failed,
+`protocolBusy is not defined`, поздний unhandledRejection) больше не описывает
+текущий стенд. Карточка снята с активного аудита; нативная браузерная проверка
+[ZIP по эскизу](AI_VERIFICATION.md#verification-sketch-independent) остаётся отдельным сценарием.
 
 ### 2026-10-31 — уточнение записи об автоматическом 2D, 4.86.1
 
