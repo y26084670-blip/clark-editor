@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { createServer } from "vite";
+import { VALIDATION_LEVELS } from "../src/services/schemas/common/constants.js";
+import { createSuccess } from "../src/tabulator/validators/common/createDiagnostic.js";
+import { getValidationLevel } from "../src/tabulator/validators/common/diagnosticLevel.js";
+import { isStoredProperty } from "../src/services/model/modelCompute.js";
+import { propertyStoragePath } from "../src/services/model/modelSerializer.js";
 import {
   createEffect,
   createRoot,
@@ -9,6 +15,11 @@ import {
 } from "solid-js/dist/solid.js";
 
 const source = await readFile(new URL("../src/App.jsx", import.meta.url), "utf8");
+const diagnosticSource = await readFile(new URL("../src/services/diagnosticService.js", import.meta.url), "utf8");
+const createDiagnostics = new Function("createSignal", "VALIDATION_LEVELS", "createSuccess", "getValidationLevel",
+  diagnosticSource.replace(/^import .*;\n/gm, "")
+    .replace("export const diagnosticService", "const diagnosticService")
+    + "\nreturn diagnosticService;");
 
 function sourceRegion(startText, endText) {
   const start = source.indexOf(startText);
@@ -98,11 +109,15 @@ function createHarness(t, options = {}) {
   createRoot(dispose => {
     const [task, setTask] = createSignal(initialTask);
     const [model, setModel] = createSignal(initialModel);
+    const [taskDataVersion, setTaskDataVersion] = createSignal(0);
+    let loadDiagnostics = options.loadDiagnostics ?? Object.fromEntries(schemas.map(schema => [schema.id,
+      [{ level: "warning", message: `missing parameters in ${schema.id}` }],
+    ]));
     const api = createSaveRuntime({
       createSignal,
       createEffect,
       onCleanup,
-      selectionService: { loadedTaskHandle: task, loadedTaskIsDemo: () => false, taskDataVersion: () => 0 },
+      selectionService: { loadedTaskHandle: task, loadedTaskIsDemo: () => false, taskDataVersion },
       modelService: { getModel: model },
       async assertJweakLocalUnchanged(handle, section) {
         return options.companion?.(handle, section);
@@ -143,8 +158,14 @@ function createHarness(t, options = {}) {
         },
       },
       diagnosticService: {
+        setLoadResult(id, diagnostics) {
+          events.push({ type: "load-diagnostics", id, diagnostics });
+          loadDiagnostics = { ...loadDiagnostics, [id]: diagnostics };
+          options.diagnostics?.setLoadResult(id, diagnostics);
+        },
         setValidationResult(diagnostics) {
           events.push({ type: "diagnostics", diagnostics });
+          options.diagnostics?.setValidationResult(diagnostics);
         },
       },
       async collectModelDiagnostics(handle, snapshot) {
@@ -167,6 +188,8 @@ function createHarness(t, options = {}) {
       initialModel,
       setTask,
       setModel,
+      setTaskDataVersion,
+      loadDiagnostics: () => loadDiagnostics,
       dispose,
       calls: type => events.filter(event => event.type === type),
     };
@@ -179,6 +202,167 @@ function assertFeedback(harness, status) {
   assert.equal(harness.saveFeedback()?.status, status);
   assert.equal(typeof harness.saveFeedback().message, "string");
   assert.ok(harness.saveFeedback().message.length > 0);
+}
+
+// Use the real loader/serializer, App save handler and model validator. Only the
+// File System Access handles are controlled so close() can fail or stay pending.
+async function createStorageHarness(t, options = {}) {
+  const server = await createServer({ configFile: false, optimizeDeps: { noDiscovery: true, include: [] },
+    server: { middlewareMode: true }, appType: "custom" });
+  t.after(() => server.close());
+  const [{ dataService }, { default: conrab }, { default: moves }, { movesValidator }] =
+    await Promise.all([
+      server.ssrLoadModule("/src/services/dataService.js"),
+      server.ssrLoadModule("/src/services/schemas/conrab.schema.js"),
+      server.ssrLoadModule("/src/services/schemas/moves.schema.js"),
+      server.ssrLoadModule("/src/tabulator/validators/models/moves/movesValidator.js"),
+    ]);
+  const files = new Map([
+    ["conrab.txt", options.conrabText ?? "{}\n{}\n"],
+    ["moves.txt", JSON.stringify({ angle: [0, 0, 0, 0],
+      position: [0, 1, 0, 0, 0, 0, 0, 0], n: 9 })],
+  ]);
+  const task = { async getDirectoryHandle() {
+    return { async getFileHandle(name) {
+      return {
+        async getFile() { return { text: async () => files.get(name) }; },
+        async createWritable() {
+          let pending;
+          return {
+            async write(text) { pending = text; },
+            async close() {
+              await options.close?.(name);
+              files.set(name, pending);
+            },
+          };
+        },
+      };
+    } };
+  } };
+  const schemas = [conrab, moves], model = {}, loadDiagnostics = {};
+  for (const schema of schemas) {
+    loadDiagnostics[schema.id] = [];
+    model[schema.id] = await dataService.load(task, schema, loadDiagnostics[schema.id]);
+  }
+  const diagnostics = createDiagnostics(createSignal, VALIDATION_LEVELS, createSuccess, getValidationLevel);
+  for (const schema of schemas) diagnostics.setLoadResult(schema.id, loadDiagnostics[schema.id]);
+  diagnostics.setConstraintResult("moves", [{ level: "error", message: "retained constraint error" }]);
+  const h = createHarness(t, { schemas, model, task, loadDiagnostics, diagnostics,
+    save: (...args) => dataService.save(...args),
+    validate: (_task, snapshot) => {
+      const messages = [];
+      movesValidator({ getModel: () => snapshot }, messages);
+      return messages;
+    },
+  });
+  return { ...h, files, dataService, conrab, diagnostics };
+}
+
+test("bundled demo has all canonical profile keys and loads without missing-parameter warnings", async t => {
+  const conrabText = await readFile(new URL("../data/demo/conrab.txt", import.meta.url), "utf8");
+  const h = await createStorageHarness(t, { conrabText });
+  const expected = Object.entries(h.conrab.properties)
+    .filter(([, property]) => isStoredProperty(property))
+    .map(([key, property]) => propertyStoragePath(key, property)).sort();
+  const records = conrabText.trim().split("\n").map(JSON.parse);
+  assert.equal(records.length, 2);
+  for (const record of records) {
+    assert.deepEqual(Object.keys(record).sort(), expected);
+    assert.equal(record.DIPOLE_RTOL, 0.001);
+    assert.equal(record.fullJNewton, false);
+  }
+  assert.deepEqual(h.loadDiagnostics().conrab, []);
+});
+
+test("actual file round trip removes missing defaults and keeps unresolved motion model errors", async t => {
+  const closed = deferred();
+  const h = await createStorageHarness(t, {
+    close: name => name === "conrab.txt" ? closed.promise : undefined,
+  });
+  assert.ok(h.loadDiagnostics().conrab.some(d => d.message.includes("DIPOLE_RTOL")));
+  const saving = h.handleSave();
+  await flushMicrotasks();
+  assert.equal(h.files.get("conrab.txt"), "{}\n{}\n");
+  assert.equal(h.calls("load-diagnostics").length, 0);
+  closed.resolve();
+  await saving;
+  assert.deepEqual(h.loadDiagnostics().conrab, []);
+  const saved = h.files.get("conrab.txt").trim().split("\n").map(JSON.parse);
+  assert.equal(saved.length, 2);
+  assert.ok(saved.every(record => record.DIPOLE_RTOL === 0.001));
+  assert.ok(saved.every(record => Object.keys(record).length === 12));
+  const freshDiagnostics = [];
+  await h.dataService.load(h.initialTask, h.conrab, freshDiagnostics);
+  assert.deepEqual(freshDiagnostics, []);
+  assert.ok(h.calls("diagnostics")[0].diagnostics.some(d =>
+    d.level === "error" && d.property === "position"));
+  assert.ok(h.diagnostics.diagnostics().some(d => d.property === "position"));
+  assert.ok(h.diagnostics.diagnostics().some(d => d.message === "retained constraint error"));
+  assert.ok(h.diagnostics.diagnostics().every(d => d.level === "error"));
+  assert.equal(h.calls("clear").length, 0);
+});
+
+test("actual close failure preserves original file and its load warning", async t => {
+  const h = await createStorageHarness(t, { close(name) {
+    if (name === "conrab.txt") throw new Error("controlled close failure");
+  } });
+  await h.handleSave();
+  assert.equal(h.files.get("conrab.txt"), "{}\n{}\n");
+  assert.ok(h.loadDiagnostics().conrab.some(d => d.message.includes("DIPOLE_RTOL")));
+  assert.deepEqual(h.loadDiagnostics().moves, []);
+  assertFeedback(h, "error");
+});
+
+test("successful file close clears its obsolete read warnings without clearing model diagnostics", async t => {
+  const closed = deferred();
+  const modelError = { level: "error", message: "invalid current model" };
+  const h = createHarness(t, {
+    save: (_handle, schema) => schema.id === "general" ? closed.promise : true,
+    validate: () => [modelError],
+  });
+  const saving = h.handleSave();
+  await flushMicrotasks();
+  assert.equal(h.calls("load-diagnostics").length, 0);
+  assert.equal(h.loadDiagnostics().general.length, 1);
+  closed.resolve(true);
+  await saving;
+  for (const messages of Object.values(h.loadDiagnostics())) assert.deepEqual(messages, []);
+  assert.deepEqual(h.calls("diagnostics")[0].diagnostics, [modelError]);
+  assert.equal(h.calls("clear").length, 0, "model errors still prevent approval");
+});
+
+for (const failure of ["throw", "skip"]) {
+  test(`unwritten file retains read warnings after ${failure}, while written files clear theirs`, async t => {
+    const h = createHarness(t, { save: (_handle, schema) => {
+      if (schema.id !== "regions") return true;
+      if (failure === "throw") throw new Error("close failed");
+      return false;
+    } });
+    await h.handleSave();
+    assert.deepEqual(h.loadDiagnostics().general, []);
+    assert.equal(h.loadDiagnostics().regions.length, 1);
+    assert.deepEqual(h.loadDiagnostics().optional, []);
+  });
+}
+
+for (const change of ["task", "task round trip", "reload", "snapshot"]) {
+  test(`an older save cannot clear load warnings after ${change}`, async t => {
+    const closed = deferred();
+    const h = createHarness(t, { save: (_handle, schema) => schema.id === "general" ? closed.promise : true });
+    const saving = h.handleSave();
+    await flushMicrotasks();
+    if (change === "reload") h.setTaskDataVersion(1);
+    else if (change === "snapshot") h.setModel({ ...h.initialModel, general: { value: 9 } });
+    else {
+      h.setTask({ name: "task-b" });
+      if (change === "task round trip") h.setTask(h.initialTask);
+    }
+    await flushMicrotasks();
+    closed.resolve(true);
+    await saving;
+    assert.equal(h.calls("load-diagnostics").length, 0);
+    for (const messages of Object.values(h.loadDiagnostics())) assert.equal(messages.length, 1);
+  });
 }
 
 test("every successful save publishes a fresh summary notification; failed writes do not", async t => {
@@ -223,7 +407,8 @@ test("save stays pending until the last write and rejects duplicate clicks", asy
   assert.equal(h.savePending(), null);
   assert.equal(h.calls("baseline").length, 3);
   assert.deepEqual(h.events.map(event => event.type), [
-    "mark", "planar-clear", "write", "baseline", "write", "baseline", "write", "baseline",
+    "mark", "planar-clear", "write", "baseline", "load-diagnostics",
+    "write", "baseline", "load-diagnostics", "write", "baseline", "load-diagnostics",
     "planar-refresh", "summary", "validate", "diagnostics", "clear",
   ]);
 });

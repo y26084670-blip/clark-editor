@@ -646,6 +646,13 @@ export default function App() {
           ) {
             unsavedChangesService.setBaseline(schema.id, itemModel);
             unsavedChangesService.setExplicitDirty(schema.id, false);
+            if (context.version === saveContextVersion) {
+              // save() returns true only after writable.close(). The canonical
+              // file now contains defaults and normalized storage, so its old
+              // read diagnostics no longer describe the file just written.
+              // Validation of the current model/constraints remains separate.
+              diagnosticService.setLoadResult(schema.id, []);
+            }
           }
         } catch (error) {
           saveFailed = true;

@@ -13,7 +13,7 @@ const descriptor = runInNewContext(declaration, {
     GEOMETRY_VALIDATION_DEFAULTS, FIELD_TYPES, STORAGE_TYPES, TABS, FILES, createSchema: d => d,
 });
 const schema = { properties: descriptor.properties, config: { storage: descriptor.storage } };
-const obsolete = ["EPS_0", "TAU_0", "KB1", "KEPS1", "CF_KEPS"];
+const obsolete = ["EPS_0", "TAU_0", "KB1", "KEPS1", "CF_KEPS", "DIPOLE_FLOAT32"];
 test("legacy settings migrate to independent absolute defaults and clean JSONL", () => {
     const old = Object.fromEntries(obsolete.map(k => [k, "unused"]));
     assert.deepEqual(findUnknownStoragePaths(old, Object.keys(schema.properties), descriptor.obsoleteStoragePaths), []);
@@ -28,6 +28,46 @@ test("legacy settings migrate to independent absolute defaults and clean JSONL",
     for (const row of stored) for (const key of obsolete) assert.equal(Object.hasOwn(row, key), false);
     const jsonl = stored.map(JSON.stringify).join("\n");
     assert.deepEqual(deserialize(jsonl.split("\n").map(JSON.parse), schema), model);
+});
+
+test("dipole tolerance defaults independently and survives canonical serialization", () => {
+    const input = [{ DIPOLE_FLOAT32: true }, { DIPOLE_RTOL: 0 }];
+    const model = deserialize(input, schema);
+    assert.equal(model[0].DIPOLE_RTOL, 0.001);
+    assert.equal(model[1].DIPOLE_RTOL, 0);
+    model[0].DIPOLE_RTOL = 0.01;
+    assert.equal(model[1].DIPOLE_RTOL, 0);
+    assert.equal(Object.hasOwn(input[0], "DIPOLE_RTOL"), false);
+    const stored = serialize(model, schema);
+    for (const row of stored) {
+        assert.equal(Object.hasOwn(row, "DIPOLE_RTOL"), true);
+        assert.equal(Object.hasOwn(row, "DIPOLE_FLOAT32"), false);
+    }
+    assert.deepEqual(deserialize(stored, schema), model);
+});
+
+test("dipole tolerance uses a finite numeric [0, 1) interval in either profile", () => {
+    const property = schema.properties.DIPOLE_RTOL;
+    assert.equal(property.minimum, 0);
+    assert.equal(property.exclusiveMaximum, 1);
+    for (const row of [0, 1]) {
+        for (const value of [0, 0.001, 0.1, 1 - Number.EPSILON]) {
+            const model = deserialize([{}, {}], schema);
+            model[row].DIPOLE_RTOL = value;
+            const diagnostics = [];
+            conrabValidator({ getModel: () => ({ conrab: model }) }, diagnostics);
+            assert.deepEqual(diagnostics, []);
+        }
+        for (const invalid of [-1, 1, NaN, Infinity, true, false, "0.001", null, undefined]) {
+            const model = deserialize([{}, {}], schema);
+            model[row].DIPOLE_RTOL = invalid;
+            const diagnostics = [];
+            conrabValidator({ getModel: () => ({ conrab: model }) }, diagnostics);
+            assert.equal(diagnostics.length, 1);
+            assert.equal(diagnostics[0].property, "DIPOLE_RTOL");
+            assert.equal(diagnostics[0].row, row + 1);
+        }
+    }
 });
 test("absolute tolerances are finite, positive and identify the correct profile", () => {
     for (const key of ["CF_FMMEPS", "CF_HTSEPS"]) {

@@ -2,7 +2,7 @@ import { GEOMETRY_VALIDATION_DEFAULTS } from "../solver/geometryValidationSettin
 /*
 Источник: solver/src/core/types.jl, Conrab; startITER и fullJNewton — логические параметры.
 Файл содержит две RECORDS-записи: Float32, затем Float64.
-Каждая запись GUI содержит 11 полей: 10 расчётных и собственный GEO_ANGLE.
+Каждая запись GUI содержит 12 полей: 11 расчётных и собственный GEO_ANGLE.
 Отсутствующие поля получают default схемы.
 */
 import {
@@ -26,7 +26,7 @@ export default createSchema({
             + "при сохранении будут записаны обе строки.",
     },
     obsoleteStoragePaths: ["KPY", "KB2", "B20", "KEPS2", "KEPS3", "KEPS4",
-        "EPS_0", "TAU_0", "KB1", "KEPS1", "CF_KEPS"],
+        "EPS_0", "TAU_0", "KB1", "KEPS1", "CF_KEPS", "DIPOLE_FLOAT32"],
     rowLabelDescription: "Параметры математической модели",
     rowLabelWidth: "auto",
 
@@ -123,6 +123,22 @@ export default createSchema({
             label: "LONGD: Коэффициент условия дальней зоны",
             description: "Коэффициент перехода к квадратуре дальней зоны: LONGD * |SY| <= YY; SY—интервал интегрирования, YY — расстояние в плоскости y–z от точки наблюдения до начала интервала",
             default: 200,
+            digits: 6,
+        },
+
+        DIPOLE_RTOL: {
+            type: FIELD_TYPES.FLOAT,
+            label: "DIPOLE_RTOL: Допуск дипольного приближения",
+            description: "Относительный допуск нормы отдельного блока дальней 3D-зоны. "
+                + "Радиусы перехода вычисляются по геометрии ЭО отдельно для ядер; "
+                + "переключается целый симметричный образ. Не является допуском "
+                + "суммарного поля или нелинейного решения. Конечное число от 0 "
+                + "включительно до 1 исключительно; 0 отключает приближение. "
+                + "По умолчанию 0.001 в каждом профиле. Разрядность совпадает "
+                + "с разрядностью интегрирования выбранного решателя.",
+            default: 0.001,
+            minimum: 0,
+            exclusiveMaximum: 1,
             digits: 6,
         },
 
