@@ -36,10 +36,15 @@ page.on("request", req => { if (/chatgpt\.com|api\.openai\.com/u.test(req.url())
 const check = (name, condition) => { assert.ok(condition, name); checks.push(name); console.log("PASS", name); };
 const button = name => page.getByRole("button", { name, exact: true });
 const dialog = page.locator(".sketch-request-dialog");
-const command = page.locator(".side-panel").getByRole("button", { name: "ZIP по эскизу для ИИ", exact: true });
+const aiSection = page.locator(".side-panel details").filter({ hasText: "AI запросы" });
+const command = aiSection.getByRole("button", { name: "Геометрия по эскизу", exact: true });
 const prepare = dialog.getByRole("button", { name: "Подготовить ZIP", exact: true });
 const close = () => dialog.getByRole("button", { name: "Закрыть", exact: true }).click();
-const open = async () => { if (!(await command.isVisible())) await button("Открыть дополнительные функции").click(); await command.click(); };
+const open = async () => {
+  if (!(await button("Закрыть дополнительные функции").isVisible())) await button("Открыть дополнительные функции").click();
+  if (!(await aiSection.evaluate(section => section.open))) await aiSection.locator("summary").click();
+  await command.click();
+};
 const snapshot = () => page.evaluate(() => taskFixture.snapshot());
 const addImage = buffer => dialog.locator('input[type="file"]').setInputFiles({ name: "Эскиз.png", mimeType: "image/png", buffer });
 async function downloadZip(filename) {
@@ -66,6 +71,8 @@ try {
   await page.waitForFunction(() => window.taskFixture?.ready);
   await page.locator(".task-access-dialog").getByRole("button", { name: "Закрыть", exact: true }).click();
   await button("Открыть дополнительные функции").click();
+  check("AI requests section starts collapsed with the sketch command hidden", !(await aiSection.evaluate(section => section.open)) && !(await command.isVisible()));
+  await aiSection.locator("summary").press("Enter");
   check("ZIP command is available without disk, project or task", await command.isEnabled());
   const emptyBefore = await snapshot();
   const filesBefore = await page.evaluate(async () => {
@@ -138,8 +145,7 @@ try {
   await page.evaluate(() => taskFixture.dirty());
   const before = await snapshot();
   await button("Выбор задания").click();
-  await button("Открыть дополнительные функции").click();
-  await command.click(); await dialog.waitFor({ state: "visible" });
+  await open(); await dialog.waitFor({ state: "visible" });
   check("empty sketch cannot produce a request", await prepare.isDisabled());
   await addImage(png);
   await dialog.getByLabel("Название запроса", { exact: true }).fill("Блок по наброску");
