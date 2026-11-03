@@ -78,6 +78,17 @@ export function SidePanel(props) {
 
         {props.taskActions && <section class="side-panel-section">
           <details class="side-panel-submenu">
+            <summary class="side-panel-section-title" tabIndex={props.open ? 0 : -1}>AI запросы</summary>
+            <div class="side-panel-options">
+              <button class="side-panel-option" disabled={!props.open || !props.taskActions.sketchEnabled}
+                title="Подготовить ZIP с эскизом и правилами CLARK для передачи ИИ"
+                onClick={() => props.onTaskAction?.("sketch")}>Геометрия по эскизу</button>
+            </div>
+          </details>
+        </section>}
+
+        {props.taskActions && <section class="side-panel-section">
+          <details class="side-panel-submenu">
             <summary class="side-panel-section-title">Работа с проектами</summary>
             <div class="side-panel-options">
               {Object.entries(PROJECT_OPERATION_LABELS).map(([kind, label]) => <button
@@ -87,12 +98,6 @@ export function SidePanel(props) {
                 onClick={() => props.onTaskAction?.(`project-${kind}`)}>{label}</button>)}
             </div>
           </details>
-        </section>}
-
-        {props.taskActions && <section class="side-panel-section">
-          <button class="side-panel-option" disabled={!props.open || !props.taskActions.sketchEnabled}
-            title="Подготовить ZIP с эскизом и правилами CLARK для передачи ИИ"
-            onClick={() => props.onTaskAction?.("sketch")}>ZIP по эскизу для ИИ</button>
         </section>}
 
         {props.taskActions && <section class="side-panel-section">

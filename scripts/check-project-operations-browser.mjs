@@ -31,7 +31,8 @@ page.on('console', message => { if (message.type() === 'error') console.error('B
 const check = (name, condition) => { assert.ok(condition, name); checks.push(name); console.log('PASS', name); };
 const button = name => page.getByRole('button', { name, exact: true });
 const dialog = page.locator('.task-operation-dialog');
-const choose = async name => { await page.locator('#listTask .listTask-item').filter({ hasText: new RegExp(`(?:^|▶\\s*)${name}$`) }).click(); };
+const choose = name => page.locator('#listTask .task-status-label')
+  .filter({ hasText: new RegExp(`^(?:▶\\s*)?${name}$`) }).click();
 const open = async name => { await button('Выбор задания').click(); await button('Открыть дополнительные функции').click(); if (['Создать проект', 'Переименовать проект', 'Удалить пустой проект'].includes(name)) { const section = page.locator('.side-panel details').filter({ hasText: 'Работа с проектами' }); if (!await section.evaluate(e => e.open)) await section.locator('summary').click(); } await page.locator('.side-panel').getByRole('button', { name, exact: true }).click(); await dialog.waitFor({ state: 'visible' }); };
 const submit = async name => { await dialog.getByRole('button', { name, exact: true }).click(); };
 const done = async () => { await dialog.waitFor({ state: 'hidden' }); };
@@ -45,12 +46,12 @@ try {
   await page.locator('.task-access-dialog').getByRole('button', { name: 'Закрыть', exact: true }).click();
   await button('Открыть дополнительные функции').click();
   const section = page.locator('.side-panel details').filter({ hasText: 'Работа с проектами' });
-  check('project section is collapsed by default and above task section', !await section.evaluate(e => e.open)
-    && await page.locator('.side-panel-section-title').allTextContents().then(t => t.indexOf('Работа с проектами') < t.indexOf('Работа с заданиями')));
+  const topHeadings = page.locator('.side-panel > section:nth-of-type(-n+3) .side-panel-section-title');
+  assert.deepEqual(await topHeadings.allTextContents(), ['AI запросы', 'Работа с проектами', 'Работа с заданиями']);
+  check('project section is collapsed by default', !await section.evaluate(e => e.open));
   await section.locator('summary').click();
   check('project commands disabled without catalog', await button('Создать проект').isDisabled() && await button('Переименовать проект').isDisabled());
-  check('task commands have explicit names', await button('ZIP по эскизу для ИИ').count() === 1
-    && await button('Переименовать задание').count() === 1 && await button('Создать задание').count() === 1);
+  check('task commands have explicit names', await button('Переименовать задание').count() === 1 && await button('Создать задание').count() === 1);
   await page.screenshot({ path: path.join(out, 'project-menu.png') });
   await button('Закрыть дополнительные функции').click();
   await chooseProjectDisk(page);
