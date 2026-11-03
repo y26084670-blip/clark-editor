@@ -1,7 +1,6 @@
 import { Show, createEffect, createSignal } from "solid-js";
 import { ValidationIndicator } from "./components/diagnostics/ValidationIndicator";
 import { GeneralInformationDialog } from "./components/help/GeneralInformationDialog";
-import { selectionService } from "./services/selectionService";
 import {
   getFilePickerErrorMessage,
   getFileSystemAccessSupport,
@@ -97,7 +96,7 @@ export function TaskInfoBar(props) {
   // диалог открытия файла. Результат намеренно не используется:
   // выбор задания не изменяется.
   async function handleBrowse() {
-    const handle = selectionService.loadedTaskHandle();
+    const handle = props.browseTaskHandle;
     if (!handle) return;
     if (props.isDemo) {
       setBrowseNotice(
@@ -160,10 +159,12 @@ export function TaskInfoBar(props) {
 
         <button
           class="validate-button"
-          disabled={!props.path}
+          disabled={!props.browseTaskHandle}
           onClick={handleBrowse}
           aria-label="Просмотр каталога задания"
-          title="Просмотр каталога задания (выбор задания не изменяется)"
+          title={props.browseTaskHandle
+            ? "Открыть каталог редактируемого задания"
+            : "Каталог доступен на вкладках загруженного задания"}
         >
           <img class="header-action-icon" src={folderIconUrl} alt="" draggable={false} />
         </button>

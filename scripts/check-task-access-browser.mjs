@@ -102,15 +102,35 @@ try {
   }
   await button('Продолжить').click();
   check('bind button is absent from main panel', !await page.getByRole('button', { name: 'Связать с Решателем', exact: true }).isVisible());
+  const taskFolder = page.getByRole('button', { name: 'Просмотр каталога задания', exact: true });
+  const taskSelectionTab = page.locator('[data-tab-id="tasks"]');
+  await page.locator('[data-tab-id="general"]').click();
+  check('an editor tab without a loaded task has no folder to browse', await taskFolder.isDisabled());
+  await taskSelectionTab.click();
+  const taskLabel = page.locator('#listTask .task-status-label', { hasText: 'Задание' });
   await page.locator('#listProject').selectOption('Project');
-  await page.locator('#listTask .listTask-item').filter({ hasText: /^Задание$/ }).dblclick();
+  await taskLabel.dblclick();
   await page.waitForFunction(() => accessFixture.path()?.includes('clark.projects/Project/Задание'));
-  await page.getByRole('button', { name: 'Выбор задания', exact: true }).click();
+  await taskSelectionTab.click();
   await page.locator('#projectCatalog').selectOption('CLARK.Tests');
   await page.waitForFunction(() => [...document.querySelector('#listProject').options].some(o => o.value === 'Другой проект'));
   check('switching catalogs updates projects and preserves loaded task', await page.evaluate(() => accessFixture.path() === 'clark.projects/Project/Задание'));
   check('disk access has no icon in the main panel', await page.getByRole('button', { name: 'Доступ к проектам', exact: true }).count() === 0);
   await page.locator('#listProject').selectOption('Другой проект');
+  await taskLabel.click();
+  check('highlighting another task leaves the task folder disabled on the selection tab', await taskFolder.isDisabled());
+  for (const tab of await page.locator('.tabs-header [data-tab-id]:not([data-tab-id="tasks"])').all()) {
+    await tab.click();
+    check(`task folder is available on ${await tab.getAttribute('data-tab-id')}`, await taskFolder.isEnabled());
+  }
+  await taskFolder.click();
+  check('the picker opens the loaded task despite the different list selection', await page.evaluate(async () => {
+    const { id, startIn } = accessFixture.browseCalls.at(-1);
+    const root = await navigator.storage.getDirectory();
+    return id === 'task-browse' && (await root.resolve(startIn)).join('/') === 'access-test/Диск Д/' + accessFixture.path();
+  }));
+  await taskSelectionTab.click();
+  check('returning to the selection tab disables the task folder again', await taskFolder.isDisabled());
   const beforeBrowse = await page.evaluate(() => ({ catalog: document.querySelector('#projectCatalog').value, project: document.querySelector('#listProject').value, path: accessFixture.path(), calls: accessFixture.calls.length }));
   await page.getByRole('button', { name: 'Просмотр каталога с проектами', exact: true }).click();
   check('folder browses the selected catalog without changing selection or disk access', await page.evaluate(before => {
