@@ -753,6 +753,7 @@ export default function App() {
         barRef={element => { taskInfoBar = element; }}
         onGeneralInformationOpenChange={setGeneralInformationOpen}
         path={selectionService.loadedTaskPath()}
+        browseTaskHandle={activeTab() === TABS.TASKS.id ? null : selectionService.loadedTaskHandle()}
         isDemo={selectionService.loadedTaskIsDemo()}
         onValidate={handleModelValidation}
         validationBusy={Boolean(validationPending())}
