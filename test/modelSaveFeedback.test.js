@@ -269,6 +269,7 @@ test("bundled demo has all canonical profile keys and loads without missing-para
   for (const record of records) {
     assert.deepEqual(Object.keys(record).sort(), expected);
     assert.equal(record.DIPOLE_RTOL, 0.001);
+    assert.equal(record.H2_MODE, "off");
     assert.equal(record.fullJNewton, false);
   }
   assert.deepEqual(h.loadDiagnostics().conrab, []);
@@ -290,7 +291,8 @@ test("actual file round trip removes missing defaults and keeps unresolved motio
   const saved = h.files.get("conrab.txt").trim().split("\n").map(JSON.parse);
   assert.equal(saved.length, 2);
   assert.ok(saved.every(record => record.DIPOLE_RTOL === 0.001));
-  assert.ok(saved.every(record => Object.keys(record).length === 12));
+  assert.ok(saved.every(record => record.H2_MODE === "off"));
+  assert.ok(saved.every(record => Object.keys(record).length === 13));
   const freshDiagnostics = [];
   await h.dataService.load(h.initialTask, h.conrab, freshDiagnostics);
   assert.deepEqual(freshDiagnostics, []);
