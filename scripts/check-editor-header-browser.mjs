@@ -99,17 +99,15 @@ async function check(label) {
     return document.elementFromPoint(rect.right - 1, rect.top + rect.height / 2)?.closest(".menu-button") === el;
   }), "the fixed menu remains accessible when Folder scrolls left");
   near(rects.docs.right, rects.settings.right, "Documentation/Settings right");
-  near(rects.news.left, rects.hts.left, "What's new/HTS left");
   near(rects.news.right, rects.hts.right, "What's new/HTS right");
-  near(rects.news.width, rects.hts.width, "What's new/HTS width");
   assert.ok(rects.about.left >= rects.docs.left && rects.about.top >= rects.docs.top && rects.about.bottom <= rects.docs.bottom,
     "About fits entirely inside Documentation's bounds");
-  near(rects.quick.left, rects.fmm.left, "Quick start/FMM left");
   near(rects.quick.right, rects.fmm.right, "Quick start/FMM right");
-  near(rects.quick.width, rects.fmm.width, "Quick start/FMM width");
-  near(rects.validate.left, rects.sources.left, "Validate/Sources left");
-  near(rects.validate.width, rects.sources.width, "Validate/Sources width");
   near(rects.validate.right, rects.sources.right, "Validate/Sources right");
+  for (const [button, tab] of [["news", "hts"], ["quick", "fmm"], ["validate", "sources"]]) {
+    assert.ok(rects[button].left >= rects[tab].left + 7.9, `${button}: narrower than its tab`);
+    near(rects[button].width, Math.min(145, rects[tab].width - 8), `${button}: compact width`);
+  }
   for (const [buttonName, labelName, accessoryName] of [
     ["validate", "validationLabel", "circle"], ["news", "newsLabel", "newsCount"], ["docs", "docsLabel", "about"],
   ]) {
@@ -125,6 +123,7 @@ async function check(label) {
   near(rects.save.left - rects.geometry.right, 6, "3D/Save gap");
   near(rects.geometry.top, rects.save.top, "3D/Save vertical alignment");
   near(rects.save.width, 32, "Save icon width");
+  near(rects.geometry.width, rects.save.width, "3D/Save equal widths");
   assert.ok(rects.geometry.left >= rects.trajectory.left, "3D and Save fit above Trajectories");
   const order = ["leading", "geometry", "save", "validate", "quick", "news", "docs"];
   for (let i = 1; i < order.length; i++) assert.ok(rects[order[i - 1]].right <= rects[order[i]].left + 1, `overlap ${order[i - 1]}/${order[i]}: ${JSON.stringify(rects)}`);

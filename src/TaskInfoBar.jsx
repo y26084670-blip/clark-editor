@@ -1,4 +1,4 @@
-import { Show, createEffect, createSignal } from "solid-js";
+import { Show, createEffect, createSignal, onCleanup } from "solid-js";
 import { ValidationIndicator } from "./components/diagnostics/ValidationIndicator";
 import { GeneralInformationDialog } from "./components/help/GeneralInformationDialog";
 import {
@@ -9,6 +9,8 @@ import {
 import aboutIconUrl from "./assets/zaica.BMP";
 import folderIconUrl from "./assets/header/folder.svg";
 import saveIconUrl from "./assets/header/save.svg";
+import horseSceneUrl from "./assets/horse-scene.html?url";
+import { createHorseSceneController } from "./services/horseSceneController.js";
 import packageMetadata from "../package.json";
 import { WhatsNewDialog } from "./components/updates/WhatsNewDialog.jsx";
 import "./TaskInfoBar.css";
@@ -62,7 +64,29 @@ export function TaskInfoBar(props) {
   let aboutDialog;
   let aboutButton;
   let aboutCloseButton;
+  let aboutContent;
+  let horseButton;
+  let horseScene;
   let generalInformationButton;
+
+  function closeAbout() {
+    horseScene?.stop("panel-close", false);
+    setAboutOpen(false);
+  }
+
+  function showHorse() {
+    horseScene ??= createHorseSceneController({
+      panel: aboutDialog,
+      content: aboutContent,
+      button: horseButton,
+      url: horseSceneUrl,
+      onEscape: closeAbout,
+      onError: setBrowseNotice,
+    });
+    horseScene.show();
+  }
+
+  onCleanup(() => horseScene?.dispose());
 
   // Модальность обеспечивается нативным <dialog>: удержание фокуса,
   // блокировка страницы и закрытие по Esc — штатное поведение элемента.
@@ -87,6 +111,7 @@ export function TaskInfoBar(props) {
         aboutCloseButton?.focus();
       }
     } else if (aboutDialog.open) {
+      horseScene?.stop("panel-close", false);
       aboutDialog.close();
     }
   });
@@ -332,34 +357,57 @@ export function TaskInfoBar(props) {
         class="about-dialog"
         ref={(el) => (aboutDialog = el)}
         aria-labelledby="about-dialog-title"
+        onCancel={(event) => {
+          event.preventDefault();
+          closeAbout();
+        }}
         onClose={() => {
+          horseScene?.stop("panel-close", false);
           setAboutOpen(false);
           aboutButton?.focus();
         }}
       >
-        <h2 id="about-dialog-title" class="about-title">О программе E3D</h2>
-        <p class="about-description">
-          <span>Программа предназначена для подготовки,</span>
-          <span>проверки, сохранения и визуализации</span>
-          <span>исходных данных расчётных задач Clark,</span>
-          <span>включая геометрию, параметры модели</span>
-          <span>и характеристики материалов.</span>
-        </p>
-        <div class="about-separator" aria-hidden="true" />
-        <div class="about-version">Версия: {packageMetadata.version}</div>
-        <div class="about-credits">
-          <div>МЭИ, Центр К-Электро</div>
-          <div>Разработчик: ChatGPT 5.6 Sol +</div>
-          <div class="about-curator-stack">
-            <div>Куратор: Кулаев Ю.</div>
-            <div>2026 г.</div>
+        <div class="about-content" ref={(el) => (aboutContent = el)}>
+          <header class="about-heading">
+            <h2 id="about-dialog-title" class="about-title">О программе E3D</h2>
             <button
-              ref={(el) => (aboutCloseButton = el)}
-              class="about-close-button"
-              onClick={() => setAboutOpen(false)}
+              ref={(el) => (horseButton = el)}
+              type="button"
+              class="about-horse-button"
+              title="Об авторах"
+              aria-label="Об авторах"
+              onClick={showHorse}
             >
-              Закрыть
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
             </button>
+          </header>
+          <p class="about-description">
+            <span>Программа предназначена для подготовки,</span>
+            <span>проверки, сохранения и визуализации</span>
+            <span>исходных данных расчётных задач Clark,</span>
+            <span>включая геометрию, параметры модели</span>
+            <span>и характеристики материалов.</span>
+          </p>
+          <div class="about-separator" aria-hidden="true" />
+          <div class="about-version">Версия: {packageMetadata.version}</div>
+          <div class="about-credits">
+            <div>МЭИ, Центр К-Электро</div>
+            <div>Разработчик: ChatGPT 5.6 Sol +</div>
+            <div class="about-curator-stack">
+              <div>Куратор: Кулаев Ю.</div>
+              <div>2026 г.</div>
+              <button
+                ref={(el) => (aboutCloseButton = el)}
+                class="about-close-button"
+                onClick={closeAbout}
+              >
+                Закрыть
+              </button>
+            </div>
           </div>
         </div>
       </dialog>

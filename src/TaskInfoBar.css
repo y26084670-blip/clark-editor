@@ -76,8 +76,8 @@
 }
 
 .task-info-bar--aligned .model-validation-button {
-    left: var(--header-mhj-left);
-    width: var(--header-mhj-width);
+    right: calc(100% - var(--header-mhj-right));
+    width: min(145px, calc(var(--header-mhj-width) - 8px));
     min-width: 0;
 }
 
@@ -95,8 +95,8 @@
 }
 
 .task-info-bar--aligned .header-quick-start {
-    left: var(--header-fmmLibrary-left);
-    width: var(--header-fmmLibrary-width);
+    right: calc(100% - var(--header-fmmLibrary-right));
+    width: min(145px, calc(var(--header-fmmLibrary-width) - 8px));
 }
 
 .header-geometry-actions {
@@ -104,9 +104,10 @@
     flex: 0 0 auto;
 }
 
-.task-info-bar .header-geometry-actions .save-button {
+.task-info-bar .validation-controls .header-geometry-actions :is(.save-button, .geometry-button) {
     flex: 0 0 32px;
     width: 32px;
+    min-width: 32px;
     padding-left: 0;
     padding-right: 0;
 }
@@ -118,8 +119,8 @@
 }
 
 .task-info-bar--aligned .header-news {
-    left: var(--header-htsLibrary-left);
     right: calc(100% - var(--header-htsLibrary-right));
+    width: min(145px, calc(var(--header-htsLibrary-width) - 8px));
 }
 
 .task-info-bar--aligned .header-news .whats-new-button {
@@ -530,6 +531,7 @@
     /* Offset automatic centering so the extra height extends only downward. */
     transform: translateY(calc(var(--about-close-height) / 2));
     padding: 18px 20px;
+    overflow: hidden;
     border: 1px solid #596773;
     border-radius: 8px;
     box-shadow: 0 8px 24px rgba(0, 0, 0, .35);
@@ -537,7 +539,8 @@
     color: #f0f4f7;
 }
 
-.about-dialog[open] {
+.about-dialog[open],
+.about-content {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -551,6 +554,51 @@
 .about-title {
     margin: 0;
     font-size: 20px;
+}
+
+.about-heading {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.about-horse-button {
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 28px;
+    padding: 3px;
+    border: 1px solid #7f8d99;
+    border-radius: 4px;
+    background: #3a4650;
+    color: #f0f4f7;
+    cursor: pointer;
+}
+
+.about-horse-button:hover {
+    background: #4a5965;
+}
+
+.about-horse-button:focus-visible {
+    outline: 2px solid #a9bac7;
+    outline-offset: 2px;
+}
+
+.about-horse-button svg {
+    width: 22px;
+    height: 22px;
+    pointer-events: none;
+}
+
+.about-horse-frame {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    border: 0;
+    z-index: 1;
+    background: #080a0e;
 }
 
 .about-description {
