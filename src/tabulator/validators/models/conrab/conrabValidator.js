@@ -27,15 +27,6 @@ export function conrabValidator(
         return;
     }
     for (const [row, record] of conrab.entries()) {
-        if (Object.hasOwn(record, "H2_MODE") && !["off", "on", "check"].includes(record.H2_MODE)) {
-            diagnostics.push(createError({
-                tab: TABS.CONRAB,
-                row: row + 1,
-                property: "H2_MODE",
-                message: `H2_MODE (${row === 0 ? "Float32" : "Float64"}): `
-                    + "требуется off, on или check.",
-            }));
-        }
         for (const property of geometryValidationSettings(record).invalid) {
             diagnostics.push(createError({
                 tab: TABS.CONRAB, row: row + 1, property,

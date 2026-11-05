@@ -2,7 +2,7 @@ import { GEOMETRY_VALIDATION_DEFAULTS } from "../solver/geometryValidationSettin
 /*
 Источник: solver/src/core/types.jl, Conrab; startITER и fullJNewton — логические параметры.
 Файл содержит две RECORDS-записи: Float32, затем Float64.
-Каждая запись GUI содержит расчётные параметры и собственный GEO_ANGLE.
+Каждая запись GUI содержит 12 полей: 11 расчётных и собственный GEO_ANGLE.
 Отсутствующие поля получают default схемы.
 */
 import {
@@ -140,23 +140,6 @@ export default createSchema({
             minimum: 0,
             exclusiveMaximum: 1,
             digits: 6,
-        },
-
-        H2_MODE: {
-            type: FIELD_TYPES.ENUM,
-            label: "H2_MODE: Режим матричных произведений",
-            description: "off — обычный плотный расчёт без построения и контроля H²; "
-                + "on — произведения через H² без плотного контроля; "
-                + "check — H² с проверкой произведений по плотной матрице, медленный режим проверки. "
-                + "Значение сохраняется в conrab.txt отдельно для Float32 и Float64; "
-                + "при запуске применяется активный профиль каждой задачи. "
-                + "По умолчанию off, в том числе для старых файлов без H2_MODE.",
-            default: "off",
-            enum: [
-                { value: "off", label: "off — Обычный расчёт" },
-                { value: "on", label: "on — H²" },
-                { value: "check", label: "check — H² с контролем" },
-            ],
         },
 
         // материальные уравнения
