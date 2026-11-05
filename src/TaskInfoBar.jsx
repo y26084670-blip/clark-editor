@@ -374,8 +374,8 @@ export function TaskInfoBar(props) {
               ref={(el) => (horseButton = el)}
               type="button"
               class="about-horse-button"
-              title="Об авторах"
-              aria-label="Об авторах"
+              title="Ща явлюся"
+              aria-label="Ща явлюся"
               onClick={showHorse}
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
