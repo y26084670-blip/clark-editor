@@ -110,6 +110,9 @@ export function installHeaderTabAlignment({ header, tabs }) {
   for (const button of tabs.querySelectorAll("[data-tab-id]")) observer?.observe(button);
   const contentObserver = view.MutationObserver ? new view.MutationObserver(schedule) : null;
   contentObserver?.observe(header, { childList: true, characterData: true, subtree: true });
+  // Active-tab CSS changes action positions without resizing the header.
+  const tabStateObserver = view.MutationObserver ? new view.MutationObserver(schedule) : null;
+  tabStateObserver?.observe(tabs, { attributes: true, attributeFilter: ["class"], subtree: true });
   tabs.addEventListener("scroll", schedule, { passive: true });
   view.addEventListener("resize", schedule);
   header.ownerDocument.fonts?.ready.then(schedule);
@@ -118,6 +121,7 @@ export function installHeaderTabAlignment({ header, tabs }) {
     disposed = true;
     observer?.disconnect();
     contentObserver?.disconnect();
+    tabStateObserver?.disconnect();
     if (frame) view.cancelAnimationFrame(frame);
     tabs.removeEventListener("scroll", schedule);
     view.removeEventListener("resize", schedule);
