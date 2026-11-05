@@ -104,6 +104,25 @@
     flex: 0 0 auto;
 }
 
+/* Only the task-selection tab needs a small inset from the tabs' right edges. */
+.app-container:has(.tabs-header > [data-tab-id="tasks"].active) > .task-info-bar--aligned {
+    .header-geometry-actions {
+        right: calc(100% - var(--header-moves-right) + 6px);
+    }
+
+    .model-validation-button {
+        right: calc(100% - var(--header-mhj-right) + 6px);
+    }
+
+    .header-quick-start {
+        right: calc(100% - var(--header-fmmLibrary-right) + 6px);
+    }
+
+    .header-news {
+        right: calc(100% - var(--header-htsLibrary-right) + 6px);
+    }
+}
+
 .task-info-bar .validation-controls .header-geometry-actions :is(.save-button, .geometry-button) {
     flex: 0 0 32px;
     width: 32px;
@@ -563,6 +582,7 @@
 }
 
 .about-horse-button {
+    transform: translateX(66.666667%);
     display: grid;
     place-items: center;
     width: 30px;
