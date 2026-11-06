@@ -1,6 +1,19 @@
 # Карта файлов и компонентов web-gui
 
-Обновлено: 2026-10-30 20:16 UTC+3.
+Обновлено: 2026-11-06.
+
+## Интерактивная сцена «Лошадь», 4.90.0
+
+- `src/assets/horse-scene.html` — автономная сцена R5, модель, рендерер и реакции.
+- `src/services/horseSceneController.js` — создание iframe, проверка сообщений,
+  таймаут загрузки, восстановление содержимого и фокуса.
+- `src/services/horse-pointer-bridge.js` — передача мыши панели в iframe;
+  функция detach освобождает обработчики и отложенный animation frame.
+- `test/horseSceneController.test.js` — поведенческие Node-тесты контроллера и моста.
+- `scripts/check-about-horse-browser.mjs` — сценарии реального браузера после сборки Pages.
+
+[Контракт сцены](AI_UI_CONTRACTS.md#about-horse-r5) ·
+[Проверки](AI_VERIFICATION.md#verification-horse-r5).
 
 Открытие протокола (4.84.0): `src/components/tasks/TaskProtocolDownload.jsx`
 и `.css` связаны со строками `src/tabs/Tasks.jsx`; метаданные и исходный Blob

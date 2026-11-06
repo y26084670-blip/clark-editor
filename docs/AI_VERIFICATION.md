@@ -1,6 +1,33 @@
 # Проверка web-gui
 
-Обновлено: 2026-11-02 14:31 UTC+3.
+Обновлено: 2026-11-06.
+
+<a id="verification-horse-r5"></a>
+## R5 в панели «О программе», 4.90.0 — 2026-11-06
+
+Выполнено:
+
+- `node --test test/horseSceneController.test.js` — 6/6 PASS: ленивый одиночный
+  iframe, ready и уведомления фаз, фильтрация чужих/старых сообщений, короткие
+  щелчки и координаты, объединение движений, leave/blur, timeout/error/retry,
+  сохранение inert, идемпотентная очистка и резервный postMessage.
+- `npm run build:pages` — PASS; встроенные проверки SHA-256 характеристик и
+  руководства успешны.
+- `cmp src/assets/horse-scene.html ../horse-source/r5/horse-interactive.html`
+  — побайтовое совпадение исходного R5 и поставляемого HTML.
+- `git diff --check` — проверяется перед фиксацией.
+
+Браузерные сценарии обновлены в `scripts/check-about-horse-browser.mjs`:
+проверяются интерактив после прежнего порога 24 с, щелчки, уход/растворение,
+ESC, повторное открытие, ошибки и освобождение ресурсов.
+Они **не подтверждены в этой среде**: повторный запуск Chromium завершился
+SIGABRT, `socket() failed: Operation not permitted` (AF_UNIX).
+Node-тесты проверяют протокол и жизненный цикл, но не подменяют визуальную
+проверку реакций, рендеринга и нативного поведения dialog/iframe.
+
+Команда для среды с работающим Chromium после сборки:
+`CHROMIUM_EXECUTABLE=/usr/bin/chromium node scripts/check-about-horse-browser.mjs`.
+Полный набор старых тестов в рамках изменения не запускался.
 
 <a id="verification-dipole-save-diagnostics"></a>
 ## DIPOLE_RTOL и диагностика после сохранения — 4.87.0

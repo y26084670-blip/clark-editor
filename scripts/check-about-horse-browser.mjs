@@ -25,6 +25,10 @@ const eye = page.locator(".about-horse-button");
 const content = page.locator(".about-content");
 const frameElement = page.locator(".about-horse-frame");
 const near = (a, b, label) => assert.ok(Math.abs(a - b) < 0.1, `${label}: ${a} vs ${b}`);
+async function noSceneListeners() {
+  assert.equal(await page.evaluate(() => window.horseListeners.size()), 0,
+    "scene and bridge release every parent listener");
+}
 async function sameRect(expected, label) {
   const actual = await panel.boundingBox();
   for (const key of ["x", "y", "width", "height"]) near(actual[key], expected[key], `${label} ${key}`);
@@ -54,6 +58,7 @@ async function expectClosed(reason) {
   assert.equal(state.reason, reason);
   assert.equal(state.renderer, null);
   assert.ok(await page.locator(".about-button").evaluate(el => document.activeElement === el));
+  await noSceneListeners();
 }
 
 try {
@@ -64,6 +69,26 @@ try {
   if (await access.count()) await access.getByRole("button", { name: "Закрыть", exact: true }).click();
   assert.equal(sceneRequests.length, 0, "the scene is not loaded with the application");
   await openPanel();
+  await panel.evaluate(owner => {
+    const records = [];
+    for (const target of [window, owner]) {
+      const add = target.addEventListener.bind(target), remove = target.removeEventListener.bind(target);
+      target.addEventListener = (type, listener, options) => {
+        if (["pointermove", "pointerdown", "pointerup", "pointercancel", "pointerleave", "blur", "message"].includes(type)) {
+          records.push({ target, type, listener, capture: options === true || !!options?.capture });
+        }
+        add(type, listener, options);
+      };
+      target.removeEventListener = (type, listener, options) => {
+        const capture = options === true || !!options?.capture;
+        const index = records.findIndex(record => record.target === target && record.type === type
+          && record.listener === listener && record.capture === capture);
+        if (index !== -1) records.splice(index, 1);
+        remove(type, listener, options);
+      };
+    }
+    window.horseListeners = { size: () => records.length };
+  });
   assert.equal(sceneRequests.length, 0, "opening About does not preload the scene");
   const original = await panel.boundingBox();
   const heading = await page.locator(".about-title").boundingBox();
@@ -101,14 +126,76 @@ try {
   assert.equal(await frameElement.count(), 1, "unrelated messages are ignored");
   await frame.waitForFunction(() => window.HorseScene.getState().time >= 9);
   await page.screenshot({ path: `${output}/horse.png` });
-  await page.waitForFunction(() => !document.querySelector(".about-horse-frame"), null, { timeout: 30000 });
+  await frame.waitForFunction(() => window.HorseScene.getState().phase === "interactive", null, { timeout: 20000 });
+  assert.equal(await frame.evaluate(() => window.HorseScene.getState().introDuration), 18);
+  assert.equal(await frame.evaluate(() => window.HorseScene.getState().duration), null);
+  await frame.waitForFunction(() => window.HorseScene.getState().time >= 25, null, { timeout: 15000 });
+  assert.equal(await frameElement.count(), 1, "interactive scene remains after the old 24-second endpoint");
+
+  // Observe the real bridge API without changing scene behavior. Parent events
+  // represent the owner's header/border; iframe events use its own handlers.
+  await frame.evaluate(() => {
+    const api = window.HorseScene;
+    window.bridgeSamples = [];
+    window.HorseScene = { ...api, pointer: data => { window.bridgeSamples.push(data); return api.pointer(data); } };
+  });
+  const clickSamples = await panel.evaluate(owner => {
+    const frame = owner.querySelector("iframe"), rect = frame.getBoundingClientRect();
+    for (const [type, buttons] of [["pointerdown", 1], ["pointerup", 0]]) {
+      owner.dispatchEvent(new PointerEvent(type, { bubbles: true, clientX: rect.left + rect.width * .85,
+        clientY: rect.top + rect.height * .35, buttons }));
+    }
+    return frame.contentWindow.bridgeSamples.slice(-2);
+  });
+  assert.deepEqual(clickSamples.map(sample => [sample.eventType, sample.buttons, sample.inside]),
+    [["pointerdown", 1, true], ["pointerup", 0, true]], "short clicks reach the scene synchronously");
+  near(clickSamples[0].x, .85, "bridge normalized x");
+  near(clickSamples[0].y, .35, "bridge normalized y");
+  assert.equal(await frame.evaluate(() => window.HorseScene.getState().headTracking), true);
+  await panel.evaluate(owner => owner.dispatchEvent(new Event("pointerleave")));
+  assert.deepEqual(await frame.evaluate(() => {
+    const last = window.bridgeSamples.at(-1); return [last.inside, last.buttons];
+  }), [false, 0]);
+  assert.equal(await frame.evaluate(() => window.HorseScene.getState().headTracking), false);
+  await panel.evaluate(owner => {
+    const rect = owner.querySelector("iframe").getBoundingClientRect();
+    owner.dispatchEvent(new PointerEvent("pointermove", { bubbles: true, clientX: rect.left + rect.width * .9,
+      clientY: rect.top + rect.height * .3, buttons: 1 }));
+  });
+  await frame.waitForFunction(() => window.bridgeSamples.at(-1)?.buttons === 1);
+  await page.evaluate(() => window.dispatchEvent(new Event("blur")));
+  assert.deepEqual(await frame.evaluate(() => {
+    const last = window.bridgeSamples.at(-1); return [last.inside, last.buttons];
+  }), [false, 0], "focus loss clears held buttons");
+  // The iframe itself receives actual browser pointer input.
+  await page.mouse.click(frameBounds.x + frameBounds.width * .85, frameBounds.y + frameBounds.height * .35);
+  assert.equal(await frame.evaluate(() => window.HorseScene.getState().headTracking), true);
+  await page.screenshot({ path: `${output}/interactive.png` });
+  console.log("PASS 18-second intro, unlimited interaction, short clicks, owner coordinates, iframe input, leave and blur");
+
+  // Keep moving over the projected body as it retreats. The real scene owns
+  // all departure/return/dissolve transitions and emits completed itself.
+  await frame.evaluate(() => {
+    window.retreatDriver = setInterval(() => {
+      if (!["interactive", "backing"].includes(window.HorseScene.getState().phase)) {
+        clearInterval(window.retreatDriver); return;
+      }
+      for (let y = .15; y < .96; y += .1) for (let x = .1; x < .96; x += .1) {
+        window.HorseScene.pointer({ x, y, inside: true, buttons: 0, eventType: "pointermove" });
+      }
+    }, 120);
+  });
+  await frame.waitForFunction(() => window.HorseScene.getState().phase === "turning", null, { timeout: 15000 });
+  assert.equal(await frameElement.count(), 1, "departure notification does not remove the scene");
+  await page.waitForFunction(() => !document.querySelector(".about-horse-frame"), null, { timeout: 45000 });
   assert.ok(await panel.evaluate(el => el.open), "natural completion leaves About open");
   assert.equal(await content.evaluate(el => el.inert), false);
   assert.ok(await eye.evaluate(el => document.activeElement === el), "focus returns to the eye");
   assert.equal(await page.evaluate(() => window.testHorseAPI.getState().reason), "completed");
   assert.equal(await page.evaluate(() => window.testHorseAPI.getState().renderer), null);
   await sameRect(original, "after completion");
-  console.log("PASS real 24-second playback, natural completion, resource release and restored focus");
+  await noSceneListeners();
+  console.log("PASS real retreat, return, dissolution, completed, resource release and restored focus");
 
   frame = await start();
   assert.ok(await frame.evaluate(() => window.HorseScene.getState().time < 2), "restart begins at zero");
@@ -160,6 +247,7 @@ try {
   await page.waitForFunction(() => !document.querySelector(".about-dialog").open);
   assert.equal(await frameElement.count(), 0);
   assert.equal(await content.evaluate(el => el.inert), false);
+  await noSceneListeners();
   releaseRequest();
   await page.unrouteAll({ behavior: "wait" });
   console.log("PASS immediate close while the iframe is loading");
@@ -176,6 +264,7 @@ try {
   await page.getByText("Не удалось показать сцену «Лошадь». Попробуйте открыть её снова.", { exact: true }).waitFor();
   assert.equal(await frameElement.count(), 0);
   assert.equal(await content.evaluate(el => el.inert), false);
+  await noSceneListeners();
   await page.locator(".modal-window[open]").getByRole("button", { name: "Закрыть", exact: true }).click();
   await page.unrouteAll({ behavior: "wait" });
   console.log("PASS scene initialization error restores content and shows the standard notice");
@@ -187,6 +276,7 @@ try {
   await page.getByText("Не удалось загрузить сцену «Лошадь». Попробуйте открыть её снова.", { exact: true }).waitFor({ timeout: 25000 });
   assert.equal(await frameElement.count(), 0);
   assert.equal(await content.evaluate(el => el.inert), false);
+  await noSceneListeners();
   await page.locator(".modal-window[open]").getByRole("button", { name: "Закрыть", exact: true }).click();
   await page.unrouteAll({ behavior: "wait" });
   await start();

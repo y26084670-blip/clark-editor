@@ -1,9 +1,12 @@
+import "./horse-pointer-bridge.js";
+
 // Own one disposable scene inside the existing About dialog. The dialog keeps
 // its native cancel/close handling; no additional keyboard handler is installed.
 export function createHorseSceneController({ panel, content, button, url, onEscape, onError }) {
   const view = panel.ownerDocument.defaultView;
   const sceneURL = new URL(url, panel.ownerDocument.baseURI);
   let currentFrame = null;
+  let detachPointer = null;
   let loadTimer = null;
   let previousInert = false;
   let disposed = false;
@@ -13,6 +16,9 @@ export function createHorseSceneController({ panel, content, button, url, onEsca
     if (!frame) return;
     // Clear identity before stop() can queue an ended event from the old frame.
     currentFrame = null;
+    const detach = detachPointer;
+    detachPointer = null;
+    detach?.();
     view.clearTimeout(loadTimer);
     loadTimer = null;
     view.removeEventListener("message", onMessage);
@@ -61,7 +67,7 @@ export function createHorseSceneController({ panel, content, button, url, onEsca
     if (disposed || currentFrame || !panel.open) return;
     const frame = panel.ownerDocument.createElement("iframe");
     frame.className = "about-horse-frame";
-    frame.title = "Лошадь — анимация";
+    frame.title = "Лошадь — интерактивная сцена";
     frame.src = sceneURL.href;
     currentFrame = frame;
     previousInert = content.inert;
@@ -72,6 +78,7 @@ export function createHorseSceneController({ panel, content, button, url, onEsca
       if (currentFrame === frame) fail("load-timeout");
     }, 20000);
     panel.appendChild(frame);
+    detachPointer = view.HorsePointerBridge.attach(panel, frame);
   }
 
   return {
