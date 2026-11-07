@@ -103,6 +103,8 @@ try {
       && document.querySelector("#listProject").value === project && Boolean(document.querySelector("#listTask .selected")), { catalog, project });
     check(`double click selects ${catalog}/${project}/Задание`, (await page.locator("#listTask .selected .task-status-label").textContent()).trim() === "Задание");
     await page.waitForFunction(() => !document.querySelector(".task-launch-remove").disabled);
+    await page.waitForFunction(() => !document.querySelector(".task-launch-start").disabled);
+    check(`launch remains available after navigating to ${catalog}/${project}`, await start.isEnabled());
   }
   check("queue navigation preserves the loaded editor model", await page.evaluate(() => queueFixture.loadedPath()) === loadedPath);
   const title = queue.locator(".floating-window-titlebar");

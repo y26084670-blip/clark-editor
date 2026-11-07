@@ -45,6 +45,7 @@ export function TaskLaunchWindow(props) {
   });
   const binding = () => props.binding ?? null;
   const [proof, setProof] = createSignal(null);
+  const [preparationError, setPreparationError] = createSignal("");
   const [pending, setPending] = createSignal(null);
   const [confirmImport, setConfirmImport] = createSignal(false);
   const [loadedPath, setLoadedPath] = createSignal(null);
@@ -68,28 +69,57 @@ export function TaskLaunchWindow(props) {
   const includedDirty = createMemo(() => unsavedChangesService.hasDirty() && loadedIncluded());
   const awaitingAcceptance = () => pending()?.state === "waiting";
   const locked = () => busy() || awaitingAcceptance() || props.bindingBusy;
-  const launchReady = () => !locked() && !resolvingLoaded() && !loadedPathError() && !includedDirty()
-    && !props.blockedMessage
-    && listExists() && listValid()
-    && binding()?.bindingState === "bound" && Boolean(proof());
+  const queueSupported = () => !entries().some(entry => entry.path.startsWith("../"))
+    || binding()?.taskQueueVersion === 1;
+  const includedBlock = () => loadedIncluded() ? props.blockedMessage : "";
+  const launchBaseReason = createMemo(() => {
+    if (awaitingAcceptance()) return "Дождитесь ответа Clark на предыдущий запуск.";
+    if (busy() || props.bindingBusy) return "Дождитесь завершения текущей операции.";
+    if (!props.rootHandle) return "Выберите каталог с проектами.";
+    if (!listExists() || !listValid()) return "Сформируйте список заданий перетаскиванием.";
+    if (binding()?.bindingState !== "bound") return "Свяжите каталог списка с Решателем.";
+    if (!queueSupported()) return "Для запуска списка из нескольких каталогов обновите установленный Clark и повторите связывание с Решателем.";
+    if (resolvingLoaded()) return "Проверяется каталог редактируемого задания.";
+    if (loadedPathError()) return "Не удалось проверить, входит ли редактируемое задание в список.";
+    if (includedDirty()) return "Сохраните изменения задания, включённого в список.";
+    if (includedBlock()) return includedBlock();
+    if (preparationError()) return preparationError();
+    if (!proof()) return "Подготовка запуска списка заданий…";
+    return "";
+  });
+  const launchReady = () => !launchBaseReason();
   const canLaunch = () => launchReady() && enabledEntries().length > 0;
-  const selectedLaunchReady = () => (launchMode() === "modelica" ? launchReady() : canLaunch())
-    && (launchMode() === "import" || !mpiError());
+  const selectedLaunchReason = createMemo(() => {
+    if (!enabledEntries().length) return "Добавьте в список хотя бы одно задание.";
+    if (launchBaseReason()) return launchBaseReason();
+    if (launchMode() === "modelica" && enabledEntries().length !== 1) return "Для запуска ОМ-клиента оставьте ровно одно задание в списке.";
+    if (launchMode() !== "import") {
+      if (mpiError()) return mpiError();
+      if (mpiEdited() && parseMpiRanks(mpiValue()) !== null && binding()?.launchOptionsVersion !== 1) {
+        return "Для выбора числа процессов обновите установленный Clark и повторите привязку.";
+      }
+    }
+    return "";
+  });
+  const selectedLaunchReady = () => !selectedLaunchReason();
 
   createEffect(() => props.onBusyChange?.(busy() || awaitingAcceptance()));
   createEffect(() => { if (!props.open) modelicaDialog?.close(); });
 
   async function armLaunch(root, revision, marker = binding()) {
+    if (!current(root, revision)) return;
     setProof(null);
+    setPreparationError("");
     if (!marker || marker.bindingState !== "bound" || !listExists() || !listValid()) return;
-    if (entries().some(entry => entry.path.startsWith("../")) && marker.taskQueueVersion !== 1) {
-      setNotice("Для запуска списка из нескольких каталогов обновите установленный Clark и повторите связывание с Решателем.");
-      return;
+    if (!queueSupported()) return;
+    try {
+      const prepared = await prepareLaunchRequest(root, marker);
+      if (current(root, revision) && !awaitingAcceptance() && !props.bindingBusy
+        && marker.workspaceId === binding()?.workspaceId
+        && binding()?.bindingState === "bound") setProof(prepared);
+    } catch (failure) {
+      if (current(root, revision)) setPreparationError("Не удалось подготовить запуск: " + errorText(failure));
     }
-    const prepared = await prepareLaunchRequest(root, marker);
-    if (current(root, revision) && !awaitingAcceptance() && !props.bindingBusy
-      && marker.workspaceId === binding()?.workspaceId
-      && binding()?.bindingState === "bound") setProof(prepared);
   }
 
   async function loadRoot(root, revision) {
@@ -127,6 +157,7 @@ export function TaskLaunchWindow(props) {
         setNotice("");
         setImportMessages([]);
         setProof(null);
+        setPreparationError("");
         setPending(null);
         setConfirmImport(false);
         setMpiValue("default");
@@ -140,9 +171,11 @@ export function TaskLaunchWindow(props) {
   createEffect(() => {
     const marker = binding();
     untrack(() => {
-      setProof(null);
+      if (marker?.bindingState !== "bound" || proof()?.workspaceId !== marker.workspaceId) {
+        setProof(null);
+        setPreparationError("");
+      }
       if (!mpiEdited()) setMpiValue(formatMpiRanks(marker?.mpiRanks));
-      if (marker?.bindingState === "bound") void refreshOnFocus();
     });
   });
 
@@ -262,7 +295,12 @@ export function TaskLaunchWindow(props) {
     finally { if (!disposed) setBusy(false); }
   }
 
-  createEffect(() => { if (props.open) untrack(() => { void taskStatus.refresh(); }); });
+  createEffect(() => {
+    if (props.open) untrack(() => {
+      void taskStatus.refresh();
+      if (preparationError()) void refreshOnFocus();
+    });
+  });
 
   async function saveLoadedModel() {
     if (locked() || !includedDirty()) return;
@@ -439,6 +477,14 @@ export function TaskLaunchWindow(props) {
     }
   }
 
+  createEffect(() => {
+    const ready = props.open && props.rootHandle && listExists() && listValid()
+      && binding()?.bindingState === "bound" && queueSupported();
+    const idle = !busy() && !awaitingAcceptance() && !props.bindingBusy;
+    const prepared = proof(), failure = preparationError();
+    if (ready && idle && !prepared && !failure) untrack(() => { void refreshOnFocus(); });
+  });
+
   onMount(() => {
     const timer = window.setInterval(() => { void pollNative(); void pollSettings(); }, 1000);
     const onFocus = () => { void refreshOnFocus(); void pollSettings(); };
@@ -473,9 +519,12 @@ export function TaskLaunchWindow(props) {
       onClose={props.onClose}
     >
       <div class="task-launch-body">
-        <Show when={error()}><div class="task-launch-error" role="alert">{error()}</div></Show>
+        <Show when={error() || preparationError()}><div class="task-launch-error" role="alert">{error() || preparationError()}</div></Show>
         <Show when={notice()}><div class="task-launch-notice" role="status">{notice()}</div></Show>
-        <Show when={props.blockedMessage}><div class="task-launch-notice" role="status">{props.blockedMessage}</div></Show>
+        <Show when={selectedLaunchReason() && !locked() && enabledEntries().length && !error()
+          && !preparationError() && !includedDirty()}>
+          <div class="task-launch-notice" role="status">{selectedLaunchReason()}</div>
+        </Show>
         <Show when={importMessages().length}>
           <details open>
             <summary>Импорт характеристик: сообщения ({importMessages().length})</summary>
@@ -545,6 +594,7 @@ export function TaskLaunchWindow(props) {
             </label>
             <Show when={launchMode() !== "import" && mpiError()}><span class="task-launch-error" role="alert">{mpiError()}</span></Show>
             <button ref={modelicaButton} class="task-launch-start" type="button" disabled={!selectedLaunchReady()}
+              title={selectedLaunchReason() || "Запустить задания из сформированного списка"}
               onClick={() => launchMode() === "import" ? setConfirmImport(true) : launch(launchMode())}>Запустить</button>
             <div class="task-launch-modes" role="radiogroup" aria-label="Режим запуска">
               <For each={[[ "solver", "расчёт" ], [ "modelica", "ОМ клиент" ], [ "import", "импорт" ]]}>{([mode, label]) =>
