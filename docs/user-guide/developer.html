@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Развитие CLARK с помощью ИИ · CLARK</title>
+<meta name="description" content="Как поставить задачу ИИ, выбрать документацию, проверить изменение и передать его следующему исполнителю.">
+<link rel="stylesheet" href="guide.css"><script src="guide.js" defer></script></head><body>
+<a href="#main-content" class="skip">Перейти к тексту</a>
+<header class="toolbar"><nav class="topic-links" aria-label="Разделы справки"><a href="index.html">Руководства</a> <a href="user.html">Пользователю</a> <a href="developer.html" aria-current="page">Разработчику</a> <a href="theory.html">Теория</a></nav><button id="menu-toggle" type="button" class="menu-button" aria-controls="guide-navigation" aria-expanded="false">Содержание</button><button id="print-guide" type="button" class="print-button">Печать</button></header>
+<div class="layout"><nav id="guide-navigation" class="toc" aria-label="Содержание раздела">
+<a class="toc-brand" href="index.html">Документация CLARK</a>
+<div class="toc-label">Содержание</div><div class="search-form"><label for="guide-search">Поиск в этом разделе</label><input id="guide-search" type="search" autocomplete="off"><div id="search-status" class="search-status" role="status" aria-live="polite">Глав в разделе: 6</div></div>
+<ul><li data-chapter="dev-start"><a href="#dev-start">Как ввести ИИ в проект</a></li>
+<li data-chapter="dev-projects"><a href="#dev-projects">Где искать реализацию</a></li>
+<li data-chapter="dev-fmm"><a href="#dev-fmm">Пример изменения с ИИ — число узлов M(H)</a><details><summary>Подразделы</summary><div class="secondary"><a href="#dev-fmm-request">Постановка запроса</a><a href="#dev-fmm-trace">Путь данных и границы правки</a><a href="#dev-fmm-check">Что предъявить на приёмке</a></div></details></li>
+<li data-chapter="dev-handoff"><a href="#dev-handoff">Проверка и продолжение в следующем сеансе</a></li>
+<li data-chapter="editorial"><a href="#editorial">Приложение Г Анализ структуры и редакционные изменения</a><details><summary>Подразделы</summary><div class="secondary"><a href="#section-132">Оценка исходной структуры</a><a href="#section-133">Что целесообразно дополнить при следующем обновлении</a></div></details></li>
+<li data-chapter="sources"><a href="#sources">Приложение Д Источники и связь с реализацией</a><details><summary>Подразделы</summary><div class="secondary"><a href="#section-134">Дополнения опубликованного руководства</a></div></details></li></ul></nav>
+<main><article id="main-content"><header class="front-matter" id="top"><span id="content" class="anchor-alias"></span><span id="theme-toggle" class="anchor-alias"></span>
+<h1>Развитие CLARK с помощью ИИ</h1><p>Как поставить задачу ИИ, выбрать документацию, проверить изменение и передать его следующему исполнителю.</p><p class="jump-links"><a href="#dev-projects">Карта репозиториев</a><a href="#dev-fmm">Пример задачи для ИИ</a><a href="#dev-handoff">Приёмка работы</a></p></header>
+<p id="no-results" class="no-results" role="status">Совпадений нет. Измените запрос или очистите поле поиска.</p>
+<section class="chapter" id="dev-start">
+<h2>Как ввести ИИ в проект</h2>
+<p>Назовите результат, который должен увидеть пользователь или получить решатель. Укажите версию, пример задания и наблюдаемый признак успеха. Если задача затрагивает несколько программ, проследите путь одной величины от её ввода до файла результата и экрана Viewer.</p>
+<ol>
+<li>Дайте ИИ доступ к нужному репозиторию. В Editor, solver, model и clark.tests чтение начинается с корневого <code>DOC_POLICY.md</code>. Затем используют <code>README.md</code>, архитектуру, сводку текущего состояния и карту файлов по мере необходимости. В Viewer входом служит раздел «Документация и сборка» в README.</li>
+<li>Попросите назвать документ, который определяет формат или алгоритм, открыть реализацию и существующие проверки. У каждой цитаты должны быть путь и версия. Исторические руководства и результаты помечают датой серии.</li>
+<li>До редактирования получите перечень файлов, влияние на соседние компоненты и способ проверки. После согласования дайте команду на правку. Для итоговой сверки попросите показать разницу, использованный пример, результаты команд и оставшиеся ограничения.</li>
+</ol>
+</section>
+<section class="chapter" id="dev-projects">
+<h2>Где искать реализацию</h2>
+<div class="table-scroll"><table><thead><tr><th>Задача</th><th>Репозиторий и точка входа</th><th>Что установить по коду</th></tr></thead><tbody>
+<tr><td>Ввод, проверка и запись задания</td><td><a href="https://github.com/y26084670-blip/clark-editor/blob/main/DOC_POLICY.md">clark-editor</a>. После карты <code>AI_FILES</code> выбрать <code>AI_DATA_CONTRACTS</code>, <code>AI_UI_CONTRACTS</code> или <code>AI_CLARK_INTEGRATION</code>.</td><td>Кто владеет схемой, какие значения принимает редактор и что попадает в input3XX.</td></tr>
+<tr><td>Уравнение или численная схема</td><td><a href="https://github.com/y26084670-blip/model/blob/main/docs/AI_NUMERICAL_CONTRACTS.md">model, карта математических тем</a> и <a href="https://github.com/y26084670-blip/solver/blob/main/docs/AI_NUMERICAL_CONTRACTS.md">solver, численные контракты</a>.</td><td>Статус вывода в model, действующая ветвь алгоритма в solver, единицы, ограничения и данные для проверки.</td></tr>
+<tr><td>Графики, 3D и диапазоны</td><td><a href="https://github.com/y26084670-blip/clark-viewer#readme">clark-viewer</a>. В <code>docs/</code> есть <code>AI_3D_RENDERING</code>, <code>AI_CHART_RENDERING</code>, <code>AI_RESULT_RANGES</code>.</td><td>Какую величину записал решатель, какие шаги и компоненты читает Viewer и как формируется шкала.</td></tr>
+<tr><td>Регрессия и сопоставление</td><td><a href="https://github.com/y26084670-blip/clark.tests/blob/main/regression/README.md">clark.tests, каталог regression</a>, затем контракт конкретной задачи.</td><td>Версия входов и эталона, сетка, выборка, величина, единицы и метрика согласия.</td></tr>
+<tr><td>Подготовка примера или входных файлов</td><td><a href="https://github.com/y26084670-blip/clark.knowledge/tree/main/using">clark.knowledge/using</a>. В нём есть каталог 99 архивов, разборы и описание происхождения.</td><td>Какое задание сохранено, есть ли материалы и результаты. Для формата обратиться к Editor, для физического смысла — к solver.</td></tr>
+</tbody></table></div>
+<p>Для обращения к закрытым репозиториям нужен доступ участника проекта. Содержание пользовательских уроков, четыре комплекта входов и <a href="theory.html">теория</a> доступны из самой справки.</p>
+</section>
+<section class="chapter" id="dev-fmm">
+<h2>Пример изменения с ИИ — число узлов M(H)</h2>
+<p>В версии 4.82.0 Editor научился читать, редактировать и сохранять характеристики ФММ с переменным числом узлов. На этом примере можно воспроизвести ход работы. <a href="user.html#fmm-table-size">Как выглядит результат для пользователя</a>.</p>
+<h3 id="dev-fmm-request">Постановка запроса</h3>
+<blockquote>Нужно загружать и сохранять характеристику M(H) с любым числом пар от двух. Ранее сохранённая таблица из 12 пар должна открываться с теми же числами. Найди чтение, проверку, ввод, график и запись. Установи, понимают ли такой файл решатель и Viewer. Покажи список файлов и предложи проверку на короткой, старой и длинной характеристиках.</blockquote>
+<h3 id="dev-fmm-trace">Путь данных и границы правки</h3>
+<ol>
+<li>Открыть <code>src/services/materials/materialLibraryModel.js</code>. При чтении плоского <code>tabl</code> из 2N чисел первая половина содержит H, вторая M. Проверить также поддерживаемую форму массива пар и обратную запись. Это место, где ошибочное деление на фиксированные 12 сдвинет весь столбец M.</li>
+<li>Проверить <code>fmmTableInput.js</code> и <code>fmmGraphModel.js</code> в том же каталоге. При вставке берутся первые два столбца и все выбранные строки. Число точек графика должно соответствовать числу сохранённых пар.</li>
+<li>Проверить читателей той же характеристики в solver и Viewer отдельным поиском <code>tabl</code> и <code>xapLibFMM</code>. Для этого изменения поддержка переменного числа узлов у обоих читателей уже существовала. В отчёте указать проверенные файлы и версии каждого затронутого компонента.</li>
+</ol>
+<p><a href="https://github.com/y26084670-blip/clark-editor/blob/main/src/services/materials/materialLibraryModel.js">Чтение и сохранение</a> · <a href="https://github.com/y26084670-blip/clark-editor/blob/main/test/fmmTableInput.test.js">Проверки ввода</a> · <a href="https://github.com/y26084670-blip/clark-editor/blob/main/test/fmmGraphModel.test.js">Проверки графика</a>.</p>
+<h3 id="dev-fmm-check">Что предъявить на приёмке</h3>
+<p>Из корня Editor выполните <code>node --test test/fmmTableInput.test.js test/fmmGraphModel.test.js test/materialLibraryModel.test.js</code>. Для ручной проверки возьмите копию <a href="user.html#lesson-magnet">магнита 1‑1</a>. Прочитайте его 12 пар, сохраните и откройте повторно. В отдельных копиях проверьте нижнюю границу в две пары и вставку более 12 строк. Сопоставьте все значения H и M до и после повторного открытия, длину графика и диагностику одной некорректной строки. При проверке формата достаточно сравнить числа в файле. Сравнение поля имеет смысл после отдельного расчёта с той же характеристикой.</p>
+</section>
+<section class="chapter" id="dev-handoff">
+<h2>Проверка и продолжение в следующем сеансе</h2>
+<p>Передайте следующему исполнителю репозиторий, ветку или коммит, ссылку на изменённый контракт, имя проверочного задания, точную команду и её результат. Для расчётной задачи добавьте сборку, разрядность, шаг, выборку и единицы. Отдельно укажите, что проверено по коду, что выполнено в браузере и что подтверждено запуском решателя.</p>
+<p>Чтобы добавить следующий урок, выберите задачу в <a href="user.html#case-catalog">каталоге</a>, сопоставьте руководство с фактическим <code>input3XX</code> и сохранённым результатом. Подготовьте комплект входов с локальными характеристиками материалов, публичную ссылку, порядок действий и контроль с указанием состояния. Одна содержательная проверка — например знак By по разные стороны магнита — информативнее одного сообщения об успешном завершении.</p>
+</section>
+<section class="chapter" id="editorial"><h2><a id="b_editorial"></a>
+Приложение Г Анализ структуры
+и редакционные изменения</h2><p class="source-note">Редакционные заметки к однотомному выпуску октября 2026 года.</p>
+<h3 id="section-132">Оценка
+исходной структуры</h3>
+<p>Практическая
+часть исходного руководства уже следует
+ходу работы: среда, задания, геометрия,
+материалы, источники, контакты, настройки,
+проверка, запуск и результаты. Для
+документации расчётной программы этой
+основы достаточно, однако входная
+справка, теория, проверочные задачи и
+планы развития выполняют разные функции
+и требуют явно различимых разделов.</p>
+<p>Единой
+обязательной последовательности глав
+для всех расчётных программ нет. Здесь
+использовано распространённое разделение
+на назначение и ограничения, первый
+расчёт, рабочие процедуры, математическую
+и численную модель, проверку точности,
+учебные примеры и справочник. Оно
+согласуется с организацией документации
+COMSOL и разделением процедур,
+обучения, объяснений и справочных
+сведений в Diátaxis
+[1–3].</p>
+<center>
+	<div class="table-scroll" role="region" aria-label="Таблица" tabindex="0"><table>
+		<col>
+		<col>
+		<col>
+		<thead>
+			<tr>
+				<td><p>
+					<b>Критерий</b></p>
+				</td>
+				<td><p>
+					<b>Оценка исходного
+					руководства</b></p>
+				</td>
+				<td><p>
+					<b>Изменение в
+					этой редакции</b></p>
+				</td>
+			</tr>
+		</thead>
+		<tbody>
+			<tr>
+				<td><p>
+					Назначение и
+					область применимости</p>
+				</td>
+				<td><p>
+					Назначение
+					редактора указано; ограничения метода
+					распределены по тексту.</p>
+				</td>
+				<td><p>
+					Добавлена
+					глава 1 с ролями компонентов и условиями
+					применимости.</p>
+				</td>
+			</tr>
+			<tr>
+				<td><p>
+					Первое законченное
+					действие</p>
+				</td>
+				<td><p>
+					Есть
+					отдельные операции, но полный маршрут
+					первого расчёта не выделен.</p>
+				</td>
+				<td><p>
+					Добавлена
+					глава 2 от открытия задания до проверки
+					результата.</p>
+				</td>
+			</tr>
+			<tr>
+				<td><p>
+					Рабочие процедуры</p>
+				</td>
+				<td><p>
+					Практические
+					главы преимущественно последовательны
+					и привязаны к командам GUI.</p>
+				</td>
+				<td><p>
+					Их
+					порядок и фактические действия
+					сохранены; исправлены ссылки и
+					опечатки.</p>
+				</td>
+			</tr>
+			<tr>
+				<td><p>
+					Математика и
+					численные методы</p>
+				</td>
+				<td><p>
+					Раздел
+					16 краток; полный вывод и детали MED
+					находятся в отдельном DOCX.</p>
+				</td>
+				<td><p>
+					Перенесено
+					полное содержание JWeak1,
+					добавлены отсутствующие в нём
+					магнитные законы и симметрии.</p>
+				</td>
+			</tr>
+			<tr>
+				<td><p>
+					Доказательства
+					точности</p>
+				</td>
+				<td><p>
+					Смешаны
+					проверки алгоритма, старые серии и
+					более поздние физические сравнения.</p>
+				</td>
+				<td><p>
+					Выделена
+					глава 17, результаты разделены по
+					датам и области подтверждения.</p>
+				</td>
+			</tr>
+			<tr>
+				<td><p>
+					Учебные примеры
+					и планы</p>
+				</td>
+				<td><p>
+					Готовые
+					материалы соседствуют с зарезервированными
+					разделами.</p>
+				</td>
+				<td><p>
+					Доступные
+					уроки собраны в главе 18, будущие
+					комплекты вынесены в приложение Г.</p>
+				</td>
+			</tr>
+			<tr>
+				<td><p>
+					Справочные
+					данные</p>
+				</td>
+				<td><p>
+					Единицы,
+					файлы и клавиши имеются в конце
+					страницы.</p>
+				</td>
+				<td><p>
+					Справочник
+					сохранён как глава 19, источники
+					выделены в приложение Е.</p>
+				</td>
+			</tr>
+			<tr>
+				<td><p>
+					Версии и история</p>
+				</td>
+				<td><p>
+					Дата
+					страницы, проверенный SHA
+					и состояние расчётной серии различаются.</p>
+				</td>
+				<td><p>
+					Привязки
+					к версиям и датам сохранены; история
+					исправления MED
+					отделена от действующего контракта.</p>
+				</td>
+			</tr>
+		</tbody>
+	</table>
+</div></center>
+<h3 id="section-133">Что
+целесообразно дополнить при следующем
+обновлении</h3>
+<p>Для
+документации поставки полезны отдельная
+инструкция установки с подтверждёнными
+требованиями к ОС и ресурсам, таблица
+совместимости версий GUI
+и решателя, подробный справочник
+параметров и форматов HDF5,
+полное руководство E3D
+Viewer и готовый небольшой
+учебный комплект с ожидаемыми результатами.
+Численные требования и неподготовленные
+комплекты не следует заполнять
+предположениями.</p>
+<p>При
+последующем переносе этой редакции на
+сайт целесообразно сохранить
+пользовательские инструкции, теорию,
+верификацию и справочник как отдельные
+страницы с общим оглавлением и
+перекрёстными ссылками. Полный
+математический вывод может быть
+самостоятельным разделом, доступным
+из настроек расчёта и MED.
+Это рекомендация по будущей публикации.</p>
+</section>
+<section class="chapter" id="sources"><h2><a id="b_sources"></a>
+Приложение Д Источники и
+связь с реализацией</h2>
+<p>Основные
+документы: опубликованное руководство
+CLARK E3D
+Editor, редакция 12.10.2026, и
+«Модель JWeak1. Слабая
+формулировка универсальной токовой
+подсистемы и использование MED»,
+редакция 21.09.2026 23:45 UTC+3.</p>
+<p><a href="index.html" target="_blank" rel="noopener noreferrer">Онлайн-руководство
+CLARK</a></p>
+<p>Источники
+для анализа структуры документации</p>
+<p><a href="https://www.comsol.com/documentation" target="_blank" rel="noopener noreferrer">[1]
+COMSOL Documentation</a></p>
+<p><a href="https://doc.comsol.com/6.4/doc/com.comsol.help.comsol/comsol_ref_introduction.17.11.html" target="_blank" rel="noopener noreferrer">[2]
+COMSOL 6.4 Overview of the Reference Manual</a></p>
+<p><a href="https://www.diataxis.fr/start-here/" target="_blank" rel="noopener noreferrer">[3]
+Diátaxis
+Start
+here</a></p>
+<p>Ссылки на
+исходники закреплены за проверенным
+SHA; ссылки на канонические
+контракты и протоколы ведут к действующим
+документам. Для нового расчёта MUFEM
+сохранены собственные версия, журнал
+и численные данные. Исторические
+протоколы сохраняют исходную область
+подтверждения.</p>
+<p><a href="https://github.com/y26084670-blip/solver/blob/ab322751dc1756471b657902f675f12cac514693/src/vsolver/04_clist.jl" target="_blank" rel="noopener noreferrer">Общий
+итерационный цикл и невязки</a></p>
+<p><a href="https://github.com/y26084670-blip/solver/blob/ab322751dc1756471b657902f675f12cac514693/src/core/02_model_htc.jl" target="_blank" rel="noopener noreferrer">Локальный
+токовый закон и HTC_JSP_iterator</a></p>
+<p><a href="https://github.com/y26084670-blip/solver/blob/ab322751dc1756471b657902f675f12cac514693/src/base/04_system3x3.jl" target="_blank" rel="noopener noreferrer">Преобразование
+системы 3×3 и маркеры</a></p>
+<p><a href="https://github.com/y26084670-blip/solver/blob/ab322751dc1756471b657902f675f12cac514693/src/vsolver/02_current_material.jl" target="_blank" rel="noopener noreferrer">Материальные
+ограничения и сильный отклик</a></p>
+<p><a href="https://github.com/y26084670-blip/solver/blob/ab322751dc1756471b657902f675f12cac514693/src/task/04_current_topology.jl" target="_blank" rel="noopener noreferrer">Геометрическая
+проверка MED</a></p>
+<p><a href="https://github.com/y26084670-blip/solver/blob/ab322751dc1756471b657902f675f12cac514693/src/vsolver/02_current_mesh.jl" target="_blank" rel="noopener noreferrer">Электрическая
+связность скалярных узлов</a></p>
+<p><a href="https://github.com/y26084670-blip/solver/blob/ab322751dc1756471b657902f675f12cac514693/src/vsolver/02_weak_space.jl" target="_blank" rel="noopener noreferrer">Слабое
+пространство и градиентное сопряжение</a></p>
+<p><a href="https://github.com/y26084670-blip/solver/blob/ab322751dc1756471b657902f675f12cac514693/src/vsolver/02_weak_hex_space.jl" target="_blank" rel="noopener noreferrer">Геометрическое
+интегрирование Q1</a></p>
+<p><a href="https://github.com/y26084670-blip/solver/blob/ab322751dc1756471b657902f675f12cac514693/src/vsolver/02_weak_local_space.jl" target="_blank" rel="noopener noreferrer">Иерархическая
+исследовательская опция</a></p>
+<p><a href="https://github.com/y26084670-blip/solver/blob/main/docs/AI_NUMERICAL_CONTRACTS.md#nc-jweak1" target="_blank" rel="noopener noreferrer">Численные
+контракты JWeak1</a></p>
+<p><a href="https://github.com/y26084670-blip/solver/blob/main/docs/AI_VERIFICATION.md#verification-current-universal" target="_blank" rel="noopener noreferrer">Методики
+проверок и свидетельства</a></p>
+<p><a href="https://github.com/y26084670-blip/clark.tests/blob/main/regression/two_layer_bar/docs/AI_BENCHMARK.md#universal-2026-09-20" target="_blank" rel="noopener noreferrer">Принятый
+повтор бруска</a></p>
+<p><a href="https://github.com/y26084670-blip/clark.tests/blob/main/regression/team7_coil/docs/AI_BENCHMARK.md" target="_blank" rel="noopener noreferrer">Протокол
+TEAM7 и исторический контроль</a></p>
+<p><a href="https://github.com/y26084670-blip/clark.tests/blob/main/docs/AI_SOLVER_VERIFICATION_STRATEGY.md#next-jweak" target="_blank" rel="noopener noreferrer">Стратегия
+внешних проверок</a></p>
+<p><a href="https://github.com/Raiden-Numerics/mufem/blob/da4195c45b355116bc427666e249f49e84c5e20d/Electromagnetics/Berger_2017_HTS_Cube/case.py" target="_blank" rel="noopener noreferrer">Готовый
+куб MUFEM и параметры расчёта</a></p>
+<p><a href="https://github.com/Raiden-Numerics/mufem/blob/da4195c45b355116bc427666e249f49e84c5e20d/Electromagnetics/Berger_2017_HTS_Cube/README.md" target="_blank" rel="noopener noreferrer">Описание
+материального закона внешнего куба</a></p>
+<p><a href="https://github.com/y26084670-blip/clark.tests/blob/main/regression/hts_benchmark5/docs/AI_BENCHMARK.md" target="_blank" rel="noopener noreferrer">Архив
+прежних исходных данных Benchmark
+5</a></p>
+<p><a href="https://github.com/y26084670-blip/solver/blob/ab322751dc1756471b657902f675f12cac514693/src/vsolver/02_current_newton.jl" target="_blank" rel="noopener noreferrer">Полная
+поправка Ньютона и GMRES</a></p>
+<p><a href="https://github.com/y26084670-blip/solver/blob/ab322751dc1756471b657902f675f12cac514693/src/vsolver/02_current_material.jl" target="_blank" rel="noopener noreferrer">Аналитическая
+касательная и материальный
+предобусловливатель</a></p>
+<p><a href="https://github.com/y26084670-blip/solver/blob/main/docs/AI_VERIFICATION.md#verification-current-newton" target="_blank" rel="noopener noreferrer">Проверки
+Newton J и
+множителей от 21 сентября 2026</a></p>
+<p><a href="https://github.com/Raiden-Numerics/mufem/blob/da4195c45b355116bc427666e249f49e84c5e20d/Electromagnetics/Berger_2017_HTS_Cube/case.py" target="_blank" rel="noopener noreferrer">Исходный
+пример нового расчёта MUFEM</a></p>
+<p>Комплект
+численных данных: bench_local_inputs_2026-09-21.zip,
+версия 4, cube_n25_isotropic/reference. Сценарий
+run_mufem_EJ_centers.py, таблицы mufem_EJ_centers.csv и
+mufem_losses.csv, происхождение mufem_run.json и
+описание README_EJ.md.</p>
+<h3 id="section-134">Дополнения
+опубликованного руководства</h3>
+<p><a href="https://github.com/y26084670-blip/solver/blob/2c4bf9afd4775add445de153939d2966d0b74e66/src/core/02_model_htc.jl" target="_blank" rel="noopener noreferrer">Вычисление
+Jc,
+сопротивления и токовой производной в
+решателе</a></p>
+<p><a href="https://github.com/y26084670-blip/clark.tests/blob/main/README.md" target="_blank" rel="noopener noreferrer">Каталог
+тестов</a></p>
+<p><a href="https://github.com/y26084670-blip/clark.tests/blob/main/regression/team7_coil/docs/AI_BENCHMARK.md" target="_blank" rel="noopener noreferrer">TEAM7</a></p>
+<p><a href="https://github.com/y26084670-blip/clark.tests/blob/main/regression/cube_hts/docs/AI_BENCHMARK.md" target="_blank" rel="noopener noreferrer">Куб
+MUFEM</a></p>
+<p><a href="https://github.com/y26084670-blip/clark.tests/blob/main/regression/two_layer_bar/README.md" target="_blank" rel="noopener noreferrer">Брусок</a></p>
+<p><a href="https://github.com/y26084670-blip/clark.tests/blob/main/regression/team13_magnetostatic/README.md" target="_blank" rel="noopener noreferrer">Задания,
+команды и опорные значения</a></p>
+<p><a href="https://github.com/y26084670-blip/clark.tests/blob/main/regression/team13_magnetostatic/run/prepare.py" target="_blank" rel="noopener noreferrer">Генератор</a></p>
+<p><a href="https://www.compumag.org/wp/wp-content/uploads/2018/06/problem13.pdf" target="_blank" rel="noopener noreferrer">Официальный
+чертёж</a></p>
+</section>
+<footer class="footer"><a href="index.html">К общей справке</a> · <a href="#top">В начало раздела</a></footer></article></main></div></body></html>

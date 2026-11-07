@@ -1,6 +1,6 @@
 # Карта файлов и компонентов web-gui
 
-Обновлено: 2026-11-06.
+Обновлено: 2026-11-07 21:14 UTC+3.
 
 ## Интерактивная сцена «Лошадь», 4.90.0
 
@@ -92,7 +92,7 @@
 | `src/TaskInfoBar.jsx`, `src/TaskInfoBar.css` | Верхняя строка сведений о выбранном задании и состоянии данных. |
 | `package.json` | Версия приложения, зависимости и канонические npm-команды. |
 | `vite.config.js` | Конфигурация Vite, раздача примеров и включение third-party-notices в сборку. |
-| `docs/user-guide/index.html`, `guide.css`, `guide.js`, `images/`, `evidence/` | Каноническое пользовательское HTML-руководство на единой странице, включая математическую модель (раздел 16); не импортируется в SPA. |
+| `docs/user-guide/` | `index.html` — вход и старые якоря. `user.html` — работа и учебные комплекты из `examples/`. `developer.html` — развитие с ИИ. `theory.html` — глава 16, приложения А и Б. Общие ресурсы — `guide.css`, `guide.js`, `images/`, `evidence/`. |
 | `scripts/user-guide-assets.mjs` | Подготовка `.generated/user-guide` и побайтовая SHA-256-проверка `dist/user-guide`. |
 | `scripts/check-online-guide-browser.py`, `test/browser/guideMaterials.fixture.jsx` | Автономный браузерный стенд справки и реальных библиотечных компонентов с управляемыми файловыми дескрипторами; не включается в production. |
 | `test/userGuideAssets.test.js`, `test/materialLibrarySource.test.js` | Проверки доставки, ссылок и контрактов выбора источника. |

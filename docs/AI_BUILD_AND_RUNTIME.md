@@ -1,6 +1,6 @@
 # Сборка и выполнение E3D Editor
 
-Обновлено: 2026-10-20 01:16 UTC+3.
+Обновлено: 2026-11-07 21:14 UTC+3.
 
 Документ является единственным подробным справочником по подготовке, сборке,
 публикации и выполнению приложения. Практические инструкции находятся
@@ -689,7 +689,7 @@ node scripts/prepare-examples-config.mjs --source dist/examples/clark.projects -
 <a id="user-guide-assets"></a>
 ## Доставка HTML-руководства (4.28.0)
 
-Канонический комплект — `docs/user-guide/`: HTML, CSS, необязательный JS, изображения
+Канонический комплект — `docs/user-guide/`: четыре HTML-страницы, общие CSS и JS, ZIP входных данных, изображения
 и неизменённые JSON-свидетельства исторических сравнений. MD-копии нет.
 `scripts/user-guide-assets.mjs prepare` проверяет вход, очищает только собственный
 выходной каталог `.generated/user-guide` и копирует все файлы побайтно. Symlink и
@@ -701,7 +701,7 @@ node scripts/prepare-examples-config.mjs --source dist/examples/clark.projects -
 `scripts/build.mjs`; действуют dev, обычный build, release и Pages. Зависимости
 не добавлены. Скрипты справки не включаются в JavaScript SPA. Ресурсы самой
 справки используют относительные адреса; вход — `/user-guide/index.html` или
-`/clark-editor/user-guide/index.html` для Pages. Якоря не требуют SPA-router.
+`/clark-editor/user-guide/index.html` для Pages. Прямые ссылки на user.html, developer.html и theory.html работают с любым базовым путём и с диска. Старые фрагменты index.html ведут к целевой странице через локальные ссылки и guide.js.
 
 Caddy раздаёт `/user-guide/*` отдельно от fallback редактора: отсутствующий
 ресурс не подменяется `index.html`. Штатный Pages workflow публикует весь `dist`,
