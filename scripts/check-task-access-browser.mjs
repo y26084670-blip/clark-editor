@@ -26,8 +26,13 @@ let checks = 0;
 const check = (message, value) => { assert.ok(value, message); checks++; console.log('PASS', message); };
 const access = page.locator('.task-access-dialog'), help = page.locator('.general-information-dialog');
 const button = name => access.getByRole('button', { name, exact: true });
+const focused = name => button(name).evaluate(el => el === document.activeElement);
+const enter = async name => {
+  check(`Enter targets «${name}»`, await focused(name));
+  await page.keyboard.press('Enter');
+};
 const pick = async () => {
-  await button('Выбрать диск с проектами').click();
+  await enter('Выбрать диск с проектами');
   await page.waitForFunction(() => !document.querySelector('.task-access-actions button:last-child').disabled);
 };
 const reloadAccess = async () => {
@@ -63,32 +68,38 @@ try {
   const picks = await page.evaluate(() => accessFixture.calls.length);
   await button('Выбрать диск с проектами').evaluate(el => el.click());
   check('disabled picker cannot open another selection', await page.evaluate(() => accessFixture.calls.length) === picks);
-  await button('Связать с Решателем').click();
+  await enter('Связать с Решателем');
   await page.waitForFunction(async () => { try { return !!(await accessFixture.read('clark.catalogs-request.json')).requestId; } catch { return false; } });
   const request = await page.evaluate(() => accessFixture.read('clark.catalogs-request.json'));
   check('single request covers both catalogs', request.catalogs.length === 2 && new Set(request.catalogs.map(x => x.workspaceId)).size === 2);
   check('preparation preserves existing child markers', await page.evaluate(async () => { try { await accessFixture.marker('clark.projects'); return false; } catch (e) { return e.name === 'NotFoundError'; } }));
   await page.evaluate(() => accessFixture.ack('bound', true));
   await page.waitForTimeout(1200);
-  check('stale result does not confirm binding', !await access.locator('.task-access-bind--bound').count());
+  check('stale result keeps focus on binding', !await access.locator('.task-access-bind--bound').count() && await focused('Связать с Решателем'));
   await page.evaluate(() => accessFixture.ack()); await bound();
   check('full confirmation changes button label and color', await button('Связано с Решателем').evaluate(el => el.classList.contains('task-access-bind--bound') && getComputedStyle(el).backgroundColor === 'rgb(152, 229, 181)'));
+  await enter('Продолжить');
+  await access.waitFor({ state: 'hidden' });
+  check('Enter returns to the catalog list', await page.locator('#projectCatalog').evaluate(el => el === document.activeElement));
   await reloadAccess();
   check('F5 enables disk selection again', await button('Выбрать диск с проектами').isEnabled());
   await pick();
   check('new disk selection after F5 resets confirmation', await button('Связать с Решателем').evaluate(el => !el.classList.contains('task-access-bind--bound')));
-  await button('Связать с Решателем').click();
+  await enter('Связать с Решателем');
   await page.waitForFunction(old => accessFixture.read('clark.catalogs-request.json').then(r => r.requestId !== old).catch(() => false), request.requestId);
   await page.evaluate(() => accessFixture.ack('error'));
   await page.waitForFunction(() => document.querySelector('.task-access-notice')?.textContent.includes('1 из 2'));
   check('partial error remains yellow and retry is enabled', await button('Связать с Решателем').isEnabled() && await button('Связать с Решателем').evaluate(el => getComputedStyle(el).backgroundColor === 'rgb(255, 223, 85)'));
   const partialRequest = await page.evaluate(() => accessFixture.read('clark.catalogs-request.json'));
-  await button('Связать с Решателем').click();
+  await enter('Связать с Решателем');
   await page.waitForFunction(old => accessFixture.read('clark.catalogs-request.json').then(r => r.requestId !== old).catch(() => false), partialRequest.requestId);
   await page.evaluate(() => accessFixture.ack()); await bound();
+  await enter('Продолжить');
+  await access.waitFor({ state: 'hidden' });
   await reloadAccess(); await page.evaluate(() => accessFixture.mode('empty')); await pick();
   check('empty disk clears catalog and project lists', await page.locator('#projectCatalog').isDisabled() && await button('Продолжить').isDisabled() && await page.locator('#listProject option').count() === 1);
   check('completed empty-disk selection also disables picker', await button('Выбрать диск с проектами').isDisabled());
+  check('empty disk focuses the available close action', await focused('Закрыть'));
   await reloadAccess(); await pick();
   await mkdir('/tmp/clark-disk-browser', { recursive: true });
   for (const width of [1100, 1440]) {
