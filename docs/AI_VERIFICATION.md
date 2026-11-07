@@ -1,6 +1,10 @@
 # Проверка web-gui
 
-Обновлено: 2026-11-06.
+Обновлено: 2026-11-07 21:14 UTC+3.
+
+## Тематическая HTML-справка
+
+`node --test test/userGuideAssets.test.js` проверяет четыре страницы, внутренние ссылки и ресурсы, адреса предыдущего однотомного выпуска и точное сохранение 175 изображений формул. `node scripts/check-user-guide-anchors-browser.mjs` открывает прямые и прежние URL, в том числе из ленты уведомлений, при ширине 390, 800 и 1440 px. Проверяет чтение с диска, поиск, печать и навигацию с отключённым JavaScript. Для Chromium вне стандартного кеша задайте `CHROMIUM_EXECUTABLE`, для внешнего Playwright — `PLAYWRIGHT_MODULE`.
 
 <a id="verification-horse-r5"></a>
 ## R5 в панели «О программе», 4.90.0 — 2026-11-06
@@ -932,7 +936,7 @@ Windows/OM/MPI-запуск нового пакета и численное ср
 
 [Контракт](AI_CLARK_INTEGRATION.md#om-pulse-inputs) ·
 [Пример и происхождение](AI_CLARK_INTEGRATION.md#om-test-204-example) ·
-[Пользовательский сценарий](user-guide/index.html#om-client-test-204).
+[Пользовательский сценарий](user-guide/user.html#om-client-test-204).
 
 <a id="verification-om-help-alignment"></a>
 ## Выравнивание списков и справка OM — 4.55.2
@@ -941,7 +945,7 @@ Windows/OM/MPI-запуск нового пакета и численное ср
 
 - `node --test test/floatingWindowDrag.test.js test/floatingWindowContract.test.js test/taskUnsavedChangesContract.test.js test/modelSaveShortcut.test.js test/userGuideAssets.test.js test/taskLaunchService.test.js` — **56/56**.
 - Повторно собранный Solid-компонент в Happy DOM: ссылка «?» имеет доступное
-  имя и подсказку, адресует `user-guide/index.html#om-client`, открывает новую
+  имя и подсказку, адресует `user-guide/user.html#om-client`, открывает новую
   вкладку с `noopener noreferrer`; пояснение ЭДС именует `emf` и `points`.
   Повторены сценарии сохранения скрытой версии, отмены закрытия, смены задания,
   отклонения позднего чтения, максимизации по высоте и Ctrl+S.

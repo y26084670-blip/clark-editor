@@ -267,7 +267,7 @@ export function OMClientWindow(props) {
           <div class="om-client-presets">
             <div class="om-client-presets-heading">
               <label for={`${id}-preset`}>Шаблон для применения</label>
-              <a class="om-client-guide-link" href={`${import.meta.env.BASE_URL}user-guide/index.html#om-client`}
+              <a class="om-client-guide-link" href={`${import.meta.env.BASE_URL}user-guide/user.html#om-client`}
                 target="_blank" rel="noopener noreferrer"
                 aria-label="Справка по клиентской модели OpenModelica"
                 title="Открыть справку по клиентской модели OpenModelica в новой вкладке">?</a>

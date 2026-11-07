@@ -8,7 +8,7 @@ const root = fileURLToPath(new URL('../', import.meta.url));
 export const USER_GUIDE_SOURCE = path.join(root, 'docs', 'user-guide');
 const generated = path.join(root, '.generated', 'user-guide');
 const published = path.join(root, 'dist', 'user-guide');
-const requiredFiles = ['index.html', 'guide.css', 'guide.js'];
+const requiredFiles = ['index.html', 'user.html', 'developer.html', 'theory.html', 'guide.css', 'guide.js'];
 const sha256 = bytes => createHash('sha256').update(bytes).digest('hex');
 
 async function collect(directory, prefix = '') {

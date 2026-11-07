@@ -1,12 +1,10 @@
 """Optional browser checks: real Solid/Tabulator components, controlled file handles.
-Requires Python, beautifulsoup4, playwright, Chromium and the project's npm ci.
+Requires Python, playwright, Chromium and the project's npm ci.
 No production files are changed. Output goes to --out (default: a temporary directory).
 Browser URL navigation/system file permissions are NOT claimed by this fixture.
 """
 from pathlib import Path
-from urllib.parse import urlsplit
-import argparse, base64, hashlib, json, mimetypes, os, shutil, subprocess, tempfile
-from bs4 import BeautifulSoup
+import argparse, hashlib, json, os, shutil, subprocess, tempfile
 from playwright.sync_api import sync_playwright
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -46,68 +44,22 @@ def ready(page):
 def snap(page): return page.evaluate('guideMaterials.snapshot()')
 
 guide = ROOT/'docs/user-guide'
-soup = BeautifulSoup((guide/'index.html').read_text(encoding='utf-8'), 'html.parser')
-style = soup.new_tag('style'); style.string = (guide/'guide.css').read_text(encoding='utf-8')
-soup.select_one('link[rel=stylesheet]').replace_with(style)
-soup.select_one('script[src]').decompose()
-for image in soup.select('img'):
-    rel = image['src']; image['data-source'] = rel
-    image['src'] = 'data:'+mimetypes.guess_type(rel)[0]+';base64,'+base64.b64encode((guide/rel).read_bytes()).decode()
-    if image.parent.name == 'a': image.parent['href'] = image['src']
-guide_html = str(soup)
-guide_js = (guide/'guide.js').read_text(encoding='utf-8')
-chapters = [s['id'] for s in soup.select('section.chapter')]
-
 with sync_playwright() as pw:
     executable = os.environ.get('CHROMIUM_PATH') or shutil.which('chromium') or shutil.which('google-chrome')
     if not executable: raise RuntimeError('Set CHROMIUM_PATH to a Chromium executable.')
     browser = pw.chromium.launch(executable_path=executable, headless=True, args=['--no-sandbox'])
     try:
         for width in [390, 768, 1440]:
-            context = browser.new_context(viewport={'width':width, 'height':1000}, color_scheme='light')
-            page = context.new_page(); errors=[]
-            page.on('pageerror', lambda e: errors.append(str(e)))
-            page.set_content(guide_html); page.add_script_tag(content=guide_js)
-            check(f'guide-{width}:heading', page.locator('h1').is_visible())
-            check(f'guide-{width}:no-overflow', page.evaluate('document.documentElement.scrollWidth <= innerWidth + 1'))
-            for chapter in chapters:
-                page.locator(f'.toc a[href="#{chapter}"]').click()
-                check(f'guide-{width}:anchor:{chapter}', urlsplit(page.url).fragment == chapter and page.locator('#'+chapter).evaluate('(e)=>e.getBoundingClientRect().top < innerHeight'))
-            for subsection in ['integral', 'discretization', 'weak', 'newton', 'hts', 'symmetries', 'scope']:
-                anchor = 'model-' + subsection
-                page.locator(f'.toc a[href="#{anchor}"]').click()
-                check(f'guide-{width}:model-anchor:{subsection}', urlsplit(page.url).fragment == anchor and page.locator('#'+anchor+' h3').is_visible())
-            page.locator('.toc a[href="#model-integral"]').click()
-            check(f'guide-{width}:native-math-visible', page.locator('#model-integral math').first.bounding_box()['height'] > 10)
-            check(f'guide-{width}:math-contained', page.evaluate('document.documentElement.scrollWidth <= innerWidth + 1'))
-            page.locator('.toc a[href="#model-hts"]').click()
-            page.screenshot(path=str(OUT/f'model-{width}-light.png'))
-            for image in page.locator('img').all():
-                image.scroll_into_view_if_needed(); image.evaluate('(im)=>im.decode()')
-                check(f'guide-{width}:image:{image.get_attribute("data-source")}', image.evaluate('(im)=>im.complete && im.naturalWidth > 0'))
-            page.evaluate("location.hash='top'")
-            page.locator('#theme-toggle').click()
-            check(f'guide-{width}:dark', page.locator('html').get_attribute('data-theme') == 'dark')
-            page.locator('.toc a[href="#model-hts"]').click()
-            page.screenshot(path=str(OUT/f'model-{width}-dark.png'))
-            page.locator('#theme-toggle').click()
-            check(f'guide-{width}:light', page.locator('html').get_attribute('data-theme') == 'light')
-            page.screenshot(path=str(OUT/f'guide-{width}.png'))
+            page=browser.new_page(viewport={'width':width,'height':1000},reduced_motion='reduce')
+            for filename in ['index.html','user.html','developer.html','theory.html']:
+                page.goto((guide/filename).as_uri())
+                check(f'guide-{width}:{filename}:heading',page.locator('h1').is_visible())
+                check(f'guide-{width}:{filename}:no-overflow',page.evaluate('document.documentElement.scrollWidth <= innerWidth + 1'))
+            page.goto((guide/'theory.html').as_uri()+'#model-integral')
+            check(f'guide-{width}:equation-image',page.locator('img[data-equation="2"]').evaluate('(im)=>im.complete && im.naturalWidth > 0'))
             page.emulate_media(media='print')
-            check(f'guide-{width}:print', not page.locator('.toc').is_visible() and page.locator('h1').is_visible())
-            check(f'guide-{width}:math-print-visible', page.locator('#model-integral math').first.is_visible())
-            page.emulate_media(media='screen')
-            if width == 1440:
-                page.locator('body').evaluate('(e)=>e.style.zoom="2"')
-                check('guide:zoom-200', page.evaluate('document.documentElement.scrollWidth <= innerWidth+1'))
-            check(f'guide-{width}:no-page-errors', not errors, errors)
-            context.close()
-        context = browser.new_context(java_script_enabled=False, viewport={'width':390,'height':844})
-        page = context.new_page(); page.set_content(guide_html)
-        page.locator('.quick-links a[href="#med"]').click()
-        check('guide:no-js-reading-and-navigation', page.locator('section.chapter').count()==17 and urlsplit(page.url).fragment=='med')
-        check('guide:no-js-control-hidden', not page.locator('#theme-toggle').is_visible())
-        context.close()
+            check(f'guide-{width}:print',not page.locator('.toc').is_visible() and page.locator('h1').is_visible())
+            page.close()
         for kind in ['FMM', 'HTS']:
             context = browser.new_context(viewport={'width':1440,'height':1100})
             page=context.new_page(); errors=[]
