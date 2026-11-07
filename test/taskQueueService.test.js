@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createTaskQueueEntry, describeTaskQueue, taskQueueWindowRect } from "../src/services/taskQueueService.js";
+import { createTaskQueueEntry, describeTaskQueue, taskQueueWindowRect, restoreTaskQueueRoot } from "../src/services/taskQueueService.js";
 import { readTaskList, writeTaskList } from "../src/services/taskLaunchService.js";
 
 function workspace(name) {
@@ -63,9 +63,23 @@ test("list format admits a sibling catalog and rejects arbitrary traversal", asy
     .map(entry => entry.displayPath), ["clark.projects/P/enabled"]);
 });
 
-test("default queue window covers the middle and right panels at full viewport height", () => {
+test("expanded queue window matches the middle and right panels", () => {
   const panels = { querySelector: name => ({ getBoundingClientRect: () => name.includes("summary")
-    ? { left: 550 } : { right: 1440 } }) };
+    ? { left: 550, top: 80, bottom: 900 } : { right: 1440, bottom: 900 } }) };
   assert.deepEqual(taskQueueWindowRect(panels, { innerWidth: 1440, innerHeight: 900 }),
-    { x: 550, y: 8, width: 882, height: 884 });
+    { x: 550, y: 80, width: 890, height: 820 });
+});
+
+test("remembered queue origin wins over another selected catalog and a newer unrelated list", async () => {
+  const first = workspace("clark.projects"), other = workspace("CLARK.Tests");
+  const catalogs = [first, other].map(handle => ({ name: handle.name, handle }));
+  other.getFileHandle = () => { throw new Error("A remembered origin must not scan other lists"); };
+  assert.equal(await restoreTaskQueueRoot({}, catalogs, async () => first.name.toUpperCase()), first);
+});
+
+test("existing lists from the previous editor version restore by modification time", async () => {
+  const catalogs = [100, 300].map((modified, index) => ({ name: `clark.${index}`,
+    handle: { getFileHandle: async () => ({ getFile: async () => ({ lastModified: modified }) }) } }));
+  catalogs.push({ name: "clark.empty", handle: workspace("clark.empty") });
+  assert.equal(await restoreTaskQueueRoot({}, catalogs, async () => null), catalogs[1].handle);
 });

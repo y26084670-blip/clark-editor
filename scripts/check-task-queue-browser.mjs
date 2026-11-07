@@ -26,6 +26,14 @@ const check = (name, result) => { assert.ok(result, name); checks++; console.log
 const queue = page.locator(".task-launch-window"), list = queue.locator(".task-launch-list");
 const rows = queue.locator(".task-launch-row");
 const start = queue.getByRole("button", { name: "Запустить", exact: true });
+const refresh = queue.getByRole("button", { name: "Обновить состояние расчета заданий", exact: true });
+async function checkPanelBounds(name) {
+  const actual = await queue.boundingBox(), middle = await page.locator(".task-summary-panel").boundingBox();
+  const right = await page.locator(".task-results-panel").boundingBox();
+  check(name, Math.abs(actual.x - middle.x) < 2 && Math.abs(actual.y - middle.y) < 2
+    && Math.abs(actual.width - (right.x + right.width - middle.x)) < 2
+    && Math.abs(actual.height - middle.height) < 2);
+}
 async function drop() {
   const count = await rows.count();
   await page.locator("#listTask .task-status-label").first().dragTo(list);
@@ -42,9 +50,9 @@ try {
   await page.locator("#listProject").selectOption("Проект 1");
   await page.getByRole("button", { name: "Формирование списка заданий и запуск приложений", exact: true }).click();
   await queue.waitFor();
-  const geometry = await queue.boundingBox(), middle = await page.locator(".task-summary-panel").boundingBox();
-  check("default covers both right panels at maximum height", Math.abs(geometry.x - middle.x) < 2
-    && geometry.y === 8 && geometry.height === viewport.height - 16 && geometry.x + geometry.width >= viewport.width - 10);
+  await checkPanelBounds("expanded queue matches both right panels");
+  check("only minimize and close window actions remain", await queue.getByRole("button", { name: /На весь экран|На всю высоту|Восстановить размер/ }).count() === 0
+    && await queue.evaluate(element => getComputedStyle(element).resize) === "none");
   check("static yellow heading", await queue.locator(".floating-window-title").textContent()
     === "Список заданий для расчета: сформируйте перетаскиванием из списков в проектах и запустите расчет"
     && await queue.locator(".floating-window-titlebar").evaluate(el => getComputedStyle(el).backgroundColor) === "rgb(255, 223, 85)");
@@ -55,6 +63,16 @@ try {
   await page.locator("#listTask .task-status-label").first().dragTo(list);
   await page.waitForTimeout(200);
   check("repeated drop keeps a single task", await rows.count() === 1);
+  await page.evaluate(() => queueFixture.otherStatuses("clark.projects/Проект 1/Задание"));
+  await page.evaluate(() => queueFixture.completed("clark.projects/Проект 1/Задание", true));
+  await refresh.click();
+  await page.waitForFunction(() => document.querySelectorAll(".task-launch-solution [role=img]").length === 1);
+  check("refresh shows only the completed calculation checkmark", await rows.getByRole("img", { name: "Решение получено", exact: true }).count() === 1
+    && await queue.locator(".task-status-2d,.task-status-movie,.task-status-comparison,.task-status-missing").count() === 0);
+  await page.evaluate(() => queueFixture.completed("clark.projects/Проект 1/Задание", false));
+  await refresh.click();
+  await page.waitForFunction(() => document.querySelectorAll(".task-launch-solution [role=img]").length === 0);
+  check("refresh removes a checkmark when the completed calculation disappears", await rows.getByRole("img").count() === 0);
   await page.locator("#listProject").selectOption("Проект 2"); await drop();
   await page.locator("#projectCatalog").selectOption("CLARK.Tests");
   await page.locator("#listProject").selectOption("Проект 1"); await drop();
@@ -62,6 +80,33 @@ try {
     === JSON.stringify(["clark.projects/Проект 1/Задание", "clark.projects/Проект 2/Задание", "CLARK.Tests/Проект 1/Задание"]));
   check("launcher receives portable cross-catalog paths", await page.evaluate(() => queueFixture.read("clark.tasks.txt"))
     === "Проект 1/Задание\nПроект 2/Задание\n../CLARK.Tests/Проект 1/Задание\n");
+  const loadedPath = await page.evaluate(() => queueFixture.loadedPath());
+  for (const [index, catalog, project] of [[0, "clark.projects", "Проект 1"], [1, "clark.projects", "Проект 2"], [2, "CLARK.Tests", "Проект 1"]]) {
+    await rows.nth(index).locator(".task-status-name").dblclick();
+    await page.waitForFunction(({ catalog, project }) => document.querySelector("#projectCatalog").value === catalog
+      && document.querySelector("#listProject").value === project && Boolean(document.querySelector("#listTask .selected")), { catalog, project });
+    check(`double click selects ${catalog}/${project}/Задание`, (await page.locator("#listTask .selected .task-status-label").textContent()).trim() === "Задание");
+    await page.waitForFunction(() => !document.querySelector(".task-launch-remove").disabled);
+  }
+  check("queue navigation preserves the loaded editor model", await page.evaluate(() => queueFixture.loadedPath()) === loadedPath);
+  const title = queue.locator(".floating-window-titlebar");
+  let bounds = await title.boundingBox();
+  await page.mouse.move(bounds.x + 70, bounds.y + bounds.height / 2); await page.mouse.down();
+  await page.mouse.move(bounds.x - 80, bounds.y - 35, { steps: 5 }); await page.mouse.up();
+  await checkPanelBounds("expanded queue cannot be moved away from its panels");
+  await queue.getByRole("button", { name: "Свернуть окно", exact: true }).click();
+  check("minimized queue is a compact movable titlebar", await queue.evaluate(element => element.classList.contains("is-minimized"))
+    && (await queue.boundingBox()).width === 400 && (await queue.boundingBox()).height < 80);
+  bounds = await title.boundingBox();
+  await page.mouse.move(bounds.x + 60, bounds.y + bounds.height / 2); await page.mouse.down();
+  await page.mouse.move(100, 180, { steps: 5 }); await page.mouse.up();
+  check("minimized window moves over the left panel", (await queue.boundingBox()).x < 150);
+  await queue.getByRole("button", { name: "Развернуть окно", exact: true }).click();
+  await checkPanelBounds("restore returns to the panels after moving the minimized window");
+  await page.setViewportSize({ width: viewport.width + 100, height: viewport.height + 60 });
+  await page.waitForTimeout(150);
+  await checkPanelBounds("expanded bounds follow browser resizing");
+  await page.setViewportSize(viewport); await page.waitForTimeout(150);
   await page.evaluate(() => queueFixture.setDirty("CLARK.Tests/Проект 1/Задание"));
   await page.waitForFunction(() => document.querySelector(".task-launch-save-prompt")
     && document.querySelector(".task-launch-start").disabled);
@@ -81,6 +126,15 @@ try {
   await queue.getByRole("button", { name: "Закрыть окно", exact: true }).click();
   await page.getByRole("button", { name: "Формирование списка заданий и запуск приложений", exact: true }).click();
   check("closing and reopening retains the same queue", await rows.count() === 2);
+  await page.reload(); await page.waitForFunction(() => window.queueFixture?.ready);
+  await access.getByRole("button", { name: "Выбрать диск с проектами", exact: true }).click();
+  await access.getByRole("button", { name: "Продолжить", exact: true }).click();
+  await page.locator("#projectCatalog").selectOption("CLARK.Tests");
+  await page.getByRole("button", { name: "Формирование списка заданий и запуск приложений", exact: true }).click();
+  await page.waitForFunction(() => document.querySelectorAll(".task-launch-row").length === 2);
+  check("F5 restores the formed queue even while another catalog is selected", (await rows.locator(".task-status-name").allTextContents()).join("|")
+    === "clark.projects/Проект 1/Задание|CLARK.Tests/Проект 1/Задание");
+  await checkPanelBounds("reopening after F5 uses only the panel-sized expanded state");
   check("no browser errors", errors.length === 0);
   console.log(`Task queue browser PASS: ${checks} checks`);
 } finally { await browser.close(); await server.close(); }

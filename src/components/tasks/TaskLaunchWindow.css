@@ -14,6 +14,18 @@
     color: #302600;
 }
 
+.task-launch-window.is-minimized .floating-window-title {
+    white-space: nowrap;
+}
+
+.task-launch-window.is-minimized .floating-window-actions button {
+    color: #fff;
+}
+
+.task-launch-window .task-launch-refresh {
+    font-size: 22px;
+}
+
 .task-launch-body {
     display: flex;
     flex-direction: column;
@@ -98,7 +110,7 @@
 
 .task-launch-row {
     display: grid;
-    grid-template-columns: var(--task-status-columns) minmax(max-content, 1fr) 28px;
+    grid-template-columns: 24px minmax(max-content, 1fr) 28px;
     box-sizing: border-box;
     width: max-content;
     min-width: 100%;
@@ -113,6 +125,18 @@
     outline: 2px solid #ffdf55;
     outline-offset: -2px;
     background: #263746;
+}
+
+.task-launch-solution {
+    align-self: center;
+    color: #92e0ac;
+    font-size: 20px;
+    text-align: center;
+}
+
+.task-launch-row:focus-visible {
+    outline: 1px solid #8fc7ff;
+    outline-offset: -1px;
 }
 
 .task-launch-body .task-launch-remove {

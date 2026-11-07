@@ -16,7 +16,7 @@ import { DEMO_TASK_NAME, loadDemoTask } from "../services/demoTaskService.js";
 import { DIRECTORIES, TABS } from "../services/schemas/common/constants";
 import { TaskGeometryPreview } from "../components/geometry/TaskGeometryPreview.jsx";
 import { TaskLaunchWindow } from "../components/tasks/TaskLaunchWindow.jsx";
-import { TASK_DRAG_TYPE, taskQueueWindowRect } from "../services/taskQueueService.js";
+import { TASK_DRAG_TYPE, taskQueueWindowRect, restoreTaskQueueRoot, watchTaskQueueWindowRect } from "../services/taskQueueService.js";
 import { OMClientWindow } from "../components/tasks/OMClientWindow.jsx";
 import { TaskStatusCells } from "../components/tasks/TaskStatusCells.jsx";
 import { TaskProtocolDownload, useTaskProtocolDownloads } from "../components/tasks/TaskProtocolDownload.jsx";
@@ -42,7 +42,7 @@ import {
 
 import { TaskAccessDialog } from "../components/tasks/TaskAccessDialog.jsx";
 import { pickProjectDisk, prepareCatalogBinding, readCatalogBindingResult } from "../services/taskAccessService.js";
-import { saveProjectDisk } from "../services/projectDiskAccessService.js";
+import { saveProjectDisk, saveTaskQueueCatalog } from "../services/projectDiskAccessService.js";
 
 import { installTaskPanelResize } from "../services/taskPanelResize.js";
 
@@ -96,10 +96,27 @@ export function Tasks(props) {
   const [taskLaunchBinding, setTaskLaunchBinding] = createSignal(null);
   const [taskLaunchRect, setTaskLaunchRect] = createSignal(null);
   const [draggedTask, setDraggedTask] = createSignal(null);
+  const [queueRestoring, setQueueRestoring] = createSignal(false);
+  let queueRestoreRevision = 0;
   createEffect(() => {
-    diskHandle();
+    const disk = diskHandle(), revision = ++queueRestoreRevision;
     untrack(() => { setTaskLaunchRoot(null); setTaskLaunchBinding(null); setTaskLaunchOpen(false); });
+    if (!disk) { setQueueRestoring(false); return; }
+    setQueueRestoring(true);
+    const available = untrack(catalogs);
+    void restoreTaskQueueRoot(disk, available).then(async root => {
+      const marker = root ? await readWorkspaceBinding(root).catch(() => null) : null;
+      if (disposed || disk !== diskHandle() || revision !== queueRestoreRevision) return;
+      batch(() => { setTaskLaunchRoot(root); setTaskLaunchBinding(marker); });
+    }).catch(error => {
+      if (!disposed && disk === diskHandle() && revision === queueRestoreRevision) {
+        setBindingNotice("Не удалось восстановить список заданий: " + error.message);
+      }
+    }).finally(() => {
+      if (!disposed && disk === diskHandle() && revision === queueRestoreRevision) setQueueRestoring(false);
+    });
   });
+  onMount(() => onCleanup(watchTaskQueueWindowRect(taskPanels, setTaskLaunchRect)));
   const [omClientRequest, setOMClientRequest] = createSignal(null);
   const [omClientState, setOMClientState] = createSignal({ open: false, dirty: false, busy: false, path: "" });
   const [settingsRequest, setSettingsRequest] = createSignal(null);
@@ -436,7 +453,7 @@ export function Tasks(props) {
   }
 
   function openTaskLaunch() {
-    if (operationsBlocked()) return;
+    if (operationsBlocked() || queueRestoring()) return;
     if (!taskLaunchRoot()) {
       setTaskLaunchRoot(rootHandle());
       setTaskLaunchBinding(workspaceBinding());
@@ -669,6 +686,30 @@ export function Tasks(props) {
       );
     }
   };
+
+  async function navigateQueuedTask(entry) {
+    const disk = diskHandle();
+    const catalog = catalogs().find(item => item.name.toLowerCase() === entry.rootHandle?.name.toLowerCase());
+    const parts = entry.taskPath.split("/");
+    if (!catalog || parts.length !== 2) throw new Error("Каталог задания недоступен: " + entry.displayPath);
+    await selectCatalog(catalog);
+    if (disposed || disk !== diskHandle() || catalog.handle !== rootHandle()) return;
+    const revision = selectionRevision;
+    const project = projects().find(item => item.name.toLowerCase() === parts[0].toLowerCase());
+    if (!project) throw new Error("Проект не найден: " + entry.displayPath);
+    setSelectedProject(project.name);
+    const rows = await getSubdirs(project.handle);
+    if (disposed || disk !== diskHandle() || revision !== selectionRevision) return;
+    setTasks(rows);
+    const task = rows.find(item => item.name.toLowerCase() === parts[1].toLowerCase());
+    if (!task) throw new Error("Задание не найдено: " + entry.displayPath);
+    await selectTaskCandidate(task);
+    if (disposed || revision !== selectionRevision || selectedTask()?.handle !== task.handle) return;
+    queueMicrotask(() => {
+      taskListElement?.querySelector(".selected")?.scrollIntoView({ block: "nearest" });
+      taskListElement?.focus({ preventScroll: true });
+    });
+  }
 
   // выбор задания
   const commitTaskLoad = ({ task, fullPath, openEditor = true, lastTaskSnapshot }) => {
@@ -1028,7 +1069,7 @@ export function Tasks(props) {
           <button
             type="button"
             class="task-launch-open-button"
-            disabled={!rootHandle() || operationsBlocked()}
+            disabled={!rootHandle() || operationsBlocked() || queueRestoring()}
             onClick={openTaskLaunch}
           >
             Формирование списка заданий и запуск приложений
@@ -1078,6 +1119,8 @@ export function Tasks(props) {
         rootHandle={taskLaunchRoot()}
         diskHandle={diskHandle()} catalogs={catalogs()} draggedTask={draggedTask()}
         initialRect={taskLaunchRect()}
+        onNavigate={navigateQueuedTask}
+        onQueueChange={root => saveTaskQueueCatalog(diskHandle(), root.name)}
         binding={taskLaunchBinding()}
         settingsRequest={settingsRequest()}
         bindingBusy={bindingBusy()}

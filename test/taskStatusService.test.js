@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readTaskStatus, readTaskStatusEntry } from "../src/services/taskStatusService.js";
+import { readTaskStatus, readTaskStatusEntry, readTaskSolutionEntry } from "../src/services/taskStatusService.js";
 
 const fsError = name => Object.assign(new Error(name), { name });
 function filesystem() {
@@ -29,6 +29,20 @@ function filesystem() {
   };
   return { root, calls, directory, file };
 }
+
+test("queue solution refresh probes only the completion marker and follows its removal", async () => {
+  const fs = filesystem();
+  fs.file("Project/Task/output3XX/_summary_out.txt");
+  fs.directory("Project/Task/input3XX");
+  fs.directory("Project/Task/comparison");
+  const entry = { root: fs.root, path: "Project/Task" };
+  assert.equal((await readTaskSolutionEntry(entry)).hasSolution, true);
+  assert.deepEqual(fs.calls.map(call => call.name), ["Project", "Task", "output3XX", "_summary_out.txt"]);
+  fs.directory("Project/Task/output3XX").children.delete("_summary_out.txt");
+  fs.calls.length = 0;
+  assert.equal((await readTaskSolutionEntry(entry)).hasSolution, false);
+  assert.ok(fs.calls.every(call => call.options.create === false));
+});
 
 test("all sixteen independent combinations, including solution without input", async () => {
   for (let mask = 0; mask < 16; mask++) {

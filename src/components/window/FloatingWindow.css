@@ -25,6 +25,14 @@
     resize: vertical;
 }
 
+.floating-window.is-docked {
+    resize: none;
+}
+
+.floating-window.is-docked .floating-window-titlebar {
+    cursor: default;
+}
+
 .floating-window.is-maximized,
 .floating-window.is-minimized {
     resize: none;

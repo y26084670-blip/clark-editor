@@ -1,4 +1,4 @@
-import { isProjectCatalog } from "./projectDiskAccessService.js";
+import { isProjectCatalog, readTaskQueueCatalog } from "./projectDiskAccessService.js";
 
 export const TASK_DRAG_TYPE = "application/x-clark-task";
 const keyOf = value => value.toLowerCase();
@@ -33,10 +33,42 @@ export async function createTaskQueueEntry(queueRoot, disk, source) {
   return { path: sameCatalog ? taskPath : `../${location[0]}/${taskPath}`, enabled: true };
 }
 
+export async function restoreTaskQueueRoot(disk, catalogs, readCatalog = readTaskQueueCatalog) {
+  const saved = await readCatalog(disk);
+  const remembered = catalogs.find(item => keyOf(item.name) === keyOf(saved ?? ""));
+  if (remembered) return remembered.handle;
+  // До появления сохранённого адреса используем последний записанный список.
+  const lists = await Promise.all(catalogs.map(async catalog => {
+    try {
+      const file = await (await catalog.handle.getFileHandle("clark.tasks.txt")).getFile();
+      return { handle: catalog.handle, modified: file.lastModified };
+    } catch (error) {
+      if (error?.name === "NotFoundError") return null;
+      throw error;
+    }
+  }));
+  return lists.filter(Boolean).sort((left, right) => right.modified - left.modified)[0]?.handle ?? null;
+}
+
 export function taskQueueWindowRect(panels, viewport = window) {
   const middle = panels?.querySelector(".task-summary-panel")?.getBoundingClientRect();
   const right = panels?.querySelector(".task-results-panel")?.getBoundingClientRect();
-  const x = Math.max(8, Math.min(middle?.left ?? viewport.innerWidth / 3, viewport.innerWidth - 9));
-  return { x, y: 8, width: Math.max(1, Math.min(right?.right ?? viewport.innerWidth - 8,
-    viewport.innerWidth - 8) - x), height: Math.max(1, viewport.innerHeight - 16) };
+  const x = Math.max(0, Math.min(middle?.left ?? viewport.innerWidth / 3, viewport.innerWidth - 1));
+  const y = Math.max(0, Math.min(middle?.top ?? 8, viewport.innerHeight - 1));
+  const bottom = Math.min(viewport.innerHeight, Math.max(middle?.bottom ?? viewport.innerHeight, right?.bottom ?? viewport.innerHeight));
+  return { x, y, width: Math.max(1, Math.min(right?.right ?? viewport.innerWidth, viewport.innerWidth) - x),
+    height: Math.max(1, bottom - y) };
+}
+
+export function watchTaskQueueWindowRect(panels, update, browser = window) {
+  const refresh = () => update(taskQueueWindowRect(panels, browser));
+  const observer = new browser.ResizeObserver(refresh);
+  for (const name of [".task-summary-panel", ".task-results-panel"]) {
+    const panel = panels?.querySelector(name);
+    if (panel) observer.observe(panel);
+  }
+  browser.addEventListener("resize", refresh);
+  browser.addEventListener("scroll", refresh, true);
+  refresh();
+  return () => { observer.disconnect(); browser.removeEventListener("resize", refresh); browser.removeEventListener("scroll", refresh, true); };
 }

@@ -3,6 +3,7 @@ import { sortTaskDirectories } from "./taskLastOpenedService.js";
 // Этот контракт одинаков в Editor и Viewer; выбранные проекты сюда не входят.
 const DATABASE = "clark.project-disk.v1", STORE = "access", KEY = "disk";
 const CHANNEL = "clark.project-disk.v1";
+const QUEUE_KEY = "taskQueue";
 
 export function isProjectCatalog(name) {
   return typeof name === "string" && /^clark\..+/i.test(name) && name.length <= 255
@@ -70,6 +71,18 @@ export async function saveProjectDisk(handle, browser = globalThis) {
     channel.postMessage({ version: 1, type: "changed" });
   } catch { /* Сохранённый диск по-прежнему доступен при открытии/фокусе вкладки. */ }
   finally { channel?.close(); }
+}
+
+export async function readTaskQueueCatalog(disk, browser = globalThis) {
+  const record = await accessStore("readonly", store => store.get(QUEUE_KEY), browser);
+  if (record?.version !== 1 || !isProjectCatalog(record.catalog)
+    || record.disk?.kind !== "directory" || !await disk.isSameEntry(record.disk)) return null;
+  return record.catalog;
+}
+
+export async function saveTaskQueueCatalog(disk, catalog, browser = globalThis) {
+  if (disk?.kind !== "directory" || !isProjectCatalog(catalog)) throw new Error("Некорректный каталог списка заданий.");
+  await accessStore("readwrite", store => store.put({ version: 1, disk, catalog }, QUEUE_KEY), browser);
 }
 
 export function watchProjectDisk(onChange, browser = globalThis) {

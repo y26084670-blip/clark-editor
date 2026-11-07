@@ -78,20 +78,34 @@ export async function readTaskStatus(taskHandle, { signal } = {}) {
   };
 }
 
-export async function readTaskStatusEntry(entry, { signal } = {}) {
-  if (entry.handle) return readTaskStatus(entry.handle, { signal });
+async function resolveTaskStatusDirectory(entry, signal) {
+  if (entry.handle) return { exists: true, handle: entry.handle };
   const parts = String(entry.path ?? "").replaceAll("\\", "/").split("/");
   if (!entry.root || parts.some(part => !part || part === "." || part === ".." || part.includes(":"))) {
-    return unavailableTaskStatus(new Error("Некорректный относительный путь задания"));
+    return { exists: null, error: "Некорректный относительный путь задания" };
   }
   let handle = entry.root;
   for (const part of parts) {
     const result = await probe(handle, part, "directory", signal);
-    if (result.exists === null) return unavailableTaskStatus(new Error(result.error));
-    if (!result.exists) return {
-      hasSolution: false, missingInput: true, hasGifs: false, hasComparison: false, omState: "none", planar2D: false, errors: {},
-    };
+    if (result.exists !== true) return result;
     handle = result.handle;
   }
-  return readTaskStatus(handle, { signal });
+  return { exists: true, handle };
+}
+
+export async function readTaskStatusEntry(entry, { signal } = {}) {
+  const directory = await resolveTaskStatusDirectory(entry, signal);
+  if (directory.exists === null) return unavailableTaskStatus(new Error(directory.error));
+  if (!directory.exists) return {
+    hasSolution: false, missingInput: true, hasGifs: false, hasComparison: false, omState: "none", planar2D: false, errors: {},
+  };
+  return readTaskStatus(directory.handle, { signal });
+}
+
+export async function readTaskSolutionEntry(entry, { signal } = {}) {
+  const directory = await resolveTaskStatusDirectory(entry, signal);
+  const output = directory.exists === true ? await probe(directory.handle, "output3XX", "directory", signal) : directory;
+  const summary = output.exists === true ? await probe(output.handle, "_summary_out.txt", "file", signal) : output;
+  return { ...EMPTY_TASK_STATUS, hasSolution: summary.exists,
+    errors: summary.error ? { hasSolution: summary.error } : {} };
 }

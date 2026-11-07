@@ -5,9 +5,10 @@ import { selectionService } from "../../src/services/selectionService.js";
 import { unsavedChangesService } from "../../src/services/unsavedChangesService.js";
 
 const opfs = await navigator.storage.getDirectory();
-try { await opfs.removeEntry("task-queue-test", { recursive: true }); }
-catch (error) { if (error.name !== "NotFoundError") throw error; }
 const disk = await opfs.getDirectoryHandle("task-queue-test", { create: true });
+let initialized = false;
+try { await disk.getFileHandle("fixture-initialized"); initialized = true; }
+catch (error) { if (error.name !== "NotFoundError") throw error; }
 const roots = {}, handles = {};
 async function write(root, name, text) {
   const writable = await (await root.getFileHandle(name, { create: true })).createWritable();
@@ -16,19 +17,34 @@ async function write(root, name, text) {
 async function read(root, name) { return (await (await root.getFileHandle(name)).getFile()).text(); }
 for (const name of ["clark.projects", "CLARK.Tests"]) {
   const root = roots[name] = await disk.getDirectoryHandle(name, { create: true });
-  await write(root, "clark.workspace.json", JSON.stringify({ schemaVersion: 1,
+  if (!initialized) await write(root, "clark.workspace.json", JSON.stringify({ schemaVersion: 1,
     workspaceId: crypto.randomUUID(), rootName: name, bindingState: "bound", taskQueueVersion: 1 }));
   for (const projectName of ["Проект 1", "Проект 2"]) {
     const project = await root.getDirectoryHandle(projectName, { create: true });
     const task = await project.getDirectoryHandle("Задание", { create: true });
     handles[`${name}/${projectName}/Задание`] = task;
-    await initializeTaskDirectory(task);
+    if (!initialized) await initializeTaskDirectory(task);
   }
 }
+await disk.getFileHandle("fixture-initialized", { create: true });
 window.showDirectoryPicker = async () => disk;
 window.queueFixture = {
   ready: true,
   read: (name, root = "clark.projects") => read(roots[root], name),
+  loadedPath: () => selectionService.loadedTaskPath(),
+  async completed(path, present) {
+    const output = await handles[path].getDirectoryHandle("output3XX", { create: true });
+    if (present) await write(output, "_summary_out.txt", "Расчет завершен");
+    else await output.removeEntry("_summary_out.txt");
+  },
+  async otherStatuses(path) {
+    const task = handles[path], input = await task.getDirectoryHandle("input3XX");
+    const output = await task.getDirectoryHandle("output3XX", { create: true });
+    await write(input, "_2d.e3d", "");
+    await write(input, "_om-client.json", "{}");
+    await output.getDirectoryHandle("demo", { create: true });
+    await task.getDirectoryHandle("comparison", { create: true });
+  },
   async ack(state = "accepted") {
     const proof = JSON.parse(await read(roots["clark.projects"], "clark.launch.json"));
     await write(roots["clark.projects"], "clark.launch-result.json", JSON.stringify({ ...proof,

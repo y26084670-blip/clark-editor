@@ -5,9 +5,9 @@ import {
 import { FloatingWindow } from "../window/FloatingWindow.jsx";
 import { selectionService } from "../../services/selectionService.js";
 import { unsavedChangesService } from "../../services/unsavedChangesService.js";
-import { TaskStatusCells } from "./TaskStatusCells.jsx";
 import { IterationControl } from "./IterationControl.jsx";
 import { useTaskStatuses } from "../../services/taskStatusMonitor.js";
+import { readTaskSolutionEntry } from "../../services/taskStatusService.js";
 import {
   createNativeLaunchUri, invalidateLaunchRequest,
   prepareLaunchRequest, readLaunchResult,
@@ -26,7 +26,7 @@ export function TaskLaunchWindow(props) {
   const [entries, setEntries] = createSignal([]);
   const taskStatus = useTaskStatuses(
     () => entries().map(entry => ({ key: entry.path, root: entry.rootHandle, path: entry.taskPath })),
-    { refreshOnChange: false },
+    { refreshOnChange: false, read: readTaskSolutionEntry },
   );
   const [listExists, setListExists] = createSignal(false);
   const [listValid, setListValid] = createSignal(false);
@@ -101,6 +101,7 @@ export function TaskLaunchWindow(props) {
       setEntries(describeTaskQueue(root, props.catalogs ?? [], result.entries));
       setListExists(result.exists);
       setListValid(true);
+      if (result.exists) await props.onQueueChange?.(root);
       await taskStatus.refresh();
       if (!current(root, revision)) return;
       await armLaunch(root, revision);
@@ -212,6 +213,7 @@ export function TaskLaunchWindow(props) {
       setEntries(describeTaskQueue(root, props.catalogs ?? [], result.entries));
       setListExists(result.exists);
       setListValid(true);
+      await props.onQueueChange?.(root);
       if (refreshStatus) {
         await taskStatus.refresh();
         if (!current(root, revision)) return;
@@ -250,6 +252,17 @@ export function TaskLaunchWindow(props) {
     const snapshot = entries().filter(item => keyOf(item.path) !== keyOf(entry.path));
     return changeList(root => writeTaskList(root, snapshot));
   }
+
+  async function navigateEntry(entry) {
+    if (locked() || !props.onNavigate) return;
+    setBusy(true);
+    setError("");
+    try { await props.onNavigate(entry); }
+    catch (failure) { if (!disposed) setError(errorText(failure)); }
+    finally { if (!disposed) setBusy(false); }
+  }
+
+  createEffect(() => { if (props.open) untrack(() => { void taskStatus.refresh(); }); });
 
   async function saveLoadedModel() {
     if (locked() || !includedDirty()) return;
@@ -447,10 +460,15 @@ export function TaskLaunchWindow(props) {
     <FloatingWindow
       open={props.open}
       title="Список заданий для расчета: сформируйте перетаскиванием из списков в проектах и запустите расчет"
-      initialX={props.initialRect?.x} initialY={props.initialRect?.y ?? 8}
-      initialWidth={props.initialRect?.width ?? 880} initialHeight={props.initialRect?.height ?? window.innerHeight - 16}
-      minWidth={Math.min(560, props.initialRect?.width ?? 560)} minHeight={360}
-      storageKey="web-gui:task-queue-window-v1"
+      expandedRect={props.initialRect}
+      minimizedTitle="Список заданий для расчета"
+      minimizedWidth={400} minWidth={280} minHeight={360}
+      allowMaximize={false}
+      storageKey="web-gui:task-queue-window-v2"
+      titleActions={<button type="button" class="task-launch-refresh"
+        aria-label="Обновить состояние расчета заданий" title="Обновить галочки выполненного расчета"
+        aria-busy={taskStatus.busy()} disabled={locked() || taskStatus.busy() || !entries().length}
+        onClick={() => { void taskStatus.refresh(); }}>↻</button>}
       class="task-launch-window"
       onClose={props.onClose}
     >
@@ -487,8 +505,16 @@ export function TaskLaunchWindow(props) {
           <For each={entries()} fallback={
             <div class="task-launch-empty">{busy() ? "Загрузка…" : "Перетащите сюда задания из списка выбранного проекта."}</div>
           }>{entry => (
-            <div role="listitem" class="task-launch-row task-status-row">
-              <TaskStatusCells status={taskStatus(entry.path)} />
+            <div role="listitem" class="task-launch-row" tabIndex="0"
+              title="Двойной щелчок — выбрать каталог, проект и задание"
+              onDblClick={event => { if (!event.target.closest("button")) void navigateEntry(entry); }}
+              onKeyDown={event => { if (event.key === "Enter" && event.target === event.currentTarget) void navigateEntry(entry); }}>
+              <span class="task-launch-solution" title={taskStatus(entry.path).errors.hasSolution
+                ?? (taskStatus(entry.path).hasSolution ? "Решение получено" : "Нет завершенного расчета")}>
+                <Show when={taskStatus(entry.path).hasSolution === true}>
+                  <span role="img" aria-label="Решение получено">✓</span>
+                </Show>
+              </span>
               <span class="task-status-name" title={entry.displayPath}>{entry.displayPath}</span>
               <button type="button" class="task-launch-remove" disabled={locked()}
                 aria-label={`Удалить из списка: ${entry.displayPath}`}

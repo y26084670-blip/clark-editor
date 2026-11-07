@@ -16,7 +16,7 @@ const createRuntime = new Function("dependencies", `
   ${source.slice(source.indexOf("const VIEWPORT_MARGIN"), componentStart)}
   return function(props) {
     ${source.slice(componentStart + "export function FloatingWindow(props) {".length, markupStart)}
-    return { rect, minimized, maximized, handleTitlePointerDown, handleTitlePointerMove,
+    return { rect, visibleRect, minimized, maximized, handleTitlePointerDown, handleTitlePointerMove,
       handleTitlePointerUp, handleTitleKeyDown, finishPointerOperation, toggleMaximized, toggleMinimized,
       handleResizePointerDown, handleResizePointerMove, handleResizePointerUp,
       handleViewportResize, syncRectFromElement, fitHeightToContent, attachWindowElement,
@@ -57,7 +57,7 @@ function runtime(options = {}) {
     getBoundingClientRect: () => ({top: 0, height: api.rect().height - 40}),
   };
   const element = { isConnected: true, querySelector: () => content, getBoundingClientRect() {
-    const r = api.rect();
+    const r = api.visibleRect();
     return measured ?? { left: r.x, top: r.y, width: r.width, height: api.minimized() ? 40 : r.height };
   } };
   api.attach(element);
@@ -113,6 +113,24 @@ test("fixed width overrides an old saved width and native resize, but still fits
   h.resize(500, 800); assert.equal(h.rect().width, 484); assert.equal(h.rect().x, 8);
   h.resize(1200, 900); assert.equal(h.rect().width, 700);
   assertInside(h); h.dispose();
+});
+
+test("docked window moves only when minimized and restores its current panel bounds", () => {
+  const expandedRect = { x: 500, y: 80, width: 700, height: 820 };
+  const h = runtime({ props: { fitOnDrag: false, expandedRect, allowMaximize: false, minimizedWidth: 400 } });
+  h.down(); h.move(150, 250); h.up(); h.key("ArrowLeft"); h.toggleMaximized();
+  assert.deepEqual(h.visibleRect(), expandedRect);
+  assert.equal(h.maximized(), false);
+  h.toggleMinimized();
+  assert.equal(h.minimized(), true);
+  assert.equal(h.rect().width, 400);
+  const previous = { ...h.rect() };
+  h.down(); h.move(200, 280); h.up();
+  assert.notEqual(h.rect().x, previous.x);
+  h.props.expandedRect = { x: 450, y: 90, width: 730, height: 800 };
+  h.toggleMinimized();
+  assert.deepEqual(h.visibleRect(), h.props.expandedRect);
+  h.dispose();
 });
 
 test("height-only maximize preserves width, supports horizontal movement and restores the original size", () => {

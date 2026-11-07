@@ -78,10 +78,10 @@ export function createTaskStatusMonitor({
   };
 }
 
-export function useTaskStatuses(source, { refreshOnChange = true } = {}) {
+export function useTaskStatuses(source, { refreshOnChange = true, read } = {}) {
   const [statuses, setStatuses] = createSignal(new Map());
   const [busy, setBusy] = createSignal(false);
-  const monitor = createTaskStatusMonitor({ onChange: setStatuses, onBusyChange: setBusy });
+  const monitor = createTaskStatusMonitor({ onChange: setStatuses, onBusyChange: setBusy, read });
   createEffect(() => {
     if (monitor.setSource(source()) && refreshOnChange) void monitor.refresh();
   });
