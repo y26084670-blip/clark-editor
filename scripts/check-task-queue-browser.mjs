@@ -68,7 +68,12 @@ try {
   const mpiInput = await queue.locator(".task-launch-mpi input").boundingBox();
   const mpiRow = await queue.locator(".task-launch-mpi").boundingBox();
   const taskName = await rows.first().locator(".task-status-name").boundingBox();
-  check("MPI label aligns with task paths while the input shrinks from the left", Math.abs(mpiLabel.x - taskName.x) < 1
+  const twoCharacters = await queue.locator(".task-launch-mpi > span").evaluate(element => {
+    const context = document.createElement("canvas").getContext("2d");
+    context.font = getComputedStyle(element).font;
+    return context.measureText("00").width;
+  });
+  check("MPI label is two characters left of task paths while the input keeps its position", Math.abs(mpiLabel.x + twoCharacters - taskName.x) < 1
     && Math.abs(mpiInput.x + mpiInput.width - mpiRow.x - mpiRow.width) < 1
     && mpiInput.x - mpiLabel.x - mpiLabel.width >= 9 && mpiInput.width < mpiRow.width * 0.7);
   await page.locator("#listTask .task-status-label").first().dragTo(list);

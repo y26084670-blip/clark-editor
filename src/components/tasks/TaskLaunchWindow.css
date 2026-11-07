@@ -196,6 +196,7 @@
 .task-launch-mode { display: flex; flex-direction: column; justify-content: space-between; gap: 3px; }
 .task-launch-mpi, .task-launch-modes { box-sizing: border-box; width: 100%; }
 .task-launch-mpi { display: flex; align-items: center; gap: 10px; padding-left: 34px; }
+.task-launch-mpi > span { transform: translateX(-2ch); }
 .task-launch-mpi input { flex: 1; min-width: 0; }
 .task-launch-mode .task-launch-start { width: 100%; background: #244e77; }
 .task-launch-modes { display: grid; gap: 1px; padding: 3px 5px; border: 1px solid #536171; border-radius: 3px; }
