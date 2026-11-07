@@ -95,6 +95,10 @@
   min-height: 90px;
 }
 
+.listTask-item[draggable="true"] {
+  cursor: grab;
+}
+
 .task-list-heading {
   display: flex;
   align-items: center;

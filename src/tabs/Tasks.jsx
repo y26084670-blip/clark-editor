@@ -16,6 +16,7 @@ import { DEMO_TASK_NAME, loadDemoTask } from "../services/demoTaskService.js";
 import { DIRECTORIES, TABS } from "../services/schemas/common/constants";
 import { TaskGeometryPreview } from "../components/geometry/TaskGeometryPreview.jsx";
 import { TaskLaunchWindow } from "../components/tasks/TaskLaunchWindow.jsx";
+import { TASK_DRAG_TYPE, taskQueueWindowRect } from "../services/taskQueueService.js";
 import { OMClientWindow } from "../components/tasks/OMClientWindow.jsx";
 import { TaskStatusCells } from "../components/tasks/TaskStatusCells.jsx";
 import { TaskProtocolDownload, useTaskProtocolDownloads } from "../components/tasks/TaskProtocolDownload.jsx";
@@ -91,6 +92,14 @@ export function Tasks(props) {
   const [taskResultsText, setTaskResultsText] = createSignal("");
   const [demoLoading, setDemoLoading] = createSignal(false);
   const [taskLaunchOpen, setTaskLaunchOpen] = createSignal(false);
+  const [taskLaunchRoot, setTaskLaunchRoot] = createSignal(null);
+  const [taskLaunchBinding, setTaskLaunchBinding] = createSignal(null);
+  const [taskLaunchRect, setTaskLaunchRect] = createSignal(null);
+  const [draggedTask, setDraggedTask] = createSignal(null);
+  createEffect(() => {
+    diskHandle();
+    untrack(() => { setTaskLaunchRoot(null); setTaskLaunchBinding(null); setTaskLaunchOpen(false); });
+  });
   const [omClientRequest, setOMClientRequest] = createSignal(null);
   const [omClientState, setOMClientState] = createSignal({ open: false, dirty: false, busy: false, path: "" });
   const [settingsRequest, setSettingsRequest] = createSignal(null);
@@ -118,8 +127,9 @@ export function Tasks(props) {
     });
   });
 
-  const galleryDisabled = () => sketchOpen() || accessBusy() || projectListBusy() || taskListBusy() || Boolean(operation()) || demoLoading() || bindingBusy()
-    || launchBusy() || taskLaunchOpen() || omClientState().busy || props.editorBusy || selectionReceiving() || protocolBusy();
+  const browsingBlocked = () => sketchOpen() || accessBusy() || projectListBusy() || taskListBusy() || Boolean(operation()) || demoLoading() || bindingBusy()
+    || launchBusy() || omClientState().busy || props.editorBusy || selectionReceiving() || protocolBusy();
+  const galleryDisabled = () => browsingBlocked() || taskLaunchOpen();
   const operationsBlocked = () => galleryDisabled() || galleryBusy();
   createEffect(() => props.onTaskActionsChange?.({
     sketchEnabled: !operationsBlocked() && !omClientState().open,
@@ -412,7 +422,7 @@ export function Tasks(props) {
 
   const bindingIsCurrent = (disk, revision) => !disposed
     && disk === diskHandle() && revision === bindingRevision;
-  const accessDisabled = () => operationsBlocked() || omClientState().open;
+  const accessDisabled = () => browsingBlocked() || galleryBusy() || omClientState().open;
 
   function openBindingUri(uri) {
     setBindingNotice("В окне Решателя выберите тот же диск. Если окно не открылось или выбор отменён, нажмите «Связать с Решателем» ещё раз. Для этой функции нужен обновлённый обработчик Clark.");
@@ -427,7 +437,12 @@ export function Tasks(props) {
 
   function openTaskLaunch() {
     if (operationsBlocked()) return;
-    const request = createNativeSettingsRequest(workspaceBinding());
+    if (!taskLaunchRoot()) {
+      setTaskLaunchRoot(rootHandle());
+      setTaskLaunchBinding(workspaceBinding());
+    }
+    setTaskLaunchRect(taskQueueWindowRect(taskPanels));
+    const request = createNativeSettingsRequest(taskLaunchBinding());
     setSettingsRequest(request);
     setTaskLaunchOpen(true);
     // A direct click retains browser permission to open the protocol handler.
@@ -475,9 +490,12 @@ export function Tasks(props) {
       if (!result || !bindingIsCurrent(disk, revision) || bindingRequest() !== expected) return;
       const root = rootHandle();
       const marker = root ? await readWorkspaceBinding(root) : null;
+      const queueRoot = taskLaunchRoot();
+      const queueMarker = queueRoot && queueRoot !== root ? await readWorkspaceBinding(queueRoot) : marker;
       if (!bindingIsCurrent(disk, revision) || bindingRequest() !== expected) return;
       batch(() => {
         if (root === rootHandle()) setWorkspaceBinding(marker);
+        if (queueRoot === taskLaunchRoot()) setTaskLaunchBinding(queueMarker);
         setBindingRequest(null);
         setCatalogsBound(result.state === "bound");
         setBindingNotice(result.state === "bound"
@@ -537,7 +555,10 @@ export function Tasks(props) {
     const historyRead = lastTaskHistory.open(handle);
     const [subdirs, marker] = await Promise.all([getSubdirs(handle), readWorkspaceBinding(handle).catch(() => null)]);
     if (disposed || requestId !== selectionRevision || handle !== rootHandle()) return;
-    batch(() => { setProjects(subdirs); setWorkspaceBinding(marker); });
+    batch(() => {
+      setProjects(subdirs); setWorkspaceBinding(marker);
+      if (handle === taskLaunchRoot()) setTaskLaunchBinding(marker);
+    });
     await historyRead;
   }
 
@@ -625,7 +646,7 @@ export function Tasks(props) {
 
   // выбор проекта
   const handleProjectChange = async (event) => {
-    if (operationsBlocked()) return;
+    if (browsingBlocked() || galleryBusy()) return;
     const projectName = event.currentTarget.value;
     const requestId = invalidateBrowserSelection();
     setSelectedProject(projectName);
@@ -742,24 +763,40 @@ export function Tasks(props) {
   };
 
   const handleLaunchComplete = async (entries, action, context) => {
-    const root = context.root;
-    const isCurrent = () => context.isCurrent() && root === rootHandle();
+    const isCurrent = context.isCurrent;
     if (!isCurrent()) return;
     let report;
     if (action === "import") {
-      report = context.result.state === "completed"
-        ? await importUsedTaskMaterials(root, entries, { isCurrent })
-        : { imported: 0, messages: [{ level: "info", path: "Список заданий",
-          text: "Clark сообщил об ошибке импорта данных. Автоперенос XAP.lib не выполнялся: свежесть kvs.txt не подтверждена." }] };
+      report = { imported: 0, messages: [] };
+      if (context.result.state === "completed") {
+        const groups = new Map();
+        for (const entry of entries) {
+          const root = entry.rootHandle ?? context.root;
+          if (!groups.has(root)) groups.set(root, []);
+          groups.get(root).push({ path: entry.taskPath ?? entry.path, enabled: entry.enabled });
+        }
+        for (const [root, tasks] of groups) {
+          if (!isCurrent()) return report;
+          const imported = await importUsedTaskMaterials(root, tasks, { isCurrent });
+          report.imported += imported?.imported ?? 0;
+          report.messages.push(...(imported?.messages ?? []).map(message =>
+            ({ ...message, path: `${root.name}/${message.path}` })));
+        }
+      } else {
+        report.messages.push({ level: "info", path: "Список заданий",
+          text: "Clark сообщил об ошибке импорта данных. Автоперенос XAP.lib не выполнялся: свежесть kvs.txt не подтверждена." });
+      }
     }
     if (!isCurrent()) return report;
-    const task = selectedTask();
+    const root = rootHandle(), task = selectedTask();
     if (!root || !task || task.isDemo) return report;
     const segments = await root.resolve(task.handle);
-    if (!isCurrent() || task !== selectedTask() || !segments) return report;
+    if (!isCurrent() || root !== rootHandle() || task !== selectedTask() || !segments) return report;
     const relativePath = segments.join("/").toLowerCase();
-    if (!entries.some(entry => entry.enabled && entry.path.toLowerCase() === relativePath)) return report;
+    if (!entries.some(entry => entry.enabled && (entry.rootHandle ?? context.root) === root
+      && (entry.taskPath ?? entry.path).toLowerCase() === relativePath)) return report;
     if (action === "import") setPreviewRevision(value => value + 1);
+    await taskStatus.refresh();
     await selectTaskCandidate(task);
     return report;
   };
@@ -882,7 +919,7 @@ export function Tasks(props) {
               id="listProject"
               class="task-project-select"
               value={selectedProject()}
-              disabled={operationsBlocked()}
+              disabled={browsingBlocked() || galleryBusy()}
               onChange={handleProjectChange}
             >
               <ProjectSelectValue value={selectedProject()} placeholder="Выбрать проект" marked={selectedProject() === lastProjectName()} />
@@ -929,6 +966,17 @@ export function Tasks(props) {
                     "task-status-row": true,
                     selected: selectedTask()?.handle === task.handle,
                   }}
+                  draggable={taskLaunchOpen() && !browsingBlocked() && !galleryBusy() && !task.isDemo}
+                  onDragStart={event => {
+                    if (!taskLaunchOpen() || browsingBlocked() || galleryBusy() || task.isDemo) {
+                      event.preventDefault(); return;
+                    }
+                    setDraggedTask({ rootHandle: rootHandle(), handle: task.handle });
+                    event.dataTransfer.effectAllowed = "copy";
+                    event.dataTransfer.setData(TASK_DRAG_TYPE, `${rootHandle().name}/${selectedProject()}/${task.name}`);
+                    event.dataTransfer.setData("text/plain", `${rootHandle().name}/${selectedProject()}/${task.name}`);
+                  }}
+                  onDragEnd={() => setDraggedTask(null)}
                   onClick={() => selectTaskCandidate(task)}
                   onDblClick={() => {
                     if (selectedTask()?.handle === task.handle) void requestTaskLoad();
@@ -1027,8 +1075,10 @@ export function Tasks(props) {
 
       <TaskLaunchWindow
         open={taskLaunchOpen() && props.active !== false}
-        rootHandle={rootHandle()}
-        binding={workspaceBinding()}
+        rootHandle={taskLaunchRoot()}
+        diskHandle={diskHandle()} catalogs={catalogs()} draggedTask={draggedTask()}
+        initialRect={taskLaunchRect()}
+        binding={taskLaunchBinding()}
         settingsRequest={settingsRequest()}
         bindingBusy={bindingBusy()}
         blockedMessage={omClientState().busy ? "Дождитесь завершения операции с OM-данными."

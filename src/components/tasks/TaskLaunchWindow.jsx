@@ -9,11 +9,12 @@ import { TaskStatusCells } from "./TaskStatusCells.jsx";
 import { IterationControl } from "./IterationControl.jsx";
 import { useTaskStatuses } from "../../services/taskStatusMonitor.js";
 import {
-  TASK_LIST_FILE, createNativeLaunchUri, invalidateLaunchRequest,
+  createNativeLaunchUri, invalidateLaunchRequest,
   prepareLaunchRequest, readLaunchResult,
-  readTaskList, refreshTaskList, setTaskListEntriesEnabled,
+  readTaskList, writeTaskList,
   parseMpiRanks, formatMpiRanks, readRuntimeSettings,
 } from "../../services/taskLaunchService.js";
+import { TASK_DRAG_TYPE, createTaskQueueEntry, describeTaskQueue } from "../../services/taskQueueService.js";
 import "./TaskLaunchWindow.css";
 
 const ACCEPT_TIMEOUT_MS = 45000;
@@ -24,13 +25,12 @@ export function TaskLaunchWindow(props) {
   const listId = createUniqueId();
   const [entries, setEntries] = createSignal([]);
   const taskStatus = useTaskStatuses(
-    () => entries().map(entry => ({ key: entry.path, root: props.rootHandle, path: entry.path })),
+    () => entries().map(entry => ({ key: entry.path, root: entry.rootHandle, path: entry.taskPath })),
     { refreshOnChange: false },
   );
   const [listExists, setListExists] = createSignal(false);
   const [listValid, setListValid] = createSignal(false);
-  const [selected, setSelected] = createSignal(new Set());
-  const [activeIndex, setActiveIndex] = createSignal(0);
+  const [dragOver, setDragOver] = createSignal(false);
   const [busy, setBusy] = createSignal(false);
   const [error, setError] = createSignal("");
   const [notice, setNotice] = createSignal("");
@@ -52,8 +52,6 @@ export function TaskLaunchWindow(props) {
   const [loadedPathError, setLoadedPathError] = createSignal(false);
   const [modelicaError, setModelicaError] = createSignal("");
   let modelicaDialog, modelicaButton;
-  let listElement;
-  let anchorIndex = 0;
   let rootRevision = 0;
   let loadedRevision = 0;
   let disposed = false;
@@ -65,7 +63,7 @@ export function TaskLaunchWindow(props) {
   const enabledEntries = createMemo(() => entries().filter(entry => entry.enabled));
   const loadedIncluded = createMemo(() => {
     const path = loadedPath();
-    return Boolean(path && enabledEntries().some(entry => keyOf(entry.path) === keyOf(path)));
+    return Boolean(path && enabledEntries().some(entry => keyOf(props.diskHandle ? entry.displayPath : entry.taskPath) === keyOf(path)));
   });
   const includedDirty = createMemo(() => unsavedChangesService.hasDirty() && loadedIncluded());
   const awaitingAcceptance = () => pending()?.state === "waiting";
@@ -84,6 +82,10 @@ export function TaskLaunchWindow(props) {
   async function armLaunch(root, revision, marker = binding()) {
     setProof(null);
     if (!marker || marker.bindingState !== "bound" || !listExists() || !listValid()) return;
+    if (entries().some(entry => entry.path.startsWith("../")) && marker.taskQueueVersion !== 1) {
+      setNotice("Для запуска списка из нескольких каталогов обновите установленный Clark и повторите связывание с Решателем.");
+      return;
+    }
     const prepared = await prepareLaunchRequest(root, marker);
     if (current(root, revision) && !awaitingAcceptance() && !props.bindingBusy
       && marker.workspaceId === binding()?.workspaceId
@@ -96,7 +98,7 @@ export function TaskLaunchWindow(props) {
     try {
       const result = await readTaskList(root);
       if (!current(root, revision)) return;
-      setEntries(result.entries);
+      setEntries(describeTaskQueue(root, props.catalogs ?? [], result.entries));
       setListExists(result.exists);
       setListValid(true);
       await taskStatus.refresh();
@@ -118,8 +120,7 @@ export function TaskLaunchWindow(props) {
         setEntries([]);
         setListExists(false);
         setListValid(false);
-        setSelected(new Set());
-        setActiveIndex(0);
+        setDragOver(false);
         setBusy(false);
         setError("");
         setNotice("");
@@ -131,7 +132,6 @@ export function TaskLaunchWindow(props) {
         setMpiEdited(false);
         setSettingsPending(null);
       });
-      anchorIndex = 0;
       void loadRoot(root, revision);
     });
   });
@@ -183,7 +183,7 @@ export function TaskLaunchWindow(props) {
     setLoadedPathError(false);
     setResolvingLoaded(Boolean(root && loaded && !demo));
     if (!root || !loaded || demo) return;
-    void root.resolve(loaded).then(parts => {
+    void (props.diskHandle ?? root).resolve(loaded).then(parts => {
       if (!disposed && revision === loadedRevision) {
         setLoadedPath(parts?.join("/") ?? null);
       }
@@ -209,13 +209,9 @@ export function TaskLaunchWindow(props) {
     try {
       const result = await operation(root);
       if (!current(root, revision)) return;
-      const retained = new Set(result.entries.map(entry => entry.path));
-      setEntries(result.entries);
+      setEntries(describeTaskQueue(root, props.catalogs ?? [], result.entries));
       setListExists(result.exists);
       setListValid(true);
-      setSelected(previous => new Set([...previous].filter(path => retained.has(path))));
-      setActiveIndex(0);
-      anchorIndex = 0;
       if (refreshStatus) {
         await taskStatus.refresh();
         if (!current(root, revision)) return;
@@ -228,21 +224,32 @@ export function TaskLaunchWindow(props) {
     }
   }
 
-  const updateList = () => changeList(root => refreshTaskList(root), true);
-  const toggleSelected = enabled => {
-    const snapshot = entries();
-    const selection = new Set(selected());
-    if (!selection.size || !listValid()) return;
-    return changeList(root => setTaskListEntriesEnabled(root, snapshot, selection, enabled));
-  };
+  const acceptsDrop = event => !locked() && Boolean(props.draggedTask)
+    && Array.from(event.dataTransfer?.types ?? []).includes(TASK_DRAG_TYPE);
 
-  const toggleEntry = entry => {
-    if (!listValid()) return;
+  function handleDragOver(event) {
+    if (!acceptsDrop(event)) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
+    setDragOver(true);
+  }
+
+  function handleDrop(event) {
+    setDragOver(false);
+    if (!acceptsDrop(event)) return;
+    event.preventDefault();
+    const source = props.draggedTask;
     const snapshot = entries();
-    return changeList(root => setTaskListEntriesEnabled(
-      root, snapshot, new Set([entry.path]), !entry.enabled,
-    ));
-  };
+    void changeList(async root => {
+      const entry = await createTaskQueueEntry(root, props.diskHandle, source);
+      return writeTaskList(root, [...snapshot, entry]);
+    }, true);
+  }
+
+  function removeEntry(entry) {
+    const snapshot = entries().filter(item => keyOf(item.path) !== keyOf(entry.path));
+    return changeList(root => writeTaskList(root, snapshot));
+  }
 
   async function saveLoadedModel() {
     if (locked() || !includedDirty()) return;
@@ -435,90 +442,19 @@ export function TaskLaunchWindow(props) {
     props.onBusyChange?.(false);
   });
 
-  function selectAll() {
-    setSelected(new Set(entries().map(entry => entry.path)));
-    listElement?.focus({ preventScroll: true });
-  }
-
-  function selectRow(index, { shiftKey = false, ctrlKey = false, metaKey = false } = {}) {
-    const rows = entries();
-    if (!rows[index]) return;
-    const multiple = ctrlKey || metaKey;
-    if (shiftKey) {
-      const next = multiple ? new Set(selected()) : new Set();
-      const first = Math.min(anchorIndex, index);
-      const last = Math.max(anchorIndex, index);
-      for (let position = first; position <= last; position += 1) {
-        if (rows[position]) next.add(rows[position].path);
-      }
-      setSelected(next);
-    } else if (multiple) {
-      const next = new Set(selected());
-      if (next.has(rows[index].path)) next.delete(rows[index].path);
-      else next.add(rows[index].path);
-      setSelected(next);
-      anchorIndex = index;
-    } else {
-      setSelected(new Set([rows[index].path]));
-      anchorIndex = index;
-    }
-    setActiveIndex(index);
-    listElement?.focus({ preventScroll: true });
-  }
-
-  function handleListKeyDown(event) {
-    const rows = entries();
-    if (!rows.length || event.altKey || event.isComposing) return;
-    if ((event.ctrlKey || event.metaKey) && event.code === "KeyA") {
-      event.preventDefault();
-      event.stopPropagation();
-      selectAll();
-      return;
-    }
-    const previous = activeIndex();
-    const moves = { ArrowDown: previous + 1, ArrowUp: previous - 1, Home: 0, End: rows.length - 1 };
-    if (Object.hasOwn(moves, event.key)) {
-      event.preventDefault();
-      event.stopPropagation();
-      const next = Math.max(0, Math.min(rows.length - 1, moves[event.key]));
-      if ((event.ctrlKey || event.metaKey) && !event.shiftKey) setActiveIndex(next);
-      else selectRow(next, event);
-      document.getElementById(`${listId}-${next}`)?.scrollIntoView({ block: "nearest", inline: "nearest" });
-    } else if (event.code === "Space") {
-      event.preventDefault();
-      event.stopPropagation();
-      selectRow(previous, { ctrlKey: true });
-    }
-  }
-
   return (
+    <Show when={props.open}>
     <FloatingWindow
       open={props.open}
-      title={`Список заданий — ${props.rootHandle?.name ?? ""}`}
-      initialWidth={880} initialHeight={600} minWidth={560} minHeight={360}
-      storageKey="web-gui:task-launch-window"
+      title="Список заданий для расчета: сформируйте перетаскиванием из списков в проектах и запустите расчет"
+      initialX={props.initialRect?.x} initialY={props.initialRect?.y ?? 8}
+      initialWidth={props.initialRect?.width ?? 880} initialHeight={props.initialRect?.height ?? window.innerHeight - 16}
+      minWidth={Math.min(560, props.initialRect?.width ?? 560)} minHeight={360}
+      storageKey="web-gui:task-queue-window-v1"
       class="task-launch-window"
       onClose={props.onClose}
     >
       <div class="task-launch-body">
-        <div class="task-launch-metadata">
-          <span>путь к файлу со списком заданий:</span>
-          <span title={props.rootHandle?.name}>{props.rootHandle?.name}/{TASK_LIST_FILE}</span>
-        </div>
-        <div class="task-launch-toolbar">
-          <button type="button" disabled={locked() || !props.rootHandle}
-            title="Обновить список заданий и признаки их состояния. Новые задания добавляются отключёнными; подключение существующих сохраняется."
-            onClick={updateList}>Обновить список</button>
-          <button type="button" disabled={locked() || !listValid() || !selected().size}
-            title="Включить выделенные задания в список для расчёта или импорта. Или дважды щелкнуть по строке в списке."
-            onClick={() => toggleSelected(true)}>Подключить</button>
-          <button type="button" disabled={locked() || !listValid() || !selected().size}
-            title="Исключить выделенные задания из запуска, сохранив их в списке. Или дважды щелкнуть по строке в списке."
-            onClick={() => toggleSelected(false)}>Отключить</button>
-          <button type="button" disabled={!entries().length}
-            title="Выделить все строки списка (Ctrl+A). Подключение заданий выполняется отдельной кнопкой."
-            onClick={selectAll}>Выделить все</button>
-        </div>
         <Show when={error()}><div class="task-launch-error" role="alert">{error()}</div></Show>
         <Show when={notice()}><div class="task-launch-notice" role="status">{notice()}</div></Show>
         <Show when={props.blockedMessage}><div class="task-launch-notice" role="status">{props.blockedMessage}</div></Show>
@@ -542,34 +478,24 @@ export function TaskLaunchWindow(props) {
           </div>
         </Show>
         <div
-          ref={listElement} id={listId} class="task-launch-list" role="listbox"
-          aria-label="Список заданий" aria-multiselectable="true" tabIndex="0"
-          aria-activedescendant={entries().length ? `${listId}-${activeIndex()}` : undefined}
-          onKeyDown={handleListKeyDown}
+          class="task-launch-list" classList={{ "is-drag-over": dragOver() }}
+          role="list" aria-label="Список заданий для расчета"
+          onDragOver={handleDragOver}
+          onDragLeave={event => { if (!event.currentTarget.contains(event.relatedTarget)) setDragOver(false); }}
+          onDrop={handleDrop}
         >
           <For each={entries()} fallback={
-            <div class="task-launch-empty">{busy() ? "Загрузка…" : listExists() && listValid()
-              ? "В списке нет заданий. Нажмите «Обновить список»."
-              : "Нажмите «Обновить список», чтобы собрать задания базового каталога."}</div>
-          }>{(entry, index) => (
-            <div
-              id={`${listId}-${index()}`} role="option" aria-selected={selected().has(entry.path)}
-              class="task-launch-row task-status-row"
-              classList={{ "is-disabled": !entry.enabled, "is-selected": selected().has(entry.path), "is-active": activeIndex() === index() }}
-              onClick={event => selectRow(index(), event)}
-              onDblClick={() => toggleEntry(entry)}
-              title={entry.enabled
-                ? "Двойной щелчок — отключить это задание от запуска"
-                : "Двойной щелчок — подключить это задание к запуску"}
-            >
+            <div class="task-launch-empty">{busy() ? "Загрузка…" : "Перетащите сюда задания из списка выбранного проекта."}</div>
+          }>{entry => (
+            <div role="listitem" class="task-launch-row task-status-row">
               <TaskStatusCells status={taskStatus(entry.path)} />
-              <span class="task-status-name">{entry.enabled ? "" : "*"}{entry.path}</span>
+              <span class="task-status-name" title={entry.displayPath}>{entry.displayPath}</span>
+              <button type="button" class="task-launch-remove" disabled={locked()}
+                aria-label={`Удалить из списка: ${entry.displayPath}`}
+                title="Удалить задание из списка расчета"
+                onClick={() => removeEntry(entry)}>×</button>
             </div>
           )}</For>
-        </div>
-        <div class="task-launch-counts">
-          <span>Всего: {entries().length}</span><span>Подключено: {enabledEntries().length}</span>
-          <span>Выделено: {selected().size}</span><span class="task-launch-selection-hint">Выделение: Ctrl / Shift</span>
         </div>
         <Show when={confirmImport()}>
           <div class="task-launch-import-confirm">
@@ -610,5 +536,6 @@ export function TaskLaunchWindow(props) {
         </dialog>
       </div>
     </FloatingWindow>
+    </Show>
   );
 }

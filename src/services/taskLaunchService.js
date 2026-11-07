@@ -1,5 +1,6 @@
 // Portable task lists and the filesystem handoff to the installed Clark launcher.
-// No absolute filesystem path is obtained or constructed by the browser.
+// Paths stay relative to the queue's catalog, including registered sibling catalogs.
+import { isProjectCatalog } from "./projectDiskAccessService.js";
 export const TASK_LIST_FILE = "clark.tasks.txt";
 export const WORKSPACE_FILE = "clark.workspace.json";
 export const PROOF_FILE = "clark.launch.json";
@@ -29,11 +30,14 @@ function normalizeTaskPath(value) {
   if (typeof value !== "string") throw new Error("Путь задания должен быть текстом.");
   const path = value.trim().replaceAll("\\", "/");
   const segments = path.split("/");
-  if (segments.length < 2 || segments.some(segment => (
+  const sibling = segments[0] === "..";
+  const taskSegments = sibling ? segments.slice(2) : segments;
+  if ((sibling && (segments.length !== 4 || !isProjectCatalog(segments[1])))
+    || taskSegments.length < 2 || taskSegments.some(segment => (
     !segment || segment === "." || segment === ".."
     || /[<>:"|?*\u0000-\u001f]/.test(segment)
   ))) {
-    throw new Error("Ожидается относительный путь «проект/задание» внутри базового каталога.");
+    throw new Error("Ожидается путь «проект/задание» или «../clark.каталог/проект/задание».");
   }
   return segments.join("/");
 }
@@ -107,7 +111,7 @@ function parseTaskList(text, { tolerateInvalid = false } = {}) {
       if (tolerateInvalid) continue;
       throw new Error(
         `Некорректная строка ${index + 1} в «${TASK_LIST_FILE}». `
-        + `${error.message} Нажмите «Обновить список», чтобы собрать его из каталогов заданий.`,
+        + `${error.message} Перетащите задания для формирования нового списка.`,
       );
     }
   }
