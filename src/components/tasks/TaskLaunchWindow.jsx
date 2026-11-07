@@ -52,6 +52,8 @@ export function TaskLaunchWindow(props) {
   const [resolvingLoaded, setResolvingLoaded] = createSignal(false);
   const [loadedPathError, setLoadedPathError] = createSignal(false);
   const [modelicaError, setModelicaError] = createSignal("");
+  const [launchDialogTitle, setLaunchDialogTitle] = createSignal("Запуск ОМ-клиента");
+  const [activeTask, setActiveTask] = createSignal(null);
   let modelicaDialog, modelicaButton;
   let rootRevision = 0;
   let loadedRevision = 0;
@@ -159,6 +161,7 @@ export function TaskLaunchWindow(props) {
         setProof(null);
         setPreparationError("");
         setPending(null);
+        setActiveTask(null);
         setConfirmImport(false);
         setMpiValue("default");
         setMpiEdited(false);
@@ -320,8 +323,25 @@ export function TaskLaunchWindow(props) {
     }
   }
 
+  function blockActiveRun() {
+    if (pending()?.state !== "accepted" && !activeTask()) return false;
+    setConfirmImport(false);
+    setLaunchDialogTitle("Задание выполняется");
+    setModelicaError("Сейчас выполняется активное задание. Новый запуск невозможен до окончания текущего расчёта.");
+    if (!modelicaDialog.open) modelicaDialog.showModal();
+    return true;
+  }
+
+  function requestLaunch() {
+    if (blockActiveRun()) return;
+    if (launchMode() === "import") setConfirmImport(true);
+    else launch(launchMode());
+  }
+
   function launch(action) {
+    if (blockActiveRun()) return;
     if (action === "modelica" && launchReady() && enabledEntries().length !== 1) {
+      setLaunchDialogTitle("Запуск ОМ-клиента");
       setModelicaError(`Для запуска ОМ-клиента подключите ровно одно задание. Сейчас подключено: ${enabledEntries().length}.`);
       if (!modelicaDialog.open) modelicaDialog.showModal();
       return;
@@ -595,18 +615,19 @@ export function TaskLaunchWindow(props) {
             <Show when={launchMode() !== "import" && mpiError()}><span class="task-launch-error" role="alert">{mpiError()}</span></Show>
             <button ref={modelicaButton} class="task-launch-start" type="button" disabled={!selectedLaunchReady()}
               title={selectedLaunchReason() || "Запустить задания из сформированного списка"}
-              onClick={() => launchMode() === "import" ? setConfirmImport(true) : launch(launchMode())}>Запустить</button>
+              onClick={requestLaunch}>Запустить</button>
             <div class="task-launch-modes" role="radiogroup" aria-label="Режим запуска">
               <For each={[[ "solver", "расчёт" ], [ "modelica", "ОМ клиент" ], [ "import", "импорт" ]]}>{([mode, label]) =>
                 <label><input type="radio" name={`${listId}-launch-mode`} checked={launchMode() === mode} disabled={locked()}
                   onChange={() => { setConfirmImport(false); setLaunchMode(mode); }} />{label}</label>}</For>
             </div>
           </div>
-          <IterationControl rootHandle={props.rootHandle} binding={binding()} active={props.open} />
+          <IterationControl rootHandle={props.rootHandle} binding={binding()} active={props.open}
+            onStatusChange={setActiveTask} />
         </div>
         <dialog ref={modelicaDialog} class="task-launch-modal" aria-labelledby={`${listId}-om-error`}
           onClose={() => modelicaButton?.focus()}>
-          <h2 id={`${listId}-om-error`}>Запуск ОМ-клиента</h2>
+          <h2 id={`${listId}-om-error`}>{launchDialogTitle()}</h2>
           <p role="alert">{modelicaError()}</p>
           <form method="dialog"><button type="submit" autofocus>Закрыть</button></form>
         </dialog>

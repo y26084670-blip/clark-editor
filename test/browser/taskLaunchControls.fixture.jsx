@@ -30,8 +30,10 @@ function wrapper() {
     },
   };
 }
-const initial = { schemaVersion: 1, workspaceId: crypto.randomUUID(), rootName: root.name,
-  bindingState: "bound", taskQueueVersion: 1, launchOptionsVersion: 1 };
+let initial;
+try { initial = await read("clark.workspace.json"); }
+catch { initial = { schemaVersion: 1, workspaceId: crypto.randomUUID(), rootName: root.name,
+  bindingState: "bound", taskQueueVersion: 1, launchOptionsVersion: 1 }; }
 await write("clark.workspace.json", initial);
 await write("clark.tasks.txt", "Project/One\n");
 const [source, setSource] = createSignal(wrapper());
@@ -57,6 +59,11 @@ window.controls = {
     if (state === "accepted") accepted = await read("clark.launch.json");
     await write("clark.launch-result.json", { ...accepted, action: "solver", state, message: `Native ${state}`,
       exitCode: state === "completed" ? 0 : undefined });
+  },
+  async active(active, changes = {}) {
+    await write("clark.iteration-status.json", { schemaVersion: 1, workspaceId: binding().workspaceId,
+      sessionId: crypto.randomUUID(), taskId: 1, taskPath: "Project/One", active,
+      tau: 0.3, eps: 0.005, updatedAt: new Date().toISOString(), ...changes });
   },
 };
 render(() => <TaskLaunchWindow open rootHandle={source()} diskHandle={disk}

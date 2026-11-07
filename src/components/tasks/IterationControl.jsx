@@ -15,6 +15,7 @@ export function IterationControl(props) {
   const [error, setError] = createSignal(""), [notice, setNotice] = createSignal("");
   let revision = 0, polling = false, disposed = false;
   const enabled = () => Boolean(status()) && !sending() && !pending();
+  createEffect(() => props.onStatusChange?.(status()));
   function reset() {
     batch(() => { setStatus(null); setTau("0.0000"); setEps("0.0000000000");
       setUseTau(false); setUseEps(false); setUseMResidual(false); setUseJResidual(false);
@@ -53,7 +54,7 @@ export function IterationControl(props) {
     revision++; reset(); void poll();
   });
   onMount(() => { const timer = setInterval(poll, 500); onCleanup(() => clearInterval(timer)); });
-  onCleanup(() => { disposed = true; revision++; });
+  onCleanup(() => { disposed = true; revision++; props.onStatusChange?.(null); });
   function normalize(parameter) {
     const selected = parameter === "TAU" ? tau : eps;
     const update = parameter === "TAU" ? setTau : setEps;

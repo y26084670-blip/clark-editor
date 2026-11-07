@@ -6,8 +6,8 @@ const code = source.slice(source.indexOf("  function launch(action)"), source.in
 test("OM launch explains zero or multiple enabled tasks before issuing a native request", () => {
   for (const count of [0, 2, 7]) {
     let message = "", dialogs = 0, requests = 0;
-    const run = new Function("launchReady", "enabledEntries", "setModelicaError", "modelicaDialog", "canLaunch", "proof",
-      `${code}; return launch;`)(() => true, () => Array(count).fill({ enabled: true }), value => { message = value; },
+    const run = new Function("blockActiveRun", "setLaunchDialogTitle", "launchReady", "enabledEntries", "setModelicaError", "modelicaDialog", "canLaunch", "proof",
+      `${code}; return launch;`)(() => false, () => {}, () => true, () => Array(count).fill({ enabled: true }), value => { message = value; },
       { open: false, showModal() { dialogs++; } }, () => count > 0, () => { requests++; });
     run("modelica");
     assert.equal(dialogs, 1); assert.equal(requests, 0);
@@ -20,9 +20,9 @@ test("the single launcher forwards calculation, OM and confirmed import; only ca
     let ranksRead = 0, beforeImport = 0, sent;
     const entries = () => [{path:"Project/Task",enabled:true}];
     const noop = () => {}, browser = {location:{}};
-    const run = new Function("launchReady","enabledEntries","canLaunch","proof","entries","mpiEdited","parseMpiRanks","mpiValue",
+    const run = new Function("blockActiveRun","launchReady","enabledEntries","canLaunch","proof","entries","mpiEdited","parseMpiRanks","mpiValue",
       "binding","createNativeLaunchUri","props","loadedIncluded","setPending","setProof","setConfirmImport","setError",
-      "setImportMessages","setNotice","window",`${code}; return launch;`)(() => true,entries,() => true,
+      "setImportMessages","setNotice","window",`${code}; return launch;`)(() => false,() => true,entries,() => true,
       () => ({workspaceId:"ws",requestId:"id"}),entries,() => true,() => { ranksRead++; return 3; },() => "3",
       () => ({launchOptionsVersion:1}),(ws,mode,id,ranks) => { sent={ws,mode,id,ranks}; return "clark://test"; },
       {onBeforeImport:() => beforeImport++},() => true,noop,noop,noop,noop,noop,noop,browser);

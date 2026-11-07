@@ -19,13 +19,22 @@ const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_EXE
 const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
 page.setDefaultTimeout(12000);
 const errors = []; page.on("pageerror", error => errors.push(error.message));
+const nativeLaunches = [];
+const cdp = await page.context().newCDPSession(page);
+await cdp.send("Page.enable");
+cdp.on("Page.frameRequestedNavigation", event => {
+  if (event.url.startsWith("clark://")) nativeLaunches.push(event.url);
+});
 let checks = 0;
 const check = (name, value) => { assert.ok(value, name); checks++; console.log("PASS", name); };
 const start = page.locator(".task-launch-start"), remove = page.locator(".task-launch-remove");
 const refresh = page.getByRole("button", { name: "Обновить состояние расчета заданий", exact: true });
 const mpi = page.getByRole("textbox", { name: "Число процессов MPI", exact: true });
 const mode = name => page.getByRole("radio", { name, exact: true });
-const ready = () => page.waitForFunction(() => !document.querySelector(".task-launch-start").disabled);
+const ready = () => page.waitForFunction(() => {
+  const button = document.querySelector(".task-launch-start");
+  return button && !button.disabled;
+});
 const idle = () => page.waitForFunction(() => !document.querySelector(".task-launch-remove")?.disabled);
 const reason = pattern => page.waitForFunction(pattern => document.querySelector(".task-launch-start").disabled
   && new RegExp(pattern).test(document.querySelector(".task-launch-start").title), pattern);
@@ -97,8 +106,55 @@ try {
   await start.click();
   check("native acceptance wait locks all mutable launch controls", await start.isDisabled() && await mpi.isDisabled()
     && await remove.first().isDisabled() && await refresh.isDisabled() && await mode("расчёт").isDisabled());
+  check("the idle launch opens one native request", nativeLaunches.length === 1);
   await page.evaluate(() => controls.respond("accepted")); await ready();
   check("native acceptance releases queue controls", await editable());
+  const acceptedProof = await page.evaluate(() => controls.proof());
+  for (const name of ["расчёт", "ОМ клиент", "импорт"]) {
+    await mode(name).check(); await start.click();
+    const dialog = page.getByRole("dialog", { name: "Задание выполняется", exact: true });
+    await dialog.waitFor({ state: "visible" });
+    check(`an accepted run blocks ${name} with a close-only modal`, /до окончания текущего расчёта/.test(await dialog.innerText())
+      && await dialog.getByRole("button", { name: "Закрыть", exact: true }).count() === 1
+      && await dialog.getByRole("button").count() === 1 && nativeLaunches.length === 1
+      && await page.locator(".task-launch-import-confirm").count() === 0);
+    if (name === "расчёт" && process.env.TASK_LAUNCH_MODAL_SCREENSHOT) {
+      await page.screenshot({ path: process.env.TASK_LAUNCH_MODAL_SCREENSHOT });
+    }
+    await dialog.getByRole("button", { name: "Закрыть", exact: true }).click();
+    check(`closing the ${name} warning restores focus to Start`, await start.evaluate(button => button === document.activeElement));
+  }
+  check("blocked attempts preserve the prepared request", (await page.evaluate(() => controls.proof())).requestId === acceptedProof.requestId);
+  await page.evaluate(() => controls.respond("completed"));
+  await page.waitForFunction(() => document.querySelector(".task-launch-notice")?.textContent === "Native completed"); await ready();
+  await mode("расчёт").check();
+  await page.evaluate(() => controls.active(true));
+  await page.waitForFunction(() => !document.querySelector(".iteration-control-submit").disabled);
+  await page.reload(); await ready();
+  await page.waitForFunction(() => !document.querySelector(".iteration-control-submit").disabled);
+  await start.click();
+  const activeDialog = page.getByRole("dialog", { name: "Задание выполняется", exact: true });
+  await activeDialog.waitFor({ state: "visible" });
+  check("a live native task blocks launching after page reload without an in-memory pending run", nativeLaunches.length === 1);
+  await page.keyboard.press("Escape");
+  check("Escape closes the active-task warning and restores focus", await activeDialog.isHidden()
+    && await start.evaluate(button => button === document.activeElement));
+  await page.evaluate(() => controls.active(false));
+  await page.waitForFunction(() => document.querySelector(".iteration-control-submit").disabled);
+  await mode("импорт").check(); await start.click();
+  await page.evaluate(() => controls.active(true));
+  await page.waitForFunction(() => !document.querySelector(".iteration-control-submit").disabled);
+  await page.getByRole("button", { name: "Выполнить импорт", exact: true }).click();
+  await activeDialog.waitFor({ state: "visible" });
+  check("an active task appearing during import confirmation also prevents native launch", nativeLaunches.length === 1
+    && await page.locator(".task-launch-import-confirm").count() === 0);
+  await activeDialog.getByRole("button", { name: "Закрыть", exact: true }).click();
+  await page.evaluate(() => controls.active(false));
+  await page.waitForFunction(() => document.querySelector(".iteration-control-submit").disabled);
+  await mode("расчёт").check();
+  await start.click();
+  check("a completed native task permits the next launch", nativeLaunches.length === 2 && await start.isDisabled());
+  await page.evaluate(() => controls.respond("accepted")); await ready();
   await page.evaluate(() => controls.respond("completed"));
   await page.waitForFunction(() => document.querySelector(".task-launch-notice")?.textContent === "Native completed"); await ready();
   await remove.first().click();
