@@ -33,7 +33,7 @@ function hasCrossSection(vertices, axis) {
     return Number.isFinite(area) && area !== 0;
 }
 
-export function detectPlanarGeometry(primitives, general = {}, records = []) {
+export function detectPlanarGeometry(primitives, general = {}, records = [], images = element => element.instances) {
     if (general.mirrorSymmetryX >= 0 || !Array.isArray(records)) return null;
     const physicalIndices = new Set();
     for (let i = 0; i < records.length; i++) {
@@ -52,7 +52,7 @@ export function detectPlanarGeometry(primitives, general = {}, records = []) {
         if (!divisions || divisions.length !== 3 || !element.instances?.length) return null;
         const vertices = Array.from({ length: 8 }, (_, i) => Array.from(element.vertices.slice(3 * i, 3 * i + 3)));
         let blockAxis = null;
-        for (const instance of element.instances) {
+        for (const instance of images(element)) {
             const physical = vertices.map(p => applyMatrix4ToPoint(instance.matrix, p));
             if (!physical.every(p => p.every(Number.isFinite))) return null;
             const scale = Math.max(...physical.flat().map(Math.abs), Number.MIN_VALUE);

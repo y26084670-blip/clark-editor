@@ -157,17 +157,16 @@ test("element overlay has 12 main edges, internal lines and D3-fast centre order
     }
 });
 
-test("element build fails closed before excessive coordinate allocation", () => {
-    const result = buildElementDiscretization(
-        ELEMENT_VERTICES,
-        [100, 100, 100],
-    );
-
-    assert.equal(result.ok, false);
-    assert.equal(result.reason, "budget-exceeded");
-    assert.deepEqual(result.preflight.exceeded, ["points"]);
-    assert.equal(result.lines.length, 0);
-    assert.equal(result.points.length, 0);
+test("large valid layers contain every line and centre in solver order", () => {
+    const counts = [65_537, 2, 1];
+    const grid = buildElementDiscretization(ELEMENT_VERTICES, counts, { includeMetadata: false });
+    assert.equal(grid.ok, true);
+    assert.equal(grid.lines.length / 6, 262_160);
+    assert.equal(grid.points.length / 3, 131_074);
+    assert.deepEqual(grid.pointMetadata, []);
+    assert.deepEqual(Array.from(grid.points.slice(-3)), trilinearElementPoint(
+        ELEMENT_VERTICES, (counts[0] - .5) / counts[0], .75, .5,
+    ));
 });
 
 test("element line and point layers have independent budgets and allocation", () => {

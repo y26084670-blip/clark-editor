@@ -1,4 +1,4 @@
-import { Show, createEffect, createSignal, onCleanup } from "solid-js";
+import { Show, createEffect, createMemo, createSignal, onCleanup } from "solid-js";
 
 import { loadTaskGeometryPreview } from "../../services/taskGeometryPreviewService.js";
 import {
@@ -27,6 +27,14 @@ const ORIGINAL_OBJECT_FILTERS = Object.freeze({
 });
 
 export function TaskGeometryPreview(props) {
+  const task = createMemo(previous => {
+    const handle = props.taskHandle;
+    return handle === previous || props.active !== false ? handle : null;
+  });
+  return <Show when={task()} keyed>{handle => <PreviewContents {...props} taskHandle={handle} />}</Show>;
+}
+
+function PreviewContents(props) {
   const [scene, setScene] = createSignal(null);
   const [savedModel, setSavedModel] = createSignal(null);
   const [sameAsLoaded, setSameAsLoaded] = createSignal(false);
@@ -47,18 +55,23 @@ export function TaskGeometryPreview(props) {
     }).catch(() => { /* An unavailable handle keeps its own saved preview. */ });
   });
 
-  createEffect(() => {
+  const previewModel = createMemo(previous => {
+    if (props.active === false) return previous;
     const saved = savedModel();
-    if (!saved) return;
-    // Loaded tabs can arrive independently. Merge only the available live parts
-    // into the selected task's preview; another selected task always uses disk.
+    if (!saved) return null;
     const live = sameAsLoaded() ? props.model : null;
-    const model = { ...saved };
-    for (const key of ["general", "elements", "regions"]) {
-      if (live?.[key] !== undefined) model[key] = live[key];
-    }
+    const general = live?.general ?? saved.general;
+    const elements = live?.elements ?? saved.elements;
+    const regions = live?.regions ?? saved.regions;
+    return previous && previous.general === general && previous.elements === elements && previous.regions === regions
+      ? previous : { general, elements, regions };
+  });
+
+  createEffect(() => {
+    const model = previewModel();
+    if (!model) return;
     try {
-      const nextScene = buildGeometryScene(model);
+      const nextScene = buildGeometryScene(model, { originalOnly: true });
       setScene(nextScene);
       setMessage("");
     } catch (error) {
@@ -85,7 +98,6 @@ export function TaskGeometryPreview(props) {
 
   createEffect(() => {
     const taskHandle = props.taskHandle;
-    const active = props.active !== false;
     const revision = ++loadRevision;
 
     setSavedModel(null);
@@ -93,7 +105,7 @@ export function TaskGeometryPreview(props) {
     setViewRequest(null);
     setLoading(false);
     setMessage("");
-    if (!taskHandle || !active) return;
+    if (!taskHandle) return;
 
     setLoading(true);
     void loadTaskGeometryPreview(taskHandle)
@@ -135,10 +147,10 @@ export function TaskGeometryPreview(props) {
       }}
       onKeyDown={handleKeyDown}
     >
-      <Show when={scene()} keyed>
-        {(sceneModel) => (
+      <Show when={scene()}>
           <ThreeGeometryViewport
-            scene={sceneModel}
+            scene={scene()}
+            active={props.active}
             filters={ORIGINAL_OBJECT_FILTERS}
             mode="solid"
             showEdges={true}
@@ -149,7 +161,6 @@ export function TaskGeometryPreview(props) {
             autoFit={true}
             viewRequest={viewRequest()}
           />
-        )}
       </Show>
       <Show when={!loading() && message()} keyed>
         {(text) => <div class="task-geometry-preview-overlay">{text}</div>}

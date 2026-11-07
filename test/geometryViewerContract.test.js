@@ -29,12 +29,12 @@ function assertAppearsAfter(source, later, earlier) {
 test("geometry viewer builds a reactive scene in a modeless floating window", async () => {
   const source = await readFile(windowUrl, "utf8");
 
-  assert.match(source, /buildGeometryScene\(model\)/u);
+  assert.match(source, /buildGeometryScene\(input\)/u);
   assert.match(source, /<FloatingWindow/u);
   assert.match(source, /open=\{props\.open\}/u);
   assert.match(source, /onClose=\{props\.onClose\}/u);
-  assert.match(source, /scene=\{sceneModel\(\)\}/u);
-  assert.match(source, /setSceneModel\(null\)/u);
+  assert.match(source, /scene=\{displayScene\(\)\}/u);
+  assert.match(source, /active=\{props\.open\}/u);
   assert.match(source, /role="toolbar"/u);
   assert.match(source, /role="dialog"/u);
   assert.match(source, /aria-modal="false"/u);
@@ -286,10 +286,10 @@ test("Three viewport applies object, selection, and symmetry filters", async () 
   assert.match(source, /filters\?\.symmetry/u);
 });
 
-test("Three viewport limits expansion and fixes reflected face winding", async () => {
+test("Three viewport renders the full selection and fixes reflected face winding", async () => {
   const source = await readFile(viewportUrl, "utf8");
 
-  assert.match(source, /GEOMETRY_INSTANCE_BUDGET = 20_000/u);
+  assert.match(source, /budget = Infinity/u);
   assert.match(source, /renderedPrimitives \+= objectCost/u);
   assert.match(source, /matrix\.fromArray\(instance\.matrix\)/u);
   assert.match(source, /matrix\.determinant\(\) < 0/u);
@@ -351,21 +351,15 @@ test("degenerate geometry falls back to pickable topology lines or points", asyn
   );
 });
 
-test("discretization helpers are lazy, bounded, and point-pickable", async () => {
+test("discretization helpers are lazy, complete and point-pickable", async () => {
   const source = await readFile(viewportUrl, "utf8");
 
   assert.match(source, /buildElementDiscretization/u);
   assert.match(source, /buildRegionDiscretization/u);
   assert.match(source, /countElementDiscretization/u);
   assert.match(source, /countRegionDiscretization/u);
-  assert.match(
-    source,
-    /GEOMETRY_DISCRETIZATION_SEGMENT_BUDGET =[\s\S]*?lineSegments/u,
-  );
-  assert.match(
-    source,
-    /GEOMETRY_DISCRETIZATION_POINT_BUDGET =[\s\S]*?points/u,
-  );
+  assert.match(source, /vertices \+= count \* instances\.length/u);
+  assert.match(source, /sourcePointCount: count/u);
   assert.match(source, /includeLines: layer === "lines"/u);
   assert.match(source, /includePoints: layer === "points"/u);
   assert.match(source, /materializeDiscretizationLines/u);
@@ -387,7 +381,7 @@ test("discretization helpers are lazy, bounded, and point-pickable", async () =>
   assert.match(source, /formatDiscretizationPointTooltip/u);
   assert.match(source, /discretizationWorldPositions/u);
   assert.match(source, /new Float64Array\(positions\)/u);
-  assert.match(source, /discretizationTruncated/u);
+  assert.doesNotMatch(source, /discretizationTruncated/u);
   assert.match(source, /helperPointsShown/u);
   assert.match(
     source,
