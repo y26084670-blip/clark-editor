@@ -2,11 +2,18 @@ import { createEffect, Show } from "solid-js";
 import "./TaskAccessDialog.css";
 
 export function TaskAccessDialog(props) {
-  let dialog, picker;
+  let dialog, picker, bind, proceed, closeButton;
   createEffect(() => {
-    if (props.open) {
-      if (!dialog.open) { dialog.showModal(); picker.focus(); }
-    } else if (dialog.open) dialog.close();
+    if (!props.open) {
+      if (dialog.open) dialog.close();
+      return;
+    }
+    if (!dialog.open) dialog.showModal();
+    if (props.busy) return;
+    if (!props.picked) picker.focus();
+    else if (!props.count) closeButton.focus();
+    else if (props.bound) proceed.focus();
+    else bind.focus();
   });
   return <dialog ref={dialog} class="task-access-dialog" aria-labelledby="task-access-title"
     onCancel={event => { event.preventDefault(); if (!props.busy) props.onClose(); }}>
@@ -19,13 +26,13 @@ export function TaskAccessDialog(props) {
     </div>
     <Show when={props.disk && !props.count}><p>В корне выбранного диска нет каталогов clark.* с проектами.</p></Show>
     <div class="task-access-row">
-      <button type="button" class="task-access-bind" classList={{ "task-access-bind--bound": props.bound }} onClick={props.onBind} disabled={props.busy || !props.count}>{props.bound ? "Связано с Решателем" : "Связать с Решателем"}</button>
+      <button ref={bind} type="button" class="task-access-bind" classList={{ "task-access-bind--bound": props.bound }} onClick={props.onBind} disabled={props.busy || !props.count}>{props.bound ? "Связано с Решателем" : "Связать с Решателем"}</button>
       <p>Для запуска расчётов свяжите найденные каталоги с установленным Решателем. В его окне подтвердите тот же диск один раз.</p>
     </div>
     <p class="task-access-notice" role="status" aria-live="polite">{props.notice}</p>
     <div class="task-access-actions">
-      <button type="button" disabled={props.busy || !props.count} onClick={props.onClose}>Продолжить</button>
-      <button type="button" disabled={props.busy} onClick={props.onClose}>Закрыть</button>
+      <button ref={proceed} type="button" disabled={props.busy || !props.count} onClick={props.onClose}>Продолжить</button>
+      <button ref={closeButton} type="button" disabled={props.busy} onClick={props.onClose}>Закрыть</button>
     </div>
   </dialog>;
 }
