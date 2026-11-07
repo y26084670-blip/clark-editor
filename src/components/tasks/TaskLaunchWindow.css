@@ -1,9 +1,6 @@
 .task-launch-window .floating-window-titlebar {
-    flex-basis: auto;
-    min-height: 38px;
-    padding-block: 5px;
-    color: #302600;
-    background: #ffdf55;
+    color: #ffdf55;
+    background: #29313a;
 }
 
 .task-launch-window .floating-window-title {
@@ -11,7 +8,7 @@
 }
 
 .task-launch-window .floating-window-actions button {
-    color: #302600;
+    color: #ffdf55;
 }
 
 .task-launch-window.is-minimized .floating-window-title {
@@ -20,6 +17,10 @@
 
 .task-launch-window.is-minimized .floating-window-actions button {
     color: #fff;
+}
+
+.task-launch-window.is-minimized .task-launch-refresh {
+    display: none;
 }
 
 .task-launch-window .task-launch-refresh {
@@ -194,7 +195,7 @@
 }
 .task-launch-mode { display: flex; flex-direction: column; justify-content: space-between; gap: 3px; }
 .task-launch-mpi, .task-launch-modes { box-sizing: border-box; width: 100%; }
-.task-launch-mpi { display: flex; align-items: center; gap: 4px; }
+.task-launch-mpi { display: flex; align-items: center; gap: 10px; padding-left: 34px; }
 .task-launch-mpi input { flex: 1; min-width: 0; }
 .task-launch-mode .task-launch-start { width: 100%; background: #244e77; }
 .task-launch-modes { display: grid; gap: 1px; padding: 3px 5px; border: 1px solid #536171; border-radius: 3px; }

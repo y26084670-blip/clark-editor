@@ -53,13 +53,24 @@ try {
   await checkPanelBounds("expanded queue matches both right panels");
   check("only minimize and close window actions remain", await queue.getByRole("button", { name: /На весь экран|На всю высоту|Восстановить размер/ }).count() === 0
     && await queue.evaluate(element => getComputedStyle(element).resize) === "none");
-  check("static yellow heading", await queue.locator(".floating-window-title").textContent()
+  check("compact dark heading with yellow text", await queue.locator(".floating-window-title").textContent()
     === "Список заданий для расчета: сформируйте перетаскиванием из списков в проектах и запустите расчет"
-    && await queue.locator(".floating-window-titlebar").evaluate(el => getComputedStyle(el).backgroundColor) === "rgb(255, 223, 85)");
+    && await queue.locator(".floating-window-titlebar").evaluate(el => {
+      const style = getComputedStyle(el);
+      return style.backgroundColor === "rgb(41, 49, 58)" && style.color === "rgb(255, 223, 85)"
+        && Math.abs(el.getBoundingClientRect().height - 39) < 1;
+    }));
   check("removed controls and counts are absent", await queue.locator(".task-launch-metadata,.task-launch-toolbar,.task-launch-counts").count() === 0);
   check("empty queue cannot launch", await rows.count() === 0 && await start.isDisabled());
   await drop(); await page.waitForFunction(() => ![...document.querySelectorAll(".task-launch-start")][0].disabled);
   check("drop adds the full catalog/project/task path", await rows.first().locator(".task-status-name").textContent() === "clark.projects/Проект 1/Задание");
+  const mpiLabel = await queue.locator(".task-launch-mpi > span").boundingBox();
+  const mpiInput = await queue.locator(".task-launch-mpi input").boundingBox();
+  const mpiRow = await queue.locator(".task-launch-mpi").boundingBox();
+  const taskName = await rows.first().locator(".task-status-name").boundingBox();
+  check("MPI label aligns with task paths while the input shrinks from the left", Math.abs(mpiLabel.x - taskName.x) < 1
+    && Math.abs(mpiInput.x + mpiInput.width - mpiRow.x - mpiRow.width) < 1
+    && mpiInput.x - mpiLabel.x - mpiLabel.width >= 9 && mpiInput.width < mpiRow.width * 0.7);
   await page.locator("#listTask .task-status-label").first().dragTo(list);
   await page.waitForTimeout(200);
   check("repeated drop keeps a single task", await rows.count() === 1);
@@ -97,11 +108,13 @@ try {
   await queue.getByRole("button", { name: "Свернуть окно", exact: true }).click();
   check("minimized queue is a compact movable titlebar", await queue.evaluate(element => element.classList.contains("is-minimized"))
     && (await queue.boundingBox()).width === 400 && (await queue.boundingBox()).height < 80);
+  check("refresh is hidden while the queue is minimized", await refresh.isHidden());
   bounds = await title.boundingBox();
   await page.mouse.move(bounds.x + 60, bounds.y + bounds.height / 2); await page.mouse.down();
   await page.mouse.move(100, 180, { steps: 5 }); await page.mouse.up();
   check("minimized window moves over the left panel", (await queue.boundingBox()).x < 150);
   await queue.getByRole("button", { name: "Развернуть окно", exact: true }).click();
+  check("refresh returns when the queue is restored", await refresh.isVisible());
   await checkPanelBounds("restore returns to the panels after moving the minimized window");
   await page.setViewportSize({ width: viewport.width + 100, height: viewport.height + 60 });
   await page.waitForTimeout(150);
