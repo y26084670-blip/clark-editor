@@ -94,7 +94,7 @@ test("changing Virtual to a physical purpose restores all physical geometry requ
 
 test("invalid or omitted physical elements cannot produce a false 2D label", () => {
     for (const bad of [element({ dp: vector([0, 2, 3]) }), element({ geoType: 99 }),
-        element({ geo: rows([20, 0, 0]) }), element({ symPs: 20001 }),
+        element({ geo: rows([20, 0, 0]) }), element({ symPs: 2 ** 32 }),
         element({ symR0: vector([NaN, 0, 0]) })]) {
         assert.equal(scene([element(), bad]).planar2D, false);
     }
@@ -111,4 +111,12 @@ test("collapsed triangular prisms keep their nonzero cross-section", () => {
     const vertices = [[-10, 0, 0], [10, 0, 0], [-10, 2, 0], [10, 2, 0],
         [-10, 0, 3], [10, 0, 3], [-10, 0, 3], [10, 0, 3]];
     assert.equal(scene([element({ geoType: 0, geo: vertices, dr: vector([0, 0, 0]) })]).planar2D, true);
+});
+
+test("an originals-only preview classifies hidden physical images in the solver frame", () => {
+    const model = { elements: [element({ symPs: 2, symTx: 7 })], general: { mirrorSymmetryX: -1, mirrorSymmetryY: -1 } };
+    const preview = buildGeometryScene(model, { originalOnly: true });
+    assert.equal(preview.counts.instances, 1);
+    assert.equal(preview.planar2D, false);
+    assert.equal(buildGeometryScene({ ...model, elements: [element()] }, { originalOnly: true }).planar2D, true);
 });

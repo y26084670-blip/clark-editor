@@ -18,10 +18,7 @@ import {
   geometryTimeState,
   sourceAmplitudeFactors,
 } from "../../services/visualization/geometryTimeModel.js";
-import {
-  buildSourceVectorScene,
-  SOURCE_VECTOR_LIMIT,
-} from "../../services/visualization/sourceVectorSceneModel.js";
+import { buildSourceVectorScene } from "../../services/visualization/sourceVectorSceneModel.js";
 import {
   GEOMETRY_CAMERA_COMMANDS,
   geometryCameraCommandFromKeyboardEvent,
@@ -29,10 +26,7 @@ import {
 } from "../../services/visualization/geometryCameraView.js";
 import { FloatingWindow } from "../window/FloatingWindow.jsx";
 import { GeometryMaterialLegend } from "./GeometryMaterialLegend.jsx";
-import {
-  GEOMETRY_INSTANCE_BUDGET,
-  ThreeGeometryViewport,
-} from "./ThreeGeometryViewport.jsx";
+import { ThreeGeometryViewport } from "./ThreeGeometryViewport.jsx";
 import "./GeometryViewerWindow.css";
 
 const EMPTY_COUNTS = Object.freeze({
@@ -57,7 +51,6 @@ const EMPTY_RENDER_STATS = Object.freeze({
 });
 
 const DIAGNOSTIC_REASONS = Object.freeze({
-  "instance-budget-exceeded": "превышен лимит образов",
   "invalid-geometry": "неполные или нечисловые координаты геометрии",
   "invalid-discretization": "слой дискретизации недоступен",
   "invalid-symmetry": "некорректное число образов симметрии",
@@ -102,6 +95,16 @@ function diagnosticLevel(diagnostic) {
 }
 
 export function GeometryViewerWindow(props) {
+  // One retained window per loaded task, released immediately on replacement.
+  const session = createMemo(previous => {
+    const key = props.taskKey;
+    if (previous && previous.key === key) return previous;
+    return props.open ? { key } : null;
+  });
+  return <Show when={session()} keyed>{session => <GeometryWindowContents {...props} taskKey={session.key} />}</Show>;
+}
+
+function GeometryWindowContents(props) {
   let viewerElement;
   let toolbarElement;
   let optionsPanelElement;
@@ -135,12 +138,17 @@ export function GeometryViewerWindow(props) {
   };
   let pendingTimeSelection;
 
-  const [sceneModel, setSceneModel] = createSignal(null);
+  // Keep the last displayed inputs while hidden. Reopening with new edits
+  // publishes only the newest model; the same references retain the old scene.
+  const model = createMemo(previous => props.open ? props.model : previous);
+  const moves = createMemo(previous => props.open ? props.moves : previous);
+  const selections = createMemo(previous => props.open ? props.selections : previous);
+  const amplitudes = createMemo(previous => props.open ? props.amplitudes : previous);
+  const sourceRows = createMemo(previous => props.open ? props.prescribedSources : previous);
   const [timeSelection, setTimeSelection] = createSignal({
     taskKey: props.taskKey,
     index: 0,
   });
-  const [sceneError, setSceneError] = createSignal("");
   const [viewportError, setViewportError] = createSignal("");
   const [viewRequest, setViewRequest] = createSignal(null);
   const [geometryTransparency, setGeometryTransparency] = createGeometryViewSetting("geometryTransparency", 0);
@@ -179,27 +187,16 @@ export function GeometryViewerWindow(props) {
 
   // Scope the index to the loaded task before any frame is projected, including
   // when another task is loaded while the floating window is closed.
-  const timeState = createMemo(() => geometryTimeState(
-    props.model?.general,
-    timeSelection().taskKey === props.taskKey ? timeSelection().index : 0,
-  ));
-  const timeFrame = createMemo(() => {
-    const state = timeState();
-    if (!props.open) return { ...state, model: props.model };
-    return buildGeometryTimeModel(props.model, props.moves, state.index);
-  });
+  const timeState = createMemo(() => geometryTimeState(model()?.general, timeSelection().index));
+  const timeFrame = createMemo(() => buildGeometryTimeModel(model(), moves(), timeState().index));
+  function buildScene(input) {
+    try { return { scene: buildGeometryScene(input), error: "" }; }
+    catch (error) { return { scene: null, error: error instanceof Error ? error.message : String(error) }; }
+  }
+  const baseScene = createMemo(() => buildScene(model()));
   const displaySceneResult = createMemo(() => {
-    if (!props.open) return { scene: null, error: "" };
-    const model = timeFrame().model;
-    if (model === props.model) return { scene: sceneModel(), error: "" };
-    try {
-      return { scene: buildGeometryScene(model), error: "" };
-    } catch (error) {
-      return {
-        scene: null,
-        error: error instanceof Error ? error.message : String(error),
-      };
-    }
+    const input = timeFrame().model;
+    return input === model() ? baseScene() : buildScene(input);
   });
   // Equal scene references suppress surface rebuilds for amplitude-only time
   // changes when the geometry itself has no trajectory.
@@ -253,8 +250,8 @@ export function GeometryViewerWindow(props) {
       regions: regionsMode(),
     },
     selections: {
-      elements: new Set(props.selections?.elements ?? []),
-      regions: new Set(props.selections?.regions ?? []),
+      elements: ["selected", "exceptSelected"].includes(elementsMode()) ? new Set(selections()?.elements) : undefined,
+      regions: ["selected", "exceptSelected"].includes(regionsMode()) ? new Set(selections()?.regions) : undefined,
     },
     symmetry: {
       axial: showAxialSymmetry(),
@@ -265,24 +262,23 @@ export function GeometryViewerWindow(props) {
   }));
 
   const sourceScene = createMemo(() => {
-    if (!props.open || !showPrescribedSources() || !displayScene()) return null;
+    if (!showPrescribedSources() || !displayScene()) return null;
     try {
       const frame = timeFrame();
       const amplitude = sourceAmplitudeFactors(
         frame.model?.elements,
-        props.amplitudes,
+        amplitudes(),
         frame.time,
       );
       const scene = buildSourceVectorScene(
         displayScene(),
         frame.model?.elements,
-        props.prescribedSources,
+        sourceRows(),
         {
-          limit: SOURCE_VECTOR_LIMIT,
           general: frame.model?.general,
           filters: filters(),
           amplitudeFactors: amplitude.factors,
-          referenceScene: sceneModel(),
+          referenceScene: baseScene().scene,
         },
       );
       return {
@@ -327,36 +323,6 @@ export function GeometryViewerWindow(props) {
     ...(displayScene()?.diagnostics ?? []),
     ...(sourceScene()?.diagnostics ?? []),
   ];
-  const budgetWarning = () => {
-    const stats = renderStats();
-    const messages = [];
-    if (stats.truncated) {
-      messages.push(
-        `Показаны первые ${stats.renderedInstances} экземпляров из ` +
-        `${stats.selectedInstances}. Измените режимы показа.`,
-      );
-    }
-    if (stats.discretizationTruncated) {
-      messages.push(
-        "Часть линий дискретизации или точек скрыта из-за ограничения " +
-        "объёма 3D-сцены.",
-      );
-    }
-    if (sourceScene()?.rowsTruncated) {
-      messages.push(
-        `Показ заданных источников ограничен первыми ${SOURCE_VECTOR_LIMIT} ` +
-        "строками таблицы.",
-      );
-    }
-    if (sourceScene()?.imagesTruncated) {
-      messages.push(
-        "Показ заданных источников с учётом симметрии ограничен " +
-        `${SOURCE_VECTOR_LIMIT} стрелками. Измените режимы показа.`,
-      );
-    }
-    return messages.join(" ");
-  };
-
   const updatePanelPosition = () => {
     if (!openPanel() || !viewerElement || !activePanelButton) return;
 
@@ -478,29 +444,13 @@ export function GeometryViewerWindow(props) {
       setFlightNotice("");
       setOpenPanel(null);
       setViewRequest(null);
-      setSceneModel(null);
-      setSceneError("");
-      setViewportError("");
-      setRenderStats(EMPTY_RENDER_STATS);
-      return;
-    }
-
-    const model = props.model;
-    setViewportError("");
-    setRenderStats(EMPTY_RENDER_STATS);
-
-    try {
-      setSceneModel(buildGeometryScene(model));
-      setSceneError("");
-    } catch (error) {
-      setSceneModel(null);
-      setSceneError(error instanceof Error ? error.message : String(error));
     }
   });
 
   return (
     <FloatingWindow
       open={props.open}
+      retainContent
       title="3D-геометрия"
       onClose={props.onClose}
       class="geometry-viewer-floating-window"
@@ -1028,7 +978,8 @@ export function GeometryViewerWindow(props) {
             onFlightSpeedChange={showFlightSpeedNotice} onFlightError={setFlightNotice}
             onFlightProjectionRestore={projection => setOrthographicView(projection === "orthographic")}
             scene={displayScene()}
-            geometryRevision={props.model}
+            geometryRevision={model()}
+            active={props.open}
             beforeRender={commitPendingTime}
             onFrameController={(controller) => {
               viewportFrameController = controller;
@@ -1050,7 +1001,6 @@ export function GeometryViewerWindow(props) {
             projection={orthographicView() ? "orthographic" : "perspective"}
             viewRequest={viewRequest()}
             fitAllPadding={FLOATING_FIT_ALL_PADDING}
-            instanceBudget={GEOMETRY_INSTANCE_BUDGET}
             onRenderStats={setRenderStats}
             performanceEnabled={performanceEnabled()}
             onPerformance={setRenderPerformance}
@@ -1065,13 +1015,6 @@ export function GeometryViewerWindow(props) {
                 <span>geo {renderPerformance().geometries} · tex {renderPerformance().textures} · programs {renderPerformance().programs}</span>
               </Show>
             </div>
-          </Show>
-          <Show when={budgetWarning()} keyed>
-            {(warning) => (
-              <div class="geometry-viewer-budget-warning" role="status">
-                {warning}
-              </div>
-            )}
           </Show>
         </div>
 
@@ -1092,9 +1035,9 @@ export function GeometryViewerWindow(props) {
           <output for="geometry-viewer-time-index">{timeLabel()}</output>
         </div>
 
-        <Show when={sceneError() || displaySceneResult().error || viewportError()}>
+        <Show when={baseScene().error || displaySceneResult().error || viewportError()}>
           <div class="geometry-viewer-error" role="alert">
-            {sceneError() || displaySceneResult().error || viewportError()}
+            {baseScene().error || displaySceneResult().error || viewportError()}
           </div>
         </Show>
 

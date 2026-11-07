@@ -6,6 +6,8 @@ import { buildGeometryScene }
 import { GEOMETRY_MATERIAL_KINDS }
     from "../src/services/visualization/geometryMaterialStyle.js";
 
+import { buildSourceVectorScene } from "../src/services/visualization/sourceVectorSceneModel.js";
+
 function vector(values) {
     return values.map(value => [value]);
 }
@@ -435,11 +437,11 @@ test("large translated direct geometry stays representable", () => {
     assert.deepEqual(scene.diagnostics, []);
 });
 
-test("symmetry preflight rejects unsafe and excessive counts before expansion", () => {
+test("symmetry preflight rejects unrepresentable counts before expansion", () => {
     const scene = buildGeometryScene({
         elements: [
             element({ symLs: 1e20 }),
-            element({ symLs: 1_000_000_000 }),
+            element({ symLs: 2 ** 32 }),
             element({ symYa: Number.NaN }),
             element({ symPs: 3, symTx: 1e308 }),
         ],
@@ -451,7 +453,7 @@ test("symmetry preflight rejects unsafe and excessive counts before expansion", 
         scene.diagnostics.map(item => item.code),
         [
             "invalid-symmetry",
-            "instance-budget-exceeded",
+            "invalid-symmetry",
             "invalid-transform",
             "invalid-transform",
             "invalid-transform",
@@ -491,4 +493,30 @@ test("empty and non-array model parts produce an empty scene", () => {
         lines: 0,
         skipped: 0,
     });
+});
+
+test("all selected symmetry images survive the former per-record and scene caps", () => {
+    const model = { elements: [element({ symPs: 20_001, symTx: 2 }), element()] };
+    const full = buildGeometryScene(model);
+    assert.deepEqual(full.diagnostics, []);
+    assert.equal(full.counts.instances, 20_002);
+    assert.equal(full.primitives[0].instances.at(-1).ps, 20_000);
+    const original = buildGeometryScene(model, { originalOnly: true });
+    assert.equal(original.counts.instances, 2);
+    assert.deepEqual(original.primitives[0].instances[0], full.primitives[0].instances[0]);
+});
+
+test("all prescribed MHJ rows and their physical images retain their row indices", () => {
+    const cells = 100_001;
+    const record = element({ targ: 1, dp: vector([cells, 1, 1]), symPs: 2, symTx: 3, symKyp: 1 });
+    const scene = buildGeometryScene({ elements: [record] });
+    const values = Array(cells).fill([0, 0, 0]);
+    values[cells - 1] = [1, 0, 0];
+    const last = buildSourceVectorScene(scene, [record], [{ v: values }]);
+    assert.equal(last.vectors.length, 2);
+    assert.ok(last.vectors.every(v => v.sourceRowIndex === cells - 1));
+    values.fill([1, 0, 0], 0, 50_001);
+    const all = buildSourceVectorScene(scene, [record], [{ v: values }]);
+    assert.equal(all.vectors.length, 100_004);
+    assert.equal(all.truncated, false);
 });

@@ -523,11 +523,12 @@ export function FloatingWindow(props) {
   };
 
   return (
-    <Show when={props.open && ready()}>
+    <Show when={ready() && (props.open || props.retainContent)}>
       <Portal>
         <div
           class="floating-window-layer"
-          style={{ "z-index": props.zIndex }}
+          inert={!props.open}
+          style={{ "z-index": props.zIndex, display: props.open ? undefined : "none" }}
         >
           <section
             ref={attachWindowElement}
