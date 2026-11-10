@@ -5,6 +5,15 @@
   },
   "entries": [
     {
+      "id": "planar-2d-cross-section-20261110",
+      "revision": 1,
+      "category": "interface",
+      "release": "planar-2d-geometry-20261110",
+      "date": "2026-11-10",
+      "title": "Поперечное сечение шестигранника в 2D",
+      "summary": "В 2D-режиме сняты ограничения на параллельность сторон и схлопывание рёбер поперечного сечения шестигранника."
+    },
+    {
       "id": "planar-2d-mode-20261029",
       "revision": 9,
       "category": "computation",
