@@ -190,7 +190,7 @@ export function formatComparisonReport(first, second, lines) {
   return [`Задание 1: ${first.label}`, `Задание 2: ${second.label}`,
     "Абсолютная СКН по компонентам всех сохранённых шагов; координаты исключены.", "",
     ...(lines.length ? lines : ["H5-файлы отсутствуют в обоих заданиях."]), "",
-    "Итоговое время (мин):\tзадание 1\tзадание 2", ...timings,
+    "Итоговое время (мин):", "\tзадание 1\tзадание 2", ...timings,
     ...[first, second].flatMap((task, i) => task.timingError ? [`Задание ${i + 1}: ${task.timingError}`] : [])].join("\n");
 }
 

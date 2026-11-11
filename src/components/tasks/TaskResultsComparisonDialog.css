@@ -14,7 +14,7 @@
 .task-results-comparison-dialog::backdrop { background: rgb(0 0 0 / 58%); }
 .task-results-comparison-dialog h2 { margin: 0 0 2px; font-size: 19px; }
 .task-results-comparison-choice { display: grid; grid-template-columns: 90px minmax(0, 1fr); align-items: center; gap: 10px; }
-.task-results-comparison-choice select { min-width: 0; padding: 7px; color: #edf2f7; background: #303740; border: 1px solid #697683; }
+.task-results-comparison-choice select { min-width: 0; width: 100%; max-width: none; box-sizing: border-box; padding: 7px; color: #edf2f7; background: #303740; border: 1px solid #697683; }
 .task-results-comparison-dialog p { margin: 0; }
 .task-results-comparison-notice { white-space: pre-wrap; color: #ffd394; }
 .task-results-comparison-dialog textarea {

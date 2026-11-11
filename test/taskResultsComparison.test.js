@@ -159,6 +159,7 @@ test("task scanning is read-only, includes every H5 extension and handles missin
 test("report contains separately dimensioned residuals and exactly four timing rows with two values", () => {
   const report = formatComparisonReport({ label: "a", timings: [1, 2, 3, 4] }, { label: "b", timings: [5, 6, null, 8] }, ["JE.h5 — J: 0 А/мм²; E: 1 В/м"]);
   assert.match(report, /JE.h5.*А\/мм².*В\/м/);
+  assert.match(report, /Итоговое время \(мин\):\n\tзадание 1\tзадание 2\nПолное:/);
   assert.match(report, /Полное:\t1\t5\nМатрицы:\t2\t6\nИсточники:\t3\tнет данных\nПоле:\t4\t8$/);
 });
 

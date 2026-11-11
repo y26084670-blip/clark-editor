@@ -81,6 +81,7 @@ try {
   assert.match(text, /Полное:\t1\t2\nМатрицы:\t1.1\t2.1\nИсточники:\t1.2\t2.2\nПоле:\t1.3\t2.3/);
   await report.focus(); await page.keyboard.press("ControlOrMeta+A"); await page.keyboard.press("ControlOrMeta+C");
   assert.equal(await page.evaluate(() => navigator.clipboard.readText()), text);
+  await report.press("ArrowLeft");
   const out = process.env.CHECK_OUTPUT || "/tmp/clark-task-results-comparison";
   await mkdir(out, { recursive: true }); await page.screenshot({ path: join(out, "comparison.png") });
   await dialog.getByRole("combobox", { name: "Задание 2", exact: true }).selectOption("Project2/A");
