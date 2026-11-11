@@ -608,7 +608,7 @@ export function TaskLaunchWindow(props) {
               <span>MPI</span>
               <input type="text" inputMode="numeric" aria-label="Число процессов MPI" value={mpiValue()} disabled={locked() || launchMode() === "import"}
                 aria-invalid={launchMode() !== "import" && Boolean(mpiError())}
-                title="Число процессов для расчёта и полевого решателя цепи. default — значение из настроек Clark. Импорт не использует MPI."
+                title="Число процессов для расчёта и полевого решателя цепи. Для постоянного значения измените mpiRanks в clark.app\config\runtime.json. Значение в этом поле применяется к текущему запуску; default — значение из настроек Clark. Импорт не использует MPI."
                 onInput={event => { setMpiEdited(true); setMpiValue(event.currentTarget.value); }}
                 onBlur={() => { if (!mpiValue().trim()) setMpiValue("default"); }} />
             </label>
