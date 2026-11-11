@@ -44,7 +44,7 @@ test("fullJNewton is the last model parameter with names, states and complete he
     const names = Object.keys(schema.properties);
     assert.equal(names.at(-2), "CF_HTSEPS");
     assert.equal(names.at(-1), "fullJNewton");
-    assert.equal(names.length, 12);
+    assert.equal(names.length, 13);
     assert.equal(property.type, FIELD_TYPES.BOOLEAN);
     assert.equal(property.default, false);
     assert.match(property.label, /fullJNewton/);

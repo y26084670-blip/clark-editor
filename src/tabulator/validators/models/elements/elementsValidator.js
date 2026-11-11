@@ -272,14 +272,15 @@ function validateGeometry(elements, diagnostics, settings) {
 
         for (const [check, message] of GEOMETRY_CHECK_DIAGNOSTICS) {
             if (validation.checks[check] === false) {
-                pushGeometryError(
-                    diagnostics,
-                    index,
-                    message + geometryMeasurementText(
-                        check,
-                        validation.measurements[check],
-                    ),
-                );
+                const detail = message + geometryMeasurementText(check, validation.measurements[check]);
+                if (check.startsWith("parallel")) {
+                    diagnostics.push(createWarning({
+                        tab: TABS.ELEMENTS, row: index + 1, property: "geo",
+                        message: detail + ". В конечной 3D-задаче для этой геометрии используется полярная квадратура.",
+                    }));
+                } else {
+                    pushGeometryError(diagnostics, index, detail);
+                }
             }
         }
     });

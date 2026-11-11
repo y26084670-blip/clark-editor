@@ -103,20 +103,20 @@ test("elements accepts valid direct vertices", () => {
     assert.deepEqual(validate([element()]), []);
 });
 
-test("elements reports invalid direct vertices at their record row", () => {
+test("elements identifies the general 3D geometry at its record row", () => {
     const diagnostics = validate([
         element(),
         element({ geo: invalidVertices() }),
     ]);
 
     assert.equal(diagnostics.length, 1);
-    assert.equal(diagnostics[0].level, "error");
+    assert.equal(diagnostics[0].level, "warning");
     assert.equal(diagnostics[0].tab.id, "elements");
     assert.equal(diagnostics[0].row, 2);
     assert.equal(diagnostics[0].property, "geo");
     assert.equal(
         diagnostics[0].message,
-        "Рёбра 13 и 24 не параллельны; угол = 14,03624347 °; требуется ≤ 0,1 °",
+        "Рёбра 13 и 24 не параллельны; угол = 14,03624347 °; требуется ≤ 0,1 °. В конечной 3D-задаче для этой геометрии используется полярная квадратура.",
     );
 });
 
@@ -150,7 +150,7 @@ test("elements reports connecting-edge failures separately", () => {
         const diagnostics = validate([element({ geo })]);
 
         assert.ok(diagnostics.some(item => item.message ===
-            message + "; угол = 0,2 °; требуется ≤ 0,1 °"));
+            message + "; угол = 0,2 °; требуется ≤ 0,1 °. В конечной 3D-задаче для этой геометрии используется полярная квадратура."));
     }
 });
 
@@ -431,7 +431,7 @@ test("geometry diagnostics use the active profile and contain no arithmetic tail
     const conrab=[{GEO_ANGLE:0.1},{GEO_ANGLE:0.2}];
     const errors=validate([element({geo})],{conrab,general:{doubleFloat:false}});
     assert.equal(errors.length,1);
-    assert.equal(errors[0].message,"Рёбра 13 и 24 не параллельны; угол = 0,15 °; требуется ≤ 0,1 °");
+    assert.equal(errors[0].message,"Рёбра 13 и 24 не параллельны; угол = 0,15 °; требуется ≤ 0,1 °. В конечной 3D-задаче для этой геометрии используется полярная квадратура.");
     assert.doesNotMatch(errors[0].message,/превышение|недостаток|раза/);
     assert.deepEqual(validate([element({geo})],{conrab,general:{doubleFloat:true}}),[]);
     conrab[0].GEO_ANGLE=null;
