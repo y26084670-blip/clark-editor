@@ -1,7 +1,7 @@
 {
   "name": "samp_app4",
   "private": true,
-  "version": "4.95.0",
+  "version": "4.96.0",
   "type": "module",
   "scripts": {
     "test": "node --test",
@@ -17,6 +17,7 @@
   "dependencies": {
     "chart.js": "^4.5.1",
     "gifuct-js": "2.1.2",
+    "h5wasm": "^0.10.3",
     "solid-js": "^1.9.12",
     "tabulator-tables": "^6.5.0",
     "three": "^0.180.0"

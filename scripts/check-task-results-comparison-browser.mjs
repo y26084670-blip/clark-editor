@@ -1,0 +1,110 @@
+// Integrated Editor menu/dialog check with real H5 files in an isolated OPFS.
+import assert from "node:assert/strict";
+import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+import { fileURLToPath } from "node:url";
+import { createServer } from "vite";
+import h5wasm from "h5wasm/node";
+
+const root = fileURLToPath(new URL("../", import.meta.url));
+const temporary = await mkdtemp(join(tmpdir(), "clark-comparison-browser-"));
+await h5wasm.ready;
+const assets = new Map();
+async function h5(task, name, columns, arrCount, hasCoo, rows) {
+  const path = join(temporary, `${task}-${name}`), file = new h5wasm.File(path, "w");
+  try {
+    const header = file.create_group("HEADER");
+    for (const [key, value] of Object.entries({ columns, arrCount, hasCoo })) header.create_dataset({ name: key, data: BigInt64Array.of(BigInt(value)), shape: [] });
+    for (const step of [0, 2]) file.create_dataset({ name: String(step).padStart(6, "0"), data: new Float64Array(rows.flat()), shape: [rows.length, 3 * hasCoo + columns * arrCount] });
+  } finally { file.close(); }
+  assets.set(`/__comparison-data/${task}/${name}`, await readFile(path));
+}
+for (const task of [1, 2]) {
+  await h5(task, "JE.h5", 3, 2, 1, [task === 1 ? [0, 0, 0, 0, 0, 0, 0, 0, 0] : [999, 999, 999, 1, 2, 2, 10, 10, 10]]);
+  await h5(task, "MH.h5", 3, 2, 1, Array.from({ length: task }, () => [0, 0, 0, 0, 0, 0, 0, 0, 0]));
+  await h5(task, "Q.h5", 1, 1, 1, [[0, 0, 0, 0]]);
+  assets.set(`/__comparison-data/${task}/bad.h5`, Buffer.from("not HDF5"));
+}
+await h5(1, "PSI.h5", 1, 1, 0, [[1]]);
+const html = `<html><body><div id="root"></div><script type="module">
+import {render} from 'solid-js/web';
+import App from '/src/App.jsx';
+const root=await navigator.storage.getDirectory();
+const disk=await root.getDirectoryHandle('comparison-disk',{create:true});
+const catalog=await disk.getDirectoryHandle('clark.projects',{create:true});
+for(const [index,projectName,taskName] of [[1,'Project2','A'],[2,'Project10','B']]){
+ const project=await catalog.getDirectoryHandle(projectName,{create:true});
+ const task=await project.getDirectoryHandle(taskName,{create:true});
+ const output=await task.getDirectoryHandle('output3XX',{create:true});
+ for(const name of ['JE.h5','MH.h5','Q.h5','bad.h5',...(index===1?['PSI.h5']:[])]){
+  const bytes=await(await fetch('/__comparison-data/'+index+'/'+name)).arrayBuffer();
+  const writer=await(await output.getFileHandle(name,{create:true})).createWritable();await writer.write(bytes);await writer.close();
+ }
+ const writer=await(await output.getFileHandle('timing.txt',{create:true})).createWritable();
+ await writer.write('Матрица (мин): 999\\nИтого за расчет:\\nПолное время (мин): '+index+'\\nМатрица (мин): '+index+'.1\\nРасчет источников (мин): '+index+'.2\\nРасчет поля (мин): '+index+'.3\\n');await writer.close();
+}
+window.showDirectoryPicker=async()=>disk;
+render(App,document.getElementById('root'));
+window.comparisonFixture={ready:true};
+</script></body></html>`;
+const server = await createServer({ root, base: "/clark-editor/", cacheDir: join(temporary, "vite-cache"),
+  server: { host: "127.0.0.1", port: Number(process.env.COMPARISON_PORT || 0), strictPort: false },
+  plugins: [{ name: "comparison-browser-fixture", configureServer(server) {
+    server.middlewares.use(async (request, response, next) => {
+      const path = request.url?.split("?")[0];
+      if (assets.has(path)) { response.setHeader("Content-Type", "application/octet-stream"); response.end(assets.get(path)); return; }
+      if (!path?.endsWith("/__comparison-fixture")) return next();
+      response.setHeader("Content-Type", "text/html; charset=utf-8");
+      response.end(await server.transformIndexHtml(request.url, html));
+    });
+  } }],
+});
+await server.listen();
+const origin = `http://127.0.0.1:${server.httpServer.address().port}`;
+if (process.argv.includes("--serve-only")) {
+  console.log(`Comparison fixture: ${origin}/clark-editor/__comparison-fixture`);
+  await new Promise(() => {});
+}
+let browser;
+try {
+  const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || "playwright");
+  browser = await chromium.launch({ executablePath: process.env.CHROMIUM_EXECUTABLE || undefined, headless: true,
+    args: ["--no-sandbox", "--disable-dev-shm-usage", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"] });
+  const context = await browser.newContext({ viewport: { width: 1500, height: 1050 }, permissions: ["clipboard-read", "clipboard-write"] });
+  const page = await context.newPage(), errors = [];
+  page.setDefaultTimeout(20000); page.on("pageerror", error => errors.push(error.message));
+  await page.goto(`${origin}/clark-editor/__comparison-fixture`);
+  await page.waitForFunction(() => window.comparisonFixture?.ready);
+  const access = page.locator(".task-access-dialog");
+  await access.getByRole("button", { name: "Выбрать диск с проектами", exact: true }).click();
+  await access.getByRole("button", { name: "Продолжить", exact: true }).click();
+  await page.locator("#listProject").selectOption("Project2");
+  await page.locator("#listTask .task-status-label").filter({ hasText: /^A$/ }).click();
+  await page.getByRole("button", { name: "Открыть дополнительные функции", exact: true }).click();
+  const section = page.locator(".side-panel-section").filter({ has: page.locator(".side-panel-section-title", { hasText: "Работа с заданиями" }) });
+  assert.equal(await section.getByRole("button").last().textContent(), "Сравнить результаты");
+  await section.getByRole("button", { name: "Сравнить результаты", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Сравнить результаты", exact: true });
+  await dialog.waitFor();
+  await dialog.getByRole("combobox", { name: "Задание 2", exact: true }).selectOption("Project10/B");
+  const report = dialog.getByRole("textbox", { name: "Результаты сравнения", exact: true });
+  await page.waitForFunction(() => document.querySelector('[aria-label="Результаты сравнения"]')?.value.includes("Итоговое время"));
+  const text = await report.inputValue();
+  assert.match(text, /JE.h5 — J: 1.732051e\+0 А\/мм²; E: 1.000000e\+1 В\/м/);
+  assert.match(text, /MH.h5 — число записей различается: 2 \/ 4/);
+  assert.match(text, /PSI.h5 — есть только в задании 1/);
+  assert.match(text, /bad.h5 — ошибка:/); assert.match(text, /Q.h5 — Q: 0 МВт\/м³/);
+  assert.match(text, /Полное:\t1\t2\nМатрицы:\t1.1\t2.1\nИсточники:\t1.2\t2.2\nПоле:\t1.3\t2.3/);
+  await report.focus(); await page.keyboard.press("ControlOrMeta+A"); await page.keyboard.press("ControlOrMeta+C");
+  assert.equal(await page.evaluate(() => navigator.clipboard.readText()), text);
+  const out = process.env.CHECK_OUTPUT || "/tmp/clark-task-results-comparison";
+  await mkdir(out, { recursive: true }); await page.screenshot({ path: join(out, "comparison.png") });
+  await dialog.getByRole("combobox", { name: "Задание 2", exact: true }).selectOption("Project2/A");
+  await page.waitForFunction(() => document.querySelector('[aria-label="Результаты сравнения"]')?.value.includes("JE.h5 — J: 0 А/мм²; E: 0 В/м"));
+  await dialog.getByRole("combobox", { name: "Задание 2", exact: true }).selectOption("Project10/B");
+  await dialog.getByRole("button", { name: "Закрыть", exact: true }).click();
+  await dialog.waitFor({ state: "hidden" });
+  assert.deepEqual(errors, []);
+  console.log("PASS: Editor menu, two projects, real H5, dimensions, counts, missing/corrupt files, final timing, ordinary copy, replacement and close");
+} finally { await browser?.close(); await server.close(); await rm(temporary, { recursive: true, force: true }); }
