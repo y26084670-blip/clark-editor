@@ -83,3 +83,19 @@ test("absolute tolerances are finite, positive and identify the correct profile"
         }
     }
 });
+test("3D integration labels and polar accuracy in percent for both precisions", () => {
+    for (const key of ["UZMIN", "LONGD", "DIPOLE_RTOL", "POLAR_EPS_PERCENT"]) {
+        assert.ok(schema.properties[key].label.startsWith("(3D): "));
+    }
+    assert.match(schema.properties.POLAR_EPS_PERCENT.description, /конечной 3D/);
+    const model = deserialize([{}, { POLAR_EPS_PERCENT: 0.2 }], schema);
+    assert.equal(model[0].POLAR_EPS_PERCENT, 0.05);
+    assert.equal(serialize(model, schema)[1].POLAR_EPS_PERCENT, 0.2);
+    for (const invalid of [0, -1, 100, Infinity, NaN, false, "0.05", null]) {
+        model[1].POLAR_EPS_PERCENT = invalid;
+        const diagnostics = [];
+        conrabValidator({ getModel: () => ({ conrab: model }) }, diagnostics);
+        assert.equal(diagnostics.length, 1);
+        assert.equal(diagnostics[0].property, "POLAR_EPS_PERCENT");
+    }
+});

@@ -46,6 +46,15 @@ export function conrabValidator(
                 }));
             }
         }
+        if (!Number.isFinite(record.POLAR_EPS_PERCENT) || record.POLAR_EPS_PERCENT <= 0 || record.POLAR_EPS_PERCENT >= 100) {
+            diagnostics.push(createError({
+                tab: TABS.CONRAB,
+                row: row + 1,
+                property: "POLAR_EPS_PERCENT",
+                message: `POLAR_EPS_PERCENT (${row === 0 ? "Float32" : "Float64"}): `
+                    + "требуется конечное число 0 < POLAR_EPS_PERCENT < 100 (%).",
+            }));
+        }
         if (!Number.isFinite(record.DIPOLE_RTOL) || record.DIPOLE_RTOL < 0 || record.DIPOLE_RTOL >= 1) {
             diagnostics.push(createError({
                 tab: TABS.CONRAB,

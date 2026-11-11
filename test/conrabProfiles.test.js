@@ -130,7 +130,7 @@ function validate(conrab) {
 }
 
 test("conrab model validation rejects every non-two-profile shape", () => {
-    assert.deepEqual(validate(profiles.map(p => ({ ...p, CF_FMMEPS: 0.01, CF_HTSEPS: 0.01, DIPOLE_RTOL: 0.001 }))), []);
+    assert.deepEqual(validate(profiles.map(p => ({ ...p, CF_FMMEPS: 0.01, CF_HTSEPS: 0.01, DIPOLE_RTOL: 0.001, POLAR_EPS_PERCENT: 0.05 }))), []);
     assert.deepEqual(validate(null), []);
 
     for (const invalid of [
