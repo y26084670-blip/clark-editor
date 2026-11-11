@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import h5wasm from "h5wasm/node";
 import {
-  compareH5Results, compareResultFilePairs, compareTaskResults, formatComparisonReport,
+  compareH5Results, compareResultFilePairs, compareTaskResults, formatComparisonReport, formatFileComparison,
   listComparisonTasks, parseFinalTimings, readComparisonTask, resultFilePairs,
 } from "../src/services/taskResultsComparisonService.js";
 
@@ -36,15 +36,15 @@ async function fixtures(body) {
 }
 
 for (const Type of [Float32Array, Float64Array]) {
-  test(`real H5 ${Type.name}: separate J/E RMS includes every component, row and saved step, excludes coordinates`, async () => fixtures(make => {
-    const a = make("JE", [[0, 0, 0, 0, 0, 0, 0, 0, 0], [1, 2, 3, 0, 0, 0, 0, 0, 0]], { Type });
+  test(`real H5 ${Type.name}: separate relative J/E norms include every component, row and saved step, exclude coordinates`, async () => fixtures(make => {
+    const a = make("JE", [[0, 0, 0, 1, 2, 2, 2, 2, 2], [1, 2, 3, 1, 2, 2, 2, 2, 2]], { Type });
     const b = make("JE", step => Array.from({ length: 2 }, () => [999, -999, Infinity,
-      ...(step === 0 ? [1, 2, 2] : [4, 0, 0]), 10, 10, 10]), { Type });
+      ...(step === 0 ? [2, 4, 4] : [5, 2, 2]), 12, 12, 12]), { Type });
     const result = compareH5Results("JE.h5", a, b, { chunkRows: 1 });
     assert.equal(result.records, 4);
-    assert.deepEqual(result.groups.map(g => [g.label, g.unit, g.components]), [["J", "А/мм²", 12], ["E", "В/м", 12]]);
-    assert.ok(Math.abs(result.groups[0].rms - Math.sqrt(25 / 6)) < 1e-12);
-    assert.equal(result.groups[1].rms, 10);
+    assert.deepEqual(result.groups.map(g => [g.label, g.components]), [["J", 12], ["E", 12]]);
+    assert.ok(Math.abs(result.groups[0].relative - Math.sqrt(25 / 18)) < 1e-12);
+    assert.equal(result.groups[1].relative, 5);
     assert.deepEqual(compareH5Results("JE.h5", a, b, { chunkRows: 100 }), result);
   }));
 }
@@ -52,22 +52,23 @@ for (const Type of [Float32Array, Float64Array]) {
 test("different precision can compare directly; equal physical results give zero", async () => fixtures(make => {
   const a = make("MH", [[1, 2, 3, 1, 2, 3, 4, 5, 6]], { Type: Float32Array });
   const b = make("MH", [[9, 9, 9, 1, 2, 3, 4, 5, 6]], { Type: Float64Array });
-  assert.deepEqual(compareH5Results("mh.H5", a, b).groups.map(g => [g.label, g.rms, g.unit]), [["M", 0, "кА/м"], ["H", 0, "кА/м"]]);
+  assert.deepEqual(compareH5Results("mh.H5", a, b).groups.map(g => [g.label, g.relative]), [["M", 0], ["H", 0]]);
 }));
 
-test("force and moment retain separate physical dimensions", async () => fixtures(make => {
-  const a = make("FM", [[0, 0, 0, 0, 0, 0]]), b = make("FM", [[1, 1, 1, 2, 2, 2]]);
-  assert.deepEqual(compareH5Results("FM.h5", a, b).groups.map(g => [g.label, g.rms, g.unit]), [["F", 1, "Н"], ["момент", 2, "Н·м"]]);
+test("force and moment are normalized separately against task 1", async () => fixtures(make => {
+  const a = make("FM", [[1, 1, 1, 2, 2, 2]]), b = make("FM", [[2, 2, 2, 8, 8, 8]]);
+  assert.deepEqual(compareH5Results("FM.h5", a, b).groups.map(g => [g.label, g.relative]), [["F", 1], ["момент", 3]]);
 }));
 
-test("vector potential is reported in physical T*m units; scalar flux and work residuals stay scalar", async () => fixtures(make => {
-  const a = make("AS", [[0, 0, 0, 0, 0, 0]]), b = make("AS", [[0, 0, 0, 1, 1, 1]]);
+test("relative vector potential does not depend on unit conversion; scalar quantities stay scalar", async () => fixtures(make => {
+  const a = make("AS", [[0, 0, 0, 1, 1, 1]]), b = make("AS", [[0, 0, 0, 2, 2, 2]]);
   const result = compareH5Results("AS.h5", a, b).groups[0];
-  assert.equal(result.unit, "Тл·м"); assert.equal(result.rms, 4 * Math.PI * 1e-7);
+  assert.equal(result.relative, 1);
+  assert.equal(result.unit, undefined);
   for (const name of ["PSI", "JE_work"]) {
     const coo = name === "PSI" ? [] : [1, 2, 3];
     const x = make(name, [[...coo, 1], [...coo, 3]]), y = make(name, [[...coo, 2], [...coo, 4]]);
-    assert.equal(compareH5Results(`${name}.h5`, x, y).groups[0].rms, 1);
+    assert.ok(Math.abs(compareH5Results(`${name}.h5`, x, y).groups[0].relative - Math.sqrt(.2)) < 1e-15);
   }
 }));
 
@@ -99,10 +100,30 @@ test("empty files, unsupported units and malformed layouts never produce a misle
   assert.throws(() => compareH5Results("PSI.h5", c, d, { chunkRows: 0 }), /размер/);
 }));
 
-test("stable RMS preserves tiny/large finite residuals and rejects NaN", async () => fixtures(make => {
-  const a = make("PSI", [[0]]);
-  for (const delta of [1e-200, 1e200]) assert.equal(compareH5Results("PSI.h5", a, make("PSI", [[delta]])).groups[0].rms, delta);
+test("relative norms preserve tiny/large values, avoid difference overflow and reject NaN", async () => fixtures(make => {
+  for (const value of [1e-200, 1e200, Number.MIN_VALUE]) {
+    const a = make("PSI", [[value]]), b = make("PSI", [[2 * value]]);
+    assert.equal(compareH5Results("PSI.h5", a, b).groups[0].relative, 1);
+  }
+  const a = make("PSI", [[1e308]]), b = make("PSI", [[-1e308]]);
+  assert.equal(compareH5Results("PSI.h5", a, b).groups[0].relative, 2);
   assert.throws(() => compareH5Results("PSI.h5", a, make("PSI", [[NaN]])), /нечисловые/);
+}));
+
+test("task 1 is the reference, so swapping tasks changes normalization", async () => fixtures(make => {
+  const a = make("PSI", [[1], [2]]), b = make("PSI", [[2], [4]]);
+  assert.equal(compareH5Results("PSI.h5", a, b).groups[0].relative, 1);
+  assert.equal(compareH5Results("PSI.h5", b, a).groups[0].relative, .5);
+}));
+
+test("zero reference is explicit: two zero vectors give zero, a nonzero difference gives infinity", async () => fixtures(make => {
+  const a = make("JE", [[0, 0, 0, 0, 0, 0, 2, 2, 2]]), b = make("JE", [[0, 0, 0, 1, 0, 0, 3, 3, 3]]);
+  const result = compareH5Results("JE.h5", a, b);
+  assert.equal(result.groups[0].relative, Infinity); assert.equal(result.groups[0].zeroReference, true);
+  assert.equal(result.groups[1].relative, .5); assert.equal(result.groups[1].zeroReference, false);
+  assert.equal(formatFileComparison("JE.h5", result), "JE.h5 — J: ∞ (норма задания 1 равна 0); E: 5.000000e-1");
+  const zero = make("PSI", [[0]]);
+  assert.equal(formatFileComparison("PSI.h5", compareH5Results("PSI.h5", zero, zero)), "PSI.h5 — Ψ: 0");
 }));
 
 test("all H5 filenames form a natural ordered union, including files present in one task only", () => {
@@ -122,7 +143,7 @@ test("a bad file cannot prevent comparison of later files; every opened H5 is cl
   });
   assert.match(lines[0], /bad.h5 — ошибка: повреждён/);
   assert.match(lines[1], /only.h5 — есть только в задании 1/);
-  assert.match(lines[2], /PSI.h5 — Ψ: 1.000000e\+0 Вб/);
+  assert.match(lines[2], /PSI.h5 — Ψ: 1.000000e\+0$/);
   assert.equal(closed, 2);
 }));
 
@@ -134,6 +155,23 @@ test("timings come only from the last final block, never from intermediate steps
   assert.deepEqual(parseFinalTimings("Итого за расчет:\nМатрица (мин): -2\nРасчет поля (мин): NaN"), [null, null, null, null]);
 });
 
+test("current solver totals without a heading are read after the numeric step table", () => {
+  // solver/src/base/01_common.jl: ftiming_write_step and ftiming_write_totals.
+  const text = "   idtk            время (с)  матрица (мин)  источники (мин)   поле (мин)\r\n"
+    + "      0                  0.0         999.000           888.000      777.000\r\n\r\n"
+    + "Полное время (мин): 1.044\r\nМатрица (мин):            0.506\r\nРасчет источников (мин): 0.205\r\nРасчет поля (мин): 0.311\r\n";
+  assert.deepEqual(parseFinalTimings(text), [1.044, .506, .205, .311]);
+});
+
+test("mixed old/current timing blocks use the latest totals without borrowing earlier rows", () => {
+  const old = "Итого за расчет:\nПолное время (мин): 4\nМатрица (мин): 3\nРасчет источников (мин): 2\nРасчет поля (мин): 1\n";
+  const current = "Полное время (мин): 8\nМатрица (мин): 6\nРасчет источников (мин): 4\nРасчет поля (мин): 2\n";
+  assert.deepEqual(parseFinalTimings(old + current), [8, 6, 4, 2]);
+  assert.deepEqual(parseFinalTimings(current + old), [4, 3, 2, 1]);
+  assert.deepEqual(parseFinalTimings(old + "\nИтого за расчет:\n"), [null, null, null, null]);
+  assert.deepEqual(parseFinalTimings(old + "\nПолное время (мин): 0\n"), [0, null, null, null]);
+});
+
 const absent = () => new DOMException("missing", "NotFoundError");
 function file(name, data) { return { name, kind: "file", async getFile() { return new File([data], name); } }; }
 function directory(name, children = []) {
@@ -141,7 +179,7 @@ function directory(name, children = []) {
     async getDirectoryHandle(name, options) { assert.equal(options, undefined); const found = children.find(c => c.name === name && c.kind === "directory"); if (!found) throw absent(); return found; },
     async getFileHandle(name, options) { assert.equal(options, undefined); const found = children.find(c => c.name === name && c.kind === "file"); if (!found) throw absent(); return found; } };
 }
-const task = (label = "Project / Task") => ({ label, handle: directory("Task", [directory("output3XX", [file("PSI.h5", "fixture"), file("timing.txt", "Итого за расчет:\nПолное время (мин): 1")])]) });
+const task = (label = "Project / Task") => ({ label, handle: directory("Task", [directory("output3XX", [file("PSI.h5", "fixture"), file("timing.txt", "Полное время (мин): 1")])]) });
 
 test("both selectors can enumerate tasks from every project in the current list, naturally sorted", async () => {
   const result = await listComparisonTasks([{ name: "Project10", handle: directory("Project10", [directory("Task10"), file("ignore", "")]) },
@@ -156,9 +194,10 @@ test("task scanning is read-only, includes every H5 extension and handles missin
   assert.deepEqual(empty.files, []); assert.deepEqual(empty.timings, [null, null, null, null]);
 });
 
-test("report contains separately dimensioned residuals and exactly four timing rows with two values", () => {
-  const report = formatComparisonReport({ label: "a", timings: [1, 2, 3, 4] }, { label: "b", timings: [5, 6, null, 8] }, ["JE.h5 — J: 0 А/мм²; E: 1 В/м"]);
-  assert.match(report, /JE.h5.*А\/мм².*В\/м/);
+test("report contains separate dimensionless relative residuals and four timing rows", () => {
+  const report = formatComparisonReport({ label: "a", timings: [1, 2, 3, 4] }, { label: "b", timings: [5, 6, null, 8] }, ["JE.h5 — J: 0; E: 1.000000e+0"]);
+  assert.match(report, /Относительная невязка по норме задания 1; безразмерная/);
+  assert.doesNotMatch(report, /А\/мм²|В\/м|Абсолютная СКН/);
   assert.match(report, /Итоговое время \(мин\):\n\tзадание 1\tзадание 2\nПолное:/);
   assert.match(report, /Полное:\t1\t5\nМатрицы:\t2\t6\nИсточники:\t3\tнет данных\nПоле:\t4\t8$/);
 });
@@ -176,8 +215,8 @@ test("closing or changing the comparison terminates its worker and rejects the o
 test("successful worker report releases worker resources and uses final timings", async () => {
   let worker;
   const result = await compareTaskResults(task("a"), task("b"), { workerFactory: () => (worker = {
-    postMessage() { queueMicrotask(() => this.onmessage({ data: { type: "complete", lines: ["PSI.h5 — Ψ: 0 Вб"] } })); },
+    postMessage() { queueMicrotask(() => this.onmessage({ data: { type: "complete", lines: ["PSI.h5 — Ψ: 0"] } })); },
     terminate() { this.stopped = true; },
   }) });
-  assert.equal(worker.stopped, true); assert.match(result, /PSI.h5 — Ψ: 0 Вб/); assert.match(result, /Полное:\t1\t1/);
+  assert.equal(worker.stopped, true); assert.match(result, /PSI.h5 — Ψ: 0/); assert.match(result, /Полное:\t1\t1/);
 });

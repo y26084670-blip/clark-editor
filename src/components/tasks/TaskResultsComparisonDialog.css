@@ -1,6 +1,7 @@
 .task-results-comparison-dialog {
   width: min(1000px, 92vw);
-  height: min(680px, 86vh);
+  height: calc(100dvh - 24px);
+  max-height: calc(100dvh - 24px);
   box-sizing: border-box;
   border: 1px solid #66717d;
   border-radius: 6px;
@@ -19,7 +20,7 @@
 .task-results-comparison-notice { white-space: pre-wrap; color: #ffd394; }
 .task-results-comparison-dialog textarea {
   flex: 1;
-  min-height: 180px;
+  min-height: 0;
   width: 100%;
   box-sizing: border-box;
   resize: none;

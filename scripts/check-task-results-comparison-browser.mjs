@@ -21,7 +21,8 @@ async function h5(task, name, columns, arrCount, hasCoo, rows) {
   assets.set(`/__comparison-data/${task}/${name}`, await readFile(path));
 }
 for (const task of [1, 2]) {
-  await h5(task, "JE.h5", 3, 2, 1, [task === 1 ? [0, 0, 0, 0, 0, 0, 0, 0, 0] : [999, 999, 999, 1, 2, 2, 10, 10, 10]]);
+  await h5(task, "JE.h5", 3, 2, 1, [task === 1 ? [0, 0, 0, 1, 2, 2, 10, 10, 10] : [999, 999, 999, 2, 4, 4, 15, 15, 15]]);
+  await h5(task, "HS.h5", 3, 1, 1, [[0, 0, 0, task === 1 ? 0 : 1, 0, 0]]);
   await h5(task, "MH.h5", 3, 2, 1, Array.from({ length: task }, () => [0, 0, 0, 0, 0, 0, 0, 0, 0]));
   await h5(task, "Q.h5", 1, 1, 1, [[0, 0, 0, 0]]);
   assets.set(`/__comparison-data/${task}/bad.h5`, Buffer.from("not HDF5"));
@@ -74,23 +75,44 @@ try {
   const report = dialog.getByRole("textbox", { name: "Результаты сравнения", exact: true });
   await page.waitForFunction(() => document.querySelector('[aria-label="Результаты сравнения"]')?.value.includes("Итоговое время"));
   const text = await report.inputValue();
-  assert.match(text, /JE.h5 — J: 1.732051e\+0 А\/мм²; E: 1.000000e\+1 В\/м/);
+  assert.match(text, /JE.h5 — J: 1.000000e\+0; E: 5.000000e-1/);
+  assert.match(text, /HS.h5 — B: ∞ \(норма задания 1 равна 0\)/);
+  assert.match(text, /Относительная невязка по норме задания 1; безразмерная/);
+  assert.doesNotMatch(text, /А\/мм²|В\/м|Абсолютная СКН|нет данных/);
   assert.match(text, /MH.h5 — число записей различается: 2 \/ 4/);
   assert.match(text, /PSI.h5 — есть только в задании 1/);
-  assert.match(text, /bad.h5 — ошибка:/); assert.match(text, /Q.h5 — Q: 0 МВт\/м³/);
+  assert.match(text, /bad.h5 — ошибка:/); assert.match(text, /Q.h5 — Q: 0\n/);
   assert.match(text, /Полное:\t1\t2\nМатрицы:\t1.1\t2.1\nИсточники:\t1.2\t2.2\nПоле:\t1.3\t2.3/);
+  async function checkHeight() {
+    const layout = await dialog.evaluate(element => {
+      const box = element.getBoundingClientRect(), report = element.querySelector("textarea");
+      const close = element.querySelector("button").getBoundingClientRect();
+      return { height: box.height, viewport: innerHeight, outerScroll: element.scrollHeight > element.clientHeight + 1,
+        reportScroll: report.scrollHeight > report.clientHeight + 1, closeBottom: close.bottom };
+    });
+    assert.ok(Math.abs(layout.height - (layout.viewport - 24)) <= 1, JSON.stringify(layout));
+    assert.equal(layout.outerScroll, false); assert.equal(layout.reportScroll, false);
+    assert.ok(layout.closeBottom < layout.viewport);
+  }
+  await checkHeight();
+  await page.setViewportSize({ width: 1500, height: 720 }); await checkHeight();
+  await page.setViewportSize({ width: 1500, height: 1050 });
   await report.focus(); await page.keyboard.press("ControlOrMeta+A"); await page.keyboard.press("ControlOrMeta+C");
   assert.equal(await page.evaluate(() => navigator.clipboard.readText()), text);
   await report.press("ArrowLeft");
   const out = process.env.CHECK_OUTPUT || "/tmp/clark-task-results-comparison";
   await mkdir(out, { recursive: true }); await page.screenshot({ path: join(out, "comparison.png") });
+  await dialog.getByRole("combobox", { name: "Задание 1", exact: true }).selectOption("Project10/B");
   await dialog.getByRole("combobox", { name: "Задание 2", exact: true }).selectOption("Project2/A");
-  await page.waitForFunction(() => document.querySelector('[aria-label="Результаты сравнения"]')?.value.includes("JE.h5 — J: 0 А/мм²; E: 0 В/м"));
+  await page.waitForFunction(() => document.querySelector('[aria-label="Результаты сравнения"]')?.value.includes("JE.h5 — J: 5.000000e-1; E: 3.333333e-1"));
+  assert.match(await report.inputValue(), /Полное:\t2\t1\nМатрицы:\t2.1\t1.1\nИсточники:\t2.2\t1.2\nПоле:\t2.3\t1.3/);
+  await dialog.getByRole("combobox", { name: "Задание 1", exact: true }).selectOption("Project2/A");
+  await page.waitForFunction(() => document.querySelector('[aria-label="Результаты сравнения"]')?.value.includes("JE.h5 — J: 0; E: 0"));
   await dialog.getByRole("combobox", { name: "Задание 2", exact: true }).selectOption("Project10/B");
   await dialog.getByRole("button", { name: "Закрыть", exact: true }).click();
   await dialog.waitFor({ state: "hidden" });
   assert.deepEqual(errors, []);
-  console.log("PASS: Editor menu, two projects, real H5, dimensions, counts, missing/corrupt files, final timing, ordinary copy, replacement and close");
+  console.log("PASS: maximum height at 1050/720 px, relative norms against task 1, swapped/zero references, both timing formats, real H5, ordinary copy and cancellation");
 } catch (error) {
   if (page) {
     console.error("Visible page:", (await page.locator("body").innerText()).slice(0, 9000));
