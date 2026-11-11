@@ -10,6 +10,7 @@ on:
       - 'src/tabs/Tasks.jsx'
       - 'src/workers/taskResultsComparison.worker.js'
       - 'test/taskResultsComparison.test.js'
+      - 'test/browser/taskResultsComparison.fixture.jsx'
       - 'test/taskSelectionChannel.test.js'
       - 'scripts/check-task-results-comparison-browser.mjs'
       - 'scripts/check-task-selection-browser.mjs'

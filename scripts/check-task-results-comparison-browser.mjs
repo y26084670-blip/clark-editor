@@ -27,27 +27,7 @@ for (const task of [1, 2]) {
   assets.set(`/__comparison-data/${task}/bad.h5`, Buffer.from("not HDF5"));
 }
 await h5(1, "PSI.h5", 1, 1, 0, [[1]]);
-const html = `<html><body><div id="root"></div><script type="module">
-import {render} from 'solid-js/web';
-import App from '/src/App.jsx';
-const root=await navigator.storage.getDirectory();
-const disk=await root.getDirectoryHandle('comparison-disk',{create:true});
-const catalog=await disk.getDirectoryHandle('clark.projects',{create:true});
-for(const [index,projectName,taskName] of [[1,'Project2','A'],[2,'Project10','B']]){
- const project=await catalog.getDirectoryHandle(projectName,{create:true});
- const task=await project.getDirectoryHandle(taskName,{create:true});
- const output=await task.getDirectoryHandle('output3XX',{create:true});
- for(const name of ['JE.h5','MH.h5','Q.h5','bad.h5',...(index===1?['PSI.h5']:[])]){
-  const bytes=await(await fetch('/__comparison-data/'+index+'/'+name)).arrayBuffer();
-  const writer=await(await output.getFileHandle(name,{create:true})).createWritable();await writer.write(bytes);await writer.close();
- }
- const writer=await(await output.getFileHandle('timing.txt',{create:true})).createWritable();
- await writer.write('Матрица (мин): 999\\nИтого за расчет:\\nПолное время (мин): '+index+'\\nМатрица (мин): '+index+'.1\\nРасчет источников (мин): '+index+'.2\\nРасчет поля (мин): '+index+'.3\\n');await writer.close();
-}
-window.showDirectoryPicker=async()=>disk;
-render(App,document.getElementById('root'));
-window.comparisonFixture={ready:true};
-</script></body></html>`;
+const html = '<html><body><div id="root"></div><script type="module" src="/test/browser/taskResultsComparison.fixture.jsx"></script></body></html>';
 const server = await createServer({ root, base: "/clark-editor/", cacheDir: join(temporary, "vite-cache"),
   server: { host: "127.0.0.1", port: Number(process.env.COMPARISON_PORT || 0), strictPort: false },
   plugins: [{ name: "comparison-browser-fixture", configureServer(server) {
@@ -73,7 +53,9 @@ try {
     args: ["--no-sandbox", "--disable-dev-shm-usage", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"] });
   const context = await browser.newContext({ viewport: { width: 1500, height: 1050 }, permissions: ["clipboard-read", "clipboard-write"] });
   const page = await context.newPage(), errors = [];
-  page.setDefaultTimeout(20000); page.on("pageerror", error => errors.push(error.message));
+  page.setDefaultTimeout(20000); page.on("pageerror", error => { errors.push(error.message); console.error("Page error:", error.message); });
+  page.on("console", message => { if (message.type() === "error") console.error("Browser:", message.text()); });
+  page.on("response", response => { if (response.status() >= 400) console.error("HTTP", response.status(), response.url()); });
   await page.goto(`${origin}/clark-editor/__comparison-fixture`);
   await page.waitForFunction(() => window.comparisonFixture?.ready);
   const access = page.locator(".task-access-dialog");
