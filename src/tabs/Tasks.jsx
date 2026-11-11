@@ -5,6 +5,7 @@ import { readTaskDirectoryLists } from "../services/taskDirectoryRefresh.js";
 import { Show, batch, createEffect, createSignal, on, onCleanup, onMount, untrack } from "solid-js";
 import { SketchRequestDialog } from "../components/tasks/SketchRequestDialog.jsx";
 import { TaskOperationDialog } from "../components/tasks/TaskOperationDialog.jsx";
+import { TaskResultsComparisonDialog } from "../components/tasks/TaskResultsComparisonDialog.jsx";
 import { TaskMediaPanel } from "../components/tasks/TaskMediaPanel.jsx";
 import { runProjectDirectoryOperation, runTaskDirectoryOperation, suggestTaskCopyName } from "../services/taskDirectoryService.js";
 import { initializeTaskDirectory } from "../services/taskTemplateService.js";
@@ -83,6 +84,7 @@ export function Tasks(props) {
   );
   const [selectedTask, setSelectedTask] = createSignal(null);
   const [sketchOpen, setSketchOpen] = createSignal(false);
+  const [comparisonRequest, setComparisonRequest] = createSignal(null);
   createEffect(() => { if (props.active === false) setSketchOpen(false); });
   const loadedTaskHandle = selectionService.loadedTaskHandle;
   const loadedTaskPath = selectionService.loadedTaskPath;
@@ -144,7 +146,7 @@ export function Tasks(props) {
     });
   });
 
-  const browsingBlocked = () => sketchOpen() || accessBusy() || projectListBusy() || taskListBusy() || Boolean(operation()) || demoLoading() || bindingBusy()
+  const browsingBlocked = () => Boolean(comparisonRequest()) || sketchOpen() || accessBusy() || projectListBusy() || taskListBusy() || Boolean(operation()) || demoLoading() || bindingBusy()
     || launchBusy() || omClientState().busy || props.editorBusy || selectionReceiving() || protocolBusy();
   const galleryDisabled = () => browsingBlocked() || taskLaunchOpen();
   const operationsBlocked = () => galleryDisabled() || galleryBusy();
@@ -154,10 +156,17 @@ export function Tasks(props) {
     projectEnabled: Boolean(selectedProject()) && !operationsBlocked() && !omClientState().open,
     createEnabled: Boolean(selectedProject()) && !operationsBlocked() && !omClientState().open,
     selectedEnabled: Boolean(selectedTask()) && !operationsBlocked() && !omClientState().open,
+    compareEnabled: Boolean(projects().length) && !operationsBlocked() && !omClientState().open,
     run: openTaskOperation,
   }));
 
   function openTaskOperation(kind) {
+    if (kind === "compare") {
+      if (!operationsBlocked() && !omClientState().open && projects().length) {
+        setComparisonRequest({ projects: [...projects()], preferred: selectedTask() ? `${selectedProject()}/${selectedTask().name}` : "" });
+      }
+      return;
+    }
     if (kind === "sketch") {
       if (!operationsBlocked() && !omClientState().open) setSketchOpen(true);
       return;
@@ -1145,6 +1154,10 @@ export function Tasks(props) {
       <SketchRequestDialog open={sketchOpen() && props.active !== false} onClose={() => setSketchOpen(false)} />
       <TaskOperationDialog request={operation()} busy={operationBusy()} error={operationError()}
         failed={operationFailed()} onSubmit={submitTaskOperation} onClose={() => setOperation(null)} />
+      <TaskResultsComparisonDialog request={comparisonRequest()} onClose={() => {
+        setComparisonRequest(null);
+        queueMicrotask(() => taskListElement?.focus());
+      }} />
 
       <dialog
         class="task-load-error-dialog"
