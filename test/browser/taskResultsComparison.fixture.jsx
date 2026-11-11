@@ -19,5 +19,6 @@ for (const [index, projectName, taskName] of [[1, "Project2", "A"], [2, "Project
   await writer.close();
 }
 window.showDirectoryPicker = async () => disk;
+localStorage.setItem("e3d.generalInformation.openAtStartup", "false");
 render(() => <App />, document.getElementById("root"));
 window.comparisonFixture = { ready: true };

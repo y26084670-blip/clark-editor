@@ -46,13 +46,14 @@ if (process.argv.includes("--serve-only")) {
   console.log(`Comparison fixture: ${origin}/clark-editor/__comparison-fixture`);
   await new Promise(() => {});
 }
-let browser;
+let browser, page;
 try {
   const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || "playwright");
   browser = await chromium.launch({ executablePath: process.env.CHROMIUM_EXECUTABLE || undefined, headless: true,
     args: ["--no-sandbox", "--disable-dev-shm-usage", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"] });
   const context = await browser.newContext({ viewport: { width: 1500, height: 1050 }, permissions: ["clipboard-read", "clipboard-write"] });
-  const page = await context.newPage(), errors = [];
+  page = await context.newPage();
+  const errors = [];
   page.setDefaultTimeout(20000); page.on("pageerror", error => { errors.push(error.message); console.error("Page error:", error.message); });
   page.on("console", message => { if (message.type() === "error") console.error("Browser:", message.text()); });
   page.on("response", response => { if (response.status() >= 400) console.error("HTTP", response.status(), response.url()); });
@@ -89,4 +90,12 @@ try {
   await dialog.waitFor({ state: "hidden" });
   assert.deepEqual(errors, []);
   console.log("PASS: Editor menu, two projects, real H5, dimensions, counts, missing/corrupt files, final timing, ordinary copy, replacement and close");
+} catch (error) {
+  if (page) {
+    console.error("Visible page:", (await page.locator("body").innerText()).slice(0, 9000));
+    const out = process.env.CHECK_OUTPUT || "/tmp/clark-task-results-comparison";
+    await mkdir(out, { recursive: true });
+    await page.screenshot({ path: join(out, "failure.png") });
+  }
+  throw error;
 } finally { await browser?.close(); await server.close(); await rm(temporary, { recursive: true, force: true }); }
