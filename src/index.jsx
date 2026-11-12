@@ -1,5 +1,8 @@
 import { installViewportGate } from "./viewportGate.js";
 import "./viewportGate.css";
+import { installTrafficTracking } from "./services/trafficService.js";
+
+installTrafficTracking("editor");
 
 const root = document.getElementById("root");
 const dispose = installViewportGate({

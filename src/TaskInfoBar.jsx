@@ -13,6 +13,7 @@ import horseSceneUrl from "./assets/horse-scene.html?url";
 import { createHorseSceneController } from "./services/horseSceneController.js";
 import packageMetadata from "../package.json";
 import { WhatsNewDialog } from "./components/updates/WhatsNewDialog.jsx";
+import { TrafficControls } from "./components/TrafficControls.jsx";
 import "./TaskInfoBar.css";
 
 const GENERAL_INFORMATION_STARTUP_KEY = "e3d.generalInformation.openAtStartup";
@@ -400,15 +401,16 @@ export function TaskInfoBar(props) {
             <div class="about-curator-stack">
               <div>Куратор: Кулаев Ю.</div>
               <div>2026 г.</div>
-              <button
-                ref={(el) => (aboutCloseButton = el)}
-                class="about-close-button"
-                onClick={closeAbout}
-              >
-                Закрыть
-              </button>
             </div>
           </div>
+          <TrafficControls application="editor" />
+          <button
+            ref={(el) => (aboutCloseButton = el)}
+            class="about-close-button"
+            onClick={closeAbout}
+          >
+            Закрыть
+          </button>
         </div>
       </dialog>
     </div>

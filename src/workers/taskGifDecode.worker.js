@@ -1,4 +1,7 @@
+import { installTrafficTracking } from "../services/trafficService.js";
 import { createTaskGifDecoder } from "../services/taskGifDecoder.js";
+
+installTrafficTracking("editor");
 
 let decoder;
 self.onmessage=async ({data})=>{
