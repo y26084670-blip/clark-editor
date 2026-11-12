@@ -682,6 +682,11 @@
     background: #4a5965;
 }
 
+.about-content > .about-close-button {
+    align-self: center;
+    width: 144px;
+}
+
 /* Модальное окно панели задания. */
 .modal-backdrop {
     position: fixed;

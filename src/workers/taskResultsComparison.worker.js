@@ -1,5 +1,8 @@
+import { installTrafficTracking } from "../services/trafficService.js";
 import h5wasm from "h5wasm";
 import { compareResultFilePairs } from "../services/taskResultsComparisonService.js";
+
+installTrafficTracking("editor");
 
 self.onmessage = async ({ data }) => {
   const mounted = [];
