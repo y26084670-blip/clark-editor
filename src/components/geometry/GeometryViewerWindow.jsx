@@ -153,6 +153,7 @@ function GeometryWindowContents(props) {
   const [viewRequest, setViewRequest] = createSignal(null);
   const [geometryTransparency, setGeometryTransparency] = createGeometryViewSetting("geometryTransparency", 0);
   const [orthographicView, setOrthographicView] = createGeometryViewSetting("orthographicView", true);
+  const [showOrigin, setShowOrigin] = createGeometryViewSetting("showOrigin", false);
   const [showFaces, setShowFaces] = createGeometryViewSetting("showFaces", false);
   const [showEdges, setShowEdges] = createGeometryViewSetting("showEdges", true);
   const [showVertices, setShowVertices] = createGeometryViewSetting("showVertices", false);
@@ -799,6 +800,11 @@ function GeometryWindowContents(props) {
             <Show when={openPanel() === "general"}>
               <div class="geometry-viewer-options-title">Общие опции</div>
               <label>
+                <input type="checkbox" checked={showOrigin()}
+                  onChange={event => setShowOrigin(event.currentTarget.checked)} />
+                Показать начало СК
+              </label>
+              <label>
                 <input type="checkbox" checked={performanceEnabled()}
                   onChange={event => setPerformanceEnabled(event.currentTarget.checked)} />
                 Производительность
@@ -989,6 +995,7 @@ function GeometryWindowContents(props) {
             mode="solid"
             geometryOpacity={1 - geometryTransparency() / 100}
             showFaces={showFaces()}
+            showOrigin={showOrigin()}
             showEdges={showEdges()}
             showVertices={showVertices()}
             showDiscretizationLines={showDiscretizationLines()}
