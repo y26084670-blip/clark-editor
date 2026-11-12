@@ -19,7 +19,7 @@
     color: #fff;
 }
 
-.task-launch-window.is-minimized .task-launch-refresh {
+.task-launch-window.is-minimized :is(.task-launch-copy, .task-launch-refresh) {
     display: none;
 }
 
