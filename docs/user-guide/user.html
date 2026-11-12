@@ -10,7 +10,7 @@
 <div class="toc-label">Содержание</div><div class="search-form"><label for="guide-search">Поиск в этом разделе</label><input id="guide-search" type="search" autocomplete="off"><div id="search-status" class="search-status" role="status" aria-live="polite">Глав в разделе: 19</div></div>
 <ul><li data-chapter="overview"><a href="#overview">1 Назначение и область применения</a><details><summary>Подразделы</summary><div class="secondary"><a href="#section-1">Область применимости</a><a href="#section-2">Выбор токовой схемы</a><a href="#section-3">Версии и воспроизводимость</a></div></details></li>
 <li data-chapter="quickstart"><a href="#quickstart">2 Быстрый старт — первый расчёт</a><details><summary>Подразделы</summary><div class="secondary"><a href="#quickstart-folder">Выбрать каталог и задание</a><a href="#quickstart-copy">Создать копию</a><a href="#quickstart-bind">Связать с решателем</a><a href="#quickstart-run">Запустить расчёт</a><a href="#quickstart-iterations">Изменить TAU и EPS</a><a href="#quickstart-viewer">Открыть результаты в 3D</a><a href="#quickstart-plots">Поля, графики и GIF</a><a href="#quickstart-flight">Режим «Полёт»</a></div></details></li>
-<li data-chapter="start"><a href="#start">3 Подготовка среды</a><details><summary>Подразделы</summary><div class="secondary"><a href="#start-open">Открыть редактор и проверить среду</a><a href="#start-demo">Ознакомиться без локального задания</a><a href="#start-examples">Установить примеры и Clark</a></div></details></li>
+<li data-chapter="start"><a href="#start">3 Подготовка среды</a><details><summary>Подразделы</summary><div class="secondary"><a href="#start-open">Открыть редактор и проверить среду</a><a href="#start-demo">Ознакомиться без локального задания</a><a href="#start-examples">Установить примеры и Clark</a><a href="#start-pages-traffic">Трафик и число рабочих мест на GitHub Pages</a></div></details></li>
 <li data-chapter="tasks"><a href="#tasks">4 Проекты и задания</a><details><summary>Подразделы</summary><div class="secondary"><a href="#task-open">Выбрать и загрузить существующее задание</a><a href="#task-gifs">Просмотреть и удалить сохранённый GIF</a><a href="#task-comparison-protocols">Открыть протоколы сравнения по T</a><a href="#task-docs">Эскизы и документация DOCS</a><a href="#task-sketch">ZIP по эскизу для ИИ</a><a href="#task-projects">Работа с проектами</a><a href="#section-9">Создать задание</a><a href="#section-10">Создать копию</a><a href="#section-11">Переименовать задание</a><a href="#section-12">Перенести в другой каталог</a><a href="#section-13">Удалить задание</a></div></details></li>
 <li data-chapter="editing"><a href="#editing">5 Основные приёмы редактирования</a><details><summary>Подразделы</summary><div class="secondary"><a href="#edit-horizontal-scroll">Прокрутить широкую область по горизонтали</a><a href="#edit-cell">Изменить значение</a><a href="#edit-records">Копирование и порядок записей</a><a href="#edit-history">Отменить действие</a></div></details></li>
 <li data-chapter="geometry"><a href="#geometry">6 Геометрия и дискретизация</a><details><summary>Подразделы</summary><div class="secondary"><a href="#geometry-window">Переместить и изменить размер 3D-окна</a><a href="#geometry-transparency">Настроить видимость геометрии в 3D</a><a href="#geometry-box">Задать прямоугольный блок</a><a href="#geometry-refine">Изменить сетку</a><a href="#geometry-symmetry">Проверить симметрии</a></div></details></li>
@@ -530,6 +530,54 @@ Clark.</p>
 <p><a href="https://github.com/y26084670-blip/solver/blob/main/README.md" target="_blank" rel="noopener noreferrer">Запуск
 и поставка</a> · <a href="https://github.com/y26084670-blip/web-gui/blob/e43182bc5355ceb3b4ed7ed56617c1d7b30a6044/docs/AI_BUILD_AND_RUNTIME.md" target="_blank" rel="noopener noreferrer">Браузер
 и ресурсы</a></p>
+<h3 id="start-pages-traffic">Трафик и число рабочих мест на GitHub Pages</h3>
+<p>Editor и Viewer опубликованы как два отдельных сайта. Нагрузка на GitHub Pages
+возникает при загрузке приложений и дополнительных модулей. Затем браузер работает
+с файлами в выбранном каталоге клиента, а расчёт выполняет установленный Solver.
+Размер локального HDF5 в трафик Pages не входит. Время работы с открытой вкладкой
+не расходует минуты GitHub Actions.</p>
+<p><strong>Одновременные подключения.</strong> GitHub не указывает предельное число
+одновременных пользователей Pages. Для каждого сайта действует мягкий лимит трафика
+<strong>100 ГБ в месяц</strong>. Максимальный размер самой публикации — 1 ГБ.
+При всплеске запросов сервер может вернуть <code>HTTP 429</code>.
+<a href="https://docs.github.com/en/pages/getting-started-with-github-pages/github-pages-limits" target="_blank" rel="noopener noreferrer">Лимиты GitHub Pages</a>.</p>
+<p><strong>Опорный замер 12 ноября 2026 года.</strong> Суммарный объём стартовых
+HTML, JavaScript и CSS, переданных с gzip-сжатием, составил <strong>0,58 МБ</strong>
+для Editor (576 776 байт) и <strong>0,73 МБ</strong> для Viewer (728 515 байт).
+Для открытия результатов Viewer загружает модуль чтения HDF5 объёмом
+<strong>1,06 МБ</strong> (1 064 084 байта). При пустом кэше оба приложения
+с этим модулем требуют около <strong>2,37 МБ на рабочее место</strong>. Размеры
+зависят от версии. Справка, примеры и модули экспорта видео в замер не входят.</p>
+<div class="table-scroll"><table>
+<caption>Оценка для одного запуска обеих программ с пустым кэшем и открытием HDF5 в каждый из 22 рабочих дней. Объёмы в ГБ.</caption>
+<thead><tr><th scope="col">Рабочих мест</th><th scope="col">Разовый старт обеих программ</th><th scope="col">Editor за месяц</th><th scope="col">Viewer за месяц</th><th scope="col">Сумма за месяц</th></tr></thead>
+<tbody>
+<tr><th scope="row">100</th><td>0,24</td><td>1,27</td><td>3,94</td><td>5,21</td></tr>
+<tr><th scope="row">500</th><td>1,18</td><td>6,34</td><td>19,72</td><td>26,06</td></tr>
+<tr><th scope="row">1 000</th><td>2,37</td><td>12,69</td><td>39,44</td><td>52,13</td></tr>
+<tr><th scope="row">2 500</th><td>5,92</td><td>31,72</td><td>98,59</td><td>130,32</td></tr>
+</tbody></table></div>
+<p>Для своего графика работы умножьте расход одного запуска сайта в МБ на число рабочих
+мест и число запусков на место за месяц. Разделите на 1 000, чтобы получить ГБ.
+В таблице использованы десятичные единицы и исходные размеры до округления.
+Столбец «Сумма за месяц» показывает расход общего канала предприятия.
+С ориентиром Pages сравнивайте месячный трафик каждого сайта. Первым к 100 ГБ
+приближается Viewer — примерно при 2 500 рабочих местах с таким графиком.
+Повторное использование файлов из кэша уменьшает трафик.</p>
+<p>Если 100 сотрудников одновременно открывают Editor и Viewer с результатами
+через общий канал 100 Мбит/с, на передачу 237 МБ потребуется минимум
+<strong>19 секунд</strong> при полностью свободном канале. Другой трафик в сети
+предприятия увеличит время запуска.</p>
+<p><strong>Доступ и размещение.</strong> Публичные страницы открываются без учётной
+записи GitHub. Для работы с локальными файлами используйте настольный Chrome или Edge
+с разрешением на выбранный каталог. Минимальная рабочая область окна — 1100 × 600
+пикселей. Для закрытой публикации организация на GitHub Enterprise Cloud использует
+свой частный или внутренний репозиторий. Доступ к сайту имеют пользователи с правом
+чтения этого репозитория. <a href="https://docs.github.com/en/enterprise-cloud@latest/pages/getting-started-with-github-pages/about-privately-published-github-pages-sites" target="_blank" rel="noopener noreferrer">Закрытые сайты Pages</a>.</p>
+<p>Условия GitHub запрещают использовать Pages как бесплатный хостинг онлайн-бизнеса,
+интернет-магазина или сайта, основная цель которого — коммерческие транзакции либо
+предоставление коммерческого ПО как услуги (SaaS). Это ограничение действует
+независимо от числа клиентов. <a href="https://docs.github.com/en/site-policy/github-terms/github-terms-for-additional-products-and-features#pages" target="_blank" rel="noopener noreferrer">Условия использования Pages</a>.</p>
 </section>
 <section class="chapter" id="tasks"><span id="task-delete" class="anchor-alias" aria-hidden="true"></span><span id="task-move" class="anchor-alias" aria-hidden="true"></span><span id="task-rename" class="anchor-alias" aria-hidden="true"></span><span id="task-copy" class="anchor-alias" aria-hidden="true"></span><span id="task-create" class="anchor-alias" aria-hidden="true"></span><span id="title-tasks" class="anchor-alias" aria-hidden="true"></span><h2><a id="b_tasks"></a>4
 Проекты и задания</h2>
