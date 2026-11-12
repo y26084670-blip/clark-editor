@@ -81,15 +81,30 @@ test("record mismatch is detected before numeric arrays are read", async () => f
   assert.match(compareH5Results("PSI.h5", protect(a), protect(b)).message, /число записей различается: 2 \/ 4/);
 }));
 
-test("equal total counts cannot hide different step numbers, point distribution or time grids", async () => fixtures(make => {
+test("equal total counts cannot hide different step numbers, point distribution or saved-step counts", async () => fixtures(make => {
   const a = make("PSI", [[1]], { steps: [0, 1], timeStep: .1 });
   const b = make("PSI", [[1]], { steps: [0, 2], timeStep: .1 });
-  const c = make("PSI", [[1]], { steps: [0, 1], timeStep: .2 });
+  const c = make("PSI", step => step === 0 ? [[1], [1]] : [], { steps: [0, 1] });
   const d = make("PSI", [[1], [1]], { steps: [0] });
   assert.match(compareH5Results("PSI.h5", a, b).message, /номера шагов/);
-  assert.match(compareH5Results("PSI.h5", a, c).message, /шаг по времени/);
+  assert.match(compareH5Results("PSI.h5", a, c).message, /число записей по шагам/);
   assert.match(compareH5Results("PSI.h5", a, d).message, /число временных записей/);
 }));
+
+for (const [description, firstStep, secondStep, Type] of [
+  ["REAL32/REAL64 rounding", Math.fround(.0002), .0002, Float32Array],
+  ["REAL64 rounding", .1 + .2, .3, Float64Array],
+  ["different time_step metadata", .1, .2, Float64Array],
+]) {
+  test(`matching saved steps compare despite ${description}`, async () => fixtures(make => {
+    assert.notEqual(firstStep, secondStep);
+    const a = make("PSI", [[1], [2]], { Type, timeStep: firstStep });
+    const b = make("PSI", [[2], [4]], { timeStep: secondStep });
+    const result = compareH5Results("PSI.h5", a, b);
+    assert.equal(result.records, 4);
+    assert.deepEqual(result.groups.map(g => [g.label, g.components, g.relative]), [["Ψ", 4, 1]]);
+  }));
+}
 
 test("empty files, unsupported units and malformed layouts never produce a misleading zero", async () => fixtures(make => {
   const a = make("MH", [], { steps: [] }), b = make("MH", [], { steps: [] });
