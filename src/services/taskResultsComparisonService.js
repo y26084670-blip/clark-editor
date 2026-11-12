@@ -110,8 +110,7 @@ function describeFile(file) {
   }).sort((a, b) => a.index - b.index);
   if (new Set(steps.map(step => step.index)).size !== steps.length) throw new Error("Неоднозначные номера временных шагов");
   const records = integer(steps.reduce((sum, step) => sum + step.rows, 0));
-  const timeStep = scalar(file.get("HEADER/RANGES/time_step")?.value);
-  return { columns, arrays, coordinates, stride, steps, records, timeStep };
+  return { columns, arrays, coordinates, stride, steps, records };
 }
 
 // Accumulate scale * value without overflowing the value or its square.
@@ -136,11 +135,11 @@ function relativeNorm(reference, difference) {
 export function compareH5Results(name, first, second, { chunkRows = 16384 } = {}) {
   integer(chunkRows, 1);
   const a = describeFile(first), b = describeFile(second);
+  // Match saved step indices; time_step metadata can differ after REAL32/REAL64 rounding.
   if (a.records !== b.records) return { message: `число записей различается: ${a.records} / ${b.records}` };
   if (a.steps.length !== b.steps.length) return { message: `число временных записей различается: ${a.steps.length} / ${b.steps.length}` };
   if (a.columns !== b.columns || a.arrays !== b.arrays || a.coordinates !== b.coordinates) return { message: "структура колонок не совпадает" };
   if (a.steps.some((step, i) => step.index !== b.steps[i].index || step.rows !== b.steps[i].rows)) return { message: "номера шагов или число записей по шагам не совпадают" };
-  if (Number.isFinite(a.timeStep) && Number.isFinite(b.timeStep) && a.timeStep !== b.timeStep) return { message: "шаг по времени не совпадает" };
   if (!a.records) return { message: "нет записей в обоих заданиях" };
   const format = formats[name.replace(/\.h5$/iu, "").toUpperCase()];
   if (!format) return { message: "неизвестны физические величины и размерности колонок" };
