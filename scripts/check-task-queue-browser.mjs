@@ -27,6 +27,7 @@ const queue = page.locator(".task-launch-window"), list = queue.locator(".task-l
 const rows = queue.locator(".task-launch-row");
 const start = queue.getByRole("button", { name: "Запустить", exact: true });
 const refresh = queue.getByRole("button", { name: "Обновить состояние расчета заданий", exact: true });
+const copy = queue.getByRole("button", { name: "Копировать список заданий", exact: true });
 async function checkPanelBounds(name) {
   const actual = await queue.boundingBox(), middle = await page.locator(".task-summary-panel").boundingBox();
   const right = await page.locator(".task-results-panel").boundingBox();
@@ -62,6 +63,8 @@ try {
     }));
   check("removed controls and counts are absent", await queue.locator(".task-launch-metadata,.task-launch-toolbar,.task-launch-counts").count() === 0);
   check("empty queue cannot launch", await rows.count() === 0 && await start.isDisabled());
+  check("copy is disabled for an empty queue and placed immediately before refresh",
+    await copy.isDisabled() && await copy.evaluate(button => button.nextElementSibling?.classList.contains("task-launch-refresh")));
   await drop(); await page.waitForFunction(() => ![...document.querySelectorAll(".task-launch-start")][0].disabled);
   check("drop adds the full catalog/project/task path", await rows.first().locator(".task-status-name").textContent() === "clark.projects/Проект 1/Задание");
   const mpiLabel = await queue.locator(".task-launch-mpi > span").boundingBox();
@@ -92,8 +95,15 @@ try {
   await page.locator("#listProject").selectOption("Проект 2"); await drop();
   await page.locator("#projectCatalog").selectOption("CLARK.Tests");
   await page.locator("#listProject").selectOption("Проект 1"); await drop();
+  const expectedPaths = ["clark.projects/Проект 1/Задание", "clark.projects/Проект 2/Задание", "CLARK.Tests/Проект 1/Задание"];
   check("catalog and project changes retain the formed queue", JSON.stringify(await rows.locator(".task-status-name").allTextContents())
-    === JSON.stringify(["clark.projects/Проект 1/Задание", "clark.projects/Проект 2/Задание", "CLARK.Tests/Проект 1/Задание"]));
+    === JSON.stringify(expectedPaths));
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"], { origin: new URL(page.url()).origin });
+  await copy.click();
+  await queue.getByText("Список заданий скопирован.", { exact: true }).waitFor();
+  check("clipboard contains one displayed path per line in queue order",
+    await page.evaluate(() => navigator.clipboard.readText()) === expectedPaths.join("\n"));
+  await page.context().clearPermissions();
   check("launcher receives portable cross-catalog paths", await page.evaluate(() => queueFixture.read("clark.tasks.txt"))
     === "Проект 1/Задание\nПроект 2/Задание\n../CLARK.Tests/Проект 1/Задание\n");
   const loadedPath = await page.evaluate(() => queueFixture.loadedPath());
@@ -115,13 +125,13 @@ try {
   await queue.getByRole("button", { name: "Свернуть окно", exact: true }).click();
   check("minimized queue is a compact movable titlebar", await queue.evaluate(element => element.classList.contains("is-minimized"))
     && (await queue.boundingBox()).width === 400 && (await queue.boundingBox()).height < 80);
-  check("refresh is hidden while the queue is minimized", await refresh.isHidden());
+  check("copy and refresh are hidden while the queue is minimized", await copy.isHidden() && await refresh.isHidden());
   bounds = await title.boundingBox();
   await page.mouse.move(bounds.x + 60, bounds.y + bounds.height / 2); await page.mouse.down();
   await page.mouse.move(100, 180, { steps: 5 }); await page.mouse.up();
   check("minimized window moves over the left panel", (await queue.boundingBox()).x < 150);
   await queue.getByRole("button", { name: "Развернуть окно", exact: true }).click();
-  check("refresh returns when the queue is restored", await refresh.isVisible());
+  check("copy and refresh return when the queue is restored", await copy.isVisible() && await refresh.isVisible());
   await checkPanelBounds("restore returns to the panels after moving the minimized window");
   await page.setViewportSize({ width: viewport.width + 100, height: viewport.height + 60 });
   await page.waitForTimeout(150);

@@ -289,6 +289,19 @@ export function TaskLaunchWindow(props) {
     return changeList(root => writeTaskList(root, snapshot));
   }
 
+  async function copyTaskList() {
+    const snapshot = entries();
+    if (!snapshot.length) return;
+    let message;
+    try {
+      await navigator.clipboard.writeText(snapshot.map(entry => entry.displayPath).join("\n"));
+      message = "Список заданий скопирован.";
+    } catch {
+      message = "Не удалось скопировать список заданий в буфер обмена.";
+    }
+    if (!disposed && props.open && entries() === snapshot) setNotice(message);
+  }
+
   async function navigateEntry(entry) {
     if (locked() || !props.onNavigate) return;
     setBusy(true);
@@ -531,10 +544,15 @@ export function TaskLaunchWindow(props) {
       minimizedWidth={400} minWidth={280} minHeight={360}
       allowMaximize={false}
       storageKey="web-gui:task-queue-window-v2"
-      titleActions={<button type="button" class="task-launch-refresh"
-        aria-label="Обновить состояние расчета заданий" title="Обновить галочки выполненного расчета"
-        aria-busy={taskStatus.busy()} disabled={locked() || taskStatus.busy() || !entries().length}
-        onClick={() => { void taskStatus.refresh(); }}>↻</button>}
+      titleActions={<>
+        <button type="button" class="task-launch-copy"
+          aria-label="Копировать список заданий" title="Копировать список заданий в буфер обмена"
+          disabled={!entries().length} onClick={copyTaskList}>⧉</button>
+        <button type="button" class="task-launch-refresh"
+          aria-label="Обновить состояние расчета заданий" title="Обновить галочки выполненного расчета"
+          aria-busy={taskStatus.busy()} disabled={locked() || taskStatus.busy() || !entries().length}
+          onClick={() => { void taskStatus.refresh(); }}>↻</button>
+      </>}
       class="task-launch-window"
       onClose={props.onClose}
     >
