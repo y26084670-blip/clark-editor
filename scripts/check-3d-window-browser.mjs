@@ -55,6 +55,7 @@ try {
   const win = page.locator(".geometry-viewer-window");
   await win.locator("canvas").waitFor();
   await win.getByRole("button", { name:"Общие опции отображения" }).click();
+  assert.equal(await win.getByRole("checkbox", { name: "Показать начало СК" }).count(), 0);
   assert.ok(await win.locator(".is-general-panel").evaluate(el => el.scrollHeight <= el.clientHeight + 1),
     "all current general options fit in a normally sized geometry window");
   await win.getByLabel("Линии дискретизации").check();

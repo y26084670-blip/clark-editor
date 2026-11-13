@@ -1075,28 +1075,6 @@ function createAxesGizmo(THREE) {
   return root;
 }
 
-function createOriginAxes(THREE) {
-  const root = new THREE.Group();
-  root.name = "world-origin-axes";
-  for (const [direction, color] of [
-    [[1, 0, 0], 0xf05252],
-    [[0, 1, 0], 0x4bc26b],
-    [[0, 0, 1], 0x4c8ff2],
-  ]) {
-    const arrow = new THREE.Group();
-    const material = new THREE.MeshBasicMaterial({ color, depthTest: false, depthWrite: false });
-    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.72, 12), material);
-    const head = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.28, 16), material.clone());
-    shaft.position.y = 0.36;
-    head.position.y = 0.86;
-    shaft.renderOrder = head.renderOrder = 30;
-    arrow.add(shaft, head);
-    arrow.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(...direction));
-    root.add(arrow);
-  }
-  return root;
-}
-
 function worldUnitsPerPixel(camera, target, viewportHeight) {
   const height = Math.max(1, viewportHeight);
   if (camera.isOrthographicCamera) {
@@ -1191,8 +1169,6 @@ export function ThreeGeometryViewport(props) {
   let geometryRoot;
   let constructionRoot;
   let helperRoot;
-  let originAxesRoot;
-  let originAxesVisible = false;
   let prescribedSourceRoot;
   let prescribedSourceScene = null;
   let prescribedSourcesVisible = false;
@@ -1277,20 +1253,6 @@ export function ThreeGeometryViewport(props) {
     props.onError?.(message);
   };
 
-  const updateOriginAxes = () => {
-    if (originAxesVisible && !originAxesRoot) {
-      originAxesRoot = createOriginAxes(THREE);
-      // The global frame stays independent of geometry motion, filters and opacity.
-      threeScene.add(originAxesRoot);
-    }
-    if (!originAxesRoot) return;
-    originAxesRoot.visible = originAxesVisible;
-    if (!originAxesVisible) return;
-    const diagonal = currentBounds?.isEmpty() === false
-      ? currentBounds.getSize(new THREE.Vector3()).length() : 0;
-    originAxesRoot.scale.setScalar(Number.isFinite(diagonal) && diagonal > 0 ? diagonal * 0.06 : 1);
-  };
-
   const publishRenderStats = () => {
     props.onRenderStats?.({
       ...baseRenderStats,
@@ -1324,7 +1286,6 @@ export function ThreeGeometryViewport(props) {
         sourcesDirty = false;
         replacePrescribedSources();
       }
-      updateOriginAxes();
       if (flightController?.active) {
         flightController.update(timestamp ?? performance.now());
         setFlightPivot(flightController.orbitTarget);
@@ -2231,11 +2192,6 @@ export function ThreeGeometryViewport(props) {
   });
 
   createEffect(() => {
-    originAxesVisible = props.showOrigin === true;
-    if (ready()) requestRender();
-  });
-
-  createEffect(() => {
     verticesVisible = props.showVertices === true;
     if (!ready()) return;
     if (verticesVisible && !vertexPoints) materializeVertexPoints();
@@ -2382,7 +2338,6 @@ export function ThreeGeometryViewport(props) {
     disposeObject(constructionRoot);
     disposeObject(helperRoot);
     disposeObject(axesRoot);
-    disposeObject(originAxesRoot);
     if (renderer?.domElement) {
       const handlers = renderer.domElement.__geometryContextHandlers;
       if (handlers) {
