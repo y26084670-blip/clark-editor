@@ -1,27 +1,6 @@
 import { createEffect, onCleanup } from "solid-js";
-import {
-  COMPUTED_COLUMN_MODES,
-} from "../services/viewSettingsService";
 import "./SidePanel.css";
 import { PROJECT_OPERATION_LABELS, TASK_OPERATION_LABELS } from "./tasks/TaskOperationDialog.jsx";
-
-const VISIBILITY_OPTIONS = Object.freeze([
-  {
-    value: COMPUTED_COLUMN_MODES.SCHEMA,
-    label: "По схеме",
-    title: "Восстановить видимость, заданную схемой",
-  },
-  {
-    value: COMPUTED_COLUMN_MODES.SHOW,
-    label: "Показать",
-    title: "Показать все вычисляемые колонки",
-  },
-  {
-    value: COMPUTED_COLUMN_MODES.HIDE,
-    label: "Скрыть",
-    title: "Скрыть все вычисляемые колонки",
-  },
-]);
 
 export function SidePanel(props) {
   let closeButton;
@@ -121,46 +100,6 @@ export function SidePanel(props) {
               onClick={() => props.onReplaceTableFromClipboard?.(action.property)}>{action.label}</button>)}
           </div>
         </section>}
-
-        <section class="side-panel-section">
-          <div
-            class="side-panel-section-title"
-            title={
-              "вторичные колонки, зависимые от значений пользовательских "
-              + "редактируемых колонок"
-            }
-          >
-            Вычисляемые колонки
-          </div>
-
-          <div
-            class="side-panel-options"
-            role="group"
-            aria-label="Видимость вычисляемых колонок"
-          >
-            {VISIBILITY_OPTIONS.map((option) => (
-              <button
-                classList={{
-                  "side-panel-option": true,
-                  active:
-                    props.computedColumnsMode === option.value,
-                }}
-                disabled={!props.open}
-                aria-pressed={
-                  props.computedColumnsMode === option.value
-                }
-                title={option.title}
-                onClick={() =>
-                  props.onComputedColumnsModeChange?.(
-                    option.value,
-                  )
-                }
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-        </section>
 
         {props.materialActionVisible && (
           <>

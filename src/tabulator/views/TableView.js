@@ -24,7 +24,6 @@ import {
 import { viewRowLabel } from "../converters/rowLabel";
 import { COMMON_TABLE_OPTIONS } from "../tableOptions";
 import { isPropertyReadonly } from "../../services/model/modelCompute";
-import { viewSettingsService } from "../../services/viewSettingsService";
 
 export class TableView {
     constructor(property, binding, { primary = false } = {}) {
@@ -51,8 +50,6 @@ export class TableView {
         this.renumbering = false;
         this.changingStructure = false;
         this.computedDirty = false;
-        this.computedColumnsMode =
-            viewSettingsService.computedColumnsMode();
     }
 
     attach(host) {
@@ -317,37 +314,6 @@ export class TableView {
         this.computedDirty = false;
     }
 
-    setComputedColumnsVisibility(mode) {
-        this.computedColumnsMode = mode;
-
-        if (
-            !this.table ||
-            !this.property.computedView ||
-            !this.host?.offsetWidth
-        ) {
-            return;
-        }
-
-        this.property.computedView.columns.forEach((descriptor, index) => {
-            const column = this.table.getColumn(`_computed_${index}`);
-            if (!column) return;
-
-            const visible =
-                viewSettingsService.isComputedColumnVisible(
-                    descriptor.hidden,
-                    mode,
-                );
-
-            if (column.isVisible?.() === visible) return;
-
-            if (visible) {
-                column.show();
-            } else {
-                column.hide();
-            }
-        });
-    }
-
     isWritable() {
         return this.binding?.isWritable?.() !== false;
     }
@@ -470,9 +436,6 @@ export class TableView {
         this.hidden = false;
         this.lastWidth = width;
         this.lastHeight = height;
-        this.setComputedColumnsVisibility(
-            this.computedColumnsMode,
-        );
 
         if (needsRedraw) {
             this.table.redraw(true);
@@ -529,11 +492,7 @@ export class TableView {
                     width: column.width,
                     minWidth: column.minWidth ?? 55,
                     cssClass: "computed-column",
-                    visible:
-                        viewSettingsService.isComputedColumnVisible(
-                            column.hidden,
-                            this.computedColumnsMode,
-                        ),
+                    visible: column.hidden !== true,
                     editable: false,
                     headerTooltip: column.description ?? "",
                     tooltip: column.description ?? "",

@@ -142,3 +142,54 @@
 .data-editor-horizontal-splitter:focus-visible::after {
   background: #2563eb;
 }
+
+.data-editor-toolbar { flex-wrap: wrap; align-items: center; }
+.record-card-filters { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 12px; font: 13px Arial, sans-serif; }
+.record-card-filters label, .record-card-check { display: inline-flex; align-items: center; gap: 3px; }
+.record-card-filters input, .record-card-check input { margin: 0; }
+.record-card-filters label:has(input:disabled) { color: #707780; }
+.data-editor-main.with-record-card { overflow-x: auto; gap: 5px; }
+.with-record-card .data-editor-main-table { min-width: 450px; }
+.record-card-column {
+  --card-width: 560px;
+  --card-height: 552px;
+  display: flex; flex: 0 0 var(--card-width); flex-direction: column;
+  min-height: 0; overflow-y: auto; overflow-x: hidden;
+  color: #243643; background: #f7f8f7; font: 12px/1.25 Arial, sans-serif;
+}
+.record-card-info {
+  flex: none; padding: 5px 8px; font-weight: 600; color: #153f61;
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  border: 1px solid #bdcbd4; background: #eaf0f4;
+}
+.record-card-panel {
+  position: relative; flex: 0 0 var(--card-height); box-sizing: border-box;
+  overflow: auto; padding: 5px; border: 1px solid #bdcbd4; border-top: 0;
+  background: #f9faf8; font-variant-numeric: tabular-nums;
+}
+.record-card-reserve { width: 100%; flex: 1 0 0; box-sizing: border-box; border: 1px solid #d3dae0; border-top: 0; background: #fff; }
+.record-card-top, .record-card-bottom {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 6px; align-items: start;
+}
+.record-card-section { min-width: 0; margin: 2px 0 4px; padding: 3px 5px 5px; border: 1px solid #c2cbd1; }
+.record-card-section legend { color: #254b66; padding: 0 3px; font-size: 12px; font-weight: 600; }
+.record-card-local { max-width: 282px; }
+.record-card-pair { display: grid; min-width: 0; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 4px; align-items: center; margin: 2px 0; }
+.record-card-parameter-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 5px; }
+.record-card-parameter-grid.stacked .record-card-pair { grid-template-columns: 1fr; }
+.record-card-panel input[type=text], .record-card-panel select, .record-card-pair button {
+  width: 100%; min-width: 0; box-sizing: border-box; height: 21px; padding: 1px 3px;
+  border: 1px solid #9eacb7; border-radius: 2px; background: white; color: #152d41;
+  font: inherit; font-variant-numeric: tabular-nums;
+}
+.record-card-panel input[aria-invalid=true] { border-color: #ba482d; }
+.record-card-panel select, .record-card-pair button { cursor: pointer; }
+.record-card-check { margin: 3px 8px 3px 0; }
+.record-card-matrix-line { display: grid; grid-template-columns: repeat(var(--count),minmax(0,1fr)); gap: 4px; }
+.record-card-matrix-line label { min-width: 0; display: grid; text-align: center; }
+.record-card-caption { margin: 4px 0 1px; }
+.record-card-coordinates { font: inherit; color: inherit; width: 100%; border-collapse: collapse; table-layout: fixed; }
+.record-card-coordinates th, .record-card-coordinates td { padding: 1px; font: inherit; }
+.record-card-coordinates th:first-child { width: 16px; }
+.record-card-panel select:focus-visible, .record-card-panel input:focus-visible, .record-card-panel button:focus-visible { outline: 2px solid #3674a0; outline-offset: -1px; }
+.record-card-error { position: sticky; bottom: 0; background: #fff4e7; color: #85300d; padding: 4px; }

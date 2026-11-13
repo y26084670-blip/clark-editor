@@ -22,7 +22,6 @@ import {
     isComputedProperty,
     isPropertyReadonly,
 } from "../../services/model/modelCompute";
-import { viewSettingsService } from "../../services/viewSettingsService";
 import {
     hasRecordColumnsView,
     recordColumnField,
@@ -158,7 +157,7 @@ export const TableBuilder = {
                     return;
                 }
 
-                if (property.type === FIELD_TYPES.ARRAY) {
+                if (property.type === FIELD_TYPES.ARRAY && !schema.views?.recordCard) {
                     // Ячейка строки с arrayIndex содержит отдельный элемент
                     // значения, а не массив: представление к ней не применяется.
                     const row = cell.getRow().getData();
@@ -239,10 +238,7 @@ export const TableBuilder = {
                 ...(computed
                     ? {
                         cssClass: "computed-column",
-                        visible:
-                            viewSettingsService.isComputedColumnVisible(
-                                property.hidden,
-                            ),
+                        visible: property.hidden !== true,
                     }
                     : {}),
                 ...this.buildValueColumnConfig(schema),
@@ -254,9 +250,7 @@ export const TableBuilder = {
                 field: name,
                 headerTooltip: property.description ?? "",
                 cssClass: "computed-column",
-                visible: viewSettingsService.isComputedColumnVisible(
-                    property.hidden,
-                ),
+                visible: property.hidden !== true,
                 ...(property.columnWidth !== undefined
                     ? { width: property.columnWidth }
                     : {}),

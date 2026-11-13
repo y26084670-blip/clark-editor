@@ -22,7 +22,6 @@ import { resetKvGeo } from "../solver/geometryKv.js";
 import { ELEMENT_NAME_CONSTRAINTS } from "./common/elementNameConstraints.js";
 import {
     eoCount,
-    eoCountAll,
     kvFlags,
     symYc,
 } from "../solver/kvDerived";
@@ -74,6 +73,18 @@ export default createSchema({
     obsoleteStoragePaths: ["xapType"],
     columnHeaderWordLines: true,
     rowNumberTooltip: true,
+
+    views: {
+        recordCard: {
+            kind: "element",
+            columnGroups: [
+                { label: "Разбиение", fields: ["dp", "eoCount", "eoRange"] },
+                { label: "Симметрии", fields: ["symYl", "symYa", "symTx", "symLs", "symAs", "symPs", "symKya", "symKyp", "yc1", "yc2", "yc3", "yc4"] },
+                { label: "Свойства", fields: ["model", "xapName", "vkan", "rv", "med", "isConductive", "isMagnetic", "isAnisotropic", "auto", "take"] },
+                { label: "Импульсы и траектории", fields: ["indAmp", "indMove"] },
+            ],
+        },
+    },
 
     properties: {
         name: {
@@ -366,26 +377,6 @@ export default createSchema({
                     "symKyp",
                 ],
                 evaluate: ({ values }) => eoCount(values),
-            },
-        },
-
-        eoCountAll: {
-            type: FIELD_TYPES.INTEGER,
-            label: "Количество всех ЭО",
-            description:
-                "Число элементарных объёмов с учётом всех геометрических образов",
-            default: 0,
-            readonly: true,
-            hidden: true,
-            columnWidth: 130,
-            compute: {
-                dependencies: [
-                    "dp",
-                    "symLs",
-                    "symAs",
-                    "symPs",
-                ],
-                evaluate: ({ values }) => eoCountAll(values),
             },
         },
 

@@ -8,7 +8,6 @@
 
 import { recordsActions } from "../actions/recordsActions";
 import { selectionContextService } from "../../services/selectionContextService";
-import { viewSettingsService } from "../../services/viewSettingsService";
 
 const DETAIL_SOURCE_CLASS = "detail-source-active";
 
@@ -165,9 +164,6 @@ export class DetailRegion {
         this.element = element;
         this.setField(field);
         this.setSourceCell(sourceCell, field);
-        view.setComputedColumnsVisibility?.(
-            viewSettingsService.computedColumnsMode(),
-        );
 
         if (this.titleElement) {
             this.titleElement.textContent = title ?? "";
@@ -238,10 +234,6 @@ export class DetailRegion {
     // Обновление текущего View без смены активной пары.
     refresh() {
         this.view?.render?.();
-    }
-
-    setComputedColumnsVisibility(mode) {
-        this.view?.setComputedColumnsVisibility?.(mode);
     }
 
     // Явная активация вложенного представления после появления вкладки.

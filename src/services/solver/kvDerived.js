@@ -1,5 +1,5 @@
 // Источник: julia, src/base/04_symmetry.jl::update_sym;
-//           src/core/03_kv.jl (update, eoCount, eoCountAll, limits);
+//           src/core/03_kv.jl (update, eoCount, limits);
 //           src/core/03_tk.jl::epCount. Снимок 2026-08.
 
 // yc: указатели типа симметрии (SYMAdd.yc)
@@ -49,16 +49,6 @@ export function eoCount(record) {
                 ? 1
                 : symmetryFactor(record, "symPs", "ps")
         );
-}
-
-// Все геометрические образы.
-export function eoCountAll(record) {
-    return vectorFactor(record?.dp, 0)
-        * vectorFactor(record?.dp, 1)
-        * vectorFactor(record?.dp, 2)
-        * symmetryFactor(record, "symLs", "ls")
-        * symmetryFactor(record, "symAs", "as")
-        * symmetryFactor(record, "symPs", "ps");
 }
 
 // Признаки материала: EnTARG = TARG(0), MAGNET(1), COIL(2), VIRTUAL(3)

@@ -25,7 +25,6 @@ import { materialLibraryHistoryService } from "./services/materialLibraryHistory
 import { modelValidator } from "./tabulator/validators/types/modelValidator";
 import { diagnosticService } from "./services/diagnosticService";
 import { dataService } from "./services/dataService";
-import { viewSettingsService } from "./services/viewSettingsService";
 import { selectionContextService } from "./services/selectionContextService.js";
 import { unsavedChangesService } from "./services/unsavedChangesService.js";
 import { writeTaskSummary } from "./services/taskSummaryService.js";
@@ -447,7 +446,7 @@ export default function App() {
         <DataEditor
           schema={schema}
           active={props.active}
-          computedColumnsMode={props.computedColumnsMode}
+          onChooseRecordMaterial={(table, row) => openMaterialSelection(table, [row])}
           onEditorReady={controller => {
             if (controller) editorControllers.set(schema.id, controller);
             else editorControllers.delete(schema.id);
@@ -546,12 +545,10 @@ export default function App() {
     setSelectedGeometryRegionIndices([]);
   });
 
-  function handleMaterialSelectionOpen() {
+  function openMaterialSelection(table, rows) {
     try {
       setMaterialRequest(
-        selectedElementMaterialRequest(
-          selectionContextService.getActiveTable(),
-        ),
+        selectedElementMaterialRequest(table, rows),
       );
     } catch (error) {
       setMaterialRequest({
@@ -784,10 +781,6 @@ export default function App() {
         onTaskAction={kind => { setSidePanelOpen(false); taskActions()?.run(kind); }}
         open={sidePanelOpen()}
         onClose={() => setSidePanelOpen(false)}
-        computedColumnsMode={viewSettingsService.computedColumnsMode()}
-        onComputedColumnsModeChange={
-          viewSettingsService.setComputedColumnsMode
-        }
         historyTabLabel={historyTabLabel()}
         historyEnabled={historyTabId() !== null}
         canUndo={historyController().canUndo(historyTabId())}
@@ -800,7 +793,7 @@ export default function App() {
         )}
         materialActionVisible={materialActionVisible()}
         materialActionEnabled={materialActionEnabled()}
-        onChooseMaterial={handleMaterialSelectionOpen}
+        onChooseMaterial={() => openMaterialSelection(selectionContextService.getActiveTable())}
         medActionEnabled={Boolean(selectionService.loadedTaskHandle()) && Array.isArray(modelService.getModel().elements)}
         onAutofillMed={analyzeCurrentMed}
         onCreateUniformFieldCoil={openCoil}
@@ -857,9 +850,6 @@ export default function App() {
                 >
                   <Component
                     active={activeTab() === tab.id}
-                    computedColumnsMode={
-                      viewSettingsService.computedColumnsMode()
-                    }
                     onReturnToEditing={handleReturnToEditing}
                   />
                 </div>

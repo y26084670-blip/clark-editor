@@ -102,13 +102,6 @@
     background: #343c46;
 }
 
-.side-panel-option.active {
-    border-color: #6fb782;
-    background: #285b3a;
-    color: #f4fff6;
-    font-weight: bold;
-}
-
 .side-panel-close:focus-visible,
 .side-panel-option:focus-visible {
     outline: 2px solid #8fc7ff;
