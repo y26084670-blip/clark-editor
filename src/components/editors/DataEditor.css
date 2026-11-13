@@ -169,6 +169,29 @@
   background: #f9faf8; font-variant-numeric: tabular-nums;
 }
 .record-card-reserve { width: 100%; flex: 1 0 0; box-sizing: border-box; border: 1px solid #d3dae0; border-top: 0; background: #fff; }
+.record-card-toggle-3d { display: inline-flex; align-items: center; gap: 3px; font: 13px Arial, sans-serif; }
+.record-card-toggle-3d input { margin: 0; }
+.record-demo-card { flex: none; margin-top: 4px; border: 3px solid #516a80; background: #f9faf8; }
+.record-demo-stage { display: block; width: calc(100% - 16px); margin: 6px 8px 3px; }
+.record-demo-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding: 2px 5px 5px; }
+.record-demo-list { display: flex; flex-direction: column; align-items: stretch; }
+.record-demo-list > button { background: transparent; border: 1px solid transparent; padding: 3px 5px;
+  text-align: left; color: inherit; font: inherit; cursor: pointer; }
+.record-demo-list > button[aria-current=step] { background: #deebf6; border-color: #9cb6cb; color: #123e61; }
+.record-demo-list > button:disabled { color: #757d82; cursor: default; }
+.record-demo-vector { min-width: 0; margin: 3px 0 0; border: 1px solid #c2cbd1; padding: 2px 4px 4px; }
+.record-demo-vector legend { padding: 0 3px; color: #254b66; }
+.record-demo-components { display: grid; grid-template-columns: auto repeat(3, minmax(0, 1fr)); gap: 4px; }
+.record-demo-components label, .record-demo-length { display: flex; align-items: center; gap: 3px; }
+.record-demo-components input { width: 100%; min-width: 0; box-sizing: border-box; font: inherit; }
+.record-demo-components select { font: inherit; }
+.record-demo-length { margin-top: 3px; }
+.record-demo-length input { flex: 1; min-width: 0; margin: 0 2px; }
+.record-demo-view { position: relative; min-width: 180px; min-height: 0; flex: 0 0 min(var(--demo-width), max(180px, calc(100% - 1031px)));
+  background: #141a20; }
+.record-demo-view:focus-visible { outline: 2px solid #3674a0; outline-offset: -2px; }
+.record-demo-notice { position: absolute; inset: auto 0 0; padding: 5px 7px; background: #243443; color: white; font-size: 12px; pointer-events: none; }
+.record-demo-splitter { touch-action: none; }
 .record-card-top, .record-card-bottom {
   display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 6px; align-items: start;
 }

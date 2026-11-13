@@ -1,6 +1,7 @@
 import { createLensVectorDetails } from "../../services/visualization/lensVectorDetails.js";
 import { normalizeSourceVectorScale } from "../../services/visualization/sourceVectorScale.js";
 import { buildConstructionLayer } from "../../services/visualization/geometryConstructions.js";
+import { createSymmetryAxes, createSymmetryArrows } from "./SymmetryDemoLayer.js";
 import { createViewportLens } from "../../services/visualization/viewportLens.js";
 import { createViewportLensHintPreference } from "../../services/visualization/viewportLensHint.js";
 import "../../services/visualization/viewportLensHint.css";
@@ -70,6 +71,7 @@ function normalizeProjection(value) {
 }
 
 function instanceCategory(instance) {
+  if (instance?.demoCategory) return instance.demoCategory;
   if (instance?.mirrorX || instance?.mirrorY) return "mirror";
   if (
     Number(instance?.ls ?? 0) === 0 &&
@@ -84,7 +86,9 @@ function instanceCategory(instance) {
 function materialStyle(primitive, category, mode) {
   const isElement = primitive.kind === "element-volume";
   const original = category === "base";
-  const palette = isElement
+  const palette = primitive.demoAddedIndex
+    ? { color: original ? 0x8297a8 : 0xffb355, edgeColor: original ? 0xacc0cf : 0xffdb94 }
+    : isElement
     ? resolveGeometryMaterialStyle(primitive.materialKind, original)
     : {
         color: original ? 0xd99043 : 0xffb65e,
@@ -992,7 +996,7 @@ function createDiscretizationPoints(THREE, positions) {
   return points;
 }
 
-function createAxisLabel(THREE, text, color) {
+function createAxisLabelTexture(THREE, text, color) {
   const canvas = document.createElement("canvas");
   canvas.width = 64;
   canvas.height = 64;
@@ -1006,10 +1010,14 @@ function createAxisLabel(THREE, text, color) {
 
   const texture = new THREE.CanvasTexture(canvas);
   if (THREE.SRGBColorSpace) texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
+function createAxisLabel(THREE, text, color) {
   const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
     depthTest: false,
     depthWrite: false,
-    map: texture,
+    map: createAxisLabelTexture(THREE, text, color),
     transparent: true,
   }));
   sprite.scale.set(0.34, 0.34, 0.34);
@@ -1168,6 +1176,7 @@ export function ThreeGeometryViewport(props) {
   let flightSceneScale = 1, flightBoundsCenter, flightModel, flightFrameKey;
   let geometryRoot;
   let constructionRoot;
+  let demoAxes, demoArrows;
   let helperRoot;
   let prescribedSourceRoot;
   let prescribedSourceScene = null;
@@ -1310,7 +1319,7 @@ export function ThreeGeometryViewport(props) {
         lastFlightPickTime = pickTime; pickFlightTarget();
       }
 
-      if (axesScene && axesCamera && axesRoot && controls) {
+      if (!props.demoStage && axesScene && axesCamera && axesRoot && controls) {
         const size = axesGizmoSize();
         const direction = camera.position.clone().sub(controls.target);
         if (direction.lengthSq() < 1e-6) direction.set(1, 1, 1);
@@ -1401,7 +1410,7 @@ export function ThreeGeometryViewport(props) {
       && currentBounds
       && !currentBounds.isEmpty()
     ) {
-      fitCameraToVisibleObjects(THREE, camera, controls, [geometryRoot]);
+      fitCameraToVisibleObjects(THREE, camera, controls, [geometryRoot, demoAxes, demoArrows]);
     }
     setHoverTooltip(null);
     requestRender();
@@ -1532,7 +1541,7 @@ export function ThreeGeometryViewport(props) {
 
     const gizmoSize = axesGizmoSize();
     if (
-      x <= AXES_GIZMO_MARGIN + gizmoSize &&
+      !props.demoStage && x <= AXES_GIZMO_MARGIN + gizmoSize &&
       y >= bounds.height - AXES_GIZMO_MARGIN - gizmoSize
     ) {
       setHoverTooltip(null);
@@ -1992,7 +2001,7 @@ export function ThreeGeometryViewport(props) {
     currentBounds = new THREE.Box3().setFromObject(geometryRoot);
     if (!currentBounds.isEmpty()) {
       if (!hasFramedGeometry || props.autoFit === true) {
-        fitCameraToVisibleObjects(THREE, camera, controls, [geometryRoot]);
+        fitCameraToVisibleObjects(THREE, camera, controls, [geometryRoot, demoAxes, demoArrows]);
         hasFramedGeometry = true;
       }
     } else {
@@ -2023,7 +2032,7 @@ export function ThreeGeometryViewport(props) {
       THREE,
       camera,
       controls,
-      [geometryRoot, constructionRoot],
+      [geometryRoot, constructionRoot, demoAxes, demoArrows],
       { padding: props.fitAllPadding },
     );
     requestRender();
@@ -2042,7 +2051,7 @@ export function ThreeGeometryViewport(props) {
     camera.up.fromArray(frame.up);
     camera.position.fromArray(frame.offset).add(controls.target);
     rebuildOrbitControls();
-    fitCameraToVisibleObjects(THREE, camera, controls, [geometryRoot, constructionRoot],
+    fitCameraToVisibleObjects(THREE, camera, controls, [geometryRoot, constructionRoot, demoAxes, demoArrows],
       command === GEOMETRY_CAMERA_COMMANDS.FIT_INITIAL ? { padding: props.fitAllPadding } : {});
     clearHoverTooltip();
     requestRender();
@@ -2266,6 +2275,24 @@ export function ThreeGeometryViewport(props) {
   });
 
   createEffect(() => {
+    const stage = props.demoStage;
+    if (!ready() || (!stage && !demoAxes)) return;
+    if (demoAxes) { threeScene.remove(demoAxes); disposeObject(demoAxes); }
+    demoAxes = stage ? createSymmetryAxes(THREE, stage, createAxisLabelTexture) : null;
+    if (demoAxes) threeScene.add(demoAxes);
+    requestRender();
+  });
+
+  createEffect(() => {
+    const arrows = props.demoArrows, kind = props.demoVectorKind;
+    if (!ready() || (!arrows && !demoArrows)) return;
+    if (demoArrows) { threeScene.remove(demoArrows); disposeObject(demoArrows); }
+    demoArrows = arrows?.length ? createSymmetryArrows(THREE, arrows, kind) : null;
+    if (demoArrows) threeScene.add(demoArrows);
+    requestRender();
+  });
+
+  createEffect(() => {
     const opacity = props.geometryOpacity;
     geometryOpacity = typeof opacity === "number" && Number.isFinite(opacity)
       ? Math.max(0, Math.min(1, opacity)) : null;
@@ -2336,6 +2363,8 @@ export function ThreeGeometryViewport(props) {
     controls?.dispose();
     disposeObject(geometryRoot);
     disposeObject(constructionRoot);
+    disposeObject(demoAxes);
+    disposeObject(demoArrows);
     disposeObject(helperRoot);
     disposeObject(axesRoot);
     if (renderer?.domElement) {

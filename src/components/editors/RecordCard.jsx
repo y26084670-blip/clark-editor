@@ -12,7 +12,7 @@ const PARAMETER_LABELS = {
   H: "Высота по X′", YV: "Вершина по Y′", ZV: "Вершина по Z′",
 };
 
-function CardInput(props) {
+export function CardInput(props) {
   let input, editing = false, initialText;
   const text = () => {
     const value = props.value;
@@ -218,6 +218,8 @@ export function RecordCard(props) {
         <Show when={props.error}><div class="record-card-error" role="alert">{props.error}</div></Show>
       </div>
     </div>
-    <div class="record-card-reserve" aria-hidden="true" />
+    <Show when={props.showDemo} fallback={<div class="record-card-reserve" aria-hidden="true" />}>
+      {props.children}
+    </Show>
   </aside>;
 }
