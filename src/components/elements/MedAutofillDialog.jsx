@@ -1,11 +1,65 @@
-import { For, Show } from "solid-js";
+import { For, Show, createEffect, createMemo, createSignal, on, onCleanup } from "solid-js";
 import { FloatingWindow } from "../window/FloatingWindow.jsx";
 import { MED_FACE_NAMES } from "../../services/medAnalysisService.js";
 import "./MedAutofillDialog.css";
 
+// Existing MED values belong to the source element. The six drafts are local
+// to this window; committing them together produces one normal edit/undo step.
+function MedFaceEditor(props) {
+  const [open, setOpen] = createSignal(false);
+  const [row, setRow] = createSignal(null);
+  const rows = createMemo(() => props.rows ?? []);
+  const enabled = createMemo(() => props.enabled);
+  const block = createMemo(() => rows().indexOf(row()) + 1);
+  const inputs = [];
+  let selector;
+  const faces = createMemo(() => props.elements?.[block() - 1]?.med);
+  createEffect(on(rows, current => {
+    setRow(previous => current.includes(previous) ? previous : current[props.selectedBlock - 1] ?? current[0] ?? null);
+  }));
+  createEffect(on([row, faces], ([, med]) => {
+    MED_FACE_NAMES.forEach((_, i) => {
+      if (inputs[i]) inputs[i].value = String(med?.[i]?.[0] ?? "");
+    });
+  }));
+  createEffect(on(() => props.navigation, target => {
+    if (!target || !target.row || rows()[target.block - 1] !== target.row) return;
+    setRow(target.row);
+    setOpen(true);
+    const frame = requestAnimationFrame(() => (inputs[target.face] ?? selector)?.focus());
+    onCleanup(() => cancelAnimationFrame(frame));
+  }));
+
+  function save(event) {
+    event.preventDefault();
+    if (!enabled() || !faces()) return;
+    const values = inputs.map(input => input.valueAsNumber);
+    if (!values.every(value => Number.isSafeInteger(value) && value >= -1)) return;
+    if (values.some((value, i) => value !== faces()?.[i]?.[0])) {
+      props.onWriteFaces(row(), block(), values);
+    }
+  }
+
+  return <details class="med-manual" open={open()} onToggle={e => setOpen(e.currentTarget.open)}>
+    <summary>Ручная правка MED</summary>
+    <form onSubmit={save}><fieldset disabled={!enabled() || !block()}>
+      <label>Шестигранник <select ref={selector} value={String(block())}
+        onChange={e => setRow(rows()[Number(e.currentTarget.value) - 1])}>
+        <For each={rows()}>{(_, i) => <option value={i() + 1}>
+          {"№ " + (i() + 1) + " · " + (props.elements?.[i()]?.name || "Без названия")}
+        </option>}</For>
+      </select></label>
+      <div class="med-face-fields">{MED_FACE_NAMES.map((face, i) => <label>{face}
+        <input ref={el => { inputs[i] = el; }} type="number" min="-1" step="1" required
+          aria-label={"MED " + face} />
+      </label>)}<button type="submit">Записать грани</button></div>
+    </fieldset></form>
+  </details>;
+}
+
 export function MedAutofillDialog(props) {
   const link = (block,face) => <button type="button" class="med-element-link"
-    disabled={!props.navigationEnabled} title="Перейти к исходной записи элемента и полю MED"
+    disabled={!props.navigationEnabled} title="Открыть исходный ШГ для ручной правки MED"
     onClick={()=>props.onNavigate(block,face)}>
     ШГ {block}{face===undefined?"":` · ${MED_FACE_NAMES[face]}`}
   </button>;
@@ -22,6 +76,8 @@ export function MedAutofillDialog(props) {
           {props.stale?"Проверить и применить":"Применить"}</button>
         <button type="button" onClick={props.onClose} title="Закрыть окно без применения новых предложений">Закрыть</button>
       </div>
+      <MedFaceEditor enabled={!props.busy && !props.applying} rows={props.rows} navigation={props.navigation}
+        elements={props.elements} selectedBlock={props.selectedBlock} onWriteFaces={props.onWriteFaces} />
       <Show when={props.busy}><p role="status">Анализ контактов…</p></Show>
       <Show when={props.stale}><p role="status">Исходные данные изменены. Список относится к последнему анализу.
         Можно продолжить исправления; перед применением анализ обновится автоматически.</p></Show>
