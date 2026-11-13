@@ -1,6 +1,7 @@
 import {
     FIELD_TYPES,
     STORAGE_TYPES,
+    TABS,
 } from "./schemas/common/constants.js";
 import { createError } from "../tabulator/validators/common/createDiagnostic.js";
 import { validateConstraintValue } from "../tabulator/validators/types/constraintValidator.js";
@@ -26,48 +27,59 @@ function nestedValues(value) {
 // Вложенные таблицы участвуют в сводной проверке только тогда, когда
 // их значения целочисленные. Сейчас ограничения таких значений объявлены
 // только у таблиц "Разбиение" elements.dp и regions.dp.
-export function countSchemaConstraintViolations(schema, modelPart) {
+function constraintViolations(schema, modelPart, onInvalidField) {
     let count = 0;
-
-    for (const item of modelItems(schema, modelPart)) {
+    const properties = Object.entries(schema.properties);
+    for (const [index, item] of modelItems(schema, modelPart).entries()) {
         if (!item || typeof item !== "object") continue;
 
-        for (const [propertyName, property] of Object.entries(
-            schema.properties,
-        )) {
-            const value = item[propertyName];
-
+        for (const [name, property] of properties) {
+            const value = item[name];
+            const previousCount = count;
             if (property.type === FIELD_TYPES.ARRAY) {
                 if (property.items?.type !== FIELD_TYPES.INTEGER) continue;
-
                 for (const nestedValue of nestedValues(value)) {
-                    if (!validateConstraintValue(nestedValue, property.items)) {
-                        count += 1;
-                    }
+                    if (!validateConstraintValue(nestedValue, property.items)) count++;
                 }
-                continue;
+            } else if (!validateConstraintValue(value, property)) {
+                count++;
             }
 
-            if (!validateConstraintValue(value, property)) {
-                count += 1;
-            }
+            // The table shows one source row for the entire record, including
+            // fields containing several invalid array entries.
+            if (count > previousCount) onInvalidField?.(name, index + 1);
         }
     }
-
     return count;
 }
 
+export function countSchemaConstraintViolations(schema, modelPart) {
+    return constraintViolations(schema, modelPart);
+}
+
 export function schemaConstraintDiagnostics(schema, modelPart) {
-    const count = countSchemaConstraintViolations(schema, modelPart);
+    const showRows = schema.id === TABS.ELEMENTS.id || schema.id === TABS.REGIONS.id;
+    const rowsByField = new Map();
+    function addRow(field, row) {
+        if (!rowsByField.has(field)) rowsByField.set(field, []);
+        rowsByField.get(field).push(row);
+    }
+    const count = constraintViolations(schema, modelPart, showRows ? addRow : undefined);
     if (count === 0) return [];
 
-    return [{
+    const summary = {
         ...createError({
-            message:
-                `Вкладка: ${schema.title} - нарушений ограничений: ${count}`,
+            message: `Вкладка: ${schema.title} - нарушений ограничений: ${count}`,
         }),
         presentation: "constraint-summary",
-    }];
+    };
+    if (showRows) {
+        summary.fieldRows = Array.from(rowsByField, ([field, rows]) => ({
+            label: schema.properties[field].label ?? field,
+            rows,
+        }));
+    }
+    return [summary];
 }
 
 export function collectModelConstraintDiagnostics(registry, model) {

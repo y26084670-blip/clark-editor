@@ -169,50 +169,54 @@ export function RecordCard(props) {
       control?.focus();
     }
   }));
-  return <aside class="record-card-column" classList={{"record-card-region": !element}} aria-label={element ? "Карточка элемента" : "Карточка области"}>
-    <header class="record-card-info" aria-live="polite" title={record()?.name}>{record()
-      ? "№ " + (props.index + 1) + " · " + (record().name || "Без названия")
-      : "Выберите строку таблицы"}</header>
-    <div ref={panel} class="record-card-panel">
-      <Show when={record() ? props.index + 1 : 0} keyed>{(_number) => <>
-        <div class="record-card-top">
-          <div>
-            {element && scalar("name", "Имя")}
-            {element && scalar("targ", "Назначение")}
-            {scalar("geoType", "Тип")}
-            <Section title="Геометрия" class="record-card-geometry">
-              <div class="record-card-geometry-fields">
-                <Show when={String(geo().key)} keyed>{(_variant) => geometry(record()?.geoType)}</Show>
-              </div>
-            </Section>
+  return <aside class="record-card-column" classList={{"record-card-element": element, "record-card-region": !element}} aria-label={element ? "Карточка элемента" : "Карточка области"}>
+    <div class="record-card-frame">
+      <header class="record-card-info" aria-live="polite" title={record()?.name}>{record()
+        ? "№ " + (props.index + 1) + " · " + (record().name || "Без названия")
+        : "Выберите строку таблицы"}</header>
+      <div ref={panel} class="record-card-panel">
+        <Show when={record() ? props.index + 1 : 0} keyed>{(_number) => <>
+          <div class="record-card-top">
+            <div>
+              {element && scalar("name", "Имя")}
+              {element && scalar("targ", "Назначение")}
+              {scalar("geoType", "Тип")}
+              <Section title="Геометрия" class="record-card-geometry">
+                <div class="record-card-geometry-fields" classList={{"record-card-sector-fields": element && record()?.geoType === 1}}>
+                  <Show when={String(geo().key)} keyed>{(_variant) => geometry(record()?.geoType)}</Show>
+                </div>
+              </Section>
+            </div>
+            <div>
+              {element && <><Section title="Азимутальная симметрия">{scalar("symKya","Тип")}
+                <div class="record-card-parameter-grid">{scalar("symYa","Угол, °")}{scalar("symAs","Образов")}</div></Section>
+                <Section title="Периодическая симметрия">{scalar("symKyp","Тип")}
+                  <div class="record-card-parameter-grid">{scalar("symTx","Шаг X")}{scalar("symPs","Образов")}</div></Section></>}
+              {!element && <><Section title="Разбиение">
+                <label class="record-card-pair"><span>D2 (n41)</span>{input("dp","Разбиение D2 (n41)",[1,0])}</label>
+                <label class="record-card-pair"><span>D1 (n21)</span>{input("dp","Разбиение D1 (n21)",[0,0])}</label>
+              </Section>
+                <Section title="Катушка и движение">{scalar("indMove","Траектория")}{scalar("indCoil","Катушка")}{scalar("wCoil","Множитель")}</Section></>}
+              {element && coordinates()}
+            </div>
           </div>
-          <div>
-            {element && <><Section title="Азимутальная симметрия">{scalar("symKya","Тип")}
-              <div class="record-card-parameter-grid">{scalar("symYa","Угол, °")}{scalar("symAs","Образов")}</div></Section>
-              <Section title="Периодическая симметрия">{scalar("symKyp","Тип")}
-                <div class="record-card-parameter-grid">{scalar("symTx","Шаг X")}{scalar("symPs","Образов")}</div></Section></>}
-            {!element && <><Section title="Разбиение">
-              <label class="record-card-pair"><span>D2 (n41)</span>{input("dp","Разбиение D2 (n41)",[1,0])}</label>
-              <label class="record-card-pair"><span>D1 (n21)</span>{input("dp","Разбиение D1 (n21)",[0,0])}</label>
-            </Section>
-              <Section title="Катушка и движение">{scalar("indMove","Траектория")}{scalar("indCoil","Катушка")}{scalar("wCoil","Множитель")}</Section></>}
-            {element && coordinates()}
-          </div>
-        </div>
-        {element ? <div class="record-card-bottom"><Section title="Электрические и магнитные свойства">
-          {scalar("model","Модель")}
-          <label class="record-card-pair"><span>Характеристика</span><button type="button" data-field="xapName"
-            title="Выбрать характеристику материала" onClick={props.onChooseMaterial}>{record()?.xapName || "Выбрать…"}</button></label>
-          <div class="record-card-caption">Углы анизотропии</div>{matrix("vkan", AXES)}
-          {scalar("rv","GAM, МСм/м")}
-        </Section><div><Section title="Разбиение">{matrix("dp",["D1","D2","D3"])}</Section>
-          <Section title="Прочие параметры">{scalar("auto")}{scalar("take")}
-            <div class="record-card-parameter-grid">{scalar("indMove","Траектория")}{scalar("indCoil","Катушка")}
-              {scalar("indAmp",record()?.targ === 3 ? "Направление" : "Импульс")}{scalar("wCoil","Витки")}</div>
-          </Section></div>
-        </div> : coordinates()}
-      </>}</Show>
-      <Show when={props.error}><div class="record-card-error" role="alert">{props.error}</div></Show>
+          {element ? <div class="record-card-bottom"><Section title="Электрические и магнитные свойства" class="record-card-material">
+            <div class="record-card-material-fields">
+              {scalar("model","Модель")}
+              <label class="record-card-pair"><span>Характеристика</span><button type="button" data-field="xapName"
+                title="Выбрать характеристику материала" onClick={props.onChooseMaterial}>{record()?.xapName || "Выбрать…"}</button></label>
+              <div><div class="record-card-caption">Углы анизотропии</div>{matrix("vkan", AXES)}</div>
+              {scalar("rv","GAM, МСм/м")}
+            </div>
+          </Section><div><Section title="Разбиение">{matrix("dp",["D1","D2","D3"])}</Section>
+            <Section title="Прочие параметры">{scalar("auto")}{scalar("take")}
+              <div class="record-card-parameter-grid">{scalar("indMove","Траектория")}{scalar("indCoil","Катушка")}
+                {scalar("indAmp",record()?.targ === 3 ? "Направление" : "Импульс")}{scalar("wCoil","Витки")}</div>
+            </Section></div>
+          </div> : coordinates()}
+        </>}</Show>
+        <Show when={props.error}><div class="record-card-error" role="alert">{props.error}</div></Show>
+      </div>
     </div>
     <div class="record-card-reserve" aria-hidden="true" />
   </aside>;

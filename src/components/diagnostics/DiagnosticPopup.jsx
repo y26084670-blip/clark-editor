@@ -120,6 +120,12 @@ export function DiagnosticPopup(props) {
                   </div>
                 </Show>
                 <div class="diagnostic-message">{diagnostic.message}</div>
+                <For each={diagnostic.fieldRows}>{({ label, rows }) => (
+                  <div class="diagnostic-source">
+                    {rows.length === 1 ? "Строка" : "Строки"} № {rows.join(", ")}
+                    {" · "}{label}
+                  </div>
+                )}</For>
                 <Show when={diagnostic.presentation !== "constraint-summary"}>
                   <div class="diagnostic-source">
                     {diagnostic.tab && (

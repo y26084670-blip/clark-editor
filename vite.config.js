@@ -6,6 +6,8 @@ import { readFileSync } from "node:fs";
 function publishedUpdates() {
   const feed = JSON.parse(readFileSync(new URL("./data/updates/changes.json", import.meta.url), "utf8"));
   const config = JSON.parse(readFileSync(new URL("./public/examples-config.json", import.meta.url), "utf8"));
+  // Editors append tips to the shared journal. Both clients display feed order.
+  if (Array.isArray(feed.recommendations)) feed.recommendations.reverse();
   // Older open tabs require this field. It is derived, never edited separately;
   // current clients read the installer resource directly on every refresh.
   if (feed.recommendedClark) feed.recommendedClark.installerUrl = config.solverInstallerUrl;
