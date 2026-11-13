@@ -28,7 +28,7 @@ import {
   STORAGE_TYPES,
   VIEW_TYPES,
 } from "../../services/schemas/common/constants";
-import { createEffect, createMemo, createSignal, onCleanup, onMount } from "solid-js";
+import { Show, createEffect, createMemo, createSignal, onCleanup, onMount } from "solid-js";
 import { TabulatorFull as Tabulator } from "tabulator-tables";
 import { TableBuilder } from "../../tabulator/builders/TableBuilder";
 import { resolveProperty } from "../../tabulator/schema/propertyResolver";
@@ -54,6 +54,7 @@ import {
   schemaConstraintDiagnostics,
 } from "../../services/modelConstraintDiagnostics.js";
 import { RecordCard } from "./RecordCard.jsx";
+import { createRecordSymmetryDemo, RecordSymmetryControls, RecordSymmetryViewport } from "./RecordSymmetryDemo.jsx";
 import {
   hasRecordColumnsView,
   recordColumnField,
@@ -90,7 +91,8 @@ export function DataEditor(props) {
   const [cardIndex, setCardIndex] = createSignal(-1);
   const [cardFocus, setCardFocus] = createSignal(null);
   const [cardError, setCardError] = createSignal("");
-  const cardRecord = () => modelService.getModel()[schema.id]?.[cardIndex()];
+  const cardRecord = createMemo(() => modelService.getModel()[schema.id]?.[cardIndex()]);
+  const demo = card && createRecordSymmetryDemo(card.kind === "element", cardRecord, cardIndex, () => props.active);
 
   function cardColumnVisible(field, flags) {
     return field === "rowLabel" || field === "name" || !!flags.all
@@ -1393,6 +1395,8 @@ export function DataEditor(props) {
             {card.columnGroups.map(group => <label><input type="checkbox" disabled={!!columnFlags().all}
               checked={!!columnFlags()[group.label]} onChange={e => toggleCardColumns(group.label, e.currentTarget.checked)} />{group.label}</label>)}
           </div>}
+          {demo && <label class="record-card-toggle-3d"><input type="checkbox" checked={demo.open()}
+            onChange={e => { demo.setOpen(e.currentTarget.checked); scheduleMainLayoutRedraw(); }} />3D</label>}
           {jweakStructureLocked() && (
             <span role="status" title={JWEAK_STRUCTURE_NOTICE} style={{ "align-self": "center" }}>
               Иерархия: состав и порядок ШГ зафиксированы
@@ -1417,13 +1421,18 @@ export function DataEditor(props) {
             "compact-reference": hasCompactReferenceLayout,
           }}
         >
-          {card && <RecordCard schema={schema} record={cardRecord()} index={cardIndex()}
+          {card && <RecordCard schema={schema} record={cardRecord()} index={cardIndex()} showDemo={demo.open()}
             focusRequest={cardFocus()} error={cardError()} onError={setCardError}
             onChange={editCardField}
             onChooseMaterial={() => {
               const row = table.getRows()[cardIndex()];
               if (row?.isSelected()) props.onChooseRecordMaterial?.(table, row);
-            }} />}
+            }}>
+            <RecordSymmetryControls demo={demo} />
+          </RecordCard>}
+          {demo && <Show when={demo.open()}>
+            <RecordSymmetryViewport demo={demo} onResize={scheduleMainLayoutRedraw} />
+          </Show>}
           <div
             ref={(el) => (tableDiv = el)}
             class="data-editor-main-table"

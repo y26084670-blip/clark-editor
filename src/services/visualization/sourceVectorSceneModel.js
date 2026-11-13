@@ -33,8 +33,8 @@ function elementContext(primitive, record, filters) {
     if (!primitiveVisible(primitive, filters?.objectModes, filters?.selections)) {
         return null;
     }
-    const vi = vector3(record.symVi);
-    if (!vi) return null;
+    const directions = createSourceDirectionTransform(record);
+    if (!directions) return null;
 
     const instances = new Map();
     for (const instance of primitive.instances) {
@@ -55,11 +55,8 @@ function elementContext(primitive, record, filters) {
     return {
         point,
         primitive,
-        record,
         instances,
-        rotation: eulerRotationMatrix4(...vi),
-        directionMatrices: new Map(),
-        axialRotations: new Map(),
+        directions,
         cellKey: null,
         cell: null,
     };
@@ -129,6 +126,21 @@ function imageDirection(context, baseVector, instance, kind, general, amplitude)
         if (kind === "current") sign = -sign;
     }
     return vector.map(value => value * sign);
+}
+
+/** One record's solver rotations and parity, shared by MHJ and the card preview. */
+export function createSourceDirectionTransform(record) {
+    const vi = vector3(record.symVi);
+    if (!vi) return null;
+    const context = {
+        record, rotation: eulerRotationMatrix4(...vi),
+        directionMatrices: new Map(), axialRotations: new Map(),
+    };
+    return {
+        base: (vector, ls) => sourceDirection(context, vector, ls),
+        image: (base, instance, kind, general, amplitude = 1) =>
+            imageDirection(context, base, instance, kind, general, amplitude),
+    };
 }
 
 function sceneDiagonal(scene) {
@@ -251,7 +263,7 @@ export function buildSourceVectorScene(scene, elements, mhj, options = {}) {
         if (!instances?.length) continue;
 
         const cell = sourceCell(context, row);
-        const baseVector = sourceDirection(context, values[sourceRowIndex], row.ls - 1);
+        const baseVector = context.directions.base(values[sourceRowIndex], row.ls - 1);
         if (!cell.origin?.every(Number.isFinite) || !baseVector.every(Number.isFinite)
             || !Number.isFinite(cell.characteristicSize) || cell.characteristicSize <= 0) {
             invalidGeometry++;
@@ -261,9 +273,7 @@ export function buildSourceVectorScene(scene, elements, mhj, options = {}) {
         const kind = row.targ === 1 ? "magnetization" : "current";
         for (const instance of instances) {
             const origin = applyMatrix4ToPoint(instance.matrix, cell.origin);
-            const vector = imageDirection(
-                context, baseVector, instance, kind, options.general, amplitude,
-            );
+            const vector = context.directions.image(baseVector, instance, kind, options.general, amplitude);
             if (!origin.every(Number.isFinite) || !vector?.every(Number.isFinite)) {
                 invalidGeometry++;
                 continue;
