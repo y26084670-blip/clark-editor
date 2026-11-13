@@ -62,6 +62,17 @@ try {
   assert.equal(await editor.getByRole("link", { name: "Скачать установщик" }).getAttribute("href"), "https://example.test/ClarkInstaller.exe");
   assert.equal(await badge(editor).textContent(), "2"); assert.equal(await editor.locator(".whats-new-entry").count(), 2);
   pass("version 0.10.9 is below 0.10.10; opening preserves unread marks and shows the archive");
+  for (const page of [editor, viewerPage]) {
+    const tabs = page.getByRole("tablist").getByRole("tab");
+    assert.deepEqual(await tabs.allTextContents(), ["Рекомендации", "Интерфейс (1)", "Алгоритмы (1)"]);
+    await tabs.first().click();
+    await page.getByText("Рекомендаций пока нет.", { exact: true }).waitFor();
+    assert.equal(await page.getByLabel("Только непрочитанные").count(), 0);
+    assert.equal(await page.getByRole("button", { name: "Отметить раздел прочитанным" }).count(), 0);
+    assert.equal(await badge(page).textContent(), "2");
+    await page.getByRole("tab", { name: /^Интерфейс/ }).click();
+  }
+  pass("recommendations precede both news tabs and old feeds open an empty section without changing unread counts");
   await editor.getByRole("button", { name: "Отметить раздел прочитанным" }).click();
   await viewerPage.waitForFunction(() => document.querySelector(".whats-new-count")?.textContent === "1");
   await viewerPage.getByRole("tab", { name: "Алгоритмы (1)", exact: true }).click();
@@ -70,6 +81,8 @@ try {
   await viewerPage.getByRole("button", { name: "Прочитано", exact: true }).click();
   await editor.waitForFunction(() => !document.querySelector(".whats-new-count"));
   pass("independent category acknowledgements synchronize in both directions without reloading");
+  feed.recommendations = [{ title: "Первый пункт", summary: "Первое описание." },
+    { title: "Второй пункт", summary: "Второе описание." }];
   feed.entries = [{ ...feed.entries[0], revision: 2 }, item("Ещё одно изменение", "interface", { id: "ui-next" }), ...feed.entries.slice(1)];
   await editor.getByRole("button", { name: "Проверить обновления", exact: true }).click();
   await editor.getByText("Установлена рекомендуемая версия Clark", { exact: true }).waitFor();
@@ -81,6 +94,16 @@ try {
   assert.equal(await editor.locator("#draft").inputValue(), "Черновик задания");
   await editor.screenshot({ path: `${output}/desktop.png`, fullPage: true });
   pass("new release/revision remain unread; manual settings check obtains and shares the actual package version");
+  for (const page of [editor, viewerPage]) {
+    await page.getByRole("tab", { name: "Рекомендации", exact: true }).click();
+    const panel = page.getByRole("tabpanel", { name: "Рекомендации" });
+    await panel.getByText("Первое описание.", { exact: true }).waitFor();
+    assert.deepEqual(await panel.getByRole("heading").allTextContents(), feed.recommendations.map(tip => tip.title));
+    assert.equal(await badge(page).textContent(), "2");
+    await page.getByRole("tab", { name: /^Интерфейс/ }).click();
+  }
+  assert.equal(await editor.getByLabel("Только непрочитанные", { exact: true }).isChecked(), true);
+  pass("both clients show feed-order recommendations independently of notification filters");
   offline = true;
   await editor.getByRole("button", { name: "Проверить обновления", exact: true }).click();
   await editor.getByText("Журнал недоступен. Показана последняя сохранённая копия.", { exact: true }).waitFor();
@@ -92,6 +115,9 @@ try {
   await editor.getByRole("button", { name: "Проверить обновления", exact: true }).click();
   await editor.getByText("Журнал недоступен. Показана последняя сохранённая копия.", { exact: true }).waitFor();
   assert.equal(await badge(editor).textContent(), "2");
+  await editor.getByRole("tab", { name: "Рекомендации", exact: true }).click();
+  await editor.getByRole("heading", { name: "Второй пункт", exact: true }).waitFor();
+  await editor.getByRole("tab", { name: /^Интерфейс/ }).click();
   pass("offline refresh and page reload retain the journal, acknowledgements and last successful times");
   offline = false;
   feed.recommendedClark.version = "0.10.48";
@@ -121,33 +147,40 @@ try {
   for (const [app, appPage] of [["editor", editor], ["viewer", viewerPage]]) {
     await appPage.getByLabel("Только непрочитанные", { exact: true }).uncheck();
     await appPage.getByRole("tab", { name: /^Интерфейс/ }).click();
-    const med = appPage.locator(".whats-new-entry").first();
-    await med.getByRole("heading", { name: "Автоматизация заполнения MED", exact: true }).waitFor();
-    assert.equal(await appPage.locator(".whats-new-entry").count(), 2);
+    const med = appPage.locator(".whats-new-entry").filter({ has:
+      appPage.getByRole("heading", { name: "Автоматизация заполнения MED", exact: true }) });
+    await med.waitFor();
+    assert.equal(await appPage.locator(".whats-new-entry").count(),
+      feed.entries.filter(entry => entry.category === "interface").length);
     assert.equal(await med.getByRole("link", { name: "Подробнее" }).getAttribute("href"), `${origin}/__updates/user-guide/index.html#med`);
     assert.match(await med.textContent(), /В общих параметрах включить Учёт зарядов\./);
     for (const title of ["Верхняя панель Editor и тема уведомлений", "Уведомления об изменениях и обновлениях"]) {
       assert.equal(await appPage.getByRole("heading", { name: title, exact: true }).count(), 0);
     }
-    for (const category of ["Интерфейс", "Алгоритмы"]) {
-      await appPage.getByRole("tab", { name: new RegExp(`^${category} \\(`) }).click();
-      const status = appPage.locator(".whats-new-entry-title .whats-new-entry-status");
-      if (category === "Интерфейс") assert.equal(await status.count(), 0);
-      else {
-        assert.equal(await status.textContent(), "статус: модель готова к использованию");
-        assert.equal(await status.evaluate(el => getComputedStyle(el).color), "rgb(139, 0, 0)");
-      }
-      for (const width of [1280, 480]) {
-        await appPage.setViewportSize({ width, height: 900 });
-        const widths = await appPage.getByRole("tab").evaluateAll(tabs => tabs.map(el => el.getBoundingClientRect().width));
-        assert.ok(Math.abs(widths[0] - widths[1]) < 1, "category buttons must have equal widths");
-        assert.ok(await appPage.locator(".whats-new-dialog").evaluate(el => el.scrollWidth <= el.clientWidth + 1));
-        await appPage.screenshot({ path: `${output}/${app}-${category === "Интерфейс" ? "interface" : "algorithms"}-${width}.png` });
-      }
+    for (const [key, label] of [["interface", "Интерфейс"], ["computation", "Алгоритмы"]]) {
+      await appPage.getByRole("tab", { name: new RegExp(`^${label}`) }).click();
+      const section = feed.entries.filter(item => item.category === key)
+        .sort((a, b) => b.date.localeCompare(a.date));
+      assert.deepEqual(await appPage.locator(".whats-new-entry-title .whats-new-entry-status").allTextContents(),
+        section.flatMap(item => item.status ? [item.status] : []));
     }
-    assert.match(await appPage.locator(".whats-new-entry").textContent(), /Ограничения: Для инструмента Editor добавление строк при наличии jweak_local\.json пока запрещено\./);
+    const contact = appPage.locator(".whats-new-entry").filter({ has:
+      appPage.getByRole("heading", { name: "Контактное возбуждение проводников", exact: true }) });
+    assert.match(await contact.textContent(), /Ограничения: Для инструмента Editor добавление строк/);
+    await appPage.getByRole("tab", { name: "Рекомендации", exact: true }).click();
+    const panel = appPage.getByRole("tabpanel", { name: "Рекомендации" });
+    assert.deepEqual(await panel.getByRole("heading").allTextContents(),
+      (feed.recommendations ?? []).map(item => item.title));
+    for (const width of [1280, 480, 320]) {
+      await appPage.setViewportSize({ width, height: 900 });
+      const widths = await appPage.getByRole("tablist").getByRole("tab").evaluateAll(tabs =>
+        tabs.map(el => el.getBoundingClientRect().width));
+      assert.ok(Math.max(...widths) - Math.min(...widths) < 1, "category buttons must have equal widths");
+      assert.ok(await appPage.locator(".whats-new-dialog").evaluate(el => el.scrollWidth <= el.clientWidth + 1));
+      await appPage.screenshot({ path: `${output}/${app}-recommendations-${width}.png` });
+    }
   }
-  pass("curated feed in both apps: MED first with details, obsolete entries removed, interface without status, ready-to-use algorithm status and equal-width category buttons at desktop and mobile sizes");
+  pass("current feed in both apps: published categories, MED details, recommendations and three equal-width tabs on desktop and mobile");
   assert.deepEqual(errors, []);
   console.log(`${checks.length} browser checks passed; screenshots: ${output}`);
 } finally { await context.close(); await browser.close(); await server.close(); }
