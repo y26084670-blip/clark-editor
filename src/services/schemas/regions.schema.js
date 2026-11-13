@@ -66,6 +66,17 @@ export default createSchema({
     columnHeaderWordLines: true,
     rowNumberTooltip: true,
 
+    views: {
+        recordCard: {
+            kind: "region",
+            columnGroups: [
+                { label: "Разбиение", fields: ["dp", "epCount"] },
+                { label: "Симметрии", fields: ["symYl", "symLs"] },
+                { label: "Индексы катушки и траектории", fields: ["indCoil", "wCoil", "indMove"] },
+            ],
+        },
+    },
+
     properties: {
         name: {
             type: FIELD_TYPES.STRING,

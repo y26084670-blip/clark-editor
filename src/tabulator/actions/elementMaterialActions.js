@@ -7,14 +7,13 @@ function materialKindForModel(model) {
         : MATERIAL_LIBRARY_KINDS.FMM;
 }
 
-export function selectedElementsRequest(table) {
+export function selectedElementsRequest(table, rows = table?.getSelectedRows?.() ?? []) {
     if (table?._gui?.schema?.id !== TABS.ELEMENTS.id) {
         throw new Error(
             "Групповое действие доступно только для элементов модели.",
         );
     }
 
-    const rows = table.getSelectedRows?.() ?? [];
     if (rows.length === 0) {
         throw new Error("Выберите хотя бы один элемент модели.");
     }
@@ -26,8 +25,8 @@ export function selectedElementsRequest(table) {
     };
 }
 
-export function selectedElementMaterialRequest(table) {
-    const request = selectedElementsRequest(table);
+export function selectedElementMaterialRequest(table, rows) {
+    const request = selectedElementsRequest(table, rows);
 
     return {
         ...request,

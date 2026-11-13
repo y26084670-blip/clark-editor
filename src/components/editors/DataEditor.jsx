@@ -43,7 +43,6 @@ import { selectionService } from "../../services/selectionService";
 import { modelService } from "../../services/modelService";
 import { applyVariantChange } from "../../services/model/variantChange";
 import {
-  isComputedProperty,
   isPropertyReadonly,
 } from "../../services/model/modelCompute";
 import { selectionContextService } from "../../services/selectionContextService";
@@ -54,7 +53,7 @@ import { diagnosticService } from "../../services/diagnosticService";
 import {
   schemaConstraintDiagnostics,
 } from "../../services/modelConstraintDiagnostics.js";
-import { viewSettingsService } from "../../services/viewSettingsService";
+import { RecordCard } from "./RecordCard.jsx";
 import {
   hasRecordColumnsView,
   recordColumnField,
@@ -86,6 +85,48 @@ import "./DataEditor.css";
 
 export function DataEditor(props) {
   const schema = props.schema;
+  const card = schema.views?.recordCard;
+  const [columnFlags, setColumnFlags] = createSignal({});
+  const [cardIndex, setCardIndex] = createSignal(-1);
+  const [cardFocus, setCardFocus] = createSignal(null);
+  const [cardError, setCardError] = createSignal("");
+  const cardRecord = () => modelService.getModel()[schema.id]?.[cardIndex()];
+
+  function cardColumnVisible(field, flags) {
+    return field === "rowLabel" || field === "name" || !!flags.all
+      || card.columnGroups.some(group => flags[group.label] && group.fields.includes(field));
+  }
+
+  function toggleCardColumns(key, checked) {
+    const flags = { ...columnFlags(), [key]: checked };
+    setColumnFlags(flags);
+    for (const column of table.getColumns()) {
+      const visible = cardColumnVisible(column.getField(), flags);
+      if (visible !== column.isVisible()) {
+        if (visible) column.show();
+        else column.hide();
+      }
+    }
+  }
+
+  function selectCardRecord(rows = table.getSelectedRows()) {
+    const last = rows.at(-1);
+    const index = last ? Number(last.getData().rowLabel) - 1 : -1;
+    setCardIndex(index);
+    setCardError("");
+  }
+
+  function focusCardField(field) {
+    setCardFocus({ field });
+  }
+
+  function editCardField(field, value) {
+    const row = table.getRows()[cardIndex()];
+    const property = schema.properties[field];
+    if (!row || !hasActiveTask() || !row.isSelected() || isPropertyReadonly(property)) return;
+    row.getCell(field).setValue(value);
+  }
+
 
   let tableDiv;
   let table;
@@ -116,12 +157,7 @@ export function DataEditor(props) {
       table.deselectRow(); row.select();
       await table.scrollToRow(row, "center", false);
       if (props.medNavigation !== request) return;
-      const cell = row.getCell("med");
-      if (cell) {
-        const property = table._gui.schema.properties.med;
-        viewRegistry.get(property.view ?? VIEW_TYPES.TABLE)?.activate?.(cell, {property});
-        cell.getElement()?.focus();
-      }
+      focusCardField("med");
     }).catch(error => console.error("MED navigation:", error));
   });
   let pendingCellChange = null;
@@ -220,7 +256,7 @@ export function DataEditor(props) {
     !isPropertyReadonly(mainViewProperty) &&
     mainViewProperty.rowsMutable !== false;
   const hasDetailRegion =
-    !hasMainView && hasNestedArrays(schema);
+    !card && !hasMainView && hasNestedArrays(schema);
   const hasGraphRegion =
     hasDetailRegion && Boolean(schema.views?.graph);
   const jweakStructureLocked = () => schema.id === TABS.ELEMENTS.id
@@ -258,7 +294,10 @@ export function DataEditor(props) {
         : "fitDataFill",
       ...(hasCompactReferenceLayout ? {} : { height: "100%" }),
       data: [],
-      columns: TableBuilder.buildColumns(schema),
+      columns: TableBuilder.buildColumns(schema).map(column => card
+        ? { ...column, visible: cardColumnVisible(column.field, columnFlags()),
+            frozen: column.field === "rowLabel" || column.field === "name" }
+        : column),
       selectableRows: true,
       selectableRowsRangeMode: "click",
     };
@@ -303,6 +342,7 @@ export function DataEditor(props) {
           changingStructure = false;
           const update = publishTableChanged(true);
           notifyRecordSelection();
+          if (card) selectCardRecord();
           return update;
         },
         cancelChange() {
@@ -513,6 +553,10 @@ export function DataEditor(props) {
           });
     await table.setData(rows);
     notifyRecordSelection();
+    if (card) {
+      selectCardRecord();
+      if (data?.length) table.getRows()[0]?.select();
+    }
     setMedRowsVersion(value=>value+1);
     activateDefaultReferenceView();
   }
@@ -562,6 +606,7 @@ export function DataEditor(props) {
   function handleRowSelectionChanged(_data, rows) {
     selectionContextService.notifySelectionChanged(table);
     notifyRecordSelection(rows);
+    if (card) { selectCardRecord(rows); return; }
     syncSelectedGraphRecords(rows);
     const tableSchema = table?._gui?.schema;
 
@@ -631,6 +676,19 @@ export function DataEditor(props) {
   function handleMainCellClick(_event, cell) {
     const tableSchema = cell.getTable()._gui?.schema;
     if (tableSchema?.config.storage !== STORAGE_TYPES.RECORDS) return;
+
+    if (card) {
+      const field = cell.getField();
+      if (schema.properties[field]?.type === FIELD_TYPES.ARRAY) {
+        queueMicrotask(() => {
+          const row = cell.getRow();
+          if (row.isSelected() && Number(row.getData().rowLabel) - 1 === cardIndex()) {
+            focusCardField(field);
+          }
+        });
+      }
+      return;
+    }
 
     const property = resolveProperty(cell, tableSchema);
     const adapter = property
@@ -868,9 +926,19 @@ export function DataEditor(props) {
         detailRegion.showHint();
         if (hasGraphRegion) setSelectedGraphRecords([]);
 
+        // Tabulator recreates RowComponents. Preserve the selection by source
+        // index for edits/undo with the same structure, never across task loads.
+        const selected = card && table.getRows().length === rows.length
+          ? table.getSelectedRows().map(row => Number(row.getData().rowLabel) - 1)
+          : [];
         try {
           await table.replaceData(rows);
           notifyRecordSelection();
+          if (card) {
+            const currentRows = table.getRows();
+            for (const index of selected) currentRows[index]?.select();
+            selectCardRecord();
+          }
           setMedRowsVersion(value=>value+1);
           activateDefaultReferenceView();
         } finally {
@@ -1021,52 +1089,6 @@ export function DataEditor(props) {
     );
   }
 
-  function applyComputedColumnsVisibility(mode) {
-    if (!table) return;
-
-    if (hasMainView) {
-      mainView?.setComputedColumnsVisibility?.(mode);
-      return;
-    }
-
-    if (schema.config.storage === STORAGE_TYPES.RECORDS) {
-      for (const [name, property] of Object.entries(schema.properties)) {
-        if (!isComputedProperty(property)) continue;
-
-        const column = table.getColumn(name);
-        if (!column) continue;
-
-        const visible =
-          viewSettingsService.isComputedColumnVisible(
-            property.hidden,
-            mode,
-          );
-
-        if (column.isVisible?.() === visible) continue;
-
-        if (visible) {
-          column.show();
-        } else {
-          column.hide();
-        }
-      }
-
-      for (const [name, property] of referenceEntries) {
-        const column = table.getColumn(name);
-        if (!column) continue;
-        const visible = viewSettingsService.isComputedColumnVisible(
-          property.hidden,
-          mode,
-        );
-        if (column.isVisible?.() === visible) continue;
-        if (visible) column.show();
-        else column.hide();
-      }
-    }
-
-    detailRegion.setComputedColumnsVisibility?.(mode);
-  }
-
   //==========================================================================
   onMount(() => {
     createMainTable();
@@ -1125,21 +1147,17 @@ export function DataEditor(props) {
     applyActiveRecordColumn(activeRecordField());
   });
 
-  // Режим общий для вкладок, но применяется только к активному редактору.
-  createEffect(() => {
-    const mode = props.computedColumnsMode;
-
-    if (!props.active || !table) return;
-
-    applyComputedColumnsVisibility(mode);
-  });
-
   // Загрузка данных модели
   createEffect(async () => {
     const revision = ++loadRevision;
     const dirHandle = selectionService.loadedTaskHandle();
     selectionService.taskDataVersion();
 
+    if (card) {
+      setCardIndex(-1);
+      setCardFocus(null);
+      setCardError("");
+    }
     if (hasDetailRegion) {
       detailRegion.showHint();
     }
@@ -1288,6 +1306,7 @@ export function DataEditor(props) {
     >
       {hasMainToolbar && (
         <div
+          class="data-editor-toolbar"
           style={{
             display: "flex",
             gap: "6px",
@@ -1353,6 +1372,12 @@ export function DataEditor(props) {
           >
             ↓
           </button>
+          {card && <div class="record-card-filters" role="group" aria-label="Колонки таблицы">
+            <label><input type="checkbox" checked={!!columnFlags().all}
+              onChange={e => toggleCardColumns("all", e.currentTarget.checked)} />Показать все</label>
+            {card.columnGroups.map(group => <label><input type="checkbox" disabled={!!columnFlags().all}
+              checked={!!columnFlags()[group.label]} onChange={e => toggleCardColumns(group.label, e.currentTarget.checked)} />{group.label}</label>)}
+          </div>}
           {jweakStructureLocked() && (
             <span role="status" title={JWEAK_STRUCTURE_NOTICE} style={{ "align-self": "center" }}>
               Иерархия: состав и порядок ШГ зафиксированы
@@ -1372,10 +1397,18 @@ export function DataEditor(props) {
           ref={(el) => (mainRegionHost = el)}
           classList={{
             "data-editor-main": true,
+            "with-record-card": !!card,
             "with-generator": hasGeneratorRegion,
             "compact-reference": hasCompactReferenceLayout,
           }}
         >
+          {card && <RecordCard schema={schema} record={cardRecord()} index={cardIndex()}
+            focusRequest={cardFocus()} error={cardError()} onError={setCardError}
+            onChange={editCardField}
+            onChooseMaterial={() => {
+              const row = table.getRows()[cardIndex()];
+              if (row?.isSelected()) props.onChooseRecordMaterial?.(table, row);
+            }} />}
           <div
             ref={(el) => (tableDiv = el)}
             class="data-editor-main-table"

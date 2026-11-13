@@ -3,7 +3,6 @@ import assert from "node:assert/strict";
 
 import {
     eoCount,
-    eoCountAll,
     epCount,
     kvFlags,
     nodeCount,
@@ -15,7 +14,7 @@ test("symYc reproduces symmetry enable flags and signs", () => {
     assert.deepEqual(symYc(-1, 2), [0, 0, -1, 1]);
 });
 
-test("EO counts distinguish independent sources and all images", () => {
+test("EO count includes independent symmetry images", () => {
     const record = {
         dp: [[2], [3], [1]],
         symLs: 2,
@@ -26,17 +25,11 @@ test("EO counts distinguish independent sources and all images", () => {
     };
 
     assert.equal(eoCount(record), 240);
-    assert.equal(eoCountAll(record), 240);
     assert.equal(eoCount({
         ...record,
         symKya: 1,
         symKyp: -1,
     }), 12);
-    assert.equal(eoCountAll({
-        ...record,
-        symKya: 1,
-        symKyp: -1,
-    }), 240);
 });
 
 test("EO count also accepts nested solver symmetry fields", () => {
