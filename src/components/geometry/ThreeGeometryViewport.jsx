@@ -1,5 +1,6 @@
 import { createLensVectorDetails } from "../../services/visualization/lensVectorDetails.js";
 import { normalizeSourceVectorScale } from "../../services/visualization/sourceVectorScale.js";
+import { buildConstructionLayer } from "../../services/visualization/geometryConstructions.js";
 import { createViewportLens } from "../../services/visualization/viewportLens.js";
 import { createViewportLensHintPreference } from "../../services/visualization/viewportLensHint.js";
 import "../../services/visualization/viewportLensHint.css";
@@ -1188,6 +1189,7 @@ export function ThreeGeometryViewport(props) {
   let flightController;
   let flightSceneScale = 1, flightBoundsCenter, flightModel, flightFrameKey;
   let geometryRoot;
+  let constructionRoot;
   let helperRoot;
   let originAxesRoot;
   let originAxesVisible = false;
@@ -2060,7 +2062,7 @@ export function ThreeGeometryViewport(props) {
       THREE,
       camera,
       controls,
-      [geometryRoot],
+      [geometryRoot, constructionRoot],
       { padding: props.fitAllPadding },
     );
     requestRender();
@@ -2079,7 +2081,7 @@ export function ThreeGeometryViewport(props) {
     camera.up.fromArray(frame.up);
     camera.position.fromArray(frame.offset).add(controls.target);
     rebuildOrbitControls();
-    fitCameraToVisibleObjects(THREE, camera, controls, [geometryRoot],
+    fitCameraToVisibleObjects(THREE, camera, controls, [geometryRoot, constructionRoot],
       command === GEOMETRY_CAMERA_COMMANDS.FIT_INITIAL ? { padding: props.fitAllPadding } : {});
     clearHoverTooltip();
     requestRender();
@@ -2293,6 +2295,21 @@ export function ThreeGeometryViewport(props) {
   });
 
   createEffect(() => {
+    const cells = props.constructions;
+    if (!ready()) return;
+    if (constructionRoot) {
+      threeScene.remove(constructionRoot);
+      disposeObject(constructionRoot);
+      constructionRoot = null;
+    }
+    if (cells?.length) {
+      constructionRoot = buildConstructionLayer(THREE, cells);
+      threeScene.add(constructionRoot);
+    }
+    requestRender();
+  });
+
+  createEffect(() => {
     const opacity = props.geometryOpacity;
     geometryOpacity = typeof opacity === "number" && Number.isFinite(opacity)
       ? Math.max(0, Math.min(1, opacity)) : null;
@@ -2362,6 +2379,7 @@ export function ThreeGeometryViewport(props) {
     controls?.removeEventListener("end", handleControlsEnd);
     controls?.dispose();
     disposeObject(geometryRoot);
+    disposeObject(constructionRoot);
     disposeObject(helperRoot);
     disposeObject(axesRoot);
     disposeObject(originAxesRoot);

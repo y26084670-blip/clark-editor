@@ -158,6 +158,11 @@
   overflow-x: hidden;
 }
 
+.geometry-viewer-options-panel.is-general-panel {
+  max-height: calc(100% - var(--options-top) - 6px);
+}
+.geometry-viewer-options-panel.is-general-panel > * { flex-shrink: 0; }
+
 .geometry-viewer-options-panel.is-view-panel .geometry-viewer-view-command {
   flex: 0 0 auto;
   overflow-wrap: anywhere;
@@ -193,7 +198,8 @@
   cursor: pointer;
 }
 
-.geometry-viewer-view-command.geometry-flight-command {
+.geometry-viewer-view-command.geometry-flight-command,
+.geometry-viewer-view-command.geometry-constructions-command {
   color: #ffdc55;
   font-weight: 700;
 }
