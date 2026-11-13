@@ -76,7 +76,7 @@ test("the profile's collapsed-edge prism remains a valid volume after discretiza
   for(const doubleFloat of [false,true]) {
     const cast=doubleFloat?x=>x:Math.fround;
     const {vertices:v,err}=unpackKvVertices(recipe.geo.map(cast),recipe.geoType);
-    assert.equal(err,0);assert(validateKvVerticesDetailed(v,{GEO_ANGLE:.1}).valid);
+    assert.equal(err,0);assert(validateKvVerticesDetailed(v,{doubleFloat}).valid);
     const tol=medTolerance(10,doubleFloat),hex=physicalHex(v,tol,doubleFloat);
     assert.equal(hex.error,undefined);assert.deepEqual(hex.faces.filter(f=>f.collapsed).map(f=>f.index),[5]);
     assert.equal(recipe.med[5],-1);
@@ -84,7 +84,7 @@ test("the profile's collapsed-edge prism remains a valid volume after discretiza
     const [nx,ny,nz]=recipe.dp;
     for(let i=0;i<nx;i++)for(let j=0;j<ny;j++)for(let k=0;k<nz;k++) {
       const c=Array.from({length:8},(_,p)=>hexPoint(v,(i+(p&1))/nx,(j+((p>>1)&1))/ny,(k+((p>>2)&1))/nz));
-      assert(validateKvVerticesDetailed(c,{GEO_ANGLE:.1}).valid);
+      assert(validateKvVerticesDetailed(c,{doubleFloat}).valid);
       assert.equal(physicalHex(c,tol,doubleFloat).error,undefined);count++;
       for(const [a,b] of edges){const length=Math.hypot(...sub(c[a],c[b]));if(length===0)collapsedEdges++;else minimumEdge=Math.min(minimumEdge,length);}
       for(const x of gauss)for(const y of gauss)for(const z of gauss) {
@@ -95,8 +95,8 @@ test("the profile's collapsed-edge prism remains a valid volume after discretiza
       }
     }
     assert.equal(count,8);assert.equal(collapsedEdges,8);assert.equal(minimumEdge,1.5);assert(Math.abs(volume-120)<1e-10);
-    const bad=structuredClone(v);bad[2]=[...bad[0]];bad[6]=[...bad[4]];
-    assert.equal(validateKvVerticesDetailed(bad,{GEO_ANGLE:.1}).checks.edge13,false);
+    const bad=v.map(([x,y,z]) => [-x,y,z]);
+    assert.equal(validateKvVerticesDetailed(bad,{doubleFloat}).checks.orientation,false);
   }
 });
 test("unsupported, empty, too many and oversized images fail before packaging", () => {

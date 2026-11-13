@@ -1,4 +1,3 @@
-import { geometryValidationSettings } from "../../../../services/solver/geometryValidationSettings.js";
 import { TABS } from "../../../../services/schemas/common/constants.js";
 import { createError } from "../../common/createDiagnostic.js";
 
@@ -27,13 +26,6 @@ export function conrabValidator(
         return;
     }
     for (const [row, record] of conrab.entries()) {
-        for (const property of geometryValidationSettings(record).invalid) {
-            diagnostics.push(createError({
-                tab: TABS.CONRAB, row: row + 1, property,
-                message: `${property} (${row === 0 ? "Float32" : "Float64"}): `
-                    + "требуется конечный угол больше 0 и меньше 90°",
-            }));
-        }
         for (const property of ["CF_FMMEPS", "CF_HTSEPS"]) {
             const value = record[property];
             if (!Number.isFinite(value) || value <= 0) {

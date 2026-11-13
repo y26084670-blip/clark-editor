@@ -1,4 +1,3 @@
-import { GEOMETRY_VALIDATION_DEFAULTS } from "../src/services/solver/geometryValidationSettings.js";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -26,7 +25,7 @@ const declaration = readFileSync(schemaPath, "utf8")
     .replace(/import\s+[\s\S]*?from\s+["'][^"']+["'];\s*/g, "")
     .replace("export default createSchema", "createSchema");
 const descriptor = runInNewContext(declaration, {
-    GEOMETRY_VALIDATION_DEFAULTS, FIELD_TYPES, STORAGE_TYPES, TABS, FILES,
+    FIELD_TYPES, STORAGE_TYPES, TABS, FILES,
     createSchema: definition => definition,
 }, { filename: schemaPath.pathname });
 const schema = {
@@ -44,7 +43,7 @@ test("fullJNewton is the last model parameter with names, states and complete he
     const names = Object.keys(schema.properties);
     assert.equal(names.at(-2), "CF_HTSEPS");
     assert.equal(names.at(-1), "fullJNewton");
-    assert.equal(names.length, 13);
+    assert.equal(names.length, 11);
     assert.equal(property.type, FIELD_TYPES.BOOLEAN);
     assert.equal(property.default, false);
     assert.match(property.label, /fullJNewton/);

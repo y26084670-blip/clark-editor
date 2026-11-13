@@ -1,6 +1,6 @@
 # Карта файлов и компонентов web-gui
 
-Обновлено: 2026-11-07 21:14 UTC+3.
+Обновлено: 2026-11-12 UTC.
 
 ## Интерактивная сцена «Лошадь», 4.90.0
 
@@ -242,7 +242,7 @@
 | Камера | `geometryCameraView.js`, `geometryCameraFit.js` | Осевые виды и вписывание по текущей проекции. |
 | Фильтры/стиль/picking | `geometryRenderFilters.js`, `geometryMaterialStyle.js`, `geometryPicking.js` | Видимость, палитра и адресные подписи объектов. |
 | Solver-совместимая математика | `src/services/solver/rotation3d.js`, `symmetryExpansion.js`, `geometryKv.js`, `geometryTk.js`, `kvDerived.js`, `tkDerived.js`, `mhjLayout.js` | Прослеживаемые преобразования, перенесённые из Julia-решателя. |
-| Допуск параллельности ШГ | `src/services/solver/geometryValidationSettings.js`, `geometryKv.js`, `schemas/conrab.schema.js` | GEO_ANGLE: default, активный профиль и пять исторических пар; [контракт](AI_DATA_CONTRACTS.md#geometry-measurement-diagnostics). |
+| Геометрическая диагностика ШГ | `src/services/solver/geometryValidationSettings.js`, `geometryKv.js`, `elementsValidator.js` | Активная разрядность, положительный объём/ориентация и контроль якобиана; [контракт](AI_DATA_CONTRACTS.md#geometry-measurement-diagnostics). |
 
 ## 10. Сборка, ресурсы и поставка
 

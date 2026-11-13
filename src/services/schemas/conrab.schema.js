@@ -1,8 +1,7 @@
-import { GEOMETRY_VALIDATION_DEFAULTS } from "../solver/geometryValidationSettings.js";
 /*
 Источник: solver/src/core/types.jl, Conrab; startITER и fullJNewton — логические параметры.
 Файл содержит две RECORDS-записи: Float32, затем Float64.
-Каждая запись GUI содержит 13 полей: 12 расчётных и собственный GEO_ANGLE.
+Устаревшие настройки интегратора и угловой допуск при загрузке пропускаются.
 Отсутствующие поля получают default схемы.
 */
 import {
@@ -25,7 +24,7 @@ export default createSchema({
             + "Значения продублированы для Float32 и Float64; "
             + "при сохранении будут записаны обе строки.",
     },
-    obsoleteStoragePaths: ["KPY", "KB2", "B20", "KEPS2", "KEPS3", "KEPS4",
+    obsoleteStoragePaths: ["KPY", "LONGD", "GEO_ANGLE", "KB2", "B20", "KEPS2", "KEPS3", "KEPS4",
         "EPS_0", "TAU_0", "KB1", "KEPS1", "CF_KEPS", "DIPOLE_FLOAT32"],
     rowLabelDescription: "Параметры математической модели",
     rowLabelWidth: "auto",
@@ -47,18 +46,6 @@ export default createSchema({
 
     properties: {
 
-        // геометрическая проверка модели
-        GEO_ANGLE: {
-            type: FIELD_TYPES.FLOAT,
-            label: "GEO_ANGLE: Угловой допуск непараллельности, град",
-            description: "Максимальное отклонение от параллельности пар 13–24, 15–26, "
-                + "15–37, 15–48, 75–68. "
-                + "Используется активный профиль Float32 или Float64. Больше 0 и меньше 90°.",
-            default: GEOMETRY_VALIDATION_DEFAULTS.GEO_ANGLE,
-            exclusiveMinimum: 0,
-            exclusiveMaximum: 90,
-            digits: 6,
-        },
         // итерационный процесс
 
         startITER: {
@@ -118,18 +105,10 @@ export default createSchema({
         },
 
 
-        LONGD: {
-            type: FIELD_TYPES.FLOAT,
-            label: "(3D): LONGD: Коэффициент условия дальней зоны",
-            description: "Коэффициент перехода к квадратуре дальней зоны: LONGD * |SY| <= YY; SY—интервал интегрирования, YY — расстояние в плоскости y–z от точки наблюдения до начала интервала",
-            default: 200,
-            digits: 6,
-        },
-
         POLAR_EPS_PERCENT: {
             type: FIELD_TYPES.FLOAT,
             label: "(3D): Полярное интегрирование по ЭП, %",
-            description: "Целевая относительная погрешность скалярного интеграла и нормы векторного интеграла на одной ЭП в конечной 3D-задаче. Применяется к полярной квадратуре общего шестигранника и на его общей грани со стандартным. Меньший процент увеличивает число узлов. По умолчанию 0,05 %.",
+            description: "Целевая относительная погрешность скалярного интеграла и нормы векторного интеграла на одной ЭП в конечной 3D-задаче. Применяется к полярной квадратуре граней всех объёмных шестигранников. Меньший процент увеличивает число узлов. По умолчанию 0,05 %.",
             default: 0.05,
             exclusiveMinimum: 0,
             exclusiveMaximum: 100,
