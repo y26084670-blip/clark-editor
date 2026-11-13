@@ -10,7 +10,7 @@
 .construction-columns { display: flex; flex: 1; gap: 10px; min-height: 0; }
 .construction-editor { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; gap: 5px; margin: 0; padding: 0; border: 0; }
 .construction-editor > button { align-self: flex-start; }
-.construction-list { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; overflow-anchor: none; }
+.construction-list { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; overflow-anchor: none; scrollbar-gutter: stable; }
 /* The last cell can reach the top, even while the contents or window height change. */
 .construction-list::after { display: block; content: ""; height: calc(100% - 2rem); }
 .construction-cell { box-sizing: border-box; margin-bottom: 4px; padding: 5px; border: 1px solid #58616a; border-inline-start: 3px solid var(--construction-color); }
@@ -24,6 +24,13 @@
 .construction-node input { box-sizing: border-box; width: 100%; min-width: 0; padding: 3px; border: 1px solid #647381; border-radius: 2px; color: #f1f4f6; background: #1a222a; font: inherit; font-variant-numeric: tabular-nums; }
 .construction-node input:user-invalid { border-color: #ff9987; }
 .construction-node button { padding: 1px 0; }
+.construction-add-node { margin-top: 4px; }
+/* Intrinsic width of the actual controls, evaluated only when maximizing. */
+.construction-columns.measure-coordinate-width { position: absolute; width: max-content; }
+.measure-coordinate-width .construction-editor { flex: none; width: max-content; }
+.measure-coordinate-width .construction-node {
+  grid-template-columns: 16px repeat(3, calc(var(--coordinate-text-width) + 8px)) 21px;
+}
 .construction-axis-labels { color: #bbcad6; font-size: 11px; }
 .construction-grip { text-align: center; cursor: grab; user-select: none; }
 .construction-actions { display: flex; flex-direction: column; align-items: stretch; gap: 8px; }

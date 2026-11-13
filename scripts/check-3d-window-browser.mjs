@@ -27,11 +27,11 @@ try {
   const errors = [];
   page.on("pageerror", error => { errors.push(error.message); console.error(error.message); });
   await page.addInitScript(() => {
-    const stats = window.gpuCounts = { buffers: 0, lines: 0, points: 0, draws: 0, strips: 0, loops: 0, lineSizes: [] };
+    const stats = window.gpuCounts = { buffers: 0, lines: 0, points: 0, draws: 0, strips: 0, loops: 0, lineSizes: [], pointSizes: [] };
     const prototype = WebGL2RenderingContext.prototype;
     const clear = prototype.clear;
     prototype.clear = function(mask) {
-      if (mask & this.COLOR_BUFFER_BIT) stats.lineSizes = [];
+      if (mask & this.COLOR_BUFFER_BIT) { stats.lineSizes = []; stats.pointSizes = []; }
       return clear.call(this, mask);
     };
     const buffer = prototype.createBuffer, draw = prototype.drawArrays;
@@ -39,7 +39,7 @@ try {
     prototype.drawArrays = function(mode, first, count) {
       stats.draws++;
       if (mode === this.LINES) stats.lines = Math.max(stats.lines, count / 2);
-      if (mode === this.POINTS) stats.points = Math.max(stats.points, count);
+      if (mode === this.POINTS) { stats.points = Math.max(stats.points, count); stats.pointSizes.push(count); }
       if (mode === this.LINE_STRIP && count === 3) stats.strips++;
       if (mode === this.LINE_LOOP && count === 3) stats.loops++;
       if (mode === this.LINE_STRIP || mode === this.LINE_LOOP) stats.lineSizes.push(count);
@@ -132,11 +132,53 @@ try {
   assert.equal(await first.getByRole("checkbox", { name: "Показ" }).isChecked(), true);
   const addNode = async (cell, values) => {
     const draft = cell.getByRole("form", { name: "Новый узел" });
+    if (!await draft.count()) await cell.getByRole("button", { name: "Добавить узел" }).click();
     for (const [i, axis] of ["X", "Y", "Z"].entries()) await draft.getByLabel(axis, { exact: true }).fill(values[i]);
-    await draft.getByLabel("Z", { exact: true }).press("Enter");
   };
-  await addNode(first, ["0","0","0"]);
+  const draft = first.getByRole("form", { name: "Новый узел" });
+  await draft.getByLabel("X").fill("0");
+  await draft.getByLabel("Y").fill("0");
+  await draft.getByLabel("Z").fill("-");
+  assert.deepEqual((await saved())[0].nodes, []);
+  const pointFramesBefore = await page.evaluate(() => gpuCounts.pointSizes.filter(n => n === 1).length);
+  await draft.getByLabel("Z").fill("0");
+  const lastCoordinate = first.getByRole("form", { name: "Узел 1" }).getByLabel("Z");
+  assert.ok(await lastCoordinate.evaluate(el => el === document.activeElement));
+  assert.equal(await draft.count(), 0);
+  await frames();
+  assert.ok(await page.evaluate(n => gpuCounts.pointSizes.filter(size => size === 1).length > n, pointFramesBefore),
+    "the single completed point reaches WebGL while the last input is still focused");
+  assert.deepEqual((await saved())[0].nodes, [[0, 0, 0]]);
+  await lastCoordinate.press("End");
+  await page.keyboard.type(",0123456789012");
+  assert.equal(await lastCoordinate.inputValue(), "0,0123456789012");
+  assert.deepEqual((await saved())[0].nodes, [[0, 0, 0.0123456789012]]);
+
+  const normal = await panel.boundingBox();
+  // Simulate a previously wide window. Restoring and manual resizing must remain usable.
+  await panel.evaluate(el => { el.style.width = "900px"; });
+  await panel.getByRole("button", { name: "На всю высоту" }).click();
+  const full = await panel.boundingBox();
+  assert.ok(full.width < 600 && full.width >= 330 && full.height > normal.height && full.height >= 880);
+  const fitsFixed = await lastCoordinate.evaluate(input => {
+    const s = getComputedStyle(input), ctx = document.createElement("canvas").getContext("2d");
+    ctx.font = s.font;
+    return input.clientWidth - parseFloat(s.paddingLeft) - parseFloat(s.paddingRight) >= ctx.measureText("-0.012345679").width;
+  });
+  assert.ok(fitsFixed, "signed F-format input with eight significant digits must fit");
+  await panel.getByRole("button", { name: "Восстановить размер" }).click();
+  assert.equal(Math.round((await panel.boundingBox()).width), 900);
+  assert.equal(Math.round((await panel.boundingBox()).height), Math.round(normal.height));
+  await panel.evaluate((el, width) => { el.style.width = width + "px"; }, normal.width);
+  assert.deepEqual((await saved())[0].nodes, [[0, 0, 0.0123456789012]]);
+  await lastCoordinate.fill("0");
+  await lastCoordinate.press("Enter");
+  assert.equal(await draft.count(), 1);
   await addNode(first, ["1,5","0","0"]);
+  assert.equal(await draft.count(), 0);
+  await frames();
+  assert.ok(await page.evaluate(() => gpuCounts.lineSizes.includes(2)));
+  assert.deepEqual((await saved())[0].nodes, [[0,0,0],[1.5,0,0]]);
   await addNode(first, ["0","2","0"]);
   await page.waitForFunction(() => gpuCounts.strips > 0);
   await panel.getByLabel("Замкнуть").check();
@@ -226,4 +268,5 @@ try {
   assert.equal(await page.evaluate(() => editorFixture.dirty()), false);
   assert.deepEqual(errors, []);
   console.log("PASS construction cells, live WebGL lines, scoped row drag, scroll selection, per-task autosave and reopening");
+  console.log("PASS immediate single/last node, in-place editing without spare rows, F-width maximization and restore");
 } finally { await browser?.close(); await server.close(); }

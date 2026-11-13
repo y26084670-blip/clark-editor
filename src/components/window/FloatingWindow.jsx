@@ -299,7 +299,8 @@ export function FloatingWindow(props) {
     return clampRect({
       x: props.maximizeHeightOnly ? rect().x : VIEWPORT_MARGIN,
       y: VIEWPORT_MARGIN,
-      width: props.maximizeHeightOnly ? rect().width : Math.max(1, viewport.width - 2 * VIEWPORT_MARGIN),
+      width: props.getMaximizedWidth?.(windowElement)
+        ?? (props.maximizeHeightOnly ? rect().width : Math.max(1, viewport.width - 2 * VIEWPORT_MARGIN)),
       height: Math.max(1, viewport.height - 2 * VIEWPORT_MARGIN),
     }, rectOptions(viewport));
   };
