@@ -117,6 +117,7 @@ export default function App() {
   const [materialRequest, setMaterialRequest] = createSignal(null);
   const [geometryViewerOpen, setGeometryViewerOpen] = createSignal(false);
   const [medOpen, setMedOpen] = createSignal(false);
+  const [medTask, setMedTask] = createSignal(null);
   const [medRequest, setMedRequest] = createSignal(null);
   const [medResult, setMedResult] = createSignal(null);
   const [medBusy, setMedBusy] = createSignal(false);
@@ -183,11 +184,17 @@ export default function App() {
     medAnalysisResolve?.(null); medAnalysisResolve = null;
   }
   function closeMed() {
-    medRevision += 1; stopMedWorker(); setMedOpen(false);
+    medRevision += 1;
+    stopMedWorker();
+    setMedOpen(false);
+    setMedTask(null);
+    setMedNavigation(null);
+    setMedRequest(null);
+    setMedResult(null);
   }
   async function analyzeCurrentMed({preserveResult=false}={}) {
     const revision = ++medRevision;
-    stopMedWorker(); setMedOpen(true); setMedBusy(true);
+    stopMedWorker(); setMedTask(selectionService.loadedTaskHandle()); setMedOpen(true); setMedBusy(true);
     if (!preserveResult) { setMedResult(null); setMedRequest(null); }
     setMedError(""); setMedNotice("");
     try {
@@ -252,6 +259,23 @@ export default function App() {
     } catch(error) { setMedError(error.message || String(error)); }
     finally { setMedApplying(false); }
   }
+  async function openMedFaces(block) {
+    const row = medEditor?.rows()[block - 1];
+    const task = selectionService.loadedTaskHandle();
+    if (!medOpen()) await analyzeCurrentMed();
+    if (row && medOpen() && task === medTask() && medEditor?.rows()[block - 1] === row) {
+      setMedNavigation({ block, row });
+    }
+  }
+
+  function writeMedFaces(row, block, values) {
+    if (!medOpen() || medBusy() || medApplying() || !row || medTask() !== selectionService.loadedTaskHandle()
+      || medEditor?.rows()[block - 1] !== row || values.length !== 6
+      || !values.every(value => Number.isSafeInteger(value) && value >= -1)) return;
+    medEditor.writeFaces(row, values);
+    setMedNotice("Грани MED записаны. Изменение можно отменить на вкладке «Элементы».");
+  }
+
   async function navigateCurrentMed(block,face) {
     const request = medRequest();
     await medEditor?.flush();
@@ -261,8 +285,9 @@ export default function App() {
   }
   createEffect(() => {
     const request = medRequest();
-    if (request && request.taskKey !== selectionService.loadedTaskHandle()) {
-      closeMed(); setMedRequest(null); setMedResult(null); setMedNavigation(null);
+    if ((medOpen() && medTask() !== selectionService.loadedTaskHandle())
+      || (request && request.taskKey !== selectionService.loadedTaskHandle())) {
+      closeMed();
     } else if (medStale()) {
       medRevision += 1; stopMedWorker();
       if (!medCanNavigate()) setMedNavigation(null);
@@ -446,6 +471,7 @@ export default function App() {
         <DataEditor
           schema={schema}
           active={props.active}
+          onEditMed={openMedFaces}
           onChooseRecordMaterial={(table, row) => openMaterialSelection(table, [row])}
           onEditorReady={controller => {
             if (controller) editorControllers.set(schema.id, controller);
@@ -883,7 +909,9 @@ export default function App() {
         }}
       />
       <MedAutofillDialog open={medOpen()} busy={medBusy()} applying={medApplying()} stale={medStale()}
-        navigationEnabled={!medBusy()&&medCanNavigate()}
+        navigationEnabled={!medBusy() && !medApplying() && medCanNavigate()}
+        rows={medEditor?.rows()} elements={modelService.getModel().elements}
+        navigation={medNavigation()} selectedBlock={medEditor?.selectedBlock?.()} onWriteFaces={writeMedFaces}
         result={medResult()} error={medError()} notice={medNotice()}
         onAnalyze={analyzeCurrentMed} onApply={applyCurrentMed} onClose={closeMed}
         onNavigate={navigateCurrentMed}

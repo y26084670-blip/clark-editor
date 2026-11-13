@@ -100,13 +100,21 @@ export function DataEditor(props) {
   function toggleCardColumns(key, checked) {
     const flags = { ...columnFlags(), [key]: checked };
     setColumnFlags(flags);
-    for (const column of table.getColumns()) {
-      const visible = cardColumnVisible(column.getField(), flags);
-      if (visible !== column.isVisible()) {
-        if (visible) column.show();
-        else column.hide();
+    table.blockRedraw();
+    try {
+      for (const column of table.getColumns()) {
+        const visible = cardColumnVisible(column.getField(), flags);
+        if (visible !== column.isVisible()) {
+          if (visible) column.show();
+          else column.hide();
+        }
       }
+    } finally {
+      table.restoreRedraw();
     }
+    // fitDataFill clears DOM widths on hidden columns; show() may reuse their
+    // cached widths. Measure after the whole group has become visible.
+    table.redraw();
   }
 
   function selectCardRecord(rows = table.getSelectedRows()) {
@@ -147,8 +155,10 @@ export function DataEditor(props) {
   createEffect(() => {
     const request = props.medNavigation;
     if (!request || !props.active) return;
-    void flushMedEdits().then(async () => {
-      if (!table || props.medNavigation !== request) return;
+    let current = true;
+    onCleanup(() => { current = false; });
+    void modelApplyQueue.then(async () => {
+      if (!current || !table) return;
       // Default getRows() retains source order; "active" applies filtering and
       // sorting. getData() may return accessor copies, so identity is unsuitable.
       const row = table.getRows()[request.block - 1];
@@ -156,8 +166,6 @@ export function DataEditor(props) {
       if (!table.getRows("active").includes(row)) table.clearFilter(true);
       table.deselectRow(); row.select();
       await table.scrollToRow(row, "center", false);
-      if (props.medNavigation !== request) return;
-      focusCardField("med");
     }).catch(error => console.error("MED navigation:", error));
   });
   let pendingCellChange = null;
@@ -303,9 +311,12 @@ export function DataEditor(props) {
     };
 
     table = new Tabulator(tableDiv, options);
-    props.onMedEditorReady?.({flush:flushMedEdits, rows:()=>{
-      medRowsVersion(); return table.getRows();
-    }});
+    props.onMedEditorReady?.({
+      flush: flushMedEdits,
+      rows: () => { medRowsVersion(); return table.getRows(); },
+      selectedBlock: () => cardIndex() + 1,
+      writeFaces: (row, values) => row.getCell("med").setValue(values.map(value => [value])),
+    });
     onCleanup(() => props.onMedEditorReady?.(null));
 
     // Контекст GUI данного экземпляра Tabulator.
@@ -342,7 +353,10 @@ export function DataEditor(props) {
           changingStructure = false;
           const update = publishTableChanged(true);
           notifyRecordSelection();
-          if (card) selectCardRecord();
+          if (card) {
+            selectCardRecord();
+            setMedRowsVersion(value => value + 1);
+          }
           return update;
         },
         cancelChange() {
@@ -683,7 +697,8 @@ export function DataEditor(props) {
         queueMicrotask(() => {
           const row = cell.getRow();
           if (row.isSelected() && Number(row.getData().rowLabel) - 1 === cardIndex()) {
-            focusCardField(field);
+            if (field === "med") props.onEditMed?.(cardIndex() + 1);
+            else focusCardField(field);
           }
         });
       }

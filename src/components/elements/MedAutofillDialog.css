@@ -10,3 +10,11 @@
 .med-autofill .med-element-link:disabled { color: #64748b; cursor: default; }
 .med-error { color: #b91c1c; }
 .med-counts { font-weight: bold; }
+
+.med-manual { margin: 0 0 12px; }
+.med-manual summary { width: fit-content; cursor: pointer; }
+.med-manual fieldset { margin: 6px 0 0; padding: 8px; border: 1px solid #cbd5e1; }
+.med-manual select { max-width: 65%; }
+.med-face-fields { display: flex; align-items: end; flex-wrap: wrap; gap: 6px; margin-top: 5px; }
+.med-face-fields label { display: grid; gap: 2px; }
+.med-face-fields input { box-sizing: border-box; width: 9ch; }

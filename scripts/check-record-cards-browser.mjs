@@ -1,13 +1,13 @@
 // Run with the same external Playwright/Chromium as the other browser checks.
 import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
-import { mkdir } from "node:fs/promises";
+import { mkdir, readFile } from "node:fs/promises";
 import { createServer } from "vite";
 import { chooseProjectDisk } from "./browser-project-access.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE ?? "playwright");
-const server = await createServer({ root, server: { host: "127.0.0.1", port: 0 }, plugins: [{
+const server = await createServer({ root, server: { host: "127.0.0.1", port: 0, hmr: false }, plugins: [{
   name: "record-card-fixture", configureServer(vite) {
     vite.middlewares.use(async (req, res, next) => {
       if (req.url !== "/__record-cards") return next();
@@ -42,6 +42,46 @@ const commit = async (input, text, key = "Enter") => {
   await input.fill(text);
   await input.press(key);
 };
+async function assertAligned(label) {
+  await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  const result = await current.locator(".data-editor-main-table").evaluate(table => {
+    const rows = [...table.querySelectorAll(".tabulator-row")].filter(row => row.offsetWidth);
+    const headers = [...table.querySelectorAll(".tabulator-col[tabulator-field]")].filter(column => column.offsetWidth);
+    const issues = [];
+    for (const header of headers) {
+      const name = header.getAttribute("tabulator-field");
+      const expected = header.getBoundingClientRect();
+      for (const row of rows) {
+        const cell = row.querySelector('.tabulator-cell[tabulator-field="' + name + '"]');
+        const rect = cell?.getBoundingClientRect();
+        if (!rect || Math.abs(rect.left - expected.left) > 1 || Math.abs(rect.width - expected.width) > 1) {
+          issues.push({name, header: expected.width, cell: rect?.width});
+          break;
+        }
+      }
+    }
+    return {rows: rows.length, count: headers.length, issues};
+  });
+  assert.ok(result.rows && result.count >= 2, label);
+  assert.deepEqual(result.issues, [], label);
+}
+
+async function regionGeometryBounds() {
+  const rect = label => card.getByRole("group",{name: label,exact:true}).boundingBox();
+  const [geo, coil, local, type, panel] = await Promise.all([
+    rect("Геометрия"),rect("Катушка и движение"),rect("Локальная система координат"),
+    field("geoType").locator("..").boundingBox(),
+    card.locator(".record-card-panel").boundingBox(),
+  ]);
+  const equal = (a,b) => assert.ok(Math.abs(a-b) <= 1, a + " vs " + b);
+  equal(geo.y + geo.height, coil.y + coil.height);
+  equal(geo.x, local.x); equal(geo.width,local.width);
+  equal(type.x,local.x); equal(type.width,local.width);
+  const gap = panel.y + panel.height - local.y - local.height;
+  assert.ok(gap >= 0 && gap <= 12, "empty space below local coordinates: " + gap);
+  return geo;
+}
+
 const ready = (part, type, index = 0) => page.waitForFunction(([part, type, index]) =>
   window.editorFixture.model()[part]?.[index]?.geoType === type
     && Number(document.querySelector('.tab-content[style*="display: block"] .record-card-panel select[data-field=geoType]')?.value) === type,
@@ -108,6 +148,18 @@ try {
   console.log("PASS Five element geometries, independent EO count and symmetry types");
 
   const gamma=field("rv");
+  await commit(gamma,"1.234567890123456");
+  assert.equal(await gamma.inputValue(),"1.23456789");
+  for (const key of ["Tab","Enter","Escape"]) {
+    await gamma.click(); await gamma.press(key);
+    assert.equal(await value("elements","rv"),1.234567890123456);
+  }
+  const x1=field("geo");
+  await commit(x1,"-1.2345678909876e-30");
+  assert.equal(await x1.inputValue(),"-1.234567891e-30");
+  await x1.click(); await gamma.click();
+  assert.equal((await value("elements","geo"))[0][0],-1.2345678909876e-30);
+  await commit(x1,"1");
   await commit(gamma,"12345.678");
   await gamma.click({position:{x:20,y:8}});
   let pos=await gamma.evaluate(e=>[e.selectionStart,e.selectionEnd]);
@@ -124,11 +176,15 @@ try {
   await gamma.press("Escape"); assert.equal(await value("elements","rv"),12345.678);
   await gamma.fill("1,625"); await field("name").click();
   assert.equal(await value("elements","rv"),1.625);
-  await current.locator('.tabulator-row .tabulator-cell[tabulator-field="med"]').first().click();
-  await page.waitForFunction(()=>document.activeElement?.dataset.field==="med");
+  await current.locator('.tabulator-row .tabulator-cell[tabulator-field="dp"]').first().click();
+  await page.waitForFunction(()=>document.activeElement?.dataset.field==="dp");
+  assert.equal(await field("med").count(),0);
   assert.equal(await current.locator(".data-editor-lower").count(),0);
   console.log("PASS Numeric caret, double click, arrows, Home/End, Escape, Tab, Enter and blur");
 
+  // Prepare one physical image with a matching 1 × 1 contact grid on each side.
+  await commit(field("dp",0),"1"); await commit(field("dp",1),"1");
+  await commit(field("symLs"),"1"); await commit(field("symAs"),"1");
   await current.getByTitle("Добавить запись",{exact:true}).click();
   await commit(field("name"),"Вторая запись");
   assert.equal(await value("elements","name",1),"Вторая запись");
@@ -146,10 +202,51 @@ try {
   assert.equal(await card.locator(".record-card-reserve").evaluate(el=>el.offsetWidth),width);
   await page.setViewportSize({width:1050,height:540});
   assert.equal(await height(),h);
-  await field("med",5).scrollIntoViewIfNeeded();
-  await commit(field("med",5),"-1");
-  assert.equal((await value("elements","med",1)).flat()[5],-1);
+  assert.equal(await card.evaluate(el => el.scrollHeight > el.clientHeight),true);
+  await field("indAmp").scrollIntoViewIfNeeded();
   await page.setViewportSize({width:1440,height:1000});
+  assert.equal(await card.evaluate(el => el.scrollHeight > el.clientHeight),false);
+  assert.equal(await card.locator(".record-card-panel").evaluate(el => el.scrollHeight > el.clientHeight),false);
+  const drawer=page.locator(".side-panel");
+  const openDrawer=()=>page.getByRole("button",{name:"Открыть дополнительные функции",exact:true}).click();
+  // Shift the second cube by its edge length so
+  // both the report links and explicit navigation can be verified on an actual contact.
+  const vertices = await value("elements","geo",1);
+  const widthX = Math.max(...vertices.map(p=>p[0])) - Math.min(...vertices.map(p=>p[0]));
+  await commit(field("dr"), String(widthX));
+  await commit(field("rv"),"2");
+  // The MED column is a summary; all manual changes belong to the Autofill window.
+  await current.locator('.tabulator-row .tabulator-cell[tabulator-field="med"]').nth(1).click();
+  const medWindow=page.getByRole("dialog",{name:"Автозаполнение MED",exact:true});
+  const manual=medWindow.locator(".med-manual");
+  const writeFaces=manual.getByRole("button",{name:"Записать грани"});
+  await writeFaces.waitFor();
+  assert.equal(await manual.getByRole("combobox").inputValue(),"2");
+  await manual.getByLabel("MED ξ+").fill("-1");
+  assert.equal((await value("elements","med",1)).flat()[5],0);
+  await writeFaces.click();
+  await page.waitForFunction(()=>editorFixture.model().elements[1].med[5][0]===-1);
+  assert.equal((await value("elements","med",0)).flat()[5],0);
+  await medWindow.getByText("Закрыть",{exact:true}).click();
+  await openDrawer(); await drawer.getByRole("button",{name:/Отменить/}).click();
+  await page.waitForFunction(()=>editorFixture.model().elements[1].med[5][0]===0);
+  await drawer.getByRole("button",{name:/Повторить/}).click();
+  await page.waitForFunction(()=>editorFixture.model().elements[1].med[5][0]===-1);
+  await drawer.getByRole("button",{name:"Автозаполнение MED",exact:true}).click();
+  await manual.locator("summary").click();
+  const faceLink = medWindow.locator("table button.med-element-link").filter({hasText:/·/}).first();
+  await faceLink.waitFor();
+  const linked = (await faceLink.innerText()).match(/ШГ (\d+) · (.+)/);
+  assert.ok(linked, "expected an element and face in the contact report");
+  await faceLink.click();
+  await page.waitForFunction(name => document.activeElement?.getAttribute("aria-label") === "MED " + name, linked[2]);
+  assert.equal(await manual.getByRole("combobox").inputValue(),linked[1]);
+  await manual.getByRole("combobox").selectOption("2");
+  assert.equal(await manual.getByLabel("MED ξ+").inputValue(),"-1");
+  await manual.getByLabel("MED ξ+").fill("-2"); await writeFaces.click();
+  assert.equal(await manual.getByLabel("MED ξ+").evaluate(input=>input.validity.rangeUnderflow),true);
+  await medWindow.getByText("Закрыть",{exact:true}).click();
+  console.log("PASS Manual editing and undo through the Autofill MED window; single short-window scrollbar");
   console.log("PASS Active row, single-record material assignment and fixed-size card");
 
   await tab("Области");
@@ -157,17 +254,21 @@ try {
   await ready("regions",0);
   assert.equal(await card.locator("input[data-field=geo]").count(),12);
   assert.deepEqual(await visibleFields(),["name","rowLabel"]);
+  const expectedBounds=await regionGeometryBounds();
   await flag("Разбиение").check(); await flag("Симметрии").check();
   await flag("Индексы катушки и траектории").check();
   assert.deepEqual(await visibleFields(),["dp","epCount","indCoil","indMove","name","rowLabel","symLs","symYl","wCoil"]);
   await field("geoType").selectOption("1"); await ready("regions",1);
+  assert.deepEqual(await regionGeometryBounds(),expectedBounds);
   await commit(card.getByLabel("Проекция на X",{exact:true}),"21.5");
   await commit(card.getByLabel("Раскрытие, °",{exact:true}),"11");
   assert.deepEqual((await value("regions","geo")).flat().slice(0,4),[0,0,11,21.5]);
   await field("geoType").selectOption("2"); await ready("regions",2);
+  assert.deepEqual(await regionGeometryBounds(),expectedBounds);
   await commit(card.getByLabel("Y B",{exact:true}),"13");
   assert.equal((await value("regions","geo")).flat()[4],13);
   await field("geoType").selectOption("3"); await ready("regions",3);
+  assert.deepEqual(await regionGeometryBounds(),expectedBounds);
   await commit(card.getByLabel("Высота H",{exact:true}),"19");
   assert.equal((await value("regions","geo")).flat()[1],19);
   await commit(card.getByLabel("Разбиение D2 (n41)",{exact:true}),"4"); await commit(field("symLs"),"360");
@@ -176,8 +277,6 @@ try {
   assert.equal(await current.locator(".data-editor-lower").count(),0);
   console.log("PASS Four region geometries, sector order, endpoints, subdivision direction and EP count");
   await cardScreenshot("regions-rectangle");
-  const openDrawer=()=>page.getByRole("button",{name:"Открыть дополнительные функции",exact:true}).click();
-  const drawer=page.locator(".side-panel");
   await openDrawer();
   assert.equal(await drawer.getByText("Вычисляемые колонки",{exact:true}).count(),0);
   await drawer.getByRole("button",{name:/Отменить/}).click();
@@ -213,6 +312,37 @@ try {
   await page.waitForFunction(()=>editorFixture.model().elements?.[1]?.med?.[5]?.[0]===-1);
   assert.ok(!(await visibleFields()).includes("eoCountAll"));
   console.log("PASS Undo, redo, serialized records, another task and independent tab settings");
+  // Reload populated files through the normal entry point. Vary the values in
+  // each column so intrinsic per-cell widths would visibly disagree.
+  const demoRecord = async file => JSON.parse((await readFile(root + "data/demo/" + file,"utf8")).split("\n")[0]);
+  await page.evaluate(async ([element,region]) => {
+    for (const [file,base,count] of [["kvs.txt",element,80],["tks.txt",region,70]]) {
+      const records = Array.from({length:count}, (_,i) => JSON.stringify({...base,
+        name:"Запись "+i, rv:i%2 ? 1.23456789 : 938234.15,
+        dp:file==="kvs.txt" ? [i%5+1,i%9+1,1] : [i%15+1,2], indMove:i%4, indCoil:i%3,
+        sym:{...base.sym,ls:i%7+1}}));
+      await editorFixture.put("input3XX/"+file, records.join("\n"));
+    }
+    const {selectionService} = await import("/src/services/selectionService.js");
+    selectionService.notifyTaskDataChanged();
+  }, await Promise.all([demoRecord("kvs.txt"),demoRecord("tks.txt")]));
+  await page.waitForFunction(()=>editorFixture.model().elements?.length===80 && editorFixture.model().regions?.length===70);
+  for (const part of ["Элементы","Области"]) {
+    await tab(part);
+    for (const input of await current.locator(".record-card-filters input").all()) await input.uncheck();
+    await flag("Показать все").check();
+    await assertAligned(part+" all");
+  }
+  await tab("Элементы"); await flag("Показать все").uncheck(); await flag("Симметрии").check();
+  await current.locator(".tabulator-tableholder").evaluate(el=>{el.scrollLeft=540;el.scrollTop=630;});
+  await assertAligned("Element rows after scrolling");
+  await tab("Области"); await flag("Показать все").uncheck(); await assertAligned("Regions minimal");
+  await tab("Элементы"); await flag("Показать все").check(); await assertAligned("Element columns after reopening");
+  await tab("Области"); await flag("Разбиение").check(); await flag("Индексы катушки и траектории").check();
+  await assertAligned("Region columns after reopening");
+  await tab("Элементы"); await tab("Области"); await flag("Показать все").check();
+  await assertAligned("Region full table after returning");
+  console.log("PASS Aligned headers, frozen columns and rows after repeated group, scroll and tab changes");
   assert.deepEqual(errors,[]);
 } finally {
   await browser.close();

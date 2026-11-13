@@ -13,8 +13,16 @@ const PARAMETER_LABELS = {
 };
 
 function CardInput(props) {
-  let input, editing = false;
-  const text = () => String(props.value ?? "");
+  let input, editing = false, initialText;
+  const text = () => {
+    const value = props.value;
+    if (!props.floatDigits || props.property.type !== FIELD_TYPES.FLOAT || !Number.isFinite(value)) {
+      return String(value ?? "");
+    }
+    const [mantissa, exponent] = value.toPrecision(props.floatDigits).split("e");
+    const compact = mantissa.includes(".") ? mantissa.replace(/\.?0+$/, "") : mantissa;
+    return exponent === undefined ? compact : compact + "e" + exponent;
+  };
   const numeric = () => props.property.type === FIELD_TYPES.FLOAT || props.property.type === FIELD_TYPES.INTEGER;
   const invalid = () => !validateConstraintValue(props.value, props.property);
   createEffect(() => {
@@ -25,6 +33,11 @@ function CardInput(props) {
     if (!editing) return;
     editing = false;
     const raw = input.value;
+    // Focusing a rounded display value must never round the stored number.
+    if (raw === initialText) {
+      input.value = text();
+      return;
+    }
     const normalized = raw.trim().replace(",", ".");
     let value = raw;
     if (numeric()) {
@@ -65,7 +78,7 @@ function CardInput(props) {
   return <input ref={input} type="text" inputmode={numeric() ? "decimal" : "text"}
     aria-label={props.label} title={props.title || props.label} aria-invalid={invalid()}
     data-field={props.field} readOnly={props.readonly}
-    onFocus={() => { editing = !props.readonly; props.onError(""); }}
+    onFocus={() => { initialText = input.value; editing = !props.readonly; props.onError(""); }}
     onDblClick={e => e.currentTarget.select()} onBlur={finish} onKeyDown={keydown} />;
 }
 
@@ -89,7 +102,7 @@ export function RecordCard(props) {
     const [r, c] = position ?? [];
     const matrix = () => field === "geo" ? geo().rows : record()?.[field];
     return <CardInput field={field} label={label || p.label} title={p.description}
-      property={position ? p.items : p} readonly={p.readonly}
+      property={position ? p.items : p} readonly={p.readonly} floatDigits={element ? 10 : undefined}
       value={position ? matrix()?.[r]?.[c] : record()?.[field]} onError={props.onError}
       onChange={value => {
         if (!position) return change(field, value);
@@ -156,7 +169,7 @@ export function RecordCard(props) {
       control?.focus();
     }
   }));
-  return <aside class="record-card-column" aria-label={element ? "Карточка элемента" : "Карточка области"}>
+  return <aside class="record-card-column" classList={{"record-card-region": !element}} aria-label={element ? "Карточка элемента" : "Карточка области"}>
     <header class="record-card-info" aria-live="polite" title={record()?.name}>{record()
       ? "№ " + (props.index + 1) + " · " + (record().name || "Без названия")
       : "Выберите строку таблицы"}</header>
@@ -167,7 +180,11 @@ export function RecordCard(props) {
             {element && scalar("name", "Имя")}
             {element && scalar("targ", "Назначение")}
             {scalar("geoType", "Тип")}
-            <Section title="Геометрия"><Show when={String(geo().key)} keyed>{(_variant) => geometry(record()?.geoType)}</Show></Section>
+            <Section title="Геометрия" class="record-card-geometry">
+              <div class="record-card-geometry-fields">
+                <Show when={String(geo().key)} keyed>{(_variant) => geometry(record()?.geoType)}</Show>
+              </div>
+            </Section>
           </div>
           <div>
             {element && <><Section title="Азимутальная симметрия">{scalar("symKya","Тип")}
@@ -194,7 +211,6 @@ export function RecordCard(props) {
               {scalar("indAmp",record()?.targ === 3 ? "Направление" : "Импульс")}{scalar("wCoil","Витки")}</div>
           </Section></div>
         </div> : coordinates()}
-        {element && <Section title="MED · Контакты граней">{matrix("med",schema.properties.med.itemLabels)}</Section>}
       </>}</Show>
       <Show when={props.error}><div class="record-card-error" role="alert">{props.error}</div></Show>
     </div>
