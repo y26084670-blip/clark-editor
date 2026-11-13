@@ -141,7 +141,12 @@ try {
   assert.equal(await editor.locator(".whats-new-button").evaluate(el => el === document.activeElement), true);
   pass("narrow dialog fits, Escape closes it and focus returns to the notification button");
 
-  feed = JSON.parse(await readFile(resolve(root, "data/updates/changes.json"), "utf8"));
+  const journal = JSON.parse(await readFile(resolve(root, "data/updates/changes.json"), "utf8"));
+  const published = await context.request.get(origin + "/updates.json");
+  assert.ok(published.ok());
+  feed = await published.json();
+  assert.deepEqual(feed.recommendations, [...journal.recommendations].reverse());
+  assert.deepEqual(feed.entries, journal.entries);
   await show(editor);
   await editor.getByRole("button", { name: "Проверить обновления", exact: true }).click();
   for (const [app, appPage] of [["editor", editor], ["viewer", viewerPage]]) {

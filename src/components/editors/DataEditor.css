@@ -152,19 +152,20 @@
 .with-record-card .data-editor-main-table { min-width: 450px; }
 .record-card-column {
   --card-width: 560px;
-  --card-height: 552px;
+  --card-height: 492px;
   display: flex; flex: 0 0 var(--card-width); flex-direction: column;
   min-height: 0; overflow-y: auto; overflow-x: hidden;
   color: #243643; background: #f7f8f7; font: 12px/1.25 Arial, sans-serif;
 }
-.record-card-info {
-  flex: none; padding: 5px 8px; font-weight: 600; color: #153f61;
+.record-card-frame {
+  flex: none; box-sizing: border-box; width: 100%; border: 3px solid #516a80;
+}
+.record-card-info { padding: 5px 8px; font-weight: 600; color: #153f61;
   overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
-  border: 1px solid #bdcbd4; background: #eaf0f4;
+  border-bottom: 1px solid #bdcbd4; background: #eaf0f4;
 }
 .record-card-panel {
-  position: relative; flex: none; min-height: var(--card-height); box-sizing: border-box;
-  padding: 5px; border: 1px solid #bdcbd4; border-top: 0;
+  position: relative; min-height: var(--card-height); box-sizing: border-box; padding: 5px;
   background: #f9faf8; font-variant-numeric: tabular-nums;
 }
 .record-card-reserve { width: 100%; flex: 1 0 0; box-sizing: border-box; border: 1px solid #d3dae0; border-top: 0; background: #fff; }
@@ -174,6 +175,27 @@
 .record-card-section { min-width: 0; margin: 2px 0 4px; padding: 3px 5px 5px; border: 1px solid #c2cbd1; }
 .record-card-section legend { color: #254b66; padding: 0 3px; font-size: 12px; font-weight: 600; }
 .record-card-local { max-width: 282px; }
+/* Eight vertex rows and their heading define the largest element geometry.
+   Keep that space for parametric types when the selected row or type changes. */
+.record-card-element .record-card-geometry {
+  box-sizing: border-box; block-size: 225px; min-inline-size: 0;
+}
+.record-card-element .record-card-geometry-fields {
+  height: 100%; display: grid; align-items: center; align-content: space-evenly;
+}
+.record-card-element .record-card-geometry-fields > .record-card-pair {
+  width: 92%; justify-self: center;
+}
+.record-card-element .record-card-sector-fields {
+  grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 6px;
+  padding-inline: 4px;
+}
+.record-card-sector-fields > .record-card-parameter-grid { display: contents; }
+.record-card-sector-fields > .record-card-pair { grid-column: 1 / -1; }
+.record-card-bottom { align-items: stretch; }
+.record-card-bottom .record-card-material { margin-bottom: 0; }
+.record-card-material-fields { height: 100%; display: grid; align-content: space-evenly; align-items: center; }
+.record-card-bottom > div > .record-card-section:last-child { margin-bottom: 0; }
 .record-card-region { --region-left-width: 294px; --card-height: 326px; }
 .record-card-region .record-card-top {
   grid-template-columns: var(--region-left-width) minmax(0, 1fr);

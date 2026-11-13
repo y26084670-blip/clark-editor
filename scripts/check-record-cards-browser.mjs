@@ -66,6 +66,52 @@ async function assertAligned(label) {
   assert.deepEqual(result.issues, [], label);
 }
 
+async function assertCardFrame() {
+  const frame = card.locator(".record-card-frame");
+  const [box, header, panel, reserve] = await Promise.all([
+    frame.boundingBox(), card.locator(".record-card-info").boundingBox(),
+    card.locator(".record-card-panel").boundingBox(), card.locator(".record-card-reserve").boundingBox(),
+  ]);
+  const border = await frame.evaluate(el => {
+    const s = getComputedStyle(el);
+    return [s.borderTopWidth, s.borderRightWidth, s.borderBottomWidth, s.borderLeftWidth].map(parseFloat);
+  });
+  assert.ok(border.every(width => width >= 2 && width === border[0]), "continuous outer border");
+  assert.equal(header.y, box.y + border[0]);
+  assert.equal(panel.x, header.x);
+  assert.equal(panel.y, header.y + header.height);
+  assert.equal(panel.x + panel.width, box.x + box.width - border[1]);
+  assert.equal(panel.y + panel.height, box.y + box.height - border[2]);
+  assert.equal(reserve.y, box.y + box.height);
+}
+
+async function elementGeometryBounds() {
+  const geometry = card.getByRole("group", {name: "Геометрия",exact:true});
+  const material = card.getByRole("group", {name: "Электрические и магнитные свойства",exact:true});
+  const [geo, mat, other, panel] = await Promise.all([
+    geometry.boundingBox(), material.boundingBox(),
+    card.getByRole("group", {name:"Прочие параметры",exact:true}).boundingBox(),
+    card.locator(".record-card-panel").boundingBox(),
+  ]);
+  assert.equal(mat.y + mat.height, other.y + other.height);
+  const gap = panel.y + panel.height - other.y - other.height;
+  assert.ok(gap >= 0 && gap <= 10, "space below the bottom groups: " + gap);
+  const spacing = await geometry.evaluate(el => {
+    const legend = el.querySelector("legend").getBoundingClientRect();
+    const frame = el.getBoundingClientRect();
+    const controls = [...el.querySelectorAll("input")].map(input => input.getBoundingClientRect());
+    return { top: Math.min(...controls.map(b => b.top)) - legend.bottom,
+      bottom: frame.bottom - Math.max(...controls.map(b => b.bottom)),
+      left: Math.min(...controls.map(b => b.left)) - frame.left,
+      right: frame.right - Math.max(...controls.map(b => b.right)) };
+  });
+  assert.ok(Object.values(spacing).every(v => v >= 0), "geometry inputs fit inside the frame");
+  if (await geometry.locator("input").count() < 24) {
+    assert.ok(Math.abs(spacing.top - spacing.bottom) < 16, "parameter rows vertically centered");
+  }
+  return geo;
+}
+
 async function regionGeometryBounds() {
   const rect = label => card.getByRole("group",{name: label,exact:true}).boundingBox();
   const [geo, coil, local, type, panel] = await Promise.all([
@@ -99,6 +145,8 @@ try {
   await ready("elements",0);
   assert.deepEqual(await visibleFields(), ["name","rowLabel"]);
   assert.equal(await field("geo",23).count(),1);
+  await assertCardFrame();
+  const hexBounds = await elementGeometryBounds();
   await commit(field("name"),"Статор внешний");
   await flag("Разбиение").check();
   assert.deepEqual(await visibleFields(), ["dp","eoCount","eoRange","name","rowLabel"]);
@@ -129,12 +177,14 @@ try {
   await field("geoType").press("Enter");
   await ready("elements",1);
   assert.equal(await card.locator("input[data-field=geo]").count(),9);
+  assert.deepEqual(await elementGeometryBounds(), hexBounds);
   await commit(card.getByLabel("R2",{exact:true}),"25");
   assert.equal((await value("elements","geo")).flat()[3],25);
   await cardScreenshot("elements-sector");
   for (const [type,count] of [[2,3],[3,5],[4,7],[0,24]]) {
     await field("geoType").selectOption(String(type)); await ready("elements",type);
     assert.equal(await card.locator("input[data-field=geo]").count(),count);
+    assert.deepEqual(await elementGeometryBounds(), hexBounds);
   }
   await commit(field("dp",0),"12");
   await commit(field("dp",1),"3","Tab");
@@ -254,6 +304,7 @@ try {
   await ready("regions",0);
   assert.equal(await card.locator("input[data-field=geo]").count(),12);
   assert.deepEqual(await visibleFields(),["name","rowLabel"]);
+  await assertCardFrame();
   const expectedBounds=await regionGeometryBounds();
   await flag("Разбиение").check(); await flag("Симметрии").check();
   await flag("Индексы катушки и траектории").check();
@@ -343,6 +394,30 @@ try {
   await tab("Элементы"); await tab("Области"); await flag("Показать все").check();
   await assertAligned("Region full table after returning");
   console.log("PASS Aligned headers, frozen columns and rows after repeated group, scroll and tab changes");
+  const existingCounts = {};
+  for (const [tabName,part,sourceRow] of [["Элементы","elements",7],["Области","regions",4]]) {
+    await tab(tabName);
+    await current.locator('.tabulator-cell[tabulator-field="rowLabel"]').filter({
+      hasText:new RegExp("^" + sourceRow + "$"),
+    }).click();
+    existingCounts[part] = await value(part,"symLs",sourceRow-1);
+    await commit(field("symLs"), "-2");
+  }
+  const indicator=page.locator(".validation-indicator > div[title]");
+  const popup=page.locator(".diagnostic-popup");
+  await indicator.click();
+  for (const [tabName,sourceRow] of [["Элементы",7],["Области",4]]) {
+    const summary=popup.locator(".constraint-summary").filter({hasText:"Вкладка: "+tabName+" -"});
+    assert.equal(await summary.getByText("Строка № "+sourceRow+" · Образы локальной симметрии",{exact:true}).count(),1);
+  }
+  await indicator.click();
+  for (const [tabName,part] of [["Элементы","elements"],["Области","regions"]]) {
+    await tab(tabName);
+    await commit(field("symLs"),String(existingCounts[part]));
+  }
+  await indicator.click();
+  assert.equal(await popup.locator(".constraint-summary").count(),0);
+  console.log("PASS Element and region constraint messages show the source row and clear after correction");
   assert.deepEqual(errors,[]);
 } finally {
   await browser.close();
