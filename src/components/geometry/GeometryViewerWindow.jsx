@@ -26,6 +26,8 @@ import {
 } from "../../services/visualization/geometryCameraView.js";
 import { FloatingWindow } from "../window/FloatingWindow.jsx";
 import { GeometryMaterialLegend } from "./GeometryMaterialLegend.jsx";
+import { GeometryConstructionsPanel } from "./GeometryConstructionsPanel.jsx";
+import { openGeometryConstructions } from "../../services/visualization/geometryConstructions.js";
 import { ThreeGeometryViewport } from "./ThreeGeometryViewport.jsx";
 import "./GeometryViewerWindow.css";
 
@@ -105,6 +107,55 @@ export function GeometryViewerWindow(props) {
 }
 
 function GeometryWindowContents(props) {
+  const task = props.taskKey;
+  const hasTaskDirectory = typeof task?.getDirectoryHandle === "function";
+  const [constructions, setConstructions] = createSignal([]);
+  const [constructionFile, setConstructionFile] = createSignal(null);
+  const [readingConstructions, setReadingConstructions] = createSignal(false);
+  const [constructionsOpen, setConstructionsOpen] = createSignal(false);
+  const [constructionError, setConstructionError] = createSignal("");
+  const [reloadConstructions, setReloadConstructions] = createSignal(false);
+  const [constructionStatus, setConstructionStatus] = createSignal("");
+  let released = false, editNumber = 0;
+  async function readConstructions() {
+    if (readingConstructions()) return;
+    setReadingConstructions(true);
+    setConstructionError("");
+    setConstructionStatus("Загрузка…");
+    try {
+      const file = await openGeometryConstructions(task);
+      if (released) return;
+      setConstructions(file.cells);
+      setConstructionFile(file);
+      setReloadConstructions(false);
+    } catch (error) {
+      if (!released) setConstructionError(`Ошибка чтения построений: ${error.message}`);
+    } finally {
+      if (!released) { setReadingConstructions(false); setConstructionStatus(""); }
+    }
+  }
+  function changeConstructions(cells) {
+    const file = constructionFile();
+    if (!file || readingConstructions()) return;
+    const number = ++editNumber;
+    setConstructions(cells);
+    setConstructionError("");
+    setConstructionStatus("Сохранение…");
+    file.save(cells).then(() => {
+      if (!released && number === editNumber) setConstructionStatus("");
+    }).catch(error => {
+      if (released || number !== editNumber) return;
+      setConstructionStatus("");
+      setReloadConstructions(error.name === "InvalidModificationError");
+      setConstructionError(`Ошибка сохранения построений: ${error.message}`);
+    });
+  }
+  function showConstructions() {
+    closePanel();
+    setConstructionsOpen(true);
+    if (!constructionFile()) void readConstructions();
+  }
+  onCleanup(() => { released = true; });
   let viewerElement;
   let toolbarElement;
   let optionsPanelElement;
@@ -442,6 +493,7 @@ function GeometryWindowContents(props) {
     const open = props.open;
     if (!open) {
       flightControl?.stop();
+      setConstructionsOpen(false);
       setFlightNotice("");
       setOpenPanel(null);
       setViewRequest(null);
@@ -449,6 +501,7 @@ function GeometryWindowContents(props) {
   });
 
   return (
+    <>
     <FloatingWindow
       open={props.open}
       retainContent
@@ -573,7 +626,8 @@ function GeometryWindowContents(props) {
             }}
             id={OPTIONS_PANEL_ID}
             class="geometry-viewer-options-panel"
-            classList={{ "geometry-viewer-source-options": openPanel() === "sources", "is-view-panel": openPanel() === "view" }}
+            classList={{ "geometry-viewer-source-options": openPanel() === "sources", "is-view-panel": openPanel() === "view",
+              "is-general-panel": openPanel() === "general" }}
             role="dialog"
             aria-modal="false"
             aria-label={openPanel() === "view"
@@ -589,6 +643,7 @@ function GeometryWindowContents(props) {
             style={{
               left: `${panelPosition().left}px`,
               top: `${panelPosition().top}px`,
+              "--options-top": `${panelPosition().top}px`,
               width: openPanel() !== "view" || panelPosition().width === undefined ? undefined : `${panelPosition().width}px`,
             }}
           >
@@ -598,6 +653,8 @@ function GeometryWindowContents(props) {
                 onClick={() => {
                   cancelTimeSelection(); setFlightNotice(""); closePanel(); flightControl?.start();
                 }}>Полёт</button>
+              <button type="button" class="geometry-viewer-view-command geometry-constructions-command"
+                disabled={!hasTaskDirectory} onClick={showConstructions}>Построения</button>
               <button
                 type="button"
                 class="geometry-viewer-view-command"
@@ -612,9 +669,9 @@ function GeometryWindowContents(props) {
               <button
                 type="button"
                 class="geometry-viewer-view-command"
-                title="или нажмите X"
-                onClick={() => requestView(
-                  GEOMETRY_CAMERA_COMMANDS.VIEW_POSITIVE_X,
+                title="X — вид по оси. Ctrl+X или Ctrl+щелчок — против оси"
+                onClick={event => requestView(
+                  event.ctrlKey ? GEOMETRY_CAMERA_COMMANDS.VIEW_NEGATIVE_X : GEOMETRY_CAMERA_COMMANDS.VIEW_POSITIVE_X,
                   true,
                 )}
               >
@@ -623,7 +680,7 @@ function GeometryWindowContents(props) {
               <button
                 type="button"
                 class="geometry-viewer-view-command"
-                title="Направить взгляд против оси X"
+                title="Направить взгляд против оси X (Ctrl+X)"
                 onClick={() => requestView(
                   GEOMETRY_CAMERA_COMMANDS.VIEW_NEGATIVE_X,
                   true,
@@ -634,9 +691,9 @@ function GeometryWindowContents(props) {
               <button
                 type="button"
                 class="geometry-viewer-view-command"
-                title="или нажмите Y"
-                onClick={() => requestView(
-                  GEOMETRY_CAMERA_COMMANDS.VIEW_POSITIVE_Y,
+                title="Y — вид по оси. Ctrl+Y или Ctrl+щелчок — против оси"
+                onClick={event => requestView(
+                  event.ctrlKey ? GEOMETRY_CAMERA_COMMANDS.VIEW_NEGATIVE_Y : GEOMETRY_CAMERA_COMMANDS.VIEW_POSITIVE_Y,
                   true,
                 )}
               >
@@ -645,7 +702,7 @@ function GeometryWindowContents(props) {
               <button
                 type="button"
                 class="geometry-viewer-view-command"
-                title="Направить взгляд против оси Y"
+                title="Направить взгляд против оси Y (Ctrl+Y)"
                 onClick={() => requestView(
                   GEOMETRY_CAMERA_COMMANDS.VIEW_NEGATIVE_Y,
                   true,
@@ -656,9 +713,9 @@ function GeometryWindowContents(props) {
               <button
                 type="button"
                 class="geometry-viewer-view-command"
-                title="или нажмите Z"
-                onClick={() => requestView(
-                  GEOMETRY_CAMERA_COMMANDS.VIEW_POSITIVE_Z,
+                title="Z — вид по оси. Ctrl+Z или Ctrl+щелчок — против оси"
+                onClick={event => requestView(
+                  event.ctrlKey ? GEOMETRY_CAMERA_COMMANDS.VIEW_NEGATIVE_Z : GEOMETRY_CAMERA_COMMANDS.VIEW_POSITIVE_Z,
                   true,
                 )}
               >
@@ -667,7 +724,7 @@ function GeometryWindowContents(props) {
               <button
                 type="button"
                 class="geometry-viewer-view-command"
-                title="Направить взгляд против оси Z"
+                title="Направить взгляд против оси Z (Ctrl+Z)"
                 onClick={() => requestView(
                   GEOMETRY_CAMERA_COMMANDS.VIEW_NEGATIVE_Z,
                   true,
@@ -977,6 +1034,7 @@ function GeometryWindowContents(props) {
           </Show>
           <Show when={flightNotice()}><div class="geometry-flight-hint" role="status">{flightNotice()}</div></Show>
           <ThreeGeometryViewport
+            constructions={props.open && constructionsOpen() ? constructions() : null}
             enableLens={true}
             allowFlight={true} flightFrameKey={timeState().index}
             onFlightReady={control => { flightControl = control; setFlightReady(Boolean(control)); }}
@@ -1082,5 +1140,13 @@ function GeometryWindowContents(props) {
         </Show>
       </section>
     </FloatingWindow>
+    <Show when={props.open && constructionsOpen()}>
+      <GeometryConstructionsPanel cells={constructions()} ready={Boolean(constructionFile()) && !readingConstructions()}
+        error={constructionError()} status={constructionStatus()} onChange={changeConstructions}
+        reload={reloadConstructions()}
+        onRetry={() => !constructionFile() || reloadConstructions() ? readConstructions() : changeConstructions(constructions())}
+        onClose={() => { setConstructionsOpen(false); viewerElement?.focus({ preventScroll: true }); }} />
+    </Show>
+    </>
   );
 }
