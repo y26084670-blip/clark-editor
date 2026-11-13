@@ -2,8 +2,6 @@
 // Источник: julia, src/core/03_kv.jl, функция unpack(me::Kv). Снимок 2026-08.
 
 const GRAD2RADIAN = Math.PI / 180;
-import { geometryValidationSettings } from "./geometryValidationSettings.js";
-const RADIAN2GRAD = 180 / Math.PI;
 
 function difference(left, right) {
     return [
@@ -48,69 +46,58 @@ export const KV_GEO_FIELDS = {
 
 export const KV_GEO_LENGTH = 24;   // zeros(REAL, 3 * 8)
 
-// Геометрические критерии принадлежат preflight-валидации web-gui.
-// Исторический контракт: пять заданных пар и ненулевые стороны 13, 15.
-// Остальные стороны могут схлопываться; нулевой вектор не нормируется.
+// Объёмная проверка Q1 во всех режимах, включая автоматический выбор 2D-оператора.
+// Контрольные точки выявляют вырождение/инверсии, но не сертифицируют всю карту.
 export function validateKvVerticesDetailed(vertices, profile = {}) {
-    const checks = {}, measurements = {};
-    const { settings, invalid } = geometryValidationSettings(profile);
-    const result = (extra = {}) => ({
-        valid: Object.values(checks).every(Boolean),
-        malformed: false, invalidSettings: false, checks, measurements, ...extra,
-    });
-    if (invalid.length) return result({ valid: false, invalidSettings: true });
+    const checks = {}, measurements = {}, warnings = [];
+    const result = extra => ({ valid: Object.values(checks).every(Boolean),
+        malformed: false, invalidSettings: false, checks, measurements, warnings, ...extra });
     if (!Array.isArray(vertices) || vertices.length !== 8
-        || !Array.from(vertices).every(isVertex)) {
-        return result({ valid: false, malformed: true });
-    }
-
-    function measure(name, value, limit, comparison, unit) {
-        measurements[name] = { value, limit, comparison, unit };
-        // Только погрешность операций с углами у границы, не предметный допуск.
-        const roundoff = unit === "°"
-            ? 64 * Number.EPSILON * Math.max(1, Math.abs(value), Math.abs(limit)) : 0;
-        checks[name] = Number.isFinite(value) && (
-            comparison === "<=" ? value <= limit + roundoff
-                : comparison === ">=" ? value + roundoff >= limit : value > limit
-        );
-    }
-
-    const directions = {};
-    for (const [name, i, j] of [
-        ["13", 0, 2], ["24", 1, 3], ["75", 6, 4], ["68", 5, 7],
-        ["15", 0, 4], ["26", 1, 5], ["37", 2, 6], ["48", 3, 7],
-    ]) {
-        const edge = difference(vertices[j], vertices[i]);
-        const length = norm(edge);
-        if (!Number.isFinite(length)) return result({ valid: false, malformed: true });
-        if (name === "13" || name === "15") {
-            measure(`edge${name}`, length, 0, ">", "мм");
+        || !Array.from(vertices).every(isVertex)) return result({ valid: false, malformed: true });
+    const doubleFloat = profile?.doubleFloat !== false;
+    const convert = doubleFloat ? x => x : Math.fround;
+    const eps = doubleFloat ? Number.EPSILON : 2 ** -23;
+    const input = vertices.map(v => v.map(convert));
+    if (!input.every(v => v.every(Number.isFinite))) return result({ valid: false, malformed: true });
+    const xyz = input.map(v => difference(v, input[0]));
+    const scale = Math.max(...xyz.flat().map(Math.abs));
+    checks.volume = scale > 0 && Number.isFinite(scale);
+    checks.orientation = true;
+    checks.jacobian = true;
+    if (!checks.volume) return result();
+    const centered = xyz.map(v => v.map(x => x / scale));
+    let minQuality = Infinity, minDet = Infinity;
+    function determinant(x, y, z, interior = true) {
+        const parameters = [x, y, z];
+        const columns = Array.from({ length: 3 }, () => [0, 0, 0]);
+        for (let v = 0; v < 8; v++) for (let a = 0; a < 3; a++) {
+            let weight = (v >> a) & 1 ? 1 : -1;
+            for (let b = 0; b < 3; b++) if (a !== b)
+                weight *= (v >> b) & 1 ? parameters[b] : 1 - parameters[b];
+            for (let d = 0; d < 3; d++) columns[a][d] += centered[v][d] * weight;
         }
-        // Масштабирование до нормирования сохраняет направление субнормальных чисел.
-        const scale = Math.max(...edge.map(Math.abs));
-        if (scale > 0) {
-            const scaled = edge.map(value => value / scale);
-            const scaledLength = norm(scaled);
-            directions[name] = scaled.map(value => value / scaledLength);
+        const value = dot(columns[0], cross(columns[1], columns[2]));
+        const lengths = columns.map(norm), tolerance = 64 * eps * lengths.reduce((a, b) => a * b, 1);
+        if (!Number.isFinite(value) || value < -tolerance) checks.orientation = false;
+        if (!Number.isFinite(value) || (interior && value <= tolerance)) checks.jacobian = false;
+        if (interior) {
+            minQuality = Math.min(minQuality, value / Math.max(...lengths) ** 3);
+            minDet = Math.min(minDet, value);
         }
+        return value;
     }
-
-    function angle(a, b) {
-        return Math.atan2(norm(cross(a, b)), Math.abs(dot(a, b))) * RADIAN2GRAD;
-    }
-    for (const [name, left, right] of [
-        ["parallel13And24", "13", "24"], ["parallel15And26", "15", "26"],
-        ["parallel15And37", "15", "37"], ["parallel15And48", "15", "48"],
-        ["parallel75And68", "75", "68"],
-    ]) {
-        if (directions[left] && directions[right]) {
-            measure(name, angle(directions[left], directions[right]), settings.GEO_ANGLE, "<=", "°");
-        } else {
-            // При схлопывании стороны её векторное произведение равно нулю.
-            // Угол не определён: условие не нарушено, фиктивный угол не выдаётся.
-            checks[name] = true;
-        }
-    }
+    const gauss = [(1 - 1 / Math.sqrt(3)) / 2, (1 + 1 / Math.sqrt(3)) / 2];
+    let volume = 0;
+    for (const x of gauss) for (const y of gauss) for (const z of gauss)
+        volume += determinant(x, y, z) / 8;
+    const physicalVolume = convert(volume * scale ** 3);
+    checks.volume = physicalVolume > 0 && Number.isFinite(physicalVolume);
+    for (const x of [0, .5, 1]) for (const y of [0, .5, 1]) for (const z of [0, .5, 1])
+        determinant(x, y, z, x === .5 && y === .5 && z === .5);
+    measurements.jacobian = { value: minDet, limit: 0, comparison: ">", unit: "" };
+    measurements.volume = { value: physicalVolume, limit: 0, comparison: ">", unit: "мм³" };
+    if (Object.values(checks).every(Boolean) && minQuality < 1024 * eps)
+        warnings.push("Тонкий или сильно скошенный ШГ: возможна потеря точности геометрии в выбранной разрядности");
     return result();
 }
 

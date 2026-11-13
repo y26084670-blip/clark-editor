@@ -290,7 +290,7 @@ test("actual file round trip removes missing defaults and keeps unresolved motio
   const saved = h.files.get("conrab.txt").trim().split("\n").map(JSON.parse);
   assert.equal(saved.length, 2);
   assert.ok(saved.every(record => record.DIPOLE_RTOL === 0.001));
-  assert.ok(saved.every(record => Object.keys(record).length === 12));
+  assert.ok(saved.every(record => Object.keys(record).length === 11));
   const freshDiagnostics = [];
   await h.dataService.load(h.initialTask, h.conrab, freshDiagnostics);
   assert.deepEqual(freshDiagnostics, []);

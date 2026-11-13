@@ -39,13 +39,9 @@ const VALID_MODEL = new Set([0, 1, 2]);
 const VALID_GEO_TYPE = new Set([0, 1, 2, 3, 4]);
 
 const GEOMETRY_CHECK_DIAGNOSTICS = Object.freeze([
-    ...["13", "15"]
-        .map(edge => [`edge${edge}`, `Недопустимая длина ребра ${edge}`]),
-    ["parallel13And24", "Рёбра 13 и 24 не параллельны"],
-    ["parallel15And26", "Рёбра 15 и 26 не параллельны"],
-    ["parallel15And37", "Рёбра 15 и 37 не параллельны"],
-    ["parallel15And48", "Рёбра 15 и 48 не параллельны"],
-    ["parallel75And68", "Рёбра 75 и 68 не параллельны"],
+    ["orientation", "Обратная ориентация или инверсия якобиана ШГ: исправьте нумерацию/геометрию"],
+    ["jacobian", "Вырожденный якобиан внутри объёма ШГ"],
+    ["volume", "ШГ не имеет положительного конечного 3D-объёма"],
 ]);
 
 const UNPACK_DIAGNOSTICS = Object.freeze({
@@ -258,6 +254,7 @@ function validateGeometry(elements, diagnostics, settings) {
             UNPACK_DIAGNOSTICS[record.geoType]?.[unpacked.err];
         if (unpackMessage) {
             pushGeometryError(diagnostics, index, unpackMessage);
+            return;
         }
 
         const validation = validateKvVerticesDetailed(unpacked.vertices, settings);
@@ -270,34 +267,18 @@ function validateGeometry(elements, diagnostics, settings) {
             return;
         }
 
+        // Области наблюдения — сетки точек; их собственный объём не является источником.
+        if (record.targ === 3) return;
         for (const [check, message] of GEOMETRY_CHECK_DIAGNOSTICS) {
             if (validation.checks[check] === false) {
-                const detail = message + geometryMeasurementText(check, validation.measurements[check]);
-                if (check.startsWith("parallel")) {
-                    diagnostics.push(createWarning({
-                        tab: TABS.ELEMENTS, row: index + 1, property: "geo",
-                        message: detail + ". В конечной 3D-задаче для этой геометрии используется полярная квадратура.",
-                    }));
-                } else {
-                    pushGeometryError(diagnostics, index, detail);
-                }
+                pushGeometryError(diagnostics, index, message);
+                break; // одна первичная причина вместо каскада следствий
             }
         }
+        for (const message of validation.warnings) diagnostics.push(createWarning({
+            tab: TABS.ELEMENTS, row: index + 1, property: "geo", message,
+        }));
     });
-}
-
-function geometryMeasurementText(check, { value, limit, comparison, unit }) {
-    const quantity = check.startsWith("edge") ? "длина" : "угол";
-    const relation = { "<=": "≤", ">=": "≥", ">": ">" }[comparison];
-    return `; ${quantity} = ${geometryNumber(value)} ${unit}`
-        + `; требуется ${relation} ${geometryNumber(limit)} ${unit}`;
-}
-
-function geometryNumber(value) {
-    // Округление только представления; малые длины сохраняют значащие цифры.
-    return Number.isFinite(value)
-        ? String(Number(value.toPrecision(10))).replace(".", ",")
-        : String(value);
 }
 
 function pushGeometryError(diagnostics, index, message) {

@@ -15,7 +15,6 @@ test("MED diagnostics use the full model and do not modify stored pointers",()=>
     assert.deepEqual(model,before);
 });
 
-const EPS = 0.1 * Math.PI / 180;
 test("a static model skips MED contacts and leaves its stored pointers unchanged",()=>{
     const model=medModel([medBox({med:[999,999,999,999,999,999]}),medBox({origin:[1,.25,.25],size:[1,.5,.5]})]);
     const before=structuredClone(model),messages=[];
@@ -103,55 +102,14 @@ test("elements accepts valid direct vertices", () => {
     assert.deepEqual(validate([element()]), []);
 });
 
-test("elements identifies the general 3D geometry at its record row", () => {
-    const diagnostics = validate([
-        element(),
-        element({ geo: invalidVertices() }),
-    ]);
-
+test("skew source is accepted and a reversed source identifies its row", () => {
+    const reversed = validVertices().map(([x,y,z]) => [-x,y,z]);
+    const diagnostics = validate([element({geo: invalidVertices()}), element({geo: reversed})]);
     assert.equal(diagnostics.length, 1);
-    assert.equal(diagnostics[0].level, "warning");
-    assert.equal(diagnostics[0].tab.id, "elements");
+    assert.equal(diagnostics[0].level, "error");
     assert.equal(diagnostics[0].row, 2);
     assert.equal(diagnostics[0].property, "geo");
-    assert.equal(
-        diagnostics[0].message,
-        "Рёбра 13 и 24 не параллельны; угол = 14,03624347 °; требуется ≤ 0,1 °. В конечной 3D-задаче для этой геометрии используется полярная квадратура.",
-    );
-});
-
-test("elements reports connecting-edge failures separately", () => {
-    const delta = Math.tan(2 * EPS);
-    const pair15 = [
-        [0, 0, 0], [1, 0, 0],
-        [0, 1, 0], [1, 1, 0],
-        [0, delta, 1], [1, 0, 1],
-        [0, 1, 1], [1, 1, 1],
-    ];
-    const pair37 = [
-        [0, -1, 0], [1, -1, 0],
-        [0, 0, 0], [1, delta, 0],
-        [0, -1, 1], [1, -1, 1],
-        [0, delta, 1], [1, delta, 1],
-    ];
-    const pair48 = [
-        [0, -1, 0], [1, -1, 0],
-        [0, delta, 0], [1, 0, 0],
-        [0, -1, 1], [1, -1, 1],
-        [0, delta, 1], [1, delta, 1],
-    ];
-    const cases = [
-        [pair15, "Рёбра 15 и 26 не параллельны"],
-        [pair37, "Рёбра 15 и 37 не параллельны"],
-        [pair48, "Рёбра 15 и 48 не параллельны"],
-    ];
-
-    for (const [geo, message] of cases) {
-        const diagnostics = validate([element({ geo })]);
-
-        assert.ok(diagnostics.some(item => item.message ===
-            message + "; угол = 0,2 °; требуется ≤ 0,1 °. В конечной 3D-задаче для этой геометрии используется полярная квадратура."));
-    }
+    assert.match(diagnostics[0].message, /ориентация/);
 });
 
 test("elements accepts the reported Float32 geometry", () => {
@@ -213,12 +171,12 @@ test("elements accepts the collapsed non-reference edges of a pyramid", () => {
     assert.deepEqual(validate([element({geoType:4,geo:parameterGeo([3,2,0,4,2,1,1])})]),[]);
 });
 
-test("elements reports the required zero-length edges", () => {
-    for(const [edge,index] of [["13",2],["15",4]]) {
-        const geo=validVertices();geo[index]=[...geo[0]];
-        const diagnostics=validate([element({geo})]);
-        assert.ok(diagnostics.some(d=>d.message===`Недопустимая длина ребра ${edge}; длина = 0 мм; требуется > 0 мм`));
-        assert.ok(diagnostics.every(d=>!d.message.includes("NaN")));
+test("positive wedges accept zero-length boundary edges", () => {
+    for (const [a,b] of [[2,6],[4,5]]) {
+        const geo = validVertices();
+        geo[a] = [...geo[0]];
+        geo[b] = [...geo[a === 2 ? 4 : 1]];
+        assert.deepEqual(validate([element({geo})]), []);
     }
 });
 
@@ -426,22 +384,16 @@ test("elements validates every discretization direction", () => {
 });
 
 
-test("geometry diagnostics use the active profile and contain no arithmetic tail", () => {
-    const geo=validVertices();geo[3][1]+=Math.tan(0.15*Math.PI/180);
-    const conrab=[{GEO_ANGLE:0.1},{GEO_ANGLE:0.2}];
-    const errors=validate([element({geo})],{conrab,general:{doubleFloat:false}});
-    assert.equal(errors.length,1);
-    assert.equal(errors[0].message,"Рёбра 13 и 24 не параллельны; угол = 0,15 °; требуется ≤ 0,1 °. В конечной 3D-задаче для этой геометрии используется полярная квадратура.");
-    assert.doesNotMatch(errors[0].message,/превышение|недостаток|раза/);
-    assert.deepEqual(validate([element({geo})],{conrab,general:{doubleFloat:true}}),[]);
-    conrab[0].GEO_ANGLE=null;
-    assert.deepEqual(validate([element({geo})],{conrab}),[]); // ошибка принадлежит conrabValidator
+test("a source lost to Float32 rounding is reported at the active precision", () => {
+    const geo = validVertices().map(([x,y,z]) => [x + 1e8,y,z]);
+    const single = validate([element({geo})], {general: {doubleFloat: false}});
+    assert.equal(single.length, 1);
+    assert.equal(single[0].level, "error");
+    assert.deepEqual(validate([element({geo})], {general: {doubleFloat: true}}), []);
 });
 
-test("geometry diagnostics add no orientation or physical-size bound", () => {
-    const geo=validVertices();
-    for(let i=1;i<geo.length;i+=2)geo[i][0]=-1;
-    assert.deepEqual(validate([element({geo})]),[]);
-    const short=validVertices().map(([x,y,z])=>[x,y,z*0.015]);
-    assert.deepEqual(validate([element({geo:short})]),[]);
+test("zero-volume observation regions remain usable as point sets", () => {
+    const geo = validVertices().map(([x,y]) => [x,y,0]);
+    assert.ok(validate([element({geo})]).some(d => d.level === "error"));
+    assert.ok(validate([element({geo, targ: 3})]).every(d => d.property !== "geo"));
 });

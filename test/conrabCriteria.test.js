@@ -1,4 +1,3 @@
-import { GEOMETRY_VALIDATION_DEFAULTS } from "../src/services/solver/geometryValidationSettings.js";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -10,7 +9,7 @@ const declaration = readFileSync(new URL("../src/services/schemas/conrab.schema.
     .replace(/import\s+[\s\S]*?from\s+["'][^"']+["'];\s*/g, "")
     .replace("export default createSchema", "createSchema");
 const descriptor = runInNewContext(declaration, {
-    GEOMETRY_VALIDATION_DEFAULTS, FIELD_TYPES, STORAGE_TYPES, TABS, FILES, createSchema: d => d,
+    FIELD_TYPES, STORAGE_TYPES, TABS, FILES, createSchema: d => d,
 });
 const schema = { properties: descriptor.properties, config: { storage: descriptor.storage } };
 const obsolete = ["EPS_0", "TAU_0", "KB1", "KEPS1", "CF_KEPS", "DIPOLE_FLOAT32"];
@@ -84,7 +83,7 @@ test("absolute tolerances are finite, positive and identify the correct profile"
     }
 });
 test("3D integration labels and polar accuracy in percent for both precisions", () => {
-    for (const key of ["UZMIN", "LONGD", "DIPOLE_RTOL", "POLAR_EPS_PERCENT"]) {
+    for (const key of ["UZMIN", "DIPOLE_RTOL", "POLAR_EPS_PERCENT"]) {
         assert.ok(schema.properties[key].label.startsWith("(3D): "));
     }
     assert.match(schema.properties.POLAR_EPS_PERCENT.description, /конечной 3D/);
