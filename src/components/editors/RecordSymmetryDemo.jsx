@@ -127,12 +127,10 @@ export function RecordSymmetryControls(props) {
 export function RecordSymmetryViewport(props) {
   const demo = props.demo;
   const [viewRequest, setViewRequest] = createSignal(null);
-  const [width, setWidth] = createSignal(330);
+  const [width, setWidth] = createSignal(null);
   let panel, drag;
   function resize(px) {
-    const host = panel.parentElement, column = panel.previousElementSibling;
-    const available = host.clientWidth - column.offsetWidth - 450 - 21;
-    setWidth(Math.max(180, Math.min(Math.max(180, available), px)));
+    setWidth(px);
     props.onResize();
   }
   function keyboard(event) {
@@ -144,7 +142,7 @@ export function RecordSymmetryViewport(props) {
   }
   return <>
     <section ref={panel} class="record-demo-view" aria-label="3D-построение образов" tabIndex="0"
-      style={{ "--demo-width": width() + "px" }} onKeyDown={keyboard}
+      style={{ "--demo-width": width() == null ? undefined : width() + "px" }} onKeyDown={keyboard}
       onPointerDown={() => panel.focus({ preventScroll: true })}>
       <Show when={demo.geometry()?.scene.primitives.length}>
         <ThreeGeometryViewport scene={demo.geometry().scene} demoStage={demo.geometry()}
