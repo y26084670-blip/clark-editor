@@ -54,7 +54,7 @@ function clampRect(rect, options = {}) {
     ? Math.min(availableWidth, options.fixedWidth)
     : clamp(finiteNumber(rect.width, DEFAULT_WIDTH), minimumWidth, availableWidth);
   const height = clamp(
-    finiteNumber(rect.height, DEFAULT_HEIGHT),
+    finiteNumber(options.fixedHeight, finiteNumber(rect.height, DEFAULT_HEIGHT)),
     minimumHeight,
     availableHeight,
   );
@@ -217,6 +217,7 @@ export function FloatingWindow(props) {
   const rectOptions = (viewport = viewportSize()) => ({
     viewport,
     fixedWidth: props.fixedWidth,
+    fixedHeight: props.fixedHeight,
     fitViewportAspect: props.fitViewportAspect,
     minWidth: props.expandedRect ? Math.min(minWidth(), finiteNumber(props.minimizedWidth, 400)) : props.fitOnDrag
       ? Math.min(minWidth(), Math.max(1, (viewport.width - 2 * VIEWPORT_MARGIN) / 2))
@@ -569,7 +570,7 @@ export function FloatingWindow(props) {
               <div id={titleId()} class="floating-window-title" title={props.title}>
                 {minimized() ? props.minimizedTitle ?? props.title ?? "Окно" : props.title ?? "Окно"}
               </div>
-              <div class="floating-window-actions">
+              <Show when={!props.hideTitleControls}><div class="floating-window-actions">
                 {props.titleActions}
                 <button
                   type="button"
@@ -597,7 +598,7 @@ export function FloatingWindow(props) {
                 >
                   ×
                 </button>
-              </div>
+              </div></Show>
             </header>
 
             <div class="floating-window-content" aria-hidden={minimized()}>
