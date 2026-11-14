@@ -325,7 +325,7 @@ export function DataEditor(props) {
     // См. архитектурный контракт использования schema в начале файла.
     table._gui = {
       schema,
-      required: !!schema.config.required,
+      required: !!schema.config.required && schema.id !== TABS.REGIONS.id,
       detailRegion,
       model: {
         getSnapshot() {
