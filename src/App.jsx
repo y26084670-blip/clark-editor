@@ -130,7 +130,7 @@ export default function App() {
   const [medNavigation, setMedNavigation] = createSignal(null);
   let medWorker = null;
   let medEditor = null;
-  const [forceSurface, setForceSurface] = createSignal(null);
+  const [forceSurfaceOpen, setForceSurfaceOpen] = createSignal(false);
   function checkForceGaps(model) {
     return new Promise((resolve,reject) => {
       const worker = new Worker(new URL("./workers/forceSurface.worker.js",import.meta.url),{type:"module"});
@@ -140,41 +140,44 @@ export default function App() {
       catch (error) { worker.terminate(); reject(error); }
     });
   }
-  async function openForceSurface() {
-    const task = selectionService.loadedTaskHandle(), version = selectionService.taskDataVersion();
-    const indices = [...selectedGeometryElementIndices()];
-    setSidePanelOpen(false);
-    await editorControllers.get(TABS.ELEMENTS.id)?.flush();
-    if (!task || task !== selectionService.loadedTaskHandle()
-      || version !== selectionService.taskDataVersion() || activeTab() !== TABS.ELEMENTS.id) return;
+  function readForceRequest() {
+    const task = selectionService.loadedTaskHandle();
     const {general, elements, regions, moves} = modelService.getModel();
-    if (elements?.some(row => row.targ !== 3) && Array.isArray(regions))
-      setForceSurface({task, version, indices, general, elements, regions, moves});
+    if (!task || !general || !elements?.some(row => row.targ !== 3) || !Array.isArray(regions)
+      || activeTab() !== TABS.ELEMENTS.id) return null;
+    return {task, version:selectionService.taskDataVersion(), general, elements, regions, moves,
+      indices:selectedGeometryElementIndices()};
   }
-  function forceRequestCurrent(request) {
-    const model = modelService.getModel();
-    return request.task === selectionService.loadedTaskHandle() && request.version === selectionService.taskDataVersion()
-      && request.elements === model.elements && request.regions === model.regions && request.general === model.general && request.moves === model.moves;
+  const forceSurfaceRequest = createMemo(() => forceSurfaceOpen() ? readForceRequest() : null);
+  async function prepareForceRequest() {
+    const task = selectionService.loadedTaskHandle(), version = selectionService.taskDataVersion();
+    await editorControllers.get(TABS.ELEMENTS.id)?.flush();
+    const request = readForceRequest();
+    if (request && request.task === task && request.version === version) return request;
+    throw new Error("Для построения откройте вкладку «Элементы» задания.");
   }
-  createEffect(() => {
-    const request = forceSurface();
-    if (request && (!forceRequestCurrent(request) || activeTab() !== TABS.ELEMENTS.id)) setForceSurface(null);
-  });
-  function saveForceGroups(plan, nodes) {
-    const request = forceSurface();
-    if (!request || !forceRequestCurrent(request)) throw new Error("Исходные данные изменились. Повторите операцию.");
+  function openForceSurface() {
+    setSidePanelOpen(false);
+    if (readForceRequest()) setForceSurfaceOpen(true);
+  }
+  function saveForceGroups(request, plan, step) {
+    const current = readForceRequest();
+    if (!current || current.task !== request.task || current.version !== request.version
+      || current.elements !== request.elements || current.regions !== request.regions
+      || current.general !== request.general || current.moves !== request.moves
+      || (!plan?.automatic && !sameRecordIndices(current.indices, request.indices)))
+      throw new Error("Исходные данные или выделение изменились. Повторите операцию.");
     const elementSchema = tabRegistry.find(s => s.id === TABS.ELEMENTS.id);
     const regionSchema = tabRegistry.find(s => s.id === TABS.REGIONS.id);
     const updated = plan
-      ? applyForceGroups(request, plan, nodes, () => dataService.createDefaultRecord(regionSchema))
+      ? applyForceGroups(request, plan, step, () => dataService.createDefaultRecord(regionSchema))
       : excludeForceElements(request, request.indices);
     const changes = [{schema:elementSchema,data:updated.elements}, {schema:regionSchema,data:updated.regions}];
     if (plan && plan.minimumGap !== request.general.forceGroupMinGap)
       changes.push({schema:tabRegistry.find(s=>s.id === TABS.GENERAL.id),data:{...request.general,forceGroupMinGap:plan.minimumGap}});
     modelService.setModelParts(changes,{recordHistory:true});
-    setForceSurface(null);
-    if (plan) setActiveTab(TABS.REGIONS.id);
     void performModelValidation({restart:true});
+    return readForceRequest();
   }
   const [coilTask,setCoilTask]=createSignal(null),[coilBusy,setCoilBusy]=createSignal(false);
   const [coilError,setCoilError]=createSignal(""),[coilNotice,setCoilNotice]=createSignal("");
@@ -987,8 +990,8 @@ export default function App() {
         error={contactError()} notice={contactNotice()} onChange={() => { setContactError(""); setContactNotice(""); }} onApply={addContact} onClose={closeContact}/></Show>
       <UniformFieldCoilDialog open={!!coilTask()} model={modelService.getModel()} busy={coilBusy()}
         error={coilError()} notice={coilNotice()} onApply={addCoil} onClose={closeCoil}/>
-      <Show when={forceSurface()} keyed>{request => <ForceSurfaceDialog request={request}
-        onApply={saveForceGroups} onExclude={() => saveForceGroups(null)} onClose={() => setForceSurface(null)} />}</Show>
+      <Show when={forceSurfaceOpen()}><ForceSurfaceDialog request={forceSurfaceRequest()}
+        prepare={prepareForceRequest} onApply={saveForceGroups} onClose={() => setForceSurfaceOpen(false)} /></Show>
     </div>
   );
 }

@@ -182,3 +182,17 @@ test('manual, exclusion, rebuild and automatic replacement change only the corre
     assert.deepEqual(automatic(rebuilt).surfaces,automatic(input).surfaces);
     assert.throws(()=>buildForceGroups(kernel,rebuilt,{mode:'manual',group:8,indices:[0],distance:.1,minimumGap:.2}),/зазора/);
 });
+
+test('node step uses both endpoints and the longer edge of each opposite pair independently', () => {
+    const wide = [[0,0,0],[3,0,0],[4.5,2,0],[0,2,0]];
+    const square = [[0,0,0],[1.5,0,0],[1.5,1.5,0],[0,1.5,0]];
+    const input = {elements:[block(0)],regions:[]};
+    const plan = {ids:[1], replace:[1], surfaces:[{id:1,panels:[wide,square]}]};
+    const write = step => applyForceGroups(input, plan, step, () => ({}));
+    // max(3,4.5) / 1.5 = 3 intervals; max(2,2.5) / 1.5 rounds up to 2.
+    assert.deepEqual(write(1.5).regions.map(r=>r.dp), [[[4],[3]], [[2],[2]]]);
+    assert.deepEqual(write(10).regions.map(r=>r.dp), [[[2],[2]], [[2],[2]]]);
+    for (const step of [0,-1,NaN,Infinity,Number.MIN_VALUE]) assert.throws(()=>write(step), /шаг/);
+    assert.deepEqual(input.regions, []);
+    assert.equal(input.elements[0].take, 0);
+});

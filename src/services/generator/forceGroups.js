@@ -125,12 +125,22 @@ export function buildForceGroups(kernel, model, {mode, indices = [], group, dist
     }
 }
 
-export function applyForceGroups(model, plan, nodes, defaultRegion) {
+function panelNodeCounts([a, b, c, d], step) {
+    const length = (p, q) => Math.hypot(p[0]-q[0], p[1]-q[1], p[2]-q[2]);
+    // FieldS includes the endpoints along 1–2 and 1–4.
+    const n12 = 1 + Math.ceil(Math.max(length(a,b), length(d,c)) / step);
+    const n14 = 1 + Math.ceil(Math.max(length(a,d), length(b,c)) / step);
+    if (!Number.isSafeInteger(n12 * n14)) throw new Error("Слишком малый шаг по узлам для этой площадки.");
+    return [[n12], [n14]];
+}
+
+export function applyForceGroups(model, plan, step, defaultRegion) {
+    if (!Number.isFinite(step) || step <= 0) throw new Error("Введите положительный шаг по узлам в миллиметрах.");
     const elements = model.elements.map((row,i) => row.take === plan.ids[i] ? row : {...row,take:plan.ids[i]});
     const replaced = new Set(plan.replace);
     const regions = model.regions.filter(r => !(r.forceGroup > 0 && (plan.automatic || replaced.has(r.forceGroup))));
     for (const {id,panels} of plan.surfaces) for (const geo of panels)
-        regions.push({...defaultRegion(),geoType:0,geo,dp:[[nodes],[nodes]],forceGroup:id});
+        regions.push({...defaultRegion(),geoType:0,geo,dp:panelNodeCounts(geo, step),forceGroup:id});
     return {elements,regions};
 }
 
