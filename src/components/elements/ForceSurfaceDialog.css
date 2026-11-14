@@ -1,0 +1,9 @@
+.force-surface-dialog { display: flex; flex-direction: column; gap: 12px; padding: 12px; height: 100%; min-height: 0; box-sizing: border-box; overflow: auto; }
+.force-surface-inputs, .force-surface-actions { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; }
+.force-surface-inputs label { display: grid; gap: 4px; }
+.force-surface-inputs input { width: 10em; }
+.force-surface-preview { flex: 1 0 160px; position: relative; min-height: 160px; }
+.force-surface-preview > div { position: absolute; inset: 0; }
+.force-surface-actions { margin-top: auto; align-items: center; }
+.force-surface-actions span { margin-right: auto; }
+.force-surface-error { color: #ffc2b6; }
