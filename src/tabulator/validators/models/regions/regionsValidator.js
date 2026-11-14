@@ -1,3 +1,4 @@
+import { validatePanel } from "../../../../services/solver/geometryShape.js";
 import { validateRegionReferences } from "../../../../services/modelReferenceValidation.js";
 import { forceSurfaceMotionWarning } from "../../../../services/generator/forceSurfaceMotion.js";
 import {
@@ -18,9 +19,10 @@ export function regionsValidator(
     service,
     diagnostics,
 ) {
-    const regions = service.getModel()[TABS.REGIONS.id];
+    const model = service.getModel();
+    const regions = model[TABS.REGIONS.id];
     if (!Array.isArray(regions)) return;
-    validateRegionReferences(service.getModel(), diagnostics);
+    validateRegionReferences(model, diagnostics);
     const motionWarning = forceSurfaceMotionWarning({regions});
     if (motionWarning) {
         diagnostics.push(createWarning({ tab: TABS.REGIONS, property: "indMove", message: motionWarning }));
@@ -46,6 +48,14 @@ export function regionsValidator(
         }
 
         validateRecordRules(record, index, diagnostics);
+        if (record?.geoType === 0 && hasCompleteShape(record.geo,FIXED_ARRAY_SHAPES[2])) {
+            const general = model.general;
+            const force = general?.evalForce === true && (record.indCoil ?? 0) === 0;
+            for (const issue of validatePanel(record.geo,{force,doubleFloat:general?.doubleFloat === true})) {
+                const diagnostic = issue.level === "error" ? createError : createWarning;
+                diagnostics.push(diagnostic({tab:TABS.REGIONS,row:index+1,property:"geo",message:issue.message}));
+            }
+        }
     });
 }
 

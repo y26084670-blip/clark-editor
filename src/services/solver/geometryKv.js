@@ -1,33 +1,10 @@
 // services/solver/geometryKv.js
 // Источник: julia, src/core/03_kv.jl, функция unpack(me::Kv). Снимок 2026-08.
 
+import { norm, realEpsilon, QUALITY_EPS_FACTOR } from "./geometryShape.js";
+import { edgeVectors, jacobianColumns, det3, certifyJacobian, cellQuality, twistAngles } from "./hexJacobian.js";
+
 const GRAD2RADIAN = Math.PI / 180;
-
-function difference(left, right) {
-    return [
-        left[0] - right[0],
-        left[1] - right[1],
-        left[2] - right[2],
-    ];
-}
-
-function cross(left, right) {
-    return [
-        left[1] * right[2] - left[2] * right[1],
-        left[2] * right[0] - left[0] * right[2],
-        left[0] * right[1] - left[1] * right[0],
-    ];
-}
-
-function dot(left, right) {
-    return left[0] * right[0]
-        + left[1] * right[1]
-        + left[2] * right[2];
-}
-
-function norm(vector) {
-    return Math.hypot(vector[0], vector[1], vector[2]);
-}
 
 function isVertex(vertex) {
     return Array.isArray(vertex)
@@ -47,7 +24,6 @@ export const KV_GEO_FIELDS = {
 export const KV_GEO_LENGTH = 24;   // zeros(REAL, 3 * 8)
 
 // Объёмная проверка Q1 во всех режимах, включая автоматический выбор 2D-оператора.
-// Контрольные точки выявляют вырождение/инверсии, но не сертифицируют всю карту.
 export function validateKvVerticesDetailed(vertices, profile = {}) {
     const checks = {}, measurements = {}, warnings = [];
     const result = extra => ({ valid: Object.values(checks).every(Boolean),
@@ -55,49 +31,65 @@ export function validateKvVerticesDetailed(vertices, profile = {}) {
     if (!Array.isArray(vertices) || vertices.length !== 8
         || !Array.from(vertices).every(isVertex)) return result({ valid: false, malformed: true });
     const doubleFloat = profile?.doubleFloat !== false;
-    const convert = doubleFloat ? x => x : Math.fround;
-    const eps = doubleFloat ? Number.EPSILON : 2 ** -23;
+    const convert = doubleFloat ? Number : Math.fround;
+    const eps = realEpsilon(doubleFloat);
     const input = vertices.map(v => v.map(convert));
     if (!input.every(v => v.every(Number.isFinite))) return result({ valid: false, malformed: true });
-    const xyz = input.map(v => difference(v, input[0]));
-    const scale = Math.max(...xyz.flat().map(Math.abs));
+    const rawEdges = edgeVectors(input);
+    const scale = Math.max(...rawEdges.flat(2).map(Math.abs));
     checks.volume = scale > 0 && Number.isFinite(scale);
     checks.orientation = true;
     checks.jacobian = true;
     if (!checks.volume) return result();
-    const centered = xyz.map(v => v.map(x => x / scale));
-    let minQuality = Infinity, minDet = Infinity;
-    function determinant(x, y, z, interior = true) {
-        const parameters = [x, y, z];
-        const columns = Array.from({ length: 3 }, () => [0, 0, 0]);
-        for (let v = 0; v < 8; v++) for (let a = 0; a < 3; a++) {
-            let weight = (v >> a) & 1 ? 1 : -1;
-            for (let b = 0; b < 3; b++) if (a !== b)
-                weight *= (v >> b) & 1 ? parameters[b] : 1 - parameters[b];
-            for (let d = 0; d < 3; d++) columns[a][d] += centered[v][d] * weight;
-        }
-        const value = dot(columns[0], cross(columns[1], columns[2]));
-        const lengths = columns.map(norm), tolerance = 64 * eps * lengths.reduce((a, b) => a * b, 1);
-        if (!Number.isFinite(value) || value < -tolerance) checks.orientation = false;
-        if (!Number.isFinite(value) || (interior && value <= tolerance)) checks.jacobian = false;
+    const edges = rawEdges.map(row => row.map(v => v.map(x => x/scale)));
+    const affine = rawEdges.every(row => row.every(v => v.every((x,i)=>x===row[0][i])));
+    const sample = p => jacobianColumns(edges,p);
+    let minDet = Infinity;
+    const detAt = (p, interior) => {
+        const columns = sample(p), value = det3(columns);
+        const tolerance = 64*eps*columns.reduce((product,v)=>product*norm(v),1);
         if (interior) {
-            minQuality = Math.min(minQuality, value / Math.max(...lengths) ** 3);
-            minDet = Math.min(minDet, value);
+            minDet = Math.min(minDet,value);
+            if (value <= tolerance) checks.jacobian = false;
         }
+        if (value < -tolerance) checks.orientation = false;
         return value;
-    }
-    const gauss = [(1 - 1 / Math.sqrt(3)) / 2, (1 + 1 / Math.sqrt(3)) / 2];
+    };
+    const gauss = [(1-1/Math.sqrt(3))/2, (1+1/Math.sqrt(3))/2];
     let volume = 0;
-    for (const x of gauss) for (const y of gauss) for (const z of gauss)
-        volume += determinant(x, y, z) / 8;
-    const physicalVolume = convert(volume * scale ** 3);
+    for (const x of gauss) for (const y of gauss) for (const z of gauss) volume += detAt([x,y,z],true)/8;
+    // Multiply progressively: scale³ itself may overflow for an anisotropic cell.
+    const physicalVolume = convert(((volume*scale)*scale)*scale);
     checks.volume = physicalVolume > 0 && Number.isFinite(physicalVolume);
-    for (const x of [0, .5, 1]) for (const y of [0, .5, 1]) for (const z of [0, .5, 1])
-        determinant(x, y, z, x === .5 && y === .5 && z === .5);
+    const grid = Array.from({length:27},(_,i)=>detAt([i%3/2,Math.floor(i/3)%3/2,Math.floor(i/9)/2],i===13));
+    const bound = 4096*Number.EPSILON*edges.reduce((s,row)=>s*Math.max(...row.map(norm)),1);
+    const certificate = certifyJacobian(input,grid,bound);
+    if (certificate.status === "inverted") checks.orientation = false;
+    if (certificate.status === "singular") checks.jacobian = false;
+    if (certificate.status === "unresolved") checks.certified = false;
+    measurements.certificate = certificate;
     measurements.jacobian = { value: minDet, limit: 0, comparison: ">", unit: "" };
     measurements.volume = { value: physicalVolume, limit: 0, comparison: ">", unit: "мм³" };
-    if (Object.values(checks).every(Boolean) && minQuality < 1024 * eps)
-        warnings.push("Тонкий или сильно скошенный ШГ: возможна потеря точности геометрии в выбранной разрядности");
+    const angles = twistAngles(edges);
+    measurements.twist = angles;
+    const maximum = Math.max(...angles.map(a=>Math.abs(a ?? 0)));
+    if (maximum > 90+256*Number.EPSILON*180) {
+        const axis = angles.findIndex(a=>Math.abs(a)===maximum)+1;
+        warnings.push(`Скручивание ШГ по D${axis}: ${angles[axis-1].toFixed(2)}° (предел 90°).`);
+    }
+    if (!Object.values(checks).every(Boolean)) return result();
+    const dp = profile?.dp ?? [1,1,1];
+    if (dp.length === 3 && dp.every(n=>Number.isSafeInteger(n) && n>=1)) {
+        let q = 1, rho = 1;
+        const nodes = affine ? [.5] : gauss;
+        for (const x of nodes) for (const y of nodes) for (const z of nodes) {
+            const quality=cellQuality(sample([x,y,z]),dp);
+            q=Math.min(q,quality.q); rho=Math.min(rho,quality.rho);
+        }
+        measurements.quality={q,rho};
+        if (Math.min(q,rho)<QUALITY_EPS_FACTOR*eps) warnings.push(
+            `Тонкий или сильно скошенный ЭО: q = ${q.toPrecision(3)}, σmin/σmax = ${rho.toPrecision(3)} (D1–D3: ${dp.join("×")}).`);
+    }
     return result();
 }
 

@@ -123,3 +123,53 @@ test("Editor examples have nonzero parameters and valid three-dimensional geomet
         assert.deepEqual(resetKvGeo(type), copy, "examples are independent editable values");
     }
 });
+test("global Jacobian distinguishes a hidden fold, an interior zero and a legal boundary collapse", () => {
+    const fromMap=f=>Array.from({length:8},(_,i)=>f(i&1,(i>>1)&1,i>>2));
+    const folded=fromMap((u,v,w)=>[(1-3*w)*u-.1*w*v,.1*w*u+(1-4*w)*v,w]);
+    const touching=fromMap((u,v,w)=>[(1-3*w)*u,(1-3*w)*v,w]);
+    for (const doubleFloat of [false,true]) {
+        const bad=validateKvVerticesDetailed(folded,{doubleFloat});
+        assert.equal(bad.measurements.certificate.status,"inverted");
+        const w=bad.measurements.certificate.location[2];
+        assert.ok(w>.25 && w<1/3);
+        const singular=validateKvVerticesDetailed(touching,{doubleFloat});
+        assert.equal(singular.measurements.certificate.status,"singular");
+        assert.equal(singular.valid,false);
+        assert.ok(Math.abs(singular.measurements.certificate.location[2]-1/3)<1e-12);
+    }
+});
+
+test("a small twist does not mask inversion, and inconclusive Bernstein coefficients are subdivided", () => {
+    // Johnen, Weill & Remacle, arXiv:1706.01613, Figs. 5 and 6, cyclic -> CLARK bit order.
+    const invalid=[[0,0,0],[1,0,0],[1.7615170641459,.594764272968121,.15552188663289],
+        [.438888411629833,1.53098020041072,.185631029838277],[1.3859049651391,.0755794018509022,1.77483024073906],
+        [1.22129676447071,.271876165350328,.630922158503566],[1.77365642274365,1.25103990471942,1.83300604452892],
+        [.0769922201302364,.940424880836765,1.45521546591891]];
+    const valid=[[0,0,0],[1,0,0],[1.539,.704696,1.84011],[.166589,1.08208,.162539],
+        [.0501127,1.96347,1.56559],[.422336,.00419138,1.43038],[.509917,.0214216,1.55322],[.40783,1.73452,1.93234]];
+    const clark=p=>[0,1,3,2,4,5,7,6].map(i=>p[i]);
+    for (const doubleFloat of [false,true]) {
+        const bad=validateKvVerticesDetailed(clark(invalid),{doubleFloat});
+        assert.equal(bad.measurements.certificate.status,"inverted");
+        assert.ok(Math.abs(Math.max(...bad.measurements.twist.map(Math.abs))-47.00444)<.0001);
+        assert.equal(validateKvVerticesDetailed(clark(valid),{doubleFloat}).valid,true);
+    }
+});
+
+test("scaled determinant, SVD and twist use independent measures", () => {
+    const skew=box([1,0,0],[.75,1,0],[0,0,1]);
+    const measured=validateKvVerticesDetailed(skew).measurements.quality;
+    assert.ok(Math.abs(measured.q-.8)<1e-13);
+    assert.ok(Math.abs(measured.rho-(Math.hypot(2,.75)-.75)/(Math.hypot(2,.75)+.75))<1e-13);
+    const thin=validateKvVerticesDetailed(box(),{doubleFloat:false,dp:[100000,1,1]});
+    assert.equal(thin.valid,true);
+    assert.ok(Math.abs(thin.measurements.quality.rho-1e-5)<1e-12);
+    assert.ok(Math.abs(thin.measurements.quality.q-1)<1e-14);
+    assert.match(thin.warnings[0],/σmin/);
+    const rotated=angle=>box().map(([u,v,w])=>w
+        ? [.5+Math.cos(angle)*(u-.5)-Math.sin(angle)*(v-.5),.5+Math.sin(angle)*(u-.5)+Math.cos(angle)*(v-.5),w] : [u,v,w]);
+    assert.deepEqual(validateKvVerticesDetailed(rotated(Math.PI/2)).warnings,[]);
+    const plus=validateKvVerticesDetailed(rotated(2*Math.PI/3));
+    assert.equal(plus.valid,true);
+    assert.match(plus.warnings[0],/120.00°/);
+});
