@@ -183,8 +183,11 @@ try {
     assert.deepEqual(await panel.getByRole("heading").allTextContents(),
       (feed.recommendations ?? []).map(item => item.title));
     const images = panel.locator(".whats-new-entry").filter({ has: appPage.getByRole("heading", {
-      name: "Editor · Проверить построение образов шестигранника", exact: true }) });
-    assert.match(await images.textContent(), /намагниченности M или плотности тока J/);
+      name: "Editor · Проверка построения образов элементов и областей", exact: true }) });
+    const lines = (await images.locator("p").innerText()).split("\n");
+    assert.match(lines[0], /включите «3D1»/);
+    assert.match(lines[1], /намагниченности M или плотности тока J/);
+    assert.equal(lines.at(-1), "Аналогично, на вкладке Области выберите область, включите 3D1 и используйте аналогичным образом");
     for (const width of [1280, 480, 320]) {
       await appPage.setViewportSize({ width, height: 900 });
       const widths = await appPage.getByRole("tablist").getByRole("tab").evaluateAll(tabs =>

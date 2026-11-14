@@ -29,6 +29,7 @@ const current = page.locator(".tab-content:visible");
 const card = current.locator(".record-card-column");
 const field = (name, i = 0) => card.locator('[data-field="' + name + '"]').nth(i);
 const flag = name => current.getByRole("checkbox", { name, exact: true });
+const demoToggle = flag("3D1");
 const visibleFields = () => current.locator(".tabulator-col[tabulator-field]:visible").evaluateAll(
   cols => cols.map(c => c.getAttribute("tabulator-field")).sort());
 const value = (part, key, index = 0) => page.evaluate(([part, key, index]) =>
@@ -42,6 +43,18 @@ const commit = async (input, text, key = "Enter") => {
   await input.fill(text);
   await input.press(key);
 };
+async function openCardDemo() {
+  const style = await demoToggle.evaluate(input => {
+    const label = input.closest("label");
+    const filters = label.parentElement.querySelector(".record-card-filters");
+    const gap = parseFloat(getComputedStyle(label.parentElement).columnGap);
+    return { weight: getComputedStyle(label).fontWeight,
+      extraGap: label.getBoundingClientRect().left - filters.getBoundingClientRect().right - gap };
+  });
+  assert.equal(style.weight, "700");
+  assert.equal(style.extraGap, 5);
+  await demoToggle.check();
+}
 async function assertAligned(label) {
   await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   const result = await current.locator(".data-editor-main-table").evaluate(table => {
@@ -430,7 +443,7 @@ try {
   await field("targ").selectOption("0");
   const modelBefore = await page.evaluate(() => editorFixture.model());
   const writesBeforeDemo = await page.evaluate(() => editorFixture.writes.length);
-  await flag("3D").check();
+  await openCardDemo();
   const demo = current.locator(".record-demo-card"), viewport = current.locator(".record-demo-view");
   const slide = demo.getByRole("slider", { name:"Стадия построения" });
   const length = demo.getByRole("slider", { name:"Длина демо-вектора" });
@@ -555,7 +568,7 @@ try {
   await tab("Элементы");
   await slide.press("End"); assert.equal(await slide.inputValue(),"9");
   await slide.press("ArrowLeft"); assert.equal(await slide.inputValue(),"8");
-  await tab("Области"); await flag("3D").check();
+  await tab("Области"); await openCardDemo();
   await viewport.locator("canvas").waitFor({timeout:20000});
   assert.equal((await viewport.boundingBox()).width, 660, "region and element previews open at the same width");
   await page.setViewportSize({width:1050,height:1000});
@@ -612,11 +625,11 @@ try {
   await commit(card.getByLabel("Основание L", {exact:true}),"4");
   await commit(card.getByLabel("Высота H", {exact:true}),"2");
   assert.ok(await normalLength.isEnabled(), "a rectangle restores the normal control");
-  await flag("3D").uncheck();
-  await tab("Элементы"); assert.equal(await flag("3D").isChecked(),true);
+  await demoToggle.uncheck();
+  await tab("Элементы"); assert.equal(await demoToggle.isChecked(),true);
   assert.equal(await length.inputValue(), "100");
   assert.equal(await transparency.inputValue(), "58"); assert.ok(await edges.isChecked());
-  await flag("3D").uncheck();
+  await demoToggle.uncheck();
   assert.equal(await current.locator(".record-demo-card, .record-demo-view").count(),0);
   console.log("PASS Local region stages, surface normals, edges and length; element M/J, orthographic WebGL, default widths and splitters");
   assert.deepEqual(errors,[]);

@@ -1396,7 +1396,7 @@ export function DataEditor(props) {
               checked={!!columnFlags()[group.label]} onChange={e => toggleCardColumns(group.label, e.currentTarget.checked)} />{group.label}</label>)}
           </div>}
           {demo && <label class="record-card-toggle-3d"><input type="checkbox" checked={demo.open()}
-            onChange={e => { demo.setOpen(e.currentTarget.checked); scheduleMainLayoutRedraw(); }} />3D</label>}
+            onChange={e => { demo.setOpen(e.currentTarget.checked); scheduleMainLayoutRedraw(); }} />3D1</label>}
           {jweakStructureLocked() && (
             <span role="status" title={JWEAK_STRUCTURE_NOTICE} style={{ "align-self": "center" }}>
               Иерархия: состав и порядок ШГ зафиксированы
