@@ -69,6 +69,7 @@ export function createSymmetryAxes(THREE, stage, createLabelTexture) {
 export function createSymmetryArrows(THREE, arrows, kind) {
     if (!arrows.length) return null;
     const root = new THREE.Group();
-    addArrows(root, THREE, arrows, kind === "current" ? "#ffac70" : "#8bf1c4", 31);
+    const colors = { current: "#ffac70", normal: "#ffe274", magnetization: "#8bf1c4" };
+    addArrows(root, THREE, arrows, colors[kind] ?? colors.magnetization, 31);
     return root;
 }

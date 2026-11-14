@@ -1,4 +1,5 @@
 import { applyMatrix4ToPoint } from "../solver/rotation3d.js";
+import { bilinearRegionNormals } from "./geometryDiscretization.js";
 import { buildGeometryScene } from "./geometrySceneModel.js";
 import { buildGeometryTimeModel } from "./geometryTimeModel.js";
 import { createSourceDirectionTransform } from "./sourceVectorSceneModel.js";
@@ -89,7 +90,26 @@ export function buildRecordSymmetryStage(record, general, moves, element, stage,
     // originates before that displacement. Even tilted LS images share X′.
     const frameOrigin = staged.dr.map(v => -(Array.isArray(v) ? v[0] : v));
     const axisLength = Math.hypot(...max.map((v, i) => v - min[i])) * 0.7 || 1;
-    return { ...result, center, frameOrigin, axisLength };
+    const regionNormals = primitive.kind === "region-surface" ? bilinearRegionNormals(vertices) : [];
+    return { ...result, center, frameOrigin, axisLength, regionNormals };
+}
+
+export function buildRegionNormalArrows(stage, length) {
+    if (!stage?.regionNormals?.length || !(length > 0)) return [];
+    const arrowLength = stage.axisLength * length / 100;
+    const arrows = [];
+    for (const { matrix } of stage.scene.primitives[0].instances) {
+        for (const { origin, direction } of stage.regionNormals) {
+            // Region images use rigid rotations. Translation moves the anchor only.
+            const [x, y, z] = direction;
+            arrows.push({
+                origin: applyMatrix4ToPoint(matrix, origin),
+                direction: [0, 1, 2].map(row => matrix[row] * x + matrix[4 + row] * y + matrix[8 + row] * z),
+                length: arrowLength,
+            });
+        }
+    }
+    return arrows;
 }
 
 // Stable, uniform directions in independent AS/PS source rows. Their mirrors
