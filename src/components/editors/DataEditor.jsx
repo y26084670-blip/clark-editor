@@ -95,7 +95,7 @@ export function DataEditor(props) {
   const demo = card && createRecordSymmetryDemo(card.kind === "element", cardRecord, cardIndex, () => props.active);
 
   function cardColumnVisible(field, flags) {
-    return field === "rowLabel" || field === "name" || !!flags.all
+    return field === "rowLabel" || field === "name" || field === card.forceGroupField || !!flags.all
       || card.columnGroups.some(group => flags[group.label] && group.fields.includes(field));
   }
 

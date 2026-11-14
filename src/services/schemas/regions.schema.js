@@ -69,10 +69,11 @@ export default createSchema({
     views: {
         recordCard: {
             kind: "region",
+            forceGroupField: "forceGroup",
             columnGroups: [
                 { label: "Разбиение", fields: ["dp", "epCount"] },
                 { label: "Симметрии", fields: ["symYl", "symLs"] },
-                { label: "Индексы катушки и траектории", fields: ["indCoil", "wCoil", "indMove", "forceGroup"] },
+                { label: "Индексы катушки и траектории", fields: ["indCoil", "wCoil", "indMove"] },
             ],
         },
     },

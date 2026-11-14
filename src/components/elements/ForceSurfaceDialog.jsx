@@ -9,7 +9,7 @@ import "./ForceSurfaceDialog.css";
 
 const decimal = value => Number(value.trim().replace(",", "."));
 const transferHint = "Перевести в группу 0 элементы, выделенные в таблице «Элементы».";
-const width = 424, height = 546;
+const width = 424, height = 308;
 
 export function ForceSurfaceDialog(props) {
     const [distance, setDistance] = createSignal("1");
@@ -133,15 +133,21 @@ export function ForceSurfaceDialog(props) {
         hideTitleControls={true} storageKey="web-gui:force-surface">
         <div class="force-surface-dialog">
             <div class="force-surface-body">
-                <fieldset class="force-surface-modes" disabled={busy()}>
-                    <legend>Способ построения</legend>
-                    <label><input type="radio" name="force-method" checked={mode()==="manual"}
-                        onChange={() => {setMode("manual"); clearResult();}}/> Вручную по выделенным элементам</label>
-                    <label><input type="radio" name="force-method" checked={mode()==="automatic"}
-                        onChange={() => {setMode("automatic"); clearResult();}}/> Автоматически по контактам</label>
-                </fieldset>
+                <div class="force-surface-method" classList={{"has-preview": !!preview()}}>
+                    <fieldset class="force-surface-modes" disabled={busy()}>
+                        <legend>Способ построения</legend>
+                        <label><input type="radio" name="force-method" checked={mode()==="manual"}
+                            onChange={() => {setMode("manual"); clearResult();}}/> Вручную по выделенным элементам</label>
+                        <label><input type="radio" name="force-method" checked={mode()==="automatic"}
+                            onChange={() => {setMode("automatic"); clearResult();}}/> Автоматически по контактам</label>
+                    </fieldset>
+                    <Show when={preview()} keyed>{scene => <div class="force-surface-preview">
+                        <ThreeGeometryViewport scene={scene} active={true} mode="translucent" showEdges={true}
+                            demoArrows={normals()} demoVectorKind="normal" projection="orthographic" autoFit={true} />
+                    </div>}</Show>
+                </div>
                 <Show when={mode()==="automatic"} fallback={<span>Выделенные элементы: {selected().length ? selected().map(i=>i+1).join(", ") : "нет"}</span>}>
-                    <span>Автопостроение заново назначит номера всем физическим элементам и заменит групповые оболочки.</span>
+                    <Show when={!plan()}><span>Построение обновит группы всех физических элементов и заменит их оболочки.</span></Show>
                 </Show>
                 <div class="force-surface-inputs">
                     <Show when={mode()==="manual"}>
@@ -156,13 +162,9 @@ export function ForceSurfaceDialog(props) {
                         onInput={e => {setStep(e.currentTarget.value); clearResult();}} /></label>
                 </div>
                 <Show when={warning()}><div class="force-surface-warning" role="status">{warning()}</div></Show>
-                <Show when={preview()} keyed>{scene => <div class="force-surface-preview">
-                    <ThreeGeometryViewport scene={scene} active={true} mode="translucent" showEdges={true}
-                        demoArrows={normals()} demoVectorKind="normal" projection="orthographic" autoFit={true} />
-                </div>}</Show>
                 <Show when={!props.request}><span>Для работы с поверхностями откройте вкладку «Элементы» задания.</span></Show>
                 <Show when={error()}><div class="force-surface-error" role="alert">{error()}</div></Show>
-                <span role="status">{busy() ? "Выполнение…" : plan()?.surfaces.map(s => `Группа ${s.id}: ШГ ${s.members.map(i=>i+1).join(", ")} (${s.panels.length} пл.)`).join(" · ")}</span>
+                <Show when={busy() || plan()}><span role="status">{busy() ? "Выполнение…" : plan()?.surfaces.map(s => `Группа ${s.id}: ШГ ${s.members.map(i=>i+1).join(", ")} (${s.panels.length} пл.)`).join(" · ")}</span></Show>
             </div>
             <div class="force-surface-actions">
                 <span title={transferHint}><button title={transferHint} onClick={transferSelected}

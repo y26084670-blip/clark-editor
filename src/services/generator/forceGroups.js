@@ -144,8 +144,8 @@ export function applyForceGroups(model, plan, step, defaultRegion) {
     return {elements,regions};
 }
 
-// An excluded piece can still lie inside its old shell. Its sources are
-// suppressed in every pair. Keep that valid shell for the remaining members.
+// The transferred element becomes a group-0 source. Keep the old shell
+// while it still has positive-group members.
 export function excludeForceElements(model, indices) {
     const selected = new Set(indices);
     const removed = new Set(indices.map(i=>groupOf(model.elements[i])).filter(Boolean));

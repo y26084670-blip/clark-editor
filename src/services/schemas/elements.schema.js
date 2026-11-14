@@ -77,10 +77,11 @@ export default createSchema({
     views: {
         recordCard: {
             kind: "element",
+            forceGroupField: "take",
             columnGroups: [
                 { label: "Разбиение", fields: ["dp", "eoCount", "eoRange"] },
                 { label: "Симметрии", fields: ["symYl", "symYa", "symTx", "symLs", "symAs", "symPs", "symKya", "symKyp", "yc1", "yc2", "yc3", "yc4"] },
-                { label: "Свойства", fields: ["model", "xapName", "vkan", "rv", "med", "isConductive", "isMagnetic", "isAnisotropic", "auto", "take"] },
+                { label: "Свойства", fields: ["model", "xapName", "vkan", "rv", "med", "isConductive", "isMagnetic", "isAnisotropic", "auto"] },
                 { label: "Импульсы и траектории", fields: ["indAmp", "indMove"] },
             ],
         },
@@ -577,7 +578,7 @@ export default createSchema({
         take: {
             type: FIELD_TYPES.INTEGER,
             label: "Силовая группа",
-            description: "Номер группы для расчёта взаимодействий. 0 исключает ШГ из таблицы пар.",
+            description: "Номер группы для расчёта взаимодействий. Группа 0 даёт вклад на поверхности каждой положительной группы.",
             minimum: 0,
             default: 0,
         },
