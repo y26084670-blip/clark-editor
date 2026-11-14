@@ -8,3 +8,5 @@
 .force-surface-actions span { margin-right: auto; }
 .force-surface-error { color: #ffc2b6; }
 .force-surface-warning { border-left: 3px solid #be8527; padding: 4px 8px; max-height: 6em; overflow: auto; }
+.force-surface-modes { display:flex; flex-wrap:wrap; gap:1em; }
+.force-surface-modes label { white-space:nowrap; }

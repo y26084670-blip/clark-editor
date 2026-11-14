@@ -72,7 +72,7 @@ export default createSchema({
             columnGroups: [
                 { label: "Разбиение", fields: ["dp", "epCount"] },
                 { label: "Симметрии", fields: ["symYl", "symLs"] },
-                { label: "Индексы катушки и траектории", fields: ["indCoil", "wCoil", "indMove"] },
+                { label: "Индексы катушки и траектории", fields: ["indCoil", "wCoil", "indMove", "forceGroup"] },
             ],
         },
     },
@@ -299,6 +299,14 @@ export default createSchema({
                 dependencies: ["dp", "symLs"],
                 evaluate: ({ values }) => epCount(values),
             },
+        },
+
+        forceGroup: {
+            type: FIELD_TYPES.INTEGER,
+            label: "Силовая группа",
+            description: "Номер группы внутри оболочки. 0 — обычная область наблюдения.",
+            minimum: 0,
+            default: 0,
         },
 
         indCoil: {

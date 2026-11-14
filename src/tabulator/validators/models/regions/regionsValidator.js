@@ -28,7 +28,15 @@ export function regionsValidator(
         diagnostics.push(createWarning({ tab: TABS.REGIONS, property: "indMove", message: motionWarning }));
     }
 
+    const groups = new Set((model.elements ?? []).filter(row => row.targ !== 3 && row.take > 0).map(row => row.take));
     regions.forEach((record, index) => {
+        if (model.general?.evalForce && record?.forceGroup > 0) {
+            if (!groups.has(record.forceGroup) || record.geoType === 2 || (record.indCoil ?? 0) !== 0) {
+                diagnostics.push(createError({tab:TABS.REGIONS,row:index+1,property:"forceGroup",
+                    message:!groups.has(record.forceGroup) ? `Нет физических элементов группы ${record.forceGroup}.` :
+                        "Силовую группу можно назначить только площадке, свободной от измерительной катушки."}));
+            }
+        }
         for (const shape of FIXED_ARRAY_SHAPES) {
             if (hasCompleteShape(record?.[shape.property], shape)) {
                 continue;
@@ -50,7 +58,7 @@ export function regionsValidator(
         validateRecordRules(record, index, diagnostics);
         if (record?.geoType === 0 && hasCompleteShape(record.geo,FIXED_ARRAY_SHAPES[2])) {
             const general = model.general;
-            const force = general?.evalForce === true && (record.indCoil ?? 0) === 0;
+            const force = general?.evalForce === true && (record.indCoil ?? 0) === 0 && (!groups.size || record.forceGroup > 0);
             for (const issue of validatePanel(record.geo,{force,doubleFloat:general?.doubleFloat === true})) {
                 const diagnostic = issue.level === "error" ? createError : createWarning;
                 diagnostics.push(diagnostic({tab:TABS.REGIONS,row:index+1,property:"geo",message:issue.message}));

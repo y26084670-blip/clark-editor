@@ -575,10 +575,11 @@ export default createSchema({
         },
 
         take: {
-            type: FIELD_TYPES.BOOLEAN,
-            label: "Учитывать при расчёте поля",
-            description: "Учитывать элемент при расчёте поля",
-            default: true,
+            type: FIELD_TYPES.INTEGER,
+            label: "Силовая группа",
+            description: "Номер группы для расчёта взаимодействий. 0 исключает ШГ из таблицы пар.",
+            minimum: 0,
+            default: 0,
         },
     },
 });

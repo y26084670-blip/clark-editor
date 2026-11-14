@@ -66,7 +66,7 @@ export function prepareContactElement(model, params, createElement) {
   for (const key of ["dr", "symR0", "symVi", "symLs", "symYl", "symAs", "symPs", "symYa", "symTx", "symKya", "symKyp", "indMove"])
     record[key] = structuredClone(conductor[key]);
   Object.assign(record, { name: `Контакт ${element}, грань ${face + 1}`, geoType: 0, geo: vertices,
-    dp: [[1], [1], [1]], targ: 2, auto: true, take: true, rv: 0, xapName: "", indAmp: 0,
+    dp: [[1], [1], [1]], targ: 2, auto: true, take: 0, rv: 0, xapName: "", indAmp: 0,
     med: Array.from({ length: 6 }, (_, f) => [f === donorFace ? element : -1]) });
   const virtual = elements.findIndex(e => e.targ === 3), insertAt = virtual < 0 ? elements.length : virtual;
   record.med[donorFace][0] = element > insertAt ? element + 1 : element;

@@ -79,7 +79,7 @@ export function prepareUniformFieldCoil(model,params,createElement) {
     geoType:1,geo:fromStorage([-half,r1,half,r1,half,r2,-half,r2,sectorAngle,...Array(15).fill(0)],{nColumns:3,order:"row"}),
     dr:[[0],[0],[0]],symR0:[[0],[0],[0]],symVi:angles.map(angle=>[angle]),
     symLs:segments,symYl:sectorAngle,symAs:1,symPs:1,symYa:0,symTx:0,symKya:0,symKyp:0,
-    dp:[[1],[1],[1]],targ:2,auto:true,take:true,rv:0,xapName:"",med:Array.from({length:6},()=>[-1]),
+    dp:[[1],[1],[1]],targ:2,auto:true,take:0,rv:0,xapName:"",med:Array.from({length:6},()=>[-1]),
     indAmp:values.amplitude,indMove:values.move};
   const index=elements.findIndex(e=>e.targ===3),insertAt=index<0?elements.length:index;
   // All prescribed-source elements precede virtual elements, so new MHJ rows

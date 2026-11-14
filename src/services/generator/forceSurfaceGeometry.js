@@ -159,6 +159,48 @@ function bodyHull(body, level, hull, union) {
     return union(pieces);
 }
 
+// Compare the distance between physical volumes, including containment. Hulls
+// of warped cells enclose both admissible face diagonals. Refine ambiguous
+// bounds on the same EO grid that the shell generator can certify.
+export function needsCommonForceShell(kernel, a, b, minimum, cast) {
+    const boxGap = Math.hypot(...axes.map(d => Math.max(0,
+        a.box[d][0]-b.box[d][1], b.box[d][0]-a.box[d][1])));
+    const span = Math.max(...axes.map(d =>
+        Math.max(a.box[d][1],b.box[d][1])-Math.min(a.box[d][0],b.box[d][0])));
+    const coordinate = Math.max(...a.box.flat().map(Math.abs),...b.box.flat().map(Math.abs));
+    const tolerance = Math.max(16*coordinate*(cast === Number ? Number.EPSILON : 2**-23), 8*span*2**-23);
+    const tooClose = gap => gap <= tolerance || gap < minimum;
+    if (!tooClose(boxGap)) return false;
+    if (a.vertices.some(p => b.vertices.some(q => tooClose(Math.hypot(...sub(p,q)))))) return true;
+    const reference = a.box.map(([lo,hi]) => lo/2+hi/2);
+    const owned = [];
+    const keep = solid => { owned.push(solid); return solid; };
+    const hull = vertices => keep(kernel.Manifold.hull(vertices.map(p => sub(p,reference))));
+    const union = parts => parts.length === 1 ? parts[0] : keep(kernel.Manifold.union(parts));
+    const reach = 2*Math.max(minimum,tolerance);
+    try {
+        let left = hull(a.vertices), right = hull(b.vertices);
+        for (let level=0; ; level++) {
+            if (!tooClose(left.minGap(right,reach))) return false;
+            if (level === 3) return true;
+            const refine = body => warped(body.vertices) && body.dp.some(n => n > 2**level);
+            const refineA = refine(a), refineB = refine(b);
+            if (!refineA && !refineB) return true;
+            if (refineA) left = bodyHull(a,level+1,hull,union);
+            if (refineB) right = bodyHull(b,level+1,hull,union);
+        }
+    } finally {
+        for (let i=owned.length-1;i>=0;i--) owned[i].delete();
+    }
+}
+
+export class ForceSeparationError extends Error {
+    constructor(a,b) {
+        super(`Не удалось провести поверхность в зазоре между элементами №${a+1} и №${b+1} (контакт, пересечение или предел точности).`);
+        this.pair = [a,b];
+    }
+}
+
 // All booleans, containment and minimum-gap queries operate on solids. In
 // particular a foreign solid entirely inside the first box is a conflict.
 export function encloseBodies(kernel, options) {
@@ -235,7 +277,7 @@ export function encloseBodies(kernel, options) {
             if (!(gap > epsilon*8)) {
                 const nearest = groupParts.map(p => ({index:p.body.index, gap:p.solid.minGap(other,reach)}))
                     .reduce((best,p) => p.gap < best.gap ? p : best);
-                throw new Error(`Не удалось провести поверхность в зазоре между элементами №${nearest.index+1} и №${body.index+1} (контакт, пересечение или предел точности).`);
+                throw new ForceSeparationError(nearest.index,body.index);
             }
             if (wrap.minGap(other, reach) > epsilon*4) continue;
             // A cube of half-width r is inside a sphere of radius sqrt(3)*r.

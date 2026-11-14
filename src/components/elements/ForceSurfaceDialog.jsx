@@ -1,4 +1,5 @@
 import { createMemo, createSignal, onCleanup, Show } from "solid-js";
+import { forceSurfaceMotionWarning } from "../../services/generator/forceSurfaceMotion.js";
 import { FloatingWindow } from "../window/FloatingWindow.jsx";
 import { ThreeGeometryViewport } from "../geometry/ThreeGeometryViewport.jsx";
 import { buildGeometryScene } from "../../services/visualization/geometrySceneModel.js";
@@ -8,7 +9,23 @@ import "./ForceSurfaceDialog.css";
 
 export function ForceSurfaceDialog(props) {
     const [distance, setDistance] = createSignal("1");
-    const [panels, setPanels] = createSignal(null);
+    const [gap,setGap] = createSignal(String(props.request.general.forceGroupMinGap ?? 2));
+    let linkGap = props.request.general.forceGroupMinGap == null || props.request.general.forceGroupMinGap === 2;
+    const minimum = () => Number(gap().trim().replace(",","."));
+    const validGap = () => gap().trim() !== "" && Number.isFinite(minimum()) && minimum() >= 0;
+    const selected = props.request.indices;
+    const physical = props.request.elements.flatMap((row,i) => row.targ === 3 ? [] : [i]);
+    const prior = new Set(selected.map(i => props.request.elements[i]?.take).filter(x => x > 0));
+    const inUse = new Set(props.request.elements.map(row => row.take));
+    let free = 1;
+    while (inUse.has(free)) free++;
+    const [mode,setMode] = createSignal(selected.length ? "manual" : "automatic");
+    const [group,setGroup] = createSignal(String(prior.size === 1 ? [...prior][0] : free));
+    const [plan,setPlan] = createSignal(null);
+    const members = () => mode() === "automatic" ? physical : selected;
+    const panels = createMemo(() => plan()?.surfaces.flatMap(s => s.panels));
+    const warning = createMemo(() => forceSurfaceMotionWarning({elements:props.request.elements,
+        selectedIndices:members(),regions:props.request.regions}));
     const [busy, setBusy] = createSignal(false);
     const [error, setError] = createSignal("");
     const [nodes, setNodes] = createSignal("5");
@@ -20,21 +37,21 @@ export function ForceSurfaceDialog(props) {
     onCleanup(() => worker?.terminate());
 
     function build() {
-        if (busy() || !validDistance()) return;
-        setPanels(null); setError(""); setBusy(true);
+        if (busy() || !validDistance() || !validGap()) return;
+        setPlan(null); setError(""); setBusy(true);
         try {
             worker = new Worker(new URL("../../workers/forceSurface.worker.js", import.meta.url), {type:"module"});
             worker.onmessage = ({data}) => {
                 worker.terminate(); worker = null; setBusy(false);
                 if (data.error) setError(data.error);
-                else setPanels(data.panels);
+                else setPlan(data.plan);
             };
             worker.onerror = event => {
                 setError(event.message || "Не удалось построить поверхность.");
                 worker.terminate(); worker = null; setBusy(false);
             };
             const {general, elements, moves} = props.request;
-            worker.postMessage({model: {general, elements, moves}, indices: props.request.indices, distance: offset()});
+            worker.postMessage({model: {general, elements, moves}, options:{mode:mode(),group:Number(group()),indices:selected,distance:offset(),minimumGap:minimum()}});
         } catch (e) {
             worker?.terminate(); worker = null; setBusy(false); setError(e.message);
         }
@@ -43,7 +60,7 @@ export function ForceSurfaceDialog(props) {
     const preview = createMemo(() => {
         if (!panels()) return null;
         const request = props.request;
-        const elements = request.indices.map(i => request.elements[i]);
+        const elements = [...new Set(plan().surfaces.flatMap(s=>s.members))].map(i=>request.elements[i]);
         const general = {...request.general, mirrorSymmetryX: -1, mirrorSymmetryY: -1};
         const frame = buildGeometryTimeModel({general, elements}, request.moves, 0);
         const zero = [[0],[0],[0]];
@@ -58,19 +75,30 @@ export function ForceSurfaceDialog(props) {
     }));
     function apply() {
         if (!panels() || !validNodes()) return;
-        try { props.onApply(panels(), count()); }
+        try { props.onApply(plan(), count()); }
         catch (e) { setError(e.message); }
     }
     return <FloatingWindow open={true} title="Поверхность для расчета силы/момента" initialWidth={640}
         initialHeight={510} minWidth={340} minHeight={280} storageKey="web-gui:force-surface" onClose={props.onClose}>
         <div class="force-surface-dialog">
-            <div>Элементы № {props.request.indices.map(i => i+1).join(", ")}</div>
-            <Show when={props.motionWarning}>
-                <div class="force-surface-warning" role="status">{props.motionWarning}</div>
+            <fieldset class="force-surface-modes" disabled={busy()}>
+                <legend>Способ построения</legend>
+                <label><input type="radio" name="force-method" checked={mode()==="manual"}
+                    onChange={() => {setMode("manual");setPlan(null);setError("");}}/> Вручную по выделенным элементам</label>
+                <label><input type="radio" name="force-method" checked={mode()==="automatic"}
+                    onChange={() => {setMode("automatic");setPlan(null);setError("");}}/> Автоматически по контактам</label>
+            </fieldset>
+            <Show when={mode()==="manual"} fallback={<span>Автопостроение заново назначит номера всем физическим элементам и заменит групповые оболочки.</span>}>
+                <label>Номер группы <input type="number" min="1" step="1" value={group()} disabled={busy()}
+                    onInput={e=>{setGroup(e.currentTarget.value);setPlan(null);setError("");}}/></label>
+                <span>Выделенные элементы: {selected.length ? selected.map(i=>i+1).join(", ") : "нет"}</span>
             </Show>
+            <Show when={warning()}><div class="force-surface-warning" role="status">{warning()}</div></Show>
             <div class="force-surface-inputs">
                 <label>Рекомендуемое расстояние, мм<input type="text" inputMode="decimal" value={distance()} disabled={busy()}
-                    onInput={e => { setDistance(e.currentTarget.value); setPanels(null); setError(""); }} /></label>
+                    onInput={e => { setDistance(e.currentTarget.value); if (linkGap && validDistance()) setGap(String(2*offset())); setPlan(null); setError(""); }} /></label>
+                <label title="Элементы с зазором меньше заданного объединяются. При 0 учитывается только разрешимая точность построения.">Минимальный зазор между группами, мм<input type="text" inputMode="decimal" value={gap()} disabled={busy()}
+                    onInput={e => { linkGap=false; setGap(e.currentTarget.value); setPlan(null); setError(""); }} /></label>
                 <label>Узлов по каждой стороне<input type="number" min="1" step="1" value={nodes()}
                     onInput={e => setNodes(e.currentTarget.value)} /></label>
             </div>
@@ -80,9 +108,12 @@ export function ForceSurfaceDialog(props) {
             </div>}</Show>
             <Show when={error()}><div class="force-surface-error" role="alert">{error()}</div></Show>
             <div class="force-surface-actions">
-                <span role="status">{busy() ? "Построение…" : panels() ? `Площадок: ${panels().length}` : ""}</span>
-                <button onClick={build} disabled={busy() || !validDistance()}>Построить</button>
-                <button onClick={apply} disabled={busy() || !panels() || !validNodes()}>Добавить в области</button>
+                <span role="status">{busy() ? "Построение…" : plan()?.surfaces.map(s => `Группа ${s.id}: ШГ ${s.members.map(i=>i+1).join(", ")} (${s.panels.length} пл.)`).join(" · ")}</span>
+                <button onClick={build} disabled={busy() || !validDistance() || !validGap() || (mode()==="manual" && (!selected.length || !Number.isSafeInteger(Number(group())) || Number(group())<1))}>Построить</button>
+                <button onClick={apply} disabled={busy() || !panels() || !validNodes()}>Применить</button>
+                <button disabled={busy() || !selected.some(i=>props.request.elements[i]?.take>0)}
+                    title="Присвоить выбранным элементам группу 0. Их источники исключаются из всех пар силы и момента."
+                    onClick={()=>{try { props.onExclude(); } catch(e) {setError(e.message);}}}>Исключить выделенные элементы</button>
                 <button onClick={props.onClose}>Закрыть</button>
             </div>
         </div>

@@ -196,7 +196,7 @@ export function RecordCard(props) {
                 <label class="record-card-pair"><span>D2 (n41)</span>{input("dp","Разбиение D2 (n41)",[1,0])}</label>
                 <label class="record-card-pair"><span>D1 (n21)</span>{input("dp","Разбиение D1 (n21)",[0,0])}</label>
               </Section>
-                <Section title="Катушка и движение">{scalar("indMove","Траектория")}{scalar("indCoil","Катушка")}{scalar("wCoil","Множитель")}</Section></>}
+                <Section title="Катушка и движение">{scalar("indMove","Траектория")}{scalar("indCoil","Катушка")}{scalar("wCoil","Множитель")}{scalar("forceGroup","Силовая группа")}</Section></>}
               {element && coordinates()}
             </div>
           </div>

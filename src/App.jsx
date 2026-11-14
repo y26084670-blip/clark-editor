@@ -11,6 +11,7 @@ import { MaterialSelectionDialog } from "./components/materials/MaterialSelectio
 import { GeometryViewerWindow } from "./components/geometry/GeometryViewerWindow.jsx";
 import { MedAutofillDialog } from "./components/elements/MedAutofillDialog.jsx";
 import {ContactElementDialog} from "./components/elements/ContactElementDialog.jsx";
+import { applyForceGroups, excludeForceElements } from "./services/generator/forceGroups.js";
 import { ForceSurfaceDialog } from "./components/elements/ForceSurfaceDialog.jsx";
 import { forceSurfaceMotionWarning } from "./services/generator/forceSurfaceMotion.js";
 import {applyContactElement, CONTACT_CURRENT_NOTICE} from "./services/generator/contactElement.js";
@@ -130,35 +131,49 @@ export default function App() {
   let medWorker = null;
   let medEditor = null;
   const [forceSurface, setForceSurface] = createSignal(null);
+  function checkForceGaps(model) {
+    return new Promise((resolve,reject) => {
+      const worker = new Worker(new URL("./workers/forceSurface.worker.js",import.meta.url),{type:"module"});
+      worker.onmessage = ({data}) => { worker.terminate(); data.error ? reject(new Error(data.error)) : resolve(data.pairs); };
+      worker.onerror = event => { worker.terminate(); reject(new Error(event.message)); };
+      try { worker.postMessage({validate:true,model}); }
+      catch (error) { worker.terminate(); reject(error); }
+    });
+  }
   async function openForceSurface() {
     const task = selectionService.loadedTaskHandle(), version = selectionService.taskDataVersion();
     const indices = [...selectedGeometryElementIndices()];
     setSidePanelOpen(false);
     await editorControllers.get(TABS.ELEMENTS.id)?.flush();
-    if (!indices.length || !task || task !== selectionService.loadedTaskHandle()
+    if (!task || task !== selectionService.loadedTaskHandle()
       || version !== selectionService.taskDataVersion() || activeTab() !== TABS.ELEMENTS.id) return;
-    const {general, elements, moves} = modelService.getModel();
-    setForceSurface({task, version, indices, general, elements, moves});
+    const {general, elements, regions, moves} = modelService.getModel();
+    if (elements?.some(row => row.targ !== 3) && Array.isArray(regions))
+      setForceSurface({task, version, indices, general, elements, regions, moves});
   }
   function forceRequestCurrent(request) {
     const model = modelService.getModel();
     return request.task === selectionService.loadedTaskHandle() && request.version === selectionService.taskDataVersion()
-      && request.elements === model.elements && request.general === model.general && request.moves === model.moves;
+      && request.elements === model.elements && request.regions === model.regions && request.general === model.general && request.moves === model.moves;
   }
   createEffect(() => {
     const request = forceSurface();
     if (request && (!forceRequestCurrent(request) || activeTab() !== TABS.ELEMENTS.id)) setForceSurface(null);
   });
-  function appendForcePanels(panels, nodes) {
+  function saveForceGroups(plan, nodes) {
     const request = forceSurface();
-    if (!request || !forceRequestCurrent(request)) throw new Error("Исходные данные изменились. Постройте поверхность заново.");
-    const schema = tabRegistry.find(s => s.id === TABS.REGIONS.id);
-    const previous = modelService.getModel().regions;
-    if (!Array.isArray(previous)) throw new Error("Таблица областей ещё не загружена.");
-    const created = panels.map(geo => ({...dataService.createDefaultRecord(schema), geoType:0, geo, dp:[[nodes],[nodes]]}));
-    modelService.setModelPart(schema, [...previous, ...created], {recordHistory:true});
+    if (!request || !forceRequestCurrent(request)) throw new Error("Исходные данные изменились. Повторите операцию.");
+    const elementSchema = tabRegistry.find(s => s.id === TABS.ELEMENTS.id);
+    const regionSchema = tabRegistry.find(s => s.id === TABS.REGIONS.id);
+    const updated = plan
+      ? applyForceGroups(request, plan, nodes, () => dataService.createDefaultRecord(regionSchema))
+      : excludeForceElements(request, request.indices);
+    const changes = [{schema:elementSchema,data:updated.elements}, {schema:regionSchema,data:updated.regions}];
+    if (plan && plan.minimumGap !== request.general.forceGroupMinGap)
+      changes.push({schema:tabRegistry.find(s=>s.id === TABS.GENERAL.id),data:{...request.general,forceGroupMinGap:plan.minimumGap}});
+    modelService.setModelParts(changes,{recordHistory:true});
     setForceSurface(null);
-    setActiveTab(TABS.REGIONS.id);
+    if (plan) setActiveTab(TABS.REGIONS.id);
     void performModelValidation({restart:true});
   }
   const [coilTask,setCoilTask]=createSignal(null),[coilBusy,setCoilBusy]=createSignal(false);
@@ -421,10 +436,19 @@ export default function App() {
     // This companion is edited outside GUI. Validate its current contents,
     // without requiring equality to the copy read when the task was opened.
     const checkedSnapshot = { ...modelSnapshot, jweakLocal: await loadJweakLocal(taskHandle) };
+    let forceClosePairs = [], gapError = "";
+    if (checkedSnapshot.general?.evalForce && new Set((checkedSnapshot.elements ?? [])
+        .filter(e => e.targ !== 3 && e.take > 0).map(e => e.take)).size > 1) {
+      const {elements,general,moves} = checkedSnapshot;
+      try {
+        forceClosePairs = await checkForceGaps({elements,general,moves});
+      } catch (error) { gapError = error.message || "Не удалось проверить зазоры между группами."; }
+    }
     const diagnostics = modelValidator(
       { getModel: () => checkedSnapshot },
-      { materialCatalog: materialResult.catalog },
+      { materialCatalog: materialResult.catalog, forceClosePairs },
     );
+    if (gapError) diagnostics.push(createError({tab:TABS.ELEMENTS,property:"take",message:gapError}));
     diagnostics.push(...materialResult.errors.map(message => createError({
       tab: TABS.ELEMENTS,
       property: "xapName",
@@ -865,7 +889,7 @@ export default function App() {
         onAutofillMed={analyzeCurrentMed}
         onCreateUniformFieldCoil={openCoil}
         onCreateContactElement={openContact}
-        forceSurfaceEnabled={Boolean(selectionService.loadedTaskHandle()) && selectedGeometryElementIndices().length > 0}
+        forceSurfaceEnabled={Boolean(selectionService.loadedTaskHandle()) && modelService.getModel().elements?.some(row => row.targ !== 3)}
         onCreateForceSurface={openForceSurface}
         onCreateConstantMu={() => { setSidePanelOpen(false); openConstantMuGenerator?.(); }}
         onMakeNonmagnetic={handleMakeElementsNonmagnetic}
@@ -964,10 +988,7 @@ export default function App() {
       <UniformFieldCoilDialog open={!!coilTask()} model={modelService.getModel()} busy={coilBusy()}
         error={coilError()} notice={coilNotice()} onApply={addCoil} onClose={closeCoil}/>
       <Show when={forceSurface()} keyed>{request => <ForceSurfaceDialog request={request}
-        motionWarning={forceSurfaceMotionWarning({
-          elements: request.elements, selectedIndices: request.indices, regions: modelService.getModel().regions,
-        })}
-        onApply={appendForcePanels} onClose={() => setForceSurface(null)} />}</Show>
+        onApply={saveForceGroups} onExclude={() => saveForceGroups(null)} onClose={() => setForceSurface(null)} />}</Show>
     </div>
   );
 }

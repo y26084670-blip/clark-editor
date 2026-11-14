@@ -179,6 +179,14 @@ export default createSchema({
             default: 0,
         },
 
+        forceGroupMinGap: {
+            type: FIELD_TYPES.FLOAT,
+            label: "Минимальный зазор между силовыми группами, мм",
+            description: "При меньшем зазоре поверхности двух элементов требуют общей силовой оболочки. При 0 учитывается предел геометрической точности.",
+            default: 2,
+            minimum: 0,
+        },
+
         evalForce: {
             type: FIELD_TYPES.BOOLEAN,
             label: "Вычисление силы/момента",

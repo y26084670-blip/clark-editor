@@ -25,17 +25,14 @@ function meetsFundamentalDomain(body, sides, includeBoundary = false) {
     });
 }
 
-function collectBodies(model, selectedIndices) {
-    const selected = new Set(selectedIndices);
-    if (!selected.size || [...selected].some(i => !Number.isSafeInteger(i) || !model.elements?.[i])) {
-        throw new Error("Выберите хотя бы один существующий элемент.");
-    }
+export function forceBodies(model) {
     const frame = buildGeometryTimeModel({general: model.general, elements: model.elements}, model.moves, 0);
-    const invalidMove = frame.diagnostics.find(issue => issue.schemaId === "elements");
+    const invalidMove = frame.diagnostics.find(issue => issue.schemaId === "elements" && model.elements[issue.recordIndex]?.targ !== 3);
     if (invalidMove) throw new Error(`Элемент №${invalidMove.recordIndex + 1}. ${invalidMove.message}`);
     const cast = model.general?.doubleFloat ? Number : Math.fround;
-    const group = [], others = [];
+    const bodies = [];
     for (const [index, row] of frame.model.elements.entries()) {
+        if (row.targ === 3) continue;
         const problem = () => new Error(`Не удалось прочитать геометрию элемента №${index + 1}.`);
         const vectors = [row.dr, row.symR0, row.symVi];
         if (vectors.some(v => v !== undefined && (v.flat().length !== 3 || !v.flat().every(Number.isFinite)))
@@ -51,17 +48,19 @@ function collectBodies(model, selectedIndices) {
             const vertices = unpacked.vertices.map(p => applyMatrix4ToPoint(image.matrix, p).map(cast));
             if (!vertices.every(p => p.every(Number.isFinite))) throw problem();
             const body = {vertices, box: bounds(vertices), index, dp};
-            (selected.has(index) ? group : others).push(body);
+            bodies.push(body);
         }
     }
-    return {group, others, cast};
+    return {bodies, cast};
 }
 
-export function generateForceSurface(kernel, model, selectedIndices, distance) {
+export function generateForceSurface(kernel, model, selectedIndices, distance, geometry = forceBodies(model)) {
     if (!(distance > 0) || !Number.isFinite(distance)) throw new Error("Введите положительное расстояние в миллиметрах.");
-    // In AC mode FieldS explicitly reads geo[3] as the opening angle of a sector.
-    if (model.general?.fullAxialSymmetry) throw new Error("При полной аксиальной симметрии решателю для силы нужны области типа «Сектор». Генератор строит области типа «Площадка».");
-    const {group, others, cast} = collectBodies(model, selectedIndices);
+    const {bodies, cast} = geometry;
+    const members = new Set(selectedIndices);
+    const group = bodies.filter(b => members.has(b.index));
+    if (!group.length || [...members].some(i => !model.elements[i] || model.elements[i].targ === 3)) throw new Error("Выберите физические элементы группы.");
+    const others = bodies.filter(b => !members.has(b.index));
     const sides = principalSides(model.general ?? {}, group);
     const selected = group.filter(body => meetsFundamentalDomain(body,sides));
     if (!selected.length) throw new Error("В основном квадранте отсутствует выбранная геометрия.");

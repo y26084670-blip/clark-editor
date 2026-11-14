@@ -135,6 +135,14 @@ export const dataService = {
             return null;
         }
 
+        if (schema.id === "elements" && Array.isArray(storageModel)) {
+            for (const record of storageModel) {
+                if (typeof record.take === "boolean") {
+                    record.take = 0;
+                    requiresSave = true;
+                }
+            }
+        }
         this.checkStorageKeys(storageModel, schema, diagnostics, tab);
         this.checkArrayShape(storageModel, schema, diagnostics, tab);
 

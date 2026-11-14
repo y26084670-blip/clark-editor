@@ -125,10 +125,60 @@ test('warped boundary is refined on its EO grid when the eight-corner hull captu
     assert.ok(Math.abs(winding(p,[2,2,2.8]))<1e-8);
 });
 
-test('unsupported AC sector force formula and invalid inputs yield no partial result', () => {
+test('actual group panels support axial mode and invalid inputs yield no partial result', () => {
     const a = prism([0,0,0],[2,2,2]);
-    assert.throws(()=>build(model([a],{fullAxialSymmetry:true})),/Сектор/);
+    assert.deepEqual(build(model([a],{fullAxialSymmetry:true})),build(model([a])));
     assert.throws(()=>build(model([a]),[]),/Выберите/);
     assert.throws(()=>build(model([a]),[0],0),/расстояние/);
     assert.throws(()=>build(model([prism([0,0,0],[0,2,2])])),/№1/);
+});
+
+const {buildForceGroups, applyForceGroups, excludeForceElements, conflictingForceContacts} =
+    await import('../src/services/generator/forceGroups.js');
+const block = (x,y=0,z=0, extra={}) => ({...prism([x,y,z],[1,1,1]),targ:0,take:0,...extra});
+const automatic = (m,minimumGap=.2,distance=.1) => buildForceGroups(kernel,m,{mode:'automatic',minimumGap,distance});
+const apply = (m,plan) => ({...m,...applyForceGroups(m,plan,3,()=>({name:"panel"}))});
+
+test('automatic grouping uses resolvable solid distance at a face, edge, point, overlap and containment', () => {
+    for (const b of [block(1,.5),block(1,1),block(1,1,1),block(.45,.4,.1),
+        {...prism([.3,.3,.3],[.1,.1,.1]),targ:1}]) {
+        const m=model([block(0),b,block(8),block(0,0,0,{targ:3,take:91})]);
+        assert.deepEqual(automatic(m,0).ids,[1,1,2,0]);
+    }
+    const m=model([block(0),block(1.125),block(2.25),block(3.6)]);
+    assert.deepEqual(automatic(m,.13).ids,[1,1,1,2]);
+    assert.deepEqual(automatic(m,.125).ids,[1,2,3,4]);
+    assert.deepEqual(automatic(m,0).ids,[1,2,3,4]);
+});
+
+test('rotated bodies with intersecting AABBs use spatial gap and complete mirror geometry', () => {
+    const a={...prism([0,0,0],[8,1,1]),symVi:[[0],[0],[45]],take:11};
+    const b={...prism([-1.25,1.25,0],[8,1,1]),symVi:[[0],[0],[45]],take:14};
+    const m=model([a,b]);
+    assert.deepEqual(automatic(m,.6).ids,[1,2]);
+    assert.deepEqual(automatic(m,.8).ids,[1,1]);
+    assert.deepEqual(conflictingForceContacts(kernel,m,.6),[]);
+    assert.deepEqual(conflictingForceContacts(kernel,m,.8),[[0,1]]);
+    const mirror=model([block(1),block(-3.1)],{mirrorSymmetryX:0});
+    assert.deepEqual(automatic(mirror,.2).ids,[1,1]);
+});
+
+test('manual, exclusion, rebuild and automatic replacement change only the corresponding groups', () => {
+    const input={...model([block(0),block(1),block(7),block(13),block(0,0,0,{targ:3})]),regions:[{name:'probe',forceGroup:0}]};
+    let m=apply(input,automatic(input));
+    assert.deepEqual(m.elements.map(e=>e.take),[1,1,2,3,0]);
+    const own=m.regions.filter(r=>r.forceGroup===1);
+    m={...m,...excludeForceElements(m,[0])};
+    assert.equal(m.elements[0].take,0);
+    assert.deepEqual(m.regions.filter(r=>r.forceGroup===1),own);
+    m={...m,...excludeForceElements(m,[1])};
+    assert.ok(m.regions.every(r=>r.forceGroup!==1));
+    m=apply(m,buildForceGroups(kernel,m,{mode:'manual',group:17,indices:[2,3],distance:.1,minimumGap:.2}));
+    assert.deepEqual(m.elements.map(e=>e.take),[0,0,17,17,0]);
+    assert.ok(m.regions.every(r=>[0,17].includes(r.forceGroup)));
+    const rebuilt=apply(m,automatic(m));
+    assert.deepEqual(rebuilt.elements.map(e=>e.take),[1,1,2,3,0]);
+    assert.equal(rebuilt.regions[0],input.regions[0]);
+    assert.deepEqual(automatic(rebuilt).surfaces,automatic(input).surfaces);
+    assert.throws(()=>buildForceGroups(kernel,rebuilt,{mode:'manual',group:8,indices:[0],distance:.1,minimumGap:.2}),/зазора/);
 });
