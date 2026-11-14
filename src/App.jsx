@@ -11,6 +11,8 @@ import { MaterialSelectionDialog } from "./components/materials/MaterialSelectio
 import { GeometryViewerWindow } from "./components/geometry/GeometryViewerWindow.jsx";
 import { MedAutofillDialog } from "./components/elements/MedAutofillDialog.jsx";
 import {ContactElementDialog} from "./components/elements/ContactElementDialog.jsx";
+import { ForceSurfaceDialog } from "./components/elements/ForceSurfaceDialog.jsx";
+import { forceSurfaceMotionWarning } from "./services/generator/forceSurfaceMotion.js";
 import {applyContactElement, CONTACT_CURRENT_NOTICE} from "./services/generator/contactElement.js";
 import {UniformFieldCoilDialog} from "./components/elements/UniformFieldCoilDialog.jsx";
 import {applyUniformFieldCoil} from "./services/generator/uniformFieldCoil.js";
@@ -127,6 +129,38 @@ export default function App() {
   const [medNavigation, setMedNavigation] = createSignal(null);
   let medWorker = null;
   let medEditor = null;
+  const [forceSurface, setForceSurface] = createSignal(null);
+  async function openForceSurface() {
+    const task = selectionService.loadedTaskHandle(), version = selectionService.taskDataVersion();
+    const indices = [...selectedGeometryElementIndices()];
+    setSidePanelOpen(false);
+    await editorControllers.get(TABS.ELEMENTS.id)?.flush();
+    if (!indices.length || !task || task !== selectionService.loadedTaskHandle()
+      || version !== selectionService.taskDataVersion() || activeTab() !== TABS.ELEMENTS.id) return;
+    const {general, elements, moves} = modelService.getModel();
+    setForceSurface({task, version, indices, general, elements, moves});
+  }
+  function forceRequestCurrent(request) {
+    const model = modelService.getModel();
+    return request.task === selectionService.loadedTaskHandle() && request.version === selectionService.taskDataVersion()
+      && request.elements === model.elements && request.general === model.general && request.moves === model.moves;
+  }
+  createEffect(() => {
+    const request = forceSurface();
+    if (request && (!forceRequestCurrent(request) || activeTab() !== TABS.ELEMENTS.id)) setForceSurface(null);
+  });
+  function appendForcePanels(panels, nodes) {
+    const request = forceSurface();
+    if (!request || !forceRequestCurrent(request)) throw new Error("Исходные данные изменились. Постройте поверхность заново.");
+    const schema = tabRegistry.find(s => s.id === TABS.REGIONS.id);
+    const previous = modelService.getModel().regions;
+    if (!Array.isArray(previous)) throw new Error("Таблица областей ещё не загружена.");
+    const created = panels.map(geo => ({...dataService.createDefaultRecord(schema), geoType:0, geo, dp:[[nodes],[nodes]]}));
+    modelService.setModelPart(schema, [...previous, ...created], {recordHistory:true});
+    setForceSurface(null);
+    setActiveTab(TABS.REGIONS.id);
+    void performModelValidation({restart:true});
+  }
   const [coilTask,setCoilTask]=createSignal(null),[coilBusy,setCoilBusy]=createSignal(false);
   const [coilError,setCoilError]=createSignal(""),[coilNotice,setCoilNotice]=createSignal("");
   let coilRevision=0;
@@ -298,6 +332,12 @@ export default function App() {
     createSignal([]);
   const [selectedGeometryRegionIndices, setSelectedGeometryRegionIndices] =
     createSignal([]);
+  const forceMotionWarning = createMemo(() => {
+    const model = modelService.getModel();
+    return forceSurfaceMotionWarning({
+      elements: model.elements, selectedIndices: selectedGeometryElementIndices(), regions: model.regions,
+    });
+  });
   let geometryViewerButton;
   let modelValidationRevision = 0;
   let observedGeometryTaskHandle;
@@ -471,6 +511,7 @@ export default function App() {
         <DataEditor
           schema={schema}
           active={props.active}
+          forceMotionWarning={schema.id === TABS.REGIONS.id && props.active && forceMotionWarning()}
           onEditMed={openMedFaces}
           onChooseRecordMaterial={(table, row) => openMaterialSelection(table, [row])}
           onEditorReady={controller => {
@@ -824,6 +865,8 @@ export default function App() {
         onAutofillMed={analyzeCurrentMed}
         onCreateUniformFieldCoil={openCoil}
         onCreateContactElement={openContact}
+        forceSurfaceEnabled={Boolean(selectionService.loadedTaskHandle()) && selectedGeometryElementIndices().length > 0}
+        onCreateForceSurface={openForceSurface}
         onCreateConstantMu={() => { setSidePanelOpen(false); openConstantMuGenerator?.(); }}
         onMakeNonmagnetic={handleMakeElementsNonmagnetic}
       />
@@ -920,6 +963,11 @@ export default function App() {
         error={contactError()} notice={contactNotice()} onChange={() => { setContactError(""); setContactNotice(""); }} onApply={addContact} onClose={closeContact}/></Show>
       <UniformFieldCoilDialog open={!!coilTask()} model={modelService.getModel()} busy={coilBusy()}
         error={coilError()} notice={coilNotice()} onApply={addCoil} onClose={closeCoil}/>
+      <Show when={forceSurface()} keyed>{request => <ForceSurfaceDialog request={request}
+        motionWarning={forceSurfaceMotionWarning({
+          elements: request.elements, selectedIndices: request.indices, regions: modelService.getModel().regions,
+        })}
+        onApply={appendForcePanels} onClose={() => setForceSurface(null)} />}</Show>
     </div>
   );
 }

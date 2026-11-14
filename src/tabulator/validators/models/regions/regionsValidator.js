@@ -1,4 +1,5 @@
 import { validateRegionReferences } from "../../../../services/modelReferenceValidation.js";
+import { forceSurfaceMotionWarning } from "../../../../services/generator/forceSurfaceMotion.js";
 import {
     createError,
     createWarning,
@@ -20,6 +21,10 @@ export function regionsValidator(
     const regions = service.getModel()[TABS.REGIONS.id];
     if (!Array.isArray(regions)) return;
     validateRegionReferences(service.getModel(), diagnostics);
+    const motionWarning = forceSurfaceMotionWarning({regions});
+    if (motionWarning) {
+        diagnostics.push(createWarning({ tab: TABS.REGIONS, property: "indMove", message: motionWarning }));
+    }
 
     regions.forEach((record, index) => {
         for (const shape of FIXED_ARRAY_SHAPES) {
