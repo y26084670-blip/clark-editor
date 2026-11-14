@@ -1,4 +1,6 @@
 import { modelGeometrySettings } from "../../../../services/solver/geometryValidationSettings.js";
+import { validateSubdivision } from "../../../../services/solver/hexSubdivision.js";
+import { buildGeometryTimeModel } from "../../../../services/visualization/geometryTimeModel.js";
 import { kvFlags } from "../../../../services/solver/kvDerived.js";
 import { validateElementReferences } from "../../../../services/modelReferenceValidation.js";
 import {
@@ -41,6 +43,7 @@ const VALID_GEO_TYPE = new Set([0, 1, 2, 3, 4]);
 const GEOMETRY_CHECK_DIAGNOSTICS = Object.freeze([
     ["orientation", "Обратная ориентация или инверсия якобиана ШГ: исправьте нумерацию/геометрию"],
     ["jacobian", "Вырожденный якобиан внутри объёма ШГ"],
+    ["certified", "Не удалось подтвердить знак якобиана во всей области ШГ"],
     ["volume", "ШГ не имеет положительного конечного 3D-объёма"],
 ]);
 
@@ -74,9 +77,11 @@ export function elementsValidator(
 
     validateArrayShapes(elements, diagnostics);
     validateRecordRules(elements, diagnostics);
-    const geometryConfig = modelGeometrySettings(service.getModel());
+    const model = service.getModel();
+    const med = model.general?.useMED !== false && model.general?.countTimeSteps !== 0 ? analyzeMed(model) : null;
+    const geometryConfig = modelGeometrySettings(model);
     if (geometryConfig && geometryConfig.invalid.length === 0) {
-        validateGeometry(elements, diagnostics, geometryConfig.settings);
+        validateGeometry(model, diagnostics, geometryConfig.settings, med);
     }
     validateRecordOrder(elements, diagnostics);
     validateElementMaterialReferences(
@@ -84,9 +89,7 @@ export function elementsValidator(
         context.materialCatalog,
         diagnostics,
     );
-    if (service.getModel().general?.useMED !== false && service.getModel().general?.countTimeSteps !== 0) {
-        diagnostics.push(...medDiagnostics(analyzeMed(service.getModel())));
-    }
+    if (med) diagnostics.push(...medDiagnostics(med));
 }
 
 function validateRecordRules(elements, diagnostics) {
@@ -236,8 +239,10 @@ function validateArrayShapes(elements, diagnostics) {
     });
 }
 
-function validateGeometry(elements, diagnostics, settings) {
-    elements.forEach((record, index) => {
+function validateGeometry(model, diagnostics, settings, med) {
+    const blocks = [];
+    const cast = settings.doubleFloat ? Number : Math.fround;
+    model.elements.forEach((record, index) => {
         if (
             !VALID_GEO_TYPE.has(record?.geoType)
             || !hasCompleteShape(record?.geo, GEO_SHAPE)
@@ -246,7 +251,7 @@ function validateGeometry(elements, diagnostics, settings) {
         }
 
         const unpacked = unpackKvVertices(
-            record.geo.flat(),
+            record.geo.flat().map(cast),
             record.geoType,
         );
 
@@ -257,7 +262,9 @@ function validateGeometry(elements, diagnostics, settings) {
             return;
         }
 
-        const validation = validateKvVerticesDetailed(unpacked.vertices, settings);
+        const vertices = unpacked.vertices.map(p=>p.map(cast));
+        const dp = Array.isArray(record.dp) ? record.dp.flat() : [];
+        const validation = validateKvVerticesDetailed(vertices, {...settings, dp});
         if (validation.malformed) {
             pushGeometryError(
                 diagnostics,
@@ -271,14 +278,36 @@ function validateGeometry(elements, diagnostics, settings) {
         if (record.targ === 3) return;
         for (const [check, message] of GEOMETRY_CHECK_DIAGNOSTICS) {
             if (validation.checks[check] === false) {
-                pushGeometryError(diagnostics, index, message);
+                const certificate = validation.measurements.certificate;
+                const point = certificate?.location;
+                const detail = point ? ` (u,v,w = ${point.map(x=>Number(x.toPrecision(5))).join(", ")})`
+                    : certificate?.status === "unresolved" ? ` (подобласть ${certificate.lo.join(",")} … ${certificate.hi.join(",")})` : "";
+                pushGeometryError(diagnostics, index, message + detail);
                 break; // одна первичная причина вместо каскада следствий
             }
         }
         for (const message of validation.warnings) diagnostics.push(createWarning({
             tab: TABS.ELEMENTS, row: index + 1, property: "geo", message,
         }));
+        if (validation.valid && dp.length===3 && dp.every(n=>Number.isSafeInteger(n) && n>0))
+            blocks.push({row:index, record, vertices, dp, qualityWarning:validation.warnings.some(w=>w.startsWith("Тонкий"))});
     });
+
+    const general = {...model.general, ...settings};
+    const moving = blocks.some(b=>b.record.indMove>0);
+    const frame = moving ? buildGeometryTimeModel(model,model.moves ?? [],0).model : model;
+    const moved = blocks.some(b=>frame.elements[b.row]!==b.record);
+    const referenceMed = moved && med ? analyzeMed({...model,elements:model.elements.map(r=>({...r,indMove:0}))}) : med;
+    const reference = validateSubdivision(blocks,general,referenceMed);
+    const current = moved && !reference.errors.size
+        ? validateSubdivision(blocks.map(b=>({...b,record:frame.elements[b.row]})),general,med,{reference:reference.plan})
+        : reference;
+    for (const [row,message] of current.errors) pushGeometryError(diagnostics,row,message);
+    for (const [row,message] of current.warnings) {
+        const existing = diagnostics.find(d=>d.row===row+1 && d.tab===TABS.ELEMENTS && d.message.startsWith("Тонкий или сильно скошенный ЭО"));
+        if (existing) existing.message=message;
+        else diagnostics.push(createWarning({tab:TABS.ELEMENTS,row:row+1,property:"geo",message}));
+    }
 }
 
 function pushGeometryError(diagnostics, index, message) {

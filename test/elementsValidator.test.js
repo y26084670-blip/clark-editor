@@ -397,3 +397,21 @@ test("zero-volume observation regions remain usable as point sets", () => {
     assert.ok(validate([element({geo})]).some(d => d.level === "error"));
     assert.ok(validate([element({geo, targ: 3})]).every(d => d.property !== "geo"));
 });
+test("model diagnostics distinguish the 60-degree shell intersection from a twist warning",()=>{
+    const h=Math.sqrt(3)/2;
+    const rhombus=[[0,0,0],[1,0,0],[-.5,h,0],[.5,h,0]];
+    // Use the same rhombus rotated by 60° around its center.
+    for (let i=0;i<4;i++) {
+        const [x,y]=rhombus[i], dx=x-.25,dy=y-h/2;
+        rhombus[4+i]=[.25+.5*dx-h*dy,h/2+h*dx+.5*dy,1];
+    }
+    for (const doubleFloat of [true,false]) {
+        const model={general:{doubleFloat,useMED:false,countTimeSteps:0}};
+        const errors=validate([element({geo:rhombus})],model);
+        assert.equal(errors.length,1);
+        assert.equal(errors[0].row,1);assert.equal(errors[0].level,"error");
+        assert.match(errors[0].message,/ЭО №1.*самопересечение.*гранями 3 и 6/);
+        assert.deepEqual(validate([element({geo:rhombus,dp:vector(3,2)})],model),[]);
+        assert.deepEqual(validate([element({geo:rhombus,targ:3})],model).filter(d=>d.property==="geo"),[]);
+    }
+});

@@ -127,3 +127,11 @@ test("ZIP refuses traversal, duplicate paths and excessive buffers", () => {
   assert.throws(() => createStoredZip([{name:"a",data:"x"},{name:"a",data:"y"}]));
   assert.throws(() => createStoredZip([{name:"a",data:new Uint8Array(32*1024*1024)}]), /32 МиБ/);
 });
+test("standalone and archived sketch requests carry the Editor shape checks",async()=>{
+    const result=await build({description:"d=3 мм"});
+    assert.match(result.request,/det J по всему объёму/);
+    assert.match(result.request,/самопересечения оболочек реальных ЭО/);
+    assert.match(result.request,/90°/);
+    assert.match(result.request,/выпуклость контура/);
+    // The independent ZIP test above compares REQUEST.md bytes and digest.
+});
