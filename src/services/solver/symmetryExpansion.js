@@ -53,7 +53,17 @@ function baseTransform(record, ls) {
     );
 }
 
-export function expandElementSymmetry(record, general = {}) {
+// An omitted index expands the whole family. A selected index keeps its actual
+// solver index (and hence its rotation and field parity) even if it is the only image.
+function* imageIndexes(count, selected) {
+    if (selected !== undefined) {
+        if (Number.isSafeInteger(selected) && selected >= 0 && selected < count) yield selected;
+        return;
+    }
+    for (let index = 0; index < count; index++) yield index;
+}
+
+export function expandElementSymmetry(record, general = {}, selected = {}) {
     const lsCount = loopCount(record?.symLs);
     const asCount = loopCount(record?.symAs);
     const psCount = loopCount(record?.symPs);
@@ -70,16 +80,16 @@ export function expandElementSymmetry(record, general = {}) {
 
     // Вложенность решателя: LS → AS → PS → mirrorY → mirrorX.
     // Поэтому mirrorX является самым быстро меняющимся индексом.
-    for (let ls = 0; ls < lsCount; ls++) {
+    for (const ls of imageIndexes(lsCount, selected.ls)) {
         const local = baseTransform(record, ls);
 
-        for (let as = 0; as < asCount; as++) {
+        for (const as of imageIndexes(asCount, selected.as)) {
             const axial = multiplyMatrix4(
                 rotationXMatrix4(as * axialAngle),
                 local,
             );
 
-            for (let ps = 0; ps < psCount; ps++) {
+            for (const ps of imageIndexes(psCount, selected.ps)) {
                 const periodic = multiplyMatrix4(
                     translationMatrix4(ps * periodicOffset, 0, 0),
                     axial,
@@ -112,12 +122,12 @@ export function expandElementSymmetry(record, general = {}) {
     return instances;
 }
 
-export function expandRegionSymmetry(record) {
+export function expandRegionSymmetry(record, selected = {}) {
     const lsCount = loopCount(record?.symLs);
 
     if (lsCount === 0) return [];
 
-    return Array.from({ length: lsCount }, (_, ls) => ({
+    return Array.from(imageIndexes(lsCount, selected.ls), ls => ({
         matrix: baseTransform(record, ls),
         ls,
         as: 0,

@@ -3,7 +3,7 @@ import test from "node:test";
 import * as THREE from "three";
 import { applyMatrix4ToPoint } from "../src/services/solver/rotation3d.js";
 import { buildGeometryScene } from "../src/services/visualization/geometrySceneModel.js";
-import { activeSymmetryStages, snapSymmetryStage, buildRecordSymmetryStage, buildDemoVectors }
+import { activeSymmetryStages, snapSymmetryStage, buildRecordSymmetryStage, buildDemoVectors, demoImageNumber }
     from "../src/services/visualization/recordSymmetryDemo.js";
 import { createSymmetryAxes, createSymmetryArrows } from "../src/components/geometry/SymmetryDemoLayer.js";
 
@@ -49,19 +49,71 @@ test("all nine cumulative stages follow solver coordinates, retaining the origin
     assert.deepEqual(before, hex);
 });
 
-test("local triads share their true origin, rotate regardless of auto and have half axis length", () => {
-    const data = stage(5, { auto: false });
-    for (const image of data.scene.primitives[0].instances) {
-        near(applyMatrix4ToPoint(image.matrix, data.frameOrigin), [10, 4, 0]);
-    }
+function coneTip(mesh, i) {
+    const matrix = new THREE.Matrix4();
+    mesh.getMatrixAt(i, matrix);
+    return new THREE.Vector3(0, 1, 0).applyMatrix4(matrix);
+}
+
+test("only the visible original has local axes, with the placed origin and half-length cones", () => {
+    const data = stage(9, { auto: false });
     const layer = createSymmetryAxes(THREE, data, () => new THREE.Texture());
-    const x = layer.children[0].geometry.getAttribute("position");
-    const segment = (i, j) => new THREE.Vector3().fromBufferAttribute(x, i)
-        .distanceTo(new THREE.Vector3().fromBufferAttribute(x, j));
-    // Each solid arrow uses 6 segments and the two local X′ axes coincide.
-    assert.equal(x.count, 24);
-    assert.ok(Math.abs(segment(0, 11) / segment(12, 23) - 2) < 2e-5);
-    assert.ok(layer.children[1].geometry.getAttribute("position").count > x.count);
+    const shafts = layer.children.filter(c => c.isLineSegments);
+    const heads = layer.children.filter(c => c.isInstancedMesh);
+    assert.equal(shafts.length, 3);
+    assert.equal(heads.length, 3);
+    assert.deepEqual(layer.children.filter(c => c.isPoints).map(c => c.name), ["X","X′","Y","Y′","Z","Z′"]);
+    for (let i = 0; i < 3; i++) {
+        const positions = shafts[i].geometry.getAttribute("position");
+        assert.equal(positions.count, 4); // one thin shaft per axis in each frame
+        assert.equal(shafts[i].material.linewidth, 1);
+        assert.equal(heads[i].geometry.type, "ConeGeometry");
+        assert.equal(heads[i].count, 2);
+        const origin = new THREE.Vector3().fromBufferAttribute(positions, 2);
+        near(origin.toArray(), [10, 4, 0]);
+        assert.ok(Math.abs(coneTip(heads[i], 0).length() / coneTip(heads[i], 1).distanceTo(origin) - 2) < 1e-5);
+    }
+    const copy = buildRecordSymmetryStage(hex, settings, [], true, 9, 0, {ls: {all:false, number:2}});
+    const onlyGlobal = createSymmetryAxes(THREE, copy, () => new THREE.Texture());
+    assert.deepEqual(onlyGlobal.children.filter(c => c.isPoints).map(c => c.name), ["X","Y","Z"]);
+    assert.ok(onlyGlobal.children.filter(c => c.isInstancedMesh).every(c => c.count === 1));
+});
+
+test("one-based selectors compose across stages, keep real transforms, signs and independent arrows", () => {
+    const record = { ...hex, symAs: 4, symKya: 0, symPs: 3 };
+    const before = structuredClone(record);
+    const choices = { ls:{all:false, number:2}, as:{all:false, number:3}, ps:{all:true, number:3} };
+    const project = (n, choices) => buildRecordSymmetryStage(record, settings, [], true, n, 0, choices);
+    for (const n of [2,3,4,5,6,7,8,9]) {
+        const full = project(n, {}), part = project(n, choices);
+        const matches = i => (n < 3 || i.ls === 1) && (n < 6 || i.as === 2);
+        const all = full.scene.primitives[0].instances;
+        assert.deepEqual(part.scene.primitives[0].instances, all.filter(matches));
+        assert.equal(part.scene.counts.instances, all.filter(matches).length);
+        const arrows = s => buildDemoVectors(s, [2,3,5], 40, "current");
+        assert.deepEqual(arrows(part), arrows(full).filter((_, i) => matches(all[i])));
+    }
+    const single = project(7, { ...choices, ps:{all:false, number:2} }).scene;
+    const [image] = single.primitives[0].instances;
+    assert.deepEqual([image.ls,image.as,image.ps], [1,2,1]);
+    assert.equal(single.counts.instances, 1);
+    assert.deepEqual(record, before);
+    assert.equal(demoImageNumber(8, 2), 2);
+    assert.equal(demoImageNumber(-3, 4), 1);
+    assert.equal(demoImageNumber(undefined, 4), 1);
+});
+
+test("large single-image requests do not expand the full product and region selection uses LS only", () => {
+    const count = 1000000, pick = {all:false, number:count};
+    const data = buildRecordSymmetryStage({...hex, symLs:count, symAs:count, symPs:count},
+        settings, [], true, 7, 0, {ls:pick, as:pick, ps:pick});
+    assert.equal(data.scene.counts.instances, 1);
+    const image = data.scene.primitives[0].instances[0];
+    assert.deepEqual([image.ls,image.as,image.ps], [count-1,count-1,count-1]);
+    const region = {...hex, dp:vec(2, 1), geo:[[0,0,0],[1,2,3]], symLs:6};
+    const projected = buildRecordSymmetryStage(region, settings, [], false, 5, 0, {ls:pick, as:pick, ps:pick});
+    assert.equal(projected.scene.counts.instances, 1);
+    assert.equal(projected.scene.primitives[0].instances[0].ls, 5);
 });
 
 test("M/J mirror parity, field parity, local auto and zero slider are independent", () => {
@@ -91,8 +143,16 @@ test("independent example arrows are dashed, stable and propagate to dependent c
     near(arrows[3].direction, arrows[2].direction.map(x => -x));
     assert.deepEqual(sample(stage(6, { symKya: 0 }))[1].direction, arrows[2].direction);
     near(sample(stage(9, { symKya: 0 }))[8].direction, arrows[2].direction);
-    const strokeCount = a => createSymmetryArrows(THREE, [a], "current").geometry.getAttribute("position").count;
-    assert.ok(strokeCount(arrows[2]) > strokeCount(arrows[0]));
+    const drawn = createSymmetryArrows(THREE, [arrows[0], arrows[2]], "current");
+    const [shafts, cones] = drawn.children;
+    assert.equal(shafts.geometry.getAttribute("position").count, 2 + 6*2);
+    assert.equal(shafts.material.linewidth, 1);
+    assert.equal(cones.geometry.type, "ConeGeometry");
+    assert.equal(cones.count, 2);
+    for (const [i, arrow] of [arrows[0], arrows[2]].entries()) {
+        const expected = new THREE.Vector3(...arrow.origin).addScaledVector(new THREE.Vector3(...arrow.direction), arrow.length);
+        assert.ok(coneTip(cones, i).distanceTo(expected) < 2e-5);
+    }
     assert.equal(arrows[0].length, arrows[2].length);
 });
 

@@ -157,18 +157,23 @@ function mirrorFactor(setting) {
     return setting === 0 || setting === 1 ? 2 : 1;
 }
 
-function elementInstanceCount(record, general) {
+function selectedCount(count, index) {
+    if (index === undefined) return count;
+    return Number.isSafeInteger(count) && Number.isSafeInteger(index) && index >= 0 && index < count ? 1 : 0;
+}
+
+function elementInstanceCount(record, general, selected) {
     return symmetryCount([
-        record.symLs,
-        record.symAs,
-        record.symPs,
+        selectedCount(record.symLs, selected?.ls),
+        selectedCount(record.symAs, selected?.as),
+        selectedCount(record.symPs, selected?.ps),
         mirrorFactor(general?.mirrorSymmetryY),
         mirrorFactor(general?.mirrorSymmetryX),
     ]);
 }
 
-function regionInstanceCount(record) {
-    return symmetryCount([record.symLs]);
+function regionInstanceCount(record, selected) {
+    return symmetryCount([selectedCount(record.symLs, selected?.ls)]);
 }
 
 function flattenVertices(vertices) {
@@ -340,7 +345,7 @@ function createCounts(primitives, skipped) {
     return counts;
 }
 
-function elementPrimitive(record, recordIndex, general, originalOnly) {
+function elementPrimitive(record, recordIndex, general, originalOnly, selected) {
     const normalized = normalizedRecord(record);
 
     if (!ELEMENT_GEO_TYPES.has(normalized.geoType)) {
@@ -387,7 +392,7 @@ function elementPrimitive(record, recordIndex, general, originalOnly) {
         };
     }
 
-    const requestedInstances = elementInstanceCount(normalized, general);
+    const requestedInstances = elementInstanceCount(normalized, general, selected);
 
     if (!requestedInstances || requestedInstances > MAX_UINT32) {
         return {
@@ -402,7 +407,9 @@ function elementPrimitive(record, recordIndex, general, originalOnly) {
     }
 
     const instances = normalizeInstances(
-        expandElementSymmetry(originalOnly ? { ...normalized, symLs: 1, symAs: 1, symPs: 1 } : normalized, originalOnly ? {} : general),
+        originalOnly
+            ? expandElementSymmetry({ ...normalized, symLs: 1, symAs: 1, symPs: 1 }, {})
+            : expandElementSymmetry(normalized, general, selected),
     );
 
     if (
@@ -442,7 +449,7 @@ function elementPrimitive(record, recordIndex, general, originalOnly) {
     };
 }
 
-function regionPrimitive(record, recordIndex, originalOnly) {
+function regionPrimitive(record, recordIndex, originalOnly, selected) {
     const normalized = normalizedRecord(record);
 
     if (!REGION_GEO_TYPES.has(normalized.geoType)) {
@@ -490,7 +497,7 @@ function regionPrimitive(record, recordIndex, originalOnly) {
         };
     }
 
-    const requestedInstances = regionInstanceCount(normalized);
+    const requestedInstances = regionInstanceCount(normalized, selected);
 
     if (!requestedInstances || requestedInstances > MAX_UINT32) {
         return {
@@ -505,7 +512,7 @@ function regionPrimitive(record, recordIndex, originalOnly) {
     }
 
     const instances = normalizeInstances(
-        expandRegionSymmetry(originalOnly ? { ...normalized, symLs: 1 } : normalized),
+        originalOnly ? expandRegionSymmetry({ ...normalized, symLs: 1 }) : expandRegionSymmetry(normalized, selected),
     );
 
     if (
@@ -612,20 +619,23 @@ function appendRecords({
 }
 
 // BaseModel -> detached render-oriented DTO. The original model is not changed.
-export function buildGeometryScene(model = {}, { originalOnly = false } = {}) {
+export function buildGeometryScene(model = {}, { originalOnly = false, imageIndexes } = {}) {
     const primitives = [];
     const diagnostics = [];
     const general = model?.general ?? {};
+    const selected = originalOnly ? undefined : imageIndexes;
     const createElement = (record, recordIndex) => elementPrimitive(
         record,
         recordIndex,
         general,
         originalOnly,
+        selected,
     );
     const createRegion = (record, recordIndex) => regionPrimitive(
         record,
         recordIndex,
         originalOnly,
+        selected,
     );
 
     createElement.schemaId = ELEMENTS_SCHEMA_ID;
@@ -644,7 +654,8 @@ export function buildGeometryScene(model = {}, { originalOnly = false } = {}) {
     });
 
     const elements = model?.elements ?? [];
-    let planar2D = Boolean(detectPlanarGeometry(primitives, general, elements));
+    // An image selection describes a card preview, whose extent cannot certify a whole task.
+    let planar2D = !selected && Boolean(detectPlanarGeometry(primitives, general, elements));
     if (originalOnly && planar2D) {
         // A base image can reject a 2D candidate; certification needs the full
         // physical extent, including hidden images, even on the preview.

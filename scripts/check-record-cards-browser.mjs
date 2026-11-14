@@ -135,7 +135,7 @@ const ready = (part, type, index = 0) => page.waitForFunction(([part, type, inde
 
 try {
   await page.goto("http://127.0.0.1:" + server.httpServer.address().port + "/__record-cards");
-  await page.waitForFunction(() => window.editorFixture?.ready);
+  await page.waitForFunction(() => window.editorFixture?.ready, undefined, { timeout: 30000 });
   await chooseProjectDisk(page);
   await page.locator("#listProject").selectOption("Project");
   await page.locator("#listTask .task-status-label").filter({hasText:/^Task$/}).dblclick();
@@ -434,23 +434,69 @@ try {
   const demo = current.locator(".record-demo-card"), viewport = current.locator(".record-demo-view");
   const slide = demo.getByRole("slider", { name:"Стадия построения" });
   const length = demo.getByRole("slider", { name:"Длина демо-вектора" });
+  const transparency = demo.getByRole("slider", { name:"Прозрачность", exact:true });
+  const edges = demo.getByRole("checkbox", { name:"Ребра", exact:true });
+  const allImages = family => demo.getByRole("checkbox", { name:"Все образы: " + family, exact:true });
+  const imageNumber = family => demo.getByRole("textbox", { name:"Номер образа: " + family, exact:true });
+  const local = "Локальная симметрия", azimuthal = "Азимутальная симметрия", periodic = "Периодическая симметрия";
   const kind = demo.getByRole("combobox", { name:"Тип демо-вектора" });
   const stageButton = n => demo.locator('button[data-stage="' + n + '"]');
   const image = async () => {
     await page.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(r)))));
     return viewport.locator("canvas").screenshot();
   };
-  await viewport.locator("canvas").waitFor({timeout:20000});
+  try {
+    await viewport.locator("canvas").waitFor({timeout:20000});
+  } catch (error) {
+    console.error("3D-панель:", await viewport.innerText(), "карточка:", await card.locator("header").innerText());
+    throw error;
+  }
   assert.equal(await demo.evaluate(e => getComputedStyle(e).borderLeftWidth), "3px");
   const groups = await demo.locator(".record-demo-list").evaluateAll(columns =>
     columns.map(el => [...el.querySelectorAll("[data-stage]")].map(b => +b.dataset.stage)));
   assert.deepEqual(groups, [[1,2,3,4,5],[6,7,8,9]]);
+  for (const family of [local, azimuthal, periodic]) {
+    assert.equal(await allImages(family).isChecked(), true);
+    assert.equal(await imageNumber(family).inputValue(), "1");
+    assert.equal(await imageNumber(family).isDisabled(), true);
+  }
+  assert.ok(await allImages(azimuthal).isDisabled() && await allImages(periodic).isDisabled());
+  const [fadeBox, lengthBox, edgeBox] = await Promise.all(
+    [transparency, length, edges].map(control => control.boundingBox()));
+  assert.ok(fadeBox.x < lengthBox.x && Math.abs(fadeBox.y - lengthBox.y) < 2);
+  assert.ok(edgeBox.y < fadeBox.y);
+  assert.equal(await edges.isChecked(), true);
+  assert.equal(await transparency.inputValue(), "58");
   assert.equal(await kind.isEnabled(),true);
   await kind.selectOption("current");
   await commit(demo.getByLabel("Демо-вектор Y",{exact:true}), "2.5");
   await stageButton(3).click();
   await length.press("End");
   const withArrows = await image();
+  await allImages(local).uncheck();
+  assert.equal(await imageNumber(local).isEnabled(), true);
+  const firstOnly = await image();
+  assert.ok(!withArrows.equals(firstOnly));
+  await commit(imageNumber(local), "2");
+  assert.ok(!firstOnly.equals(await image()));
+  await commit(imageNumber(local), "9"); assert.equal(await imageNumber(local).inputValue(), "2");
+  await allImages(local).check();
+  assert.ok(await imageNumber(local).isDisabled());
+  assert.ok(withArrows.equals(await image()), "returning to all images restores the same geometry");
+  const edged = await image();
+  await edges.uncheck();
+  assert.ok(!edged.equals(await image()), "the edge checkbox affects rendered pixels");
+  await edges.check();
+  await transparency.press("End"); assert.equal(await transparency.inputValue(), "100");
+  const arrowsAndAxes = await image();
+  assert.ok(!edged.equals(arrowsAndAxes), "fully transparent geometry disappears");
+  await length.press("Home");
+  assert.ok(!arrowsAndAxes.equals(await image()), "demo arrows remain visible at full transparency");
+  await transparency.press("Home"); assert.equal(await transparency.inputValue(), "0");
+  await length.press("End");
+  await transparency.evaluate(input => {
+    input.value = "58"; input.dispatchEvent(new Event("input", { bubbles:true }));
+  });
   await length.press("Home");
   assert.ok(!withArrows.equals(await image()), "zero length removes arrows from rendered WebGL pixels");
   await viewport.focus(); await page.keyboard.press("x");
@@ -475,11 +521,18 @@ try {
   await commit(field("symTx"),"16"); await field("symKyp").selectOption("0");
   await length.press("End");
   await cardScreenshot("element-symmetry-demo");
+  await allImages(periodic).uncheck(); await commit(imageNumber(periodic), "2");
+  assert.ok(await allImages(local).isChecked());
+  await image();
+  await cardScreenshot("element-symmetry-one-image");
+  await allImages(periodic).check();
   await slide.press("ArrowLeft"); assert.equal(await slide.inputValue(),"5");
   await stageButton(7).click(); await commit(field("symPs"),"1");
   assert.equal(await slide.inputValue(),"5");
   await row(2); await commit(field("symLs"),"1");
   assert.ok(await stageButton(3).isDisabled());
+  assert.ok(await allImages(local).isDisabled() && await imageNumber(local).isDisabled());
+  assert.equal(await imageNumber(local).inputValue(),"1");
   await field("targ").selectOption("1");
   assert.ok(await kind.isDisabled()); assert.equal(await kind.inputValue(),"magnetization");
   await field("targ").selectOption("2"); assert.equal(await kind.inputValue(),"current");
@@ -498,12 +551,19 @@ try {
   await viewport.locator("canvas").waitFor({timeout:20000});
   assert.equal(await demo.locator("[data-stage]").count(),5);
   assert.equal(await demo.locator(".record-demo-vector").count(),0);
+  assert.ok(await edges.isChecked() && await transparency.isEnabled());
+  assert.equal(await demo.locator(".record-demo-all").count(),1);
+  await commit(field("symLs"), "3"); await stageButton(3).click();
+  await allImages(local).uncheck(); await commit(imageNumber(local), "3");
+  assert.equal(await imageNumber(local).inputValue(), "3");
+  await edges.uncheck(); await transparency.press("End");
   await slide.press("End"); assert.equal(await slide.inputValue(),"5");
   await flag("3D").uncheck();
   await tab("Элементы"); assert.equal(await flag("3D").isChecked(),true);
+  assert.equal(await transparency.inputValue(), "58"); assert.ok(await edges.isChecked());
   await flag("3D").uncheck();
   assert.equal(await current.locator(".record-demo-card, .record-demo-view").count(),0);
-  console.log("PASS Manual symmetry stages, row changes, orthographic WebGL, M/J, hidden arrows, both tabs and splitter");
+  console.log("PASS Manual symmetry stages, image selectors, transparency and edges, orthographic WebGL, M/J and splitter");
   assert.deepEqual(errors,[]);
 } finally {
   await browser.close();

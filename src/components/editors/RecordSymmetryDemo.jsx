@@ -3,7 +3,7 @@ import { FIELD_TYPES } from "../../services/schemas/common/constants";
 import { modelService } from "../../services/modelService";
 import { geometryCameraCommandFromKeyboardEvent } from "../../services/visualization/geometryCameraView.js";
 import {
-  SYMMETRY_STAGES, activeSymmetryStages, snapSymmetryStage,
+  SYMMETRY_STAGES, NUMBERED_SYMMETRIES, activeSymmetryStages, snapSymmetryStage, demoImageNumber,
   buildRecordSymmetryStage, buildDemoVectors,
 } from "../../services/visualization/recordSymmetryDemo.js";
 import { ThreeGeometryViewport } from "../geometry/ThreeGeometryViewport.jsx";
@@ -11,12 +11,17 @@ import "../geometry/GeometryViewerWindow.css";
 import { CardInput } from "./RecordCard.jsx";
 
 const numberField = { type: FIELD_TYPES.FLOAT };
+const imageNumberField = { type: FIELD_TYPES.INTEGER };
+const defaultImage = { all: true, number: 1 };
 
 export function createRecordSymmetryDemo(element, record, index, active) {
   const [open, setOpen] = createSignal(false);
   const [position, setPosition] = createSignal(1);
   const [components, setComponents] = createSignal([1, 0, 0]);
   const [length, setLength] = createSignal(45);
+  const [transparency, setTransparency] = createSignal(58);
+  const [edges, setEdges] = createSignal(true);
+  const [images, setImages] = createSignal({});
   const [choice, setChoice] = createSignal("magnetization");
   const [error, setError] = createSignal("");
   const general = createMemo(() => open() && modelService.getModel().general);
@@ -27,13 +32,34 @@ export function createRecordSymmetryDemo(element, record, index, active) {
     if (stages().length && stage() !== position()) setPosition(stage());
   });
   const kind = () => record()?.targ === 1 ? "magnetization" : record()?.targ === 2 ? "current" : choice();
+  const image = family => images()[family.index] ?? defaultImage;
+  function changeImage(family, patch) {
+    setImages(current => ({ ...current, [family.index]: { ...defaultImage, ...current[family.index], ...patch } }));
+  }
   const geometry = createMemo(() => open() && active() && record()
-    ? buildRecordSymmetryStage(record(), general(), moves(), element, stage(), index())
+    ? buildRecordSymmetryStage(record(), general(), moves(), element, stage(), index(), images())
     : null);
   const arrows = createMemo(() => element && geometry()
     ? buildDemoVectors(geometry(), components(), length(), kind()) : []);
   return { element, record, open, setOpen, stages, stage, setPosition, geometry, arrows,
-    components, setComponents, kind, setChoice, length, setLength, error, setError };
+    components, setComponents, kind, setChoice, length, setLength, error, setError,
+    transparency, setTransparency, edges, setEdges, image, changeImage };
+}
+
+function ImageSelection(props) {
+  const { demo, family, label } = props;
+  const count = () => demo.record()?.[family.count];
+  const choice = () => demo.image(family);
+  const disabled = () => !demo.stages().includes(family.stage);
+  return <>
+    <fieldset class="record-demo-image-number" disabled={disabled() || choice().all}>
+      <label>#<CardInput label={"Номер образа: " + label} title={"Номер образа от 1 до " + (count() || 1)}
+        property={imageNumberField} value={demoImageNumber(choice().number, count())}
+        onError={demo.setError} onChange={number => demo.changeImage(family, { number: demoImageNumber(number, count()) })} /></label>
+    </fieldset>
+    <label class="record-demo-all"><input type="checkbox" checked={choice().all} disabled={disabled()}
+      aria-label={"Все образы: " + label} onChange={e => demo.changeImage(family, { all: e.currentTarget.checked })} />Все</label>
+  </>;
 }
 
 export function RecordSymmetryControls(props) {
@@ -45,9 +71,13 @@ export function RecordSymmetryControls(props) {
   function stageList(start, end) {
     return <For each={SYMMETRY_STAGES.slice(start - 1, end)}>{(label, i) => {
       const n = start + i();
-      return <button type="button" data-stage={n} disabled={!demo.stages().includes(n)}
-        aria-current={demo.stage() === n && demo.record() ? "step" : undefined}
-        onClick={() => choose(n)}><b>{n}.</b> {label}</button>;
+      const family = NUMBERED_SYMMETRIES.find(f => f.stage === n);
+      return <div class="record-demo-stage-row">
+        <button type="button" data-stage={n} disabled={!demo.stages().includes(n)}
+          aria-current={demo.stage() === n && demo.record() ? "step" : undefined}
+          onClick={() => choose(n)}><b>{n}.</b> {label}</button>
+        {family && <ImageSelection demo={demo} family={family} label={label} />}
+      </div>;
     }}</For>;
   }
   return <section class="record-demo-card" aria-label="Стадии построения образов">
@@ -61,7 +91,15 @@ export function RecordSymmetryControls(props) {
         e.preventDefault(); choose(demo.stage() + Math.sign(e.deltaY));
       }} />
     <div class="record-demo-columns">
-      <div class="record-demo-list">{stageList(1, demo.element ? 5 : 3)}</div>
+      <div class="record-demo-list">{stageList(1, demo.element ? 5 : 3)}
+        <fieldset class="record-demo-display" aria-label="Вид геометрии" disabled={!demo.record()}>
+          <label class="record-demo-edges"><input type="checkbox" checked={demo.edges()}
+            onChange={e => demo.setEdges(e.currentTarget.checked)} />Ребра</label>
+          <label class="record-demo-length">Прозрачность<input type="range" min="0" max="100" step="1"
+            aria-label="Прозрачность" aria-valuetext={demo.transparency() + "%"} value={demo.transparency()}
+            onInput={e => demo.setTransparency(e.currentTarget.valueAsNumber)} /></label>
+        </fieldset>
+      </div>
       <div class="record-demo-list">{demo.element ? stageList(6, 9) : stageList(4, 5)}
         <Show when={demo.element}><fieldset class="record-demo-vector" disabled={!demo.record()}>
           <legend>Демо-вектор</legend>
@@ -79,10 +117,10 @@ export function RecordSymmetryControls(props) {
           </div>
           <label class="record-demo-length">Длина<input type="range" aria-label="Длина демо-вектора"
             min="0" max="100" step="1" value={demo.length()} onInput={e => demo.setLength(e.currentTarget.valueAsNumber)} /></label>
-          <Show when={demo.error()}><span role="alert">{demo.error()}</span></Show>
         </fieldset></Show>
       </div>
     </div>
+    <Show when={demo.error()}><div class="record-card-error" role="alert">{demo.error()}</div></Show>
   </section>;
 }
 
@@ -111,7 +149,8 @@ export function RecordSymmetryViewport(props) {
       <Show when={demo.geometry()?.scene.primitives.length}>
         <ThreeGeometryViewport scene={demo.geometry().scene} demoStage={demo.geometry()}
           demoArrows={demo.arrows()} demoVectorKind={demo.kind()} projection="orthographic"
-          autoFit={true} mode="translucent" showEdges={true} viewRequest={viewRequest()} />
+          autoFit={true} mode="solid" showEdges={demo.edges()} geometryOpacity={1 - demo.transparency() / 100}
+          viewRequest={viewRequest()} />
       </Show>
       <Show when={demo.geometry()?.notices.length || !demo.record()}>
         <div class="record-demo-notice" role="status">{demo.geometry()?.notices.join(" ") || "Выберите строку таблицы"}</div>
