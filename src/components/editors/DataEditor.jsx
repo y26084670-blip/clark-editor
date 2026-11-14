@@ -1405,6 +1405,10 @@ export function DataEditor(props) {
         </div>
       )}
 
+      <Show when={props.forceMotionWarning}>
+        <div class="force-surface-warning" role="status">{props.forceMotionWarning}</div>
+      </Show>
+
       <div
         ref={(el) => (detailLayoutHost = el)}
         classList={{

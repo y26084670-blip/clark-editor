@@ -65,6 +65,9 @@ export function ForceSurfaceDialog(props) {
         initialHeight={510} minWidth={340} minHeight={280} storageKey="web-gui:force-surface" onClose={props.onClose}>
         <div class="force-surface-dialog">
             <div>Элементы № {props.request.indices.map(i => i+1).join(", ")}</div>
+            <Show when={props.motionWarning}>
+                <div class="force-surface-warning" role="status">{props.motionWarning}</div>
+            </Show>
             <div class="force-surface-inputs">
                 <label>Рекомендуемое расстояние, мм<input type="text" inputMode="decimal" value={distance()} disabled={busy()}
                     onInput={e => { setDistance(e.currentTarget.value); setPanels(null); setError(""); }} /></label>

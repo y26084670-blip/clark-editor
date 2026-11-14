@@ -12,6 +12,7 @@ import { GeometryViewerWindow } from "./components/geometry/GeometryViewerWindow
 import { MedAutofillDialog } from "./components/elements/MedAutofillDialog.jsx";
 import {ContactElementDialog} from "./components/elements/ContactElementDialog.jsx";
 import { ForceSurfaceDialog } from "./components/elements/ForceSurfaceDialog.jsx";
+import { forceSurfaceMotionWarning } from "./services/generator/forceSurfaceMotion.js";
 import {applyContactElement, CONTACT_CURRENT_NOTICE} from "./services/generator/contactElement.js";
 import {UniformFieldCoilDialog} from "./components/elements/UniformFieldCoilDialog.jsx";
 import {applyUniformFieldCoil} from "./services/generator/uniformFieldCoil.js";
@@ -331,6 +332,12 @@ export default function App() {
     createSignal([]);
   const [selectedGeometryRegionIndices, setSelectedGeometryRegionIndices] =
     createSignal([]);
+  const forceMotionWarning = createMemo(() => {
+    const model = modelService.getModel();
+    return forceSurfaceMotionWarning({
+      elements: model.elements, selectedIndices: selectedGeometryElementIndices(), regions: model.regions,
+    });
+  });
   let geometryViewerButton;
   let modelValidationRevision = 0;
   let observedGeometryTaskHandle;
@@ -504,6 +511,7 @@ export default function App() {
         <DataEditor
           schema={schema}
           active={props.active}
+          forceMotionWarning={schema.id === TABS.REGIONS.id && props.active && forceMotionWarning()}
           onEditMed={openMedFaces}
           onChooseRecordMaterial={(table, row) => openMaterialSelection(table, [row])}
           onEditorReady={controller => {
@@ -956,6 +964,9 @@ export default function App() {
       <UniformFieldCoilDialog open={!!coilTask()} model={modelService.getModel()} busy={coilBusy()}
         error={coilError()} notice={coilNotice()} onApply={addCoil} onClose={closeCoil}/>
       <Show when={forceSurface()} keyed>{request => <ForceSurfaceDialog request={request}
+        motionWarning={forceSurfaceMotionWarning({
+          elements: request.elements, selectedIndices: request.indices, regions: modelService.getModel().regions,
+        })}
         onApply={appendForcePanels} onClose={() => setForceSurface(null)} />}</Show>
     </div>
   );
