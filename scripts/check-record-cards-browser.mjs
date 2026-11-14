@@ -451,6 +451,11 @@ try {
     console.error("3D-панель:", await viewport.innerText(), "карточка:", await card.locator("header").innerText());
     throw error;
   }
+  assert.equal((await viewport.boundingBox()).width, 660, "element preview opens at double width");
+  await page.setViewportSize({width:1050,height:1000});
+  assert.equal((await viewport.boundingBox()).width, 360, "narrow screens get twice the old 180 px minimum");
+  await page.setViewportSize({width:1440,height:1000});
+  assert.equal((await viewport.boundingBox()).width, 660);
   assert.equal(await demo.evaluate(e => getComputedStyle(e).borderLeftWidth), "3px");
   const groups = await demo.locator(".record-demo-list").evaluateAll(columns =>
     columns.map(el => [...el.querySelectorAll("[data-stage]")].map(b => +b.dataset.stage)));
@@ -512,7 +517,10 @@ try {
   const grip = await handle.boundingBox();
   await page.mouse.move(grip.x+3, grip.y+20); await page.mouse.down();
   await page.mouse.move(grip.x-40, grip.y+20); await page.mouse.up();
-  assert.ok((await viewport.boundingBox()).width < size.width-20);
+  const draggedWidth = (await viewport.boundingBox()).width;
+  assert.ok(Math.abs((size.width - draggedWidth) - 43) <= 1, "splitter tracks the pointer from the full initial width");
+  await handle.press("ArrowRight");
+  assert.equal((await viewport.boundingBox()).width, draggedWidth + 16);
   await assertAligned("Element columns after the 3D splitter drag");
   assert.deepEqual(await page.evaluate(() => editorFixture.model()),modelBefore);
   assert.equal(await page.evaluate(() => editorFixture.writes.length),writesBeforeDemo);
@@ -549,6 +557,10 @@ try {
   await slide.press("ArrowLeft"); assert.equal(await slide.inputValue(),"8");
   await tab("Области"); await flag("3D").check();
   await viewport.locator("canvas").waitFor({timeout:20000});
+  assert.equal((await viewport.boundingBox()).width, 330, "the region preview keeps its original default");
+  await page.setViewportSize({width:1050,height:1000});
+  assert.equal((await viewport.boundingBox()).width,180);
+  await page.setViewportSize({width:1440,height:1000});
   assert.equal(await demo.locator("[data-stage]").count(),5);
   assert.equal(await demo.locator(".record-demo-vector").count(),0);
   assert.ok(await edges.isChecked() && await transparency.isEnabled());
@@ -563,7 +575,7 @@ try {
   assert.equal(await transparency.inputValue(), "58"); assert.ok(await edges.isChecked());
   await flag("3D").uncheck();
   assert.equal(await current.locator(".record-demo-card, .record-demo-view").count(),0);
-  console.log("PASS Manual symmetry stages, image selectors, transparency and edges, orthographic WebGL, M/J and splitter");
+  console.log("PASS Manual symmetry stages, image selectors, transparency and edges, orthographic WebGL, M/J, default widths and splitter");
   assert.deepEqual(errors,[]);
 } finally {
   await browser.close();

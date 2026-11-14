@@ -172,10 +172,19 @@ try {
     const contact = appPage.locator(".whats-new-entry").filter({ has:
       appPage.getByRole("heading", { name: "Контактное возбуждение проводников", exact: true }) });
     assert.match(await contact.textContent(), /Ограничения: Для инструмента Editor добавление строк/);
+    await appPage.getByRole("heading", { name: "Плоскопараллельные 2D расчеты (две поляризации)", exact: true }).waitFor();
+    const hex = appPage.locator(".whats-new-entry").filter({ has: appPage.getByRole("heading", {
+      name: "Снятие формальных ограничений на шестигранные элементы", exact: true }) });
+    const summary = (await hex.locator("p").first().innerText()).split("\n");
+    assert.ok(summary.length >= 4 && summary.length <= 5);
+    assert.match(summary.at(-1), /сходимость итераций/);
     await appPage.getByRole("tab", { name: "Рекомендации", exact: true }).click();
     const panel = appPage.getByRole("tabpanel", { name: "Рекомендации" });
     assert.deepEqual(await panel.getByRole("heading").allTextContents(),
       (feed.recommendations ?? []).map(item => item.title));
+    const images = panel.locator(".whats-new-entry").filter({ has: appPage.getByRole("heading", {
+      name: "Editor · Проверить построение образов шестигранника", exact: true }) });
+    assert.match(await images.textContent(), /намагниченности M или плотности тока J/);
     for (const width of [1280, 480, 320]) {
       await appPage.setViewportSize({ width, height: 900 });
       const widths = await appPage.getByRole("tablist").getByRole("tab").evaluateAll(tabs =>
