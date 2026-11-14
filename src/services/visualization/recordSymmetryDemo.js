@@ -11,6 +11,16 @@ export const SYMMETRY_STAGES = [
 
 const ZERO = [[0], [0], [0]];
 const mirrorEnabled = value => value === 0 || value === 1;
+export const NUMBERED_SYMMETRIES = [
+    { stage: 3, index: "ls", count: "symLs" },
+    { stage: 6, index: "as", count: "symAs" },
+    { stage: 7, index: "ps", count: "symPs" },
+];
+
+export function demoImageNumber(number, count) {
+    return Number.isSafeInteger(number) && Number.isSafeInteger(count) && count > 0
+        ? Math.max(1, Math.min(count, number)) : 1;
+}
 
 export function activeSymmetryStages(record, general, element) {
     if (!record) return [];
@@ -31,7 +41,7 @@ export function snapSymmetryStage(stages, requested, forward) {
 
 // Enable successive factors of the existing scene builder rather than composing
 // a second chain of solver matrices. Trajectories are sampled at a fixed t=0.
-export function buildRecordSymmetryStage(record, general, moves, element, stage, index = 0) {
+export function buildRecordSymmetryStage(record, general, moves, element, stage, index = 0, choices = {}) {
     if (!record) return null;
     const group = element ? "elements" : "regions";
     const frame = buildGeometryTimeModel({ general, [group]: [record] }, moves, 0);
@@ -50,9 +60,14 @@ export function buildRecordSymmetryStage(record, general, moves, element, stage,
         mirrorSymmetryY: stage >= 8 && element ? general?.mirrorSymmetryY : -1,
         mirrorSymmetryX: stage >= 9 && element ? general?.mirrorSymmetryX : -1,
     };
-    const scene = buildGeometryScene({ general: settings, [group]: [staged] });
-    // The diagnostic badge in the full view refers to the entire task.
-    scene.planar2D = false;
+    const imageIndexes = {};
+    for (const family of NUMBERED_SYMMETRIES) {
+        const choice = choices[family.index];
+        if (stage >= family.stage && (element || family.index === "ls") && choice?.all === false) {
+            imageIndexes[family.index] = demoImageNumber(choice.number, staged[family.count]) - 1;
+        }
+    }
+    const scene = buildGeometryScene({ general: settings, [group]: [staged] }, { imageIndexes });
     const primitive = scene.primitives[0];
     const result = { scene, record: staged, general: settings, index,
         notices: [...frame.diagnostics, ...scene.diagnostics].map(d => d.message) };

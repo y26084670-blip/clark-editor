@@ -175,10 +175,16 @@
 .record-demo-stage { display: block; width: calc(100% - 16px); margin: 6px 8px 3px; }
 .record-demo-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding: 2px 5px 5px; }
 .record-demo-list { display: flex; flex-direction: column; align-items: stretch; }
-.record-demo-list > button { background: transparent; border: 1px solid transparent; padding: 3px 5px;
-  text-align: left; color: inherit; font: inherit; cursor: pointer; }
-.record-demo-list > button[aria-current=step] { background: #deebf6; border-color: #9cb6cb; color: #123e61; }
-.record-demo-list > button:disabled { color: #757d82; cursor: default; }
+.record-demo-stage-row { display: flex; align-items: center; min-height: 23px; gap: 3px; }
+.record-demo-stage-row > button { flex: 1; min-width: 0; align-self: stretch; background: transparent;
+  border: 1px solid transparent; padding: 3px 4px; text-align: left; color: inherit; font: inherit; cursor: pointer; }
+.record-demo-stage-row > button[aria-current=step] { background: #deebf6; border-color: #9cb6cb; color: #123e61; }
+.record-demo-stage-row > button:disabled, .record-demo-image-number:disabled, .record-demo-all:has(:disabled) { color: #757d82; cursor: default; }
+.record-demo-image-number { border: 0; margin: 0; padding: 0; min-width: 0; }
+.record-demo-image-number label, .record-demo-all, .record-demo-edges { display: inline-flex; align-items: center; gap: 2px; }
+.record-demo-image-number input { width: 4.5ch; padding: 1px 2px; font: inherit; text-align: right; }
+.record-demo-all input, .record-demo-edges input { margin: 0; }
+.record-demo-display { min-width: 0; margin: auto 0 0; padding: 3px 4px 4px; border: 1px solid transparent; }
 .record-demo-vector { min-width: 0; margin: 3px 0 0; border: 1px solid #c2cbd1; padding: 2px 4px 4px; }
 .record-demo-vector legend { padding: 0 3px; color: #254b66; }
 .record-demo-components { display: grid; grid-template-columns: auto repeat(3, minmax(0, 1fr)); gap: 4px; }
@@ -186,6 +192,7 @@
 .record-demo-components input { width: 100%; min-width: 0; box-sizing: border-box; font: inherit; }
 .record-demo-components select { font: inherit; }
 .record-demo-length { margin-top: 3px; }
+.record-demo-edges { gap: 4px; }
 .record-demo-length input { flex: 1; min-width: 0; margin: 0 2px; }
 .record-demo-view { position: relative; min-width: 180px; min-height: 0; flex: 0 0 min(var(--demo-width), max(180px, calc(100% - 1031px)));
   background: #141a20; }
