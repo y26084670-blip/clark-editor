@@ -4,7 +4,7 @@ import { modelService } from "../../services/modelService";
 import { geometryCameraCommandFromKeyboardEvent } from "../../services/visualization/geometryCameraView.js";
 import {
   SYMMETRY_STAGES, NUMBERED_SYMMETRIES, activeSymmetryStages, snapSymmetryStage, demoImageNumber,
-  buildRecordSymmetryStage, buildDemoVectors,
+  buildRecordSymmetryStage, buildDemoVectors, buildRegionNormalArrows,
 } from "../../services/visualization/recordSymmetryDemo.js";
 import { ThreeGeometryViewport } from "../geometry/ThreeGeometryViewport.jsx";
 import "../geometry/GeometryViewerWindow.css";
@@ -39,8 +39,9 @@ export function createRecordSymmetryDemo(element, record, index, active) {
   const geometry = createMemo(() => open() && active() && record()
     ? buildRecordSymmetryStage(record(), general(), moves(), element, stage(), index(), images())
     : null);
-  const arrows = createMemo(() => element && geometry()
-    ? buildDemoVectors(geometry(), components(), length(), kind()) : []);
+  const arrows = createMemo(() => element
+    ? buildDemoVectors(geometry(), components(), length(), kind())
+    : buildRegionNormalArrows(geometry(), length()));
   return { element, record, open, setOpen, stages, stage, setPosition, geometry, arrows,
     components, setComponents, kind, setChoice, length, setLength, error, setError,
     transparency, setTransparency, edges, setEdges, image, changeImage };
@@ -101,23 +102,27 @@ export function RecordSymmetryControls(props) {
         </fieldset>
       </div>
       <div class="record-demo-list">{demo.element ? stageList(6, 9) : stageList(4, 5)}
-        <Show when={demo.element}><fieldset class="record-demo-vector" disabled={!demo.record()}>
-          <legend>Демо-вектор</legend>
-          <div class="record-demo-components">
-            <select aria-label="Тип демо-вектора" value={demo.kind()}
-              disabled={demo.record()?.targ === 1 || demo.record()?.targ === 2}
-              onChange={e => demo.setChoice(e.currentTarget.value)}>
-              <option value="magnetization">M</option><option value="current">J</option>
-            </select>
-            <Index each={["X", "Y", "Z"]}>{(axis, i) => <label>{axis()}
-              <CardInput label={"Демо-вектор " + axis()} property={numberField} floatDigits={10}
-                value={demo.components()[i]} onError={demo.setError}
-                onChange={value => demo.setComponents(old => old.map((v, j) => j === i ? value : v))} />
-            </label>}</Index>
-          </div>
-          <label class="record-demo-length">Длина<input type="range" aria-label="Длина демо-вектора"
-            min="0" max="100" step="1" value={demo.length()} onInput={e => demo.setLength(e.currentTarget.valueAsNumber)} /></label>
-        </fieldset></Show>
+        <fieldset class={demo.element ? "record-demo-vector" : "record-demo-display record-demo-normal"} disabled={!demo.record()}>
+          <legend>{demo.element ? "Демо-вектор" : "Нормаль к площадке"}</legend>
+          <Show when={demo.element}>
+            <div class="record-demo-components">
+              <select aria-label="Тип демо-вектора" value={demo.kind()}
+                disabled={demo.record()?.targ === 1 || demo.record()?.targ === 2}
+                onChange={e => demo.setChoice(e.currentTarget.value)}>
+                <option value="magnetization">M</option><option value="current">J</option>
+              </select>
+              <Index each={["X", "Y", "Z"]}>{(axis, i) => <label>{axis()}
+                <CardInput label={"Демо-вектор " + axis()} property={numberField} floatDigits={10}
+                  value={demo.components()[i]} onError={demo.setError}
+                  onChange={value => demo.setComponents(old => old.map((v, j) => j === i ? value : v))} />
+              </label>}</Index>
+            </div>
+          </Show>
+          <label class="record-demo-length" title={demo.element ? undefined : "Длина нормали к площадке. При нуле нормали скрыты."}>
+            Длина<input type="range" aria-label={demo.element ? "Длина демо-вектора" : "Длина нормали"}
+              disabled={!demo.element && !demo.geometry()?.regionNormals?.length} min="0" max="100" step="1"
+              value={demo.length()} onInput={e => demo.setLength(e.currentTarget.valueAsNumber)} /></label>
+        </fieldset>
       </div>
     </div>
     <Show when={demo.error()}><div class="record-card-error" role="alert">{demo.error()}</div></Show>
@@ -146,7 +151,7 @@ export function RecordSymmetryViewport(props) {
       onPointerDown={() => panel.focus({ preventScroll: true })}>
       <Show when={demo.geometry()?.scene.primitives.length}>
         <ThreeGeometryViewport scene={demo.geometry().scene} demoStage={demo.geometry()}
-          demoArrows={demo.arrows()} demoVectorKind={demo.kind()} projection="orthographic"
+          demoArrows={demo.arrows()} demoVectorKind={demo.element ? demo.kind() : "normal"} projection="orthographic"
           autoFit={true} mode="solid" showEdges={demo.edges()} geometryOpacity={1 - demo.transparency() / 100}
           viewRequest={viewRequest()} />
       </Show>

@@ -3,8 +3,9 @@ import test from "node:test";
 import * as THREE from "three";
 import { applyMatrix4ToPoint } from "../src/services/solver/rotation3d.js";
 import { buildGeometryScene } from "../src/services/visualization/geometrySceneModel.js";
-import { activeSymmetryStages, snapSymmetryStage, buildRecordSymmetryStage, buildDemoVectors, demoImageNumber }
+import { activeSymmetryStages, snapSymmetryStage, buildRecordSymmetryStage, buildDemoVectors, buildRegionNormalArrows, demoImageNumber }
     from "../src/services/visualization/recordSymmetryDemo.js";
+import { bilinearRegionNormals } from "../src/services/visualization/geometryDiscretization.js";
 import { createSymmetryAxes, createSymmetryArrows } from "../src/components/geometry/SymmetryDemoLayer.js";
 
 const settings = { mirrorSymmetryY: 0, mirrorSymmetryX: 1 };
@@ -163,4 +164,74 @@ test("regions use local images only and apply a trajectory at fixed t=0", () => 
     assert.equal(data.scene.primitives[0].instances.length, 2);
     assert.deepEqual(data.record.symR0, vec(11, 6, 3));
     assert.equal(buildDemoVectors(data, [1, 0, 0], 50, "current").length, 0);
+});
+
+const patch = [[0, 0, 0], [2, 0, 0], [2, 1, 0], [0, 1, 0]];
+
+test("planar observation surfaces use the Solver normal at the bilinear center", () => {
+    const normal = bilinearRegionNormals(patch);
+    assert.equal(normal.length, 1);
+    near(normal[0].origin, [1, 0.5, 0]);
+    near(normal[0].direction, [0, 0, -1]); // (1→4) × (1→2)
+    near(bilinearRegionNormals([patch[0], patch[3], patch[2], patch[1]])[0].direction, [0, 0, 1]);
+    const skew = [[2, 0, 2], [6, 0, 6], [5, 2, 7], [2, 1, 3]];
+    const [tilted] = bilinearRegionNormals(skew);
+    near(tilted.origin, [3.75, 0.75, 4.5]);
+    near(tilted.direction, [1, 1, -1].map(x => x / Math.sqrt(3)));
+    const triangle = [patch[0], patch[1], patch[2], patch[2]];
+    near(bilinearRegionNormals(triangle)[0].direction, [0, 0, -1]);
+    for (const collapsed of [Array(4).fill(patch[0]), patch.map(([x]) => [x, 0, 0])]) {
+        assert.deepEqual(bilinearRegionNormals(collapsed), []);
+    }
+});
+
+test("warped observation patches use four signed corner normals independently of scale", () => {
+    const corners = patch.map(p => [...p]);
+    corners[2][2] = 1;
+    const directions = [[0, 0, -1], [0, 1, -1], [1, 2, -2], [1, 0, -2]];
+    for (const scale of [1e-22, 1, 1e22]) {
+        const scaled = corners.map(point => point.map(x => x * scale));
+        const normals = bilinearRegionNormals(scaled);
+        assert.equal(normals.length, 4);
+        normals.forEach(({ origin, direction }, i) => {
+            assert.deepEqual(origin, scaled[i]);
+            near(direction, directions[i].map(x => x / Math.hypot(...directions[i])));
+        });
+    }
+    const almostPlanar = patch.map(point => [...point]);
+    almostPlanar[2][2] = Number.EPSILON;
+    assert.equal(bilinearRegionNormals(almostPlanar).length, 1);
+});
+
+test("region normals follow each displayed local image and never acquire mirror or source transforms", () => {
+    const rec = { ...hex, geoType: 0, geo: patch, dp: vec(3, 4), auto: false };
+    const project = (n, changes = {}, choices = {}, general = settings) =>
+        buildRecordSymmetryStage({ ...rec, ...changes }, general, [], false, n, 0, choices);
+    const expected = [
+        [[1, 0.5, 0], [0, 0, -1]], [[1, 2.5, 0], [0, 0, -1]],
+        [[1, 0, 2.5], [0, 1, 0]], [[0, 1, 2.5], [-1, 0, 0]], [[10, 5, 2.5], [-1, 0, 0]],
+    ];
+    expected.forEach(([origin, direction], i) => {
+        const normals = buildRegionNormalArrows(project(i + 1), 50);
+        assert.equal(normals.length, i < 2 ? 1 : 2);
+        near(normals.at(-1).origin, origin);
+        near(normals.at(-1).direction, direction);
+    });
+    const warped = { geo: [patch[0], patch[1], [2, 1, 1], patch[3]] };
+    const all = buildRegionNormalArrows(project(5, warped), 50);
+    const single = project(5, warped, { ls: { all: false, number: 2 } });
+    const four = buildRegionNormalArrows(single, 50);
+    assert.equal(all.length, 8);
+    assert.deepEqual(four, all.slice(4));
+    assert.deepEqual(all, buildRegionNormalArrows(project(5, warped, {}, {mirrorSymmetryX:-1, mirrorSymmetryY:-1}), 50));
+    assert.equal(buildRegionNormalArrows(single, 100)[0].length, four[0].length * 2);
+    assert.deepEqual(buildRegionNormalArrows(single, 0), []);
+    const [, cones] = createSymmetryArrows(THREE, four, "normal").children;
+    assert.equal(cones.count, 4);
+    assert.equal(cones.geometry.type, "ConeGeometry");
+    const far = project(5, {symR0:vec(1e16, -1e16, 0)});
+    near(buildRegionNormalArrows(far, 50).at(-1).direction, expected[4][1]);
+    for (const [geoType, geo, count] of [[1, [[3, 7, 60], [4]], 1], [2, [patch[0], patch[2]], 0], [3, [[3, 2]], 1]]) {
+        assert.equal(buildRegionNormalArrows(project(1, {geoType, geo}), 50).length, count);
+    }
 });

@@ -275,6 +275,47 @@ export function bilinearRegionPoint(vertices, d1, d2) {
     return bilinearPoint(points, d1, d2);
 }
 
+/** Normals of the bilinear observation surface, oriented as QD in Solver's
+ * 05_clfields.jl: tangent along 1→4 crossed with tangent along 1→2. */
+export function bilinearRegionNormals(vertices) {
+    const points = normalizedVertices(vertices, 4);
+    if (!points) return [];
+
+    const edges = points.map((point, i) => points[(i + 1) % 4].map((x, d) => x - point[d]));
+    const scale = Math.max(...edges.map(edge => Math.hypot(...edge)));
+    if (!(scale > 0) || !Number.isFinite(scale)) return [];
+    const sides = edges.map(edge => edge.map(x => x / scale));
+    const areas = sides.map((outgoing, i) => {
+        const incoming = sides[(i + 3) % 4];
+        return [
+            outgoing[1] * incoming[2] - outgoing[2] * incoming[1],
+            outgoing[2] * incoming[0] - outgoing[0] * incoming[2],
+            outgoing[0] * incoming[1] - outgoing[1] * incoming[0],
+        ];
+    });
+    const magnitudes = areas.map(area => Math.hypot(...area));
+    const largest = Math.max(...magnitudes);
+    if (!largest) return [];
+
+    // The two sides at the largest corner define the most stable reference
+    // plane. The next side reaches the fourth vertex from a point in that plane.
+    const reference = magnitudes.indexOf(largest);
+    const nextSide = sides[(reference + 1) % 4];
+    const distance = areas[reference].reduce((sum, x, d) => sum + x * nextSide[d], 0) / largest;
+    const tolerance = 64 * Number.EPSILON;
+    if (Math.abs(distance) > tolerance) {
+        return areas.map((area, i) => ({
+            origin: points[i], direction: area.map(x => x / magnitudes[i]),
+        }));
+    }
+
+    // The oriented area of a bilinear map is affine in its two parameters.
+    const centerArea = [0, 1, 2].map(d => areas.reduce((sum, area) => sum + area[d], 0) / 4);
+    const magnitude = Math.hypot(...centerArea);
+    if (magnitude <= tolerance * largest) return [];
+    return [{ origin: bilinearPoint(points, 0.5, 0.5), direction: centerArea.map(x => x / magnitude) }];
+}
+
 function appendPoint(target, point) {
     target.push(point[0], point[1], point[2]);
 }
