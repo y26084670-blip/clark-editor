@@ -3,7 +3,7 @@ import test from "node:test";
 import * as THREE from "three";
 import { applyMatrix4ToPoint } from "../src/services/solver/rotation3d.js";
 import { buildGeometryScene } from "../src/services/visualization/geometrySceneModel.js";
-import { activeSymmetryStages, snapSymmetryStage, buildRecordSymmetryStage, buildDemoVectors, buildRegionNormalArrows, demoImageNumber }
+import { activeSymmetryStages, snapSymmetryStage, buildRecordSymmetryStage, buildDemoVectors, buildRegionNormalArrows, buildVisibleRegionNormalArrows, demoImageNumber }
     from "../src/services/visualization/recordSymmetryDemo.js";
 import { bilinearRegionNormals } from "../src/services/visualization/geometryDiscretization.js";
 import { createSymmetryAxes, createSymmetryArrows } from "../src/components/geometry/SymmetryDemoLayer.js";
@@ -167,6 +167,24 @@ test("regions use local images only and apply a trajectory at fixed t=0", () => 
 });
 
 const patch = [[0, 0, 0], [2, 0, 0], [2, 1, 0], [0, 1, 0]];
+
+test("full 3D normals follow the visible areas and their local images", () => {
+    const region = { ...hex, geoType: 0, geo: patch, dp: vec(3, 4) };
+    const warped = { ...region, geo: [patch[0], patch[1], [2, 1, 1], patch[3]] };
+    const line = { ...region, geoType: 2, geo: [patch[0], patch[2]] };
+    const model = { general: settings, elements: [hex], regions: [region, warped, line] };
+    const scene = buildGeometryScene(model);
+    const all = buildVisibleRegionNormalArrows(scene);
+    assert.equal(all.length, 2 + 8);
+    near(all[1].origin, [10, 5, 2.5]);
+    near(all[1].direction, [-1, 0, 0]);
+    assert.ok(all.every(arrow => arrow.length > 0));
+    const filters = { objectModes: { regions: "selected" }, selections: { regions: new Set([1]) }, symmetry: { local: false } };
+    const corners = buildVisibleRegionNormalArrows(scene, filters);
+    assert.deepEqual(corners, all.slice(2, 6));
+    assert.equal(new Set(corners.map(arrow => arrow.origin.join(","))).size, 4);
+    assert.deepEqual(buildVisibleRegionNormalArrows(scene, { objectModes: { regions: "none" } }), []);
+});
 
 test("planar observation surfaces use the Solver normal at the bilinear center", () => {
     const normal = bilinearRegionNormals(patch);

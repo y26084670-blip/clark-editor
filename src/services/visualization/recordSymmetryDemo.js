@@ -1,6 +1,7 @@
 import { applyMatrix4ToPoint } from "../solver/rotation3d.js";
 import { bilinearRegionNormals } from "./geometryDiscretization.js";
 import { buildGeometryScene } from "./geometrySceneModel.js";
+import { instanceVisible, primitiveVisible } from "./geometryRenderFilters.js";
 import { buildGeometryTimeModel } from "./geometryTimeModel.js";
 import { createSourceDirectionTransform } from "./sourceVectorSceneModel.js";
 
@@ -96,18 +97,37 @@ export function buildRecordSymmetryStage(record, general, moves, element, stage,
 
 export function buildRegionNormalArrows(stage, length) {
     if (!stage?.regionNormals?.length || !(length > 0)) return [];
-    const arrowLength = stage.axisLength * length / 100;
     const arrows = [];
-    for (const { matrix } of stage.scene.primitives[0].instances) {
-        for (const { origin, direction } of stage.regionNormals) {
+    appendRegionNormalArrows(arrows, stage.scene.primitives[0].instances, stage.regionNormals, stage.axisLength * length / 100);
+    return arrows;
+}
+
+function appendRegionNormalArrows(arrows, instances, normals, length) {
+    for (const { matrix } of instances) {
+        for (const { origin, direction } of normals) {
             // Region images use rigid rotations. Translation moves the anchor only.
             const [x, y, z] = direction;
             arrows.push({
                 origin: applyMatrix4ToPoint(matrix, origin),
                 direction: [0, 1, 2].map(row => matrix[row] * x + matrix[4 + row] * y + matrix[8 + row] * z),
-                length: arrowLength,
+                length,
             });
         }
+    }
+}
+
+export function buildVisibleRegionNormalArrows(scene, filters) {
+    const arrows = [];
+    for (const primitive of scene?.primitives ?? []) {
+        if (primitive.kind !== "region-surface" || !primitiveVisible(primitive, filters?.objectModes, filters?.selections)) continue;
+        const instances = primitive.instances.filter(image => instanceVisible(image, filters?.symmetry));
+        if (!instances.length) continue;
+        const v = primitive.controlVertices;
+        const normals = bilinearRegionNormals(v);
+        if (!normals.length) continue;
+        const diagonal = (a, b) => Math.hypot(v[a] - v[b], v[a+1] - v[b+1], v[a+2] - v[b+2]);
+        const length = Math.max(diagonal(0, 6), diagonal(3, 9)) / 4;
+        appendRegionNormalArrows(arrows, instances, normals, length);
     }
     return arrows;
 }
