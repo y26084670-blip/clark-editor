@@ -1598,7 +1598,7 @@ export function ThreeGeometryViewport(props) {
   }
 
   function wheelSection(event) {
-    if (!sectionSpec || !event.deltaY || flightController?.active) return;
+    if (!sectionSpec || sectionSpec.fixed || !event.deltaY || flightController?.active) return;
     event.preventDefault();
     event.stopImmediatePropagation();
     const pixels = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? viewportHeight : 1);
@@ -1608,7 +1608,14 @@ export function ThreeGeometryViewport(props) {
 
   function updateViewSection() {
     const enabled = sectionSpec && currentBounds && !currentBounds.isEmpty();
-    if (enabled) {
+    if (enabled && sectionSpec.fixed) {
+      if (!sectionDirty) return;
+      clearTimeout(sectionFillTimer);
+      sectionFillTimer = 0;
+      sectionPlane ??= new THREE.Plane();
+      sectionPlane.copy(sectionSpec.fixed);
+      if (sectionSpec.reversed) sectionPlane.negate();
+    } else if (enabled) {
       sectionDirection ??= new THREE.Vector3();
       camera.getWorldDirection(sectionDirection);
       const turned = sectionPlane && sectionPlane.normal.distanceToSquared(sectionDirection) > 1e-24;
@@ -1634,6 +1641,12 @@ export function ThreeGeometryViewport(props) {
     for (const item of sectionRoot.children) item.userData.baseColor = item.material.color.clone();
     updateSectionOpacity();
     paintSectionSelection();
+  }
+
+  function captureSectionPlane() {
+    if (!sectionSpec || contextLost || suspended) return null;
+    renderNow();
+    return sectionPlane?.clone() ?? null;
   }
 
   const pickAtPointer = (pointer, action = "hover") => {
@@ -2260,6 +2273,7 @@ export function ThreeGeometryViewport(props) {
           controls.enabled = false; controlsInteracting = true; hasFramedGeometry = true; clearHoverTooltip();
         },
         onDeactivate: reason => {
+          if ((reason === "escape" || reason === "unlock") && sectionSpec) props.onSectionEscape?.();
           controlsInteracting = false;
           const saved = flightEntryState;
           flightEntryState = null;
@@ -2328,7 +2342,7 @@ export function ThreeGeometryViewport(props) {
       resizeRenderer();
       setReady(true);
       setLoading(false);
-      props.onFrameController?.({ requestRender });
+      props.onFrameController?.({ requestRender, captureSectionPlane });
     }).catch((loadError) => {
       if (disposed) return;
       setLoading(false);

@@ -257,8 +257,29 @@ function GeometryWindowContents(props) {
   const [sectionEnabled, setSectionEnabled] = createSignal(false);
   const [sectionDepth, setSectionDepth] = createSignal(50);
   const [movingSection, setMovingSection] = createSignal(false);
+  const [fixedSection, setFixedSection] = createSignal(null);
+  const [reverseSection, setReverseSection] = createSignal(false);
+
+  function closeSection() {
+    batch(() => {
+      setSectionEnabled(false);
+      setFixedSection(null);
+      setReverseSection(false);
+      setMovingSection(false);
+    });
+  }
+
+  function applyOrResetSection() {
+    if (fixedSection()) {
+      batch(() => { setFixedSection(null); setReverseSection(false); });
+    } else {
+      const plane = viewportFrameController?.captureSectionPlane();
+      if (plane) setFixedSection(plane);
+    }
+  }
+
   const section = createMemo(() => sectionEnabled() && displayScene()?.bounds
-    ? { depth: sectionDepth() / 100, moving: movingSection() }
+    ? { depth: sectionDepth() / 100, moving: movingSection(), fixed: fixedSection(), reversed: reverseSection() }
     : null);
   const timeLabel = () => `${timeState().index} / ${timeState().maxIndex}`;
   const timeTitle = () => `Момент ${timeLabel()}; t = ${
@@ -477,6 +498,12 @@ function GeometryWindowContents(props) {
     if (flightBusy() || event.defaultPrevented || event.isComposing) return;
     if (event.key === "Escape") {
       event.preventDefault();
+      if (sectionEnabled()) {
+        closeSection();
+        closePanel();
+        viewerElement?.focus({ preventScroll: true });
+        return;
+      }
       if (openPanel() === "sources") {
         closeSourceSettings();
         return;
@@ -599,6 +626,18 @@ function GeometryWindowContents(props) {
               Общие опции
             </button>
 
+            <button
+              type="button"
+              class="geometry-viewer-menu-button"
+              classList={{ active: openPanel() === "view" }}
+              aria-expanded={openPanel() === "view"}
+              aria-controls={OPTIONS_PANEL_ID}
+              aria-haspopup="dialog"
+              title="Вписать геометрию или выбрать направление взгляда"
+              onClick={(event) => togglePanel("view", event)}
+            >
+              Показ
+            </button>
             <label class="geometry-viewer-transparency"
               title="Прозрачность геометрии и рёбер: 0% — сплошные, 100% — невидимые">
               <span>Прозрачность <output>{geometryTransparency()}%</output></span>
@@ -612,21 +651,6 @@ function GeometryWindowContents(props) {
                 }} />
             </label>
 
-            <button
-              type="button"
-              class="geometry-viewer-menu-button"
-              classList={{ active: openPanel() === "view" }}
-              aria-expanded={openPanel() === "view"}
-              aria-controls={OPTIONS_PANEL_ID}
-              aria-haspopup="dialog"
-              title="Вписать геометрию или выбрать направление взгляда"
-              onClick={(event) => togglePanel("view", event)}
-            >
-              Показ
-            </button>
-            <button type="button" class="geometry-viewer-menu-button" classList={{ active: sectionEnabled() }}
-              aria-pressed={sectionEnabled()} title="Сечение по направлению взгляда. Глубина меняется колесом мыши или ползунком." disabled={!displayScene()?.bounds}
-              onClick={() => { closePanel(); setMovingSection(false); setSectionEnabled(value => !value); }}>Сечение</button>
             <GeometryMaterialLegend buttonClass="geometry-viewer-menu-button"
               onOpen={() => setOpenPanel(null)} />
           </div>
@@ -634,9 +658,9 @@ function GeometryWindowContents(props) {
 
         <Show when={sectionEnabled() && displayScene()?.bounds}>
           <div class="geometry-section-controls" role="group" aria-label="Настройки сечения">
-            <label>Глубина среза
+            <label class="geometry-section-depth">Глубина среза
               <input type="range" min="0" max="100" step="0.1"
-                value={sectionDepth()} aria-valuetext={`${sectionDepth()}%`}
+                value={sectionDepth()} disabled={Boolean(fixedSection())} style={{ "--cut-depth": `${sectionDepth()}%` }} aria-valuetext={`${sectionDepth()}%`}
                 onPointerDown={event => { event.currentTarget.setPointerCapture(event.pointerId); setMovingSection(true); }}
                 onKeyDown={event => {
                   if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End"].includes(event.key))
@@ -648,6 +672,16 @@ function GeometryWindowContents(props) {
                 onLostPointerCapture={() => setMovingSection(false)} onBlur={() => setMovingSection(false)} />
             </label>
             <output>{sectionDepth()}%</output>
+            <button type="button" class="geometry-viewer-menu-button" onClick={applyOrResetSection}>
+              {fixedSection() ? "Сбросить" : "Применить"}
+            </button>
+            <label title="Показать другую часть конструкции при том же ракурсе">
+              <input type="checkbox" disabled={!fixedSection()} checked={reverseSection()}
+                onChange={event => setReverseSection(event.currentTarget.checked)} />Сменить вид
+            </label>
+            <button type="button" class="geometry-viewer-menu-button geometry-section-close"
+              aria-label="Закрыть сечение" title="Закрыть сечение (Esc)"
+              onClick={() => { closeSection(); viewerElement?.focus({ preventScroll: true }); }}>×</button>
           </div>
         </Show>
         <Show when={openPanel()}>
@@ -687,6 +721,9 @@ function GeometryWindowContents(props) {
                 }}>Полёт</button>
               <button type="button" class="geometry-viewer-view-command geometry-constructions-command"
                 disabled={!hasTaskDirectory} onClick={showConstructions}>Построения</button>
+              <button type="button" class="geometry-viewer-view-command geometry-section-command"
+                aria-pressed={sectionEnabled()} disabled={!displayScene()?.bounds}
+                onClick={() => { closePanel(true); setSectionEnabled(true); }}>Сечение</button>
               <button
                 type="button"
                 class="geometry-viewer-view-command"
@@ -1075,6 +1112,7 @@ function GeometryWindowContents(props) {
             onFlightProjectionRestore={projection => setOrthographicView(projection === "orthographic")}
             scene={displayScene()}
             section={section()}
+            onSectionEscape={closeSection}
             onSectionDepthDelta={delta => setSectionDepth(value =>
               Math.round(Math.max(0, Math.min(100, value + delta)) * 10) / 10)}
             geometryRevision={model()}

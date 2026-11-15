@@ -49,7 +49,7 @@
   display: grid;
   grid-auto-flow: column;
   grid-auto-columns: 1fr;
-  grid-template-columns: repeat(7, 1fr) 27px;
+  grid-template-columns: repeat(6, 1fr) 27px;
   align-items: stretch;
   gap: 7px;
   width: max-content;
@@ -85,9 +85,19 @@
   border-bottom: 1px solid #4e5965;
   font-size: 12px;
 }
-.geometry-section-controls label { flex: 1; display: flex; align-items: center; gap: 9px; }
-.geometry-section-controls input { flex: 1; min-width: 36px; accent-color: #8fc7ff; }
+.geometry-section-controls label { display: flex; align-items: center; gap: 5px; white-space: nowrap; }
+.geometry-section-depth { min-width: 0; flex: 1; }
+.geometry-section-depth input {
+  flex: 1;
+  min-width: 32px;
+  accent-color: #f598bf;
+  --cut-track: linear-gradient(to right, #f598bf var(--cut-depth), #57626d var(--cut-depth));
+}
+.geometry-section-depth input::-webkit-slider-runnable-track { background: var(--cut-track); border-radius: 8px; }
+.geometry-section-depth input::-moz-range-track { background: var(--cut-track); border-radius: 8px; }
 .geometry-section-controls output { min-width: 5ch; text-align: right; font-variant-numeric: tabular-nums; }
+.geometry-section-controls button { width: auto; height: auto; }
+.geometry-section-controls .geometry-section-close { padding-inline: 6px; }
 
 .geometry-viewer-transparency {
   display: flex;
@@ -212,7 +222,8 @@
 }
 
 .geometry-viewer-view-command.geometry-flight-command,
-.geometry-viewer-view-command.geometry-constructions-command {
+.geometry-viewer-view-command.geometry-constructions-command,
+.geometry-viewer-view-command.geometry-section-command {
   color: #ffdc55;
   font-weight: 700;
 }
