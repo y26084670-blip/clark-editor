@@ -25,7 +25,23 @@ function boxPanels(box, sides) {
 // Prefer one four-corner TK where two adjacent triangles form a flat convex
 // quad. Every remaining triangle is partitioned into three proper quads.
 function meshPanels(solid, {reference, cast, sides, precision}, bounds) {
-    const mesh = solid.getMesh(), data = mesh.vertProperties;
+    // Boolean provenance preserves seams between otherwise coplanar source
+    // faces. Their thin triangles can collapse in the Float32 output buffer.
+    // Rebuild the face relations before simplifying at that buffer's scale;
+    // deleting individual degenerate triangles would open the closed shell.
+    const span = Math.max(...bounds.map(([lo,hi]) => hi-lo));
+    const outputPrecision = Math.max(precision, span * 2**-23);
+    const original = solid.asOriginal();
+    let cleaned, mesh;
+    try {
+        cleaned = original.setTolerance(4 * outputPrecision);
+        if (cleaned.status() !== "NoError" || cleaned.isEmpty())
+            throw new Error("После обработки сетки не удалось сохранить замкнутую поверхность.");
+        mesh = cleaned.getMesh();
+    } finally {
+        cleaned?.delete(); original.delete();
+    }
+    const data = mesh.vertProperties;
     // Reserve three mantissa bits at the model scale. Midpoints and a point
     // with barycentric weights (1/4,3/8,3/8) then remain representable even
     // in a single-precision task. Every subquad lies on its triangle's plane.
@@ -57,7 +73,8 @@ function meshPanels(solid, {reference, cast, sides, precision}, bounds) {
             if (peer === undefined || consumed.has(peer) || peer < index) continue;
             const w = triangles[peer].find(id => id !== u && id !== v);
             const quad = [v,ids[(j+2)%3],u,w].reverse().map(id => points[id]);
-            if (!validPanel(quad,outward,precision)) continue;
+            if (!validPanel(quad,outward,precision)
+                || !dividePanel(quad,cast).every(part => validPanel(part,outward,precision))) continue;
             consumed.add(index); consumed.add(peer); pairs.push(quad); break;
         }
         if (consumed.has(index)) continue;
@@ -69,11 +86,8 @@ function meshPanels(solid, {reference, cast, sides, precision}, bounds) {
     const panels = [];
     for (const face of [...pairs,...singles]) {
         const n = face.length;
-        const mids = face.map((p,j) => middle(p,face[(j+1)%n]).map(cast));
-        const center = n === 3 ? middle(middle(face[0], mids[1]), mids[1]) : middle(mids[0], mids[2]);
         const outward = cross(sub(face[n-1],face[0]),sub(face[1],face[0]));
-        for (let j = 0; j < n; j++) {
-            const quad = [face[j], mids[j], center, mids[(j+n-1)%n]];
+        for (const quad of dividePanel(face,cast)) {
             if (!validPanel(quad,outward,precision)) {
                 throw new Error("Недостаточная точность координат для плоской невырожденной площадки.");
             }
@@ -81,6 +95,13 @@ function meshPanels(solid, {reference, cast, sides, precision}, bounds) {
         }
     }
     return panels;
+}
+
+function dividePanel(face, cast) {
+    const n = face.length;
+    const mids = face.map((p,j) => middle(p,face[(j+1)%n]).map(cast));
+    const center = n === 3 ? middle(middle(face[0], mids[1]), mids[1]) : middle(mids[0], mids[2]);
+    return face.map((p,j) => [p, mids[j], center, mids[(j+n-1)%n]]);
 }
 
 function validPanel(quad, outward, precision) {
