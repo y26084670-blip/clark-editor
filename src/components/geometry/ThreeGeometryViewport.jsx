@@ -1,6 +1,7 @@
 import { createLensVectorDetails } from "../../services/visualization/lensVectorDetails.js";
 import { normalizeSourceVectorScale } from "../../services/visualization/sourceVectorScale.js";
 import { buildConstructionLayer } from "../../services/visualization/geometryConstructions.js";
+import { buildSectionLayer } from "../../services/visualization/geometrySection.js";
 import { createSymmetryAxes, createSymmetryArrows } from "./SymmetryDemoLayer.js";
 import { createViewportLens } from "../../services/visualization/viewportLens.js";
 import { createViewportLensHintPreference } from "../../services/visualization/viewportLensHint.js";
@@ -1197,6 +1198,9 @@ export function ThreeGeometryViewport(props) {
   let discretizationLineCache = new Map();
   let discretizationPointCache = new Map();
   let geometryPickTargets = [];
+  let sectionRoot, sectionPlane, sectionSpec = null, sectionDirty = false;
+  let sectionPointerDown, sectionSelection;
+  const [sectionLabel, setSectionLabel] = createSignal("");
   let motionBuffers = [];
   let geometryContext = null;
   let currentBounds;
@@ -1295,6 +1299,7 @@ export function ThreeGeometryViewport(props) {
         sourcesDirty = false;
         replacePrescribedSources();
       }
+      if (sectionDirty) refreshSection();
       if (flightController?.active) {
         flightController.update(timestamp ?? performance.now());
         setFlightPivot(flightController.orbitTarget);
@@ -1312,8 +1317,10 @@ export function ThreeGeometryViewport(props) {
       renderer.setViewport(0, 0, viewportWidth, viewportHeight);
       renderer.clear(true, true, true);
       vectorHover?.resize(viewportWidth, viewportHeight, renderer.getPixelRatio());
+      renderer.clippingPlanes = sectionSpec ? [sectionPlane] : [];
       if (viewportLens) viewportLens.render(threeScene, camera);
       else renderer.render(threeScene, camera);
+      renderer.clippingPlanes = [];
       const pickTime = timestamp ?? performance.now();
       if (flightController?.active && !flightController.approaching && pickTime - lastFlightPickTime >= PICK_INTERVAL_MS) {
         lastFlightPickTime = pickTime; pickFlightTarget();
@@ -1358,6 +1365,7 @@ export function ThreeGeometryViewport(props) {
     } catch (renderError) {
       reportError(renderError);
     } finally {
+      if (renderer && sectionSpec) renderer.clippingPlanes = [];
       if (profile && renderer) renderer.info.autoReset = true;
       rendering = false;
       if (flightController?.needsFrame) requestRender();
@@ -1502,6 +1510,13 @@ export function ThreeGeometryViewport(props) {
     if (!renderer || !camera || !flightController?.active) return null;
     camera.updateMatrixWorld();
     raycaster.setFromCamera(pointerNdc.set(0, 0), camera);
+    if (sectionSpec) {
+      const hit = nearestGeometryHit();
+      if (!hit) return null;
+      const source = hit.object.userData.source, instance = geometryHitInstance(hit);
+      return { source, instance, point: hit.point.toArray(), distance: hit.distance,
+        label: formatGeometryTooltip(source, instance).split("\n")[0] };
+    }
     const pivot = pickGeometryFlightPivot(THREE, raycaster.ray, vertexBatches, { near: camera.near, far: camera.far });
     return pivot ? { ...pivot, label: formatGeometryTooltip(pivot.source, pivot.instance).split("\n")[0] } : null;
   };
@@ -1514,6 +1529,85 @@ export function ThreeGeometryViewport(props) {
     setFlightTarget(target);
     return target;
   };
+
+  function visibleHit(hit) {
+    if (!sectionSpec || hit.object.parent === sectionRoot) return true;
+    const { axis, coordinate, side } = sectionSpec;
+    let p = hit.point.getComponent(axis);
+    if (hit.object.isPoints) {
+      p = hit.object.geometry.getAttribute("position").getComponent(hit.index, axis);
+    }
+    return side * (p - coordinate) >= 0;
+  }
+
+  function nearestGeometryHit() {
+    if (geometryOpacity === 0) return null;
+    const body = raycaster.intersectObjects(geometryPickTargets, false).find(visibleHit);
+    const cut = sectionRoot?.visible && raycaster.intersectObjects(sectionRoot.children, false)[0];
+    return cut && (!body || cut.distance <= body.distance + 1e-9 * Math.max(1, body.distance)) ? cut : body;
+  }
+
+  function clearSectionSelection() {
+    sectionSelection = null;
+    setSectionLabel("");
+  }
+
+  function paintSectionSelection() {
+    for (const object of sectionRoot?.children ?? []) {
+      const { source, pick } = object.userData;
+      const active = sectionSelection && sectionSelection.source.schemaId === source.schemaId
+        && sectionSelection.source.recordIndex === source.recordIndex;
+      if (!active && !object.material.vertexColors) continue;
+      const geometry = object.geometry;
+      if (active) {
+        const data = new Float32Array(geometry.getAttribute("position").count * 3);
+        const normal = object.userData.baseColor;
+        const stride = object.isMesh ? 3 : 2;
+        for (let i = 0; i < pick.instances.length; i++) {
+          const color = sourceInstanceKey(source, pick.instances[i]) === sectionSelection.key ? sectionSelection.color : normal;
+          for (let j = 0; j < stride; j++) color.toArray(data, 3 * (i * stride + j));
+        }
+        const attribute = geometry.getAttribute("color");
+        if (attribute) { attribute.array.set(data); attribute.needsUpdate = true; }
+        else geometry.setAttribute("color", new THREE.BufferAttribute(data, 3));
+        object.material.color.set(0xffffff);
+      } else object.material.color.copy(object.userData.baseColor);
+      object.material.vertexColors = Boolean(active);
+      object.material.needsUpdate = true;
+    }
+  }
+
+  function updateSectionOpacity() {
+    if (!sectionRoot) return;
+    const opacity = geometryOpacity ?? 1;
+    sectionRoot.visible = opacity > 0;
+    for (const object of sectionRoot.children) {
+      object.material.opacity = opacity;
+      object.material.transparent = opacity < 1;
+      object.material.depthWrite = opacity === 1;
+    }
+  }
+
+  function refreshSection() {
+    sectionDirty = false;
+    if (sectionRoot) {
+      threeScene.remove(sectionRoot);
+      disposeObject(sectionRoot);
+      sectionRoot = null;
+    }
+    if (!sectionSpec) return;
+    const { axis, coordinate, side, moving } = sectionSpec;
+    sectionPlane ??= new THREE.Plane();
+    sectionPlane.normal.set(0, 0, 0).setComponent(axis, side);
+    sectionPlane.constant = -coordinate * side;
+    if (moving) return;
+    sectionRoot = buildSectionLayer(THREE, vertexBatches, sectionSpec,
+      (primitive, image) => materialStyle(primitive, instanceCategory(image), activeRenderMode));
+    threeScene.add(sectionRoot);
+    for (const item of sectionRoot.children) item.userData.baseColor = item.material.color.clone();
+    updateSectionOpacity();
+    paintSectionSelection();
+  }
 
   const pickAtPointer = (pointer, action = "hover") => {
     const flightPicking = action === "flight";
@@ -1561,13 +1655,24 @@ export function ThreeGeometryViewport(props) {
     raycaster.params.Line.threshold = unitsPerPixel * 5;
     raycaster.params.Points.threshold = unitsPerPixel * 9;
 
-    const geometryHit = geometryOpacity !== 0
-      ? raycaster.intersectObjects(geometryPickTargets, false)[0] ?? null
-      : null;
+    const geometryHit = nearestGeometryHit();
+    if (action === "select") {
+      clearSectionSelection();
+      if (geometryHit) {
+        const source = geometryHit.object.userData.source, instance = geometryHitInstance(geometryHit);
+        if (source && instance) {
+          sectionSelection = { source, key: sourceInstanceKey(source, instance), color: new THREE.Color(0xffdf55) };
+          setSectionLabel(formatGeometryTooltip(source, instance).split("\n")[0]);
+        }
+      }
+      paintSectionSelection();
+      requestRender();
+      return;
+    }
     if (!flightPicking && props.enableLens === true && prescribedSourceRoot?.visible && prescribedSourceStyle === "thin") {
       const sources = prescribedSourceRoot.children.filter(object => object.visible && object.isLineSegments);
-      const hit = raycaster.intersectObjects(sources, false).find(hit =>
-        !geometryHit || geometryOpacity < 1 || hit.distance <= geometryHit.distance + unitsPerPixel * 5);
+      const hit = raycaster.intersectObjects(sources, false).find(hit => visibleHit(hit) && (
+        !geometryHit || geometryOpacity < 1 || hit.distance <= geometryHit.distance + unitsPerPixel * 5));
       if (hit) {
         vectorHover?.set(hit);
         const stride = (hit.object.userData.segmentsPerVector ?? 1) * 2;
@@ -1578,10 +1683,10 @@ export function ThreeGeometryViewport(props) {
     }
     const discretizationHit =
       discretizationPointsVisible && discretizationPoints?.visible
-        ? raycaster.intersectObject(discretizationPoints, false)[0] ?? null
+        ? raycaster.intersectObject(discretizationPoints, false).find(visibleHit) ?? null
         : null;
     const vertexHit = verticesVisible && vertexPoints?.visible
-      ? raycaster.intersectObject(vertexPoints, false)[0] ?? null
+      ? raycaster.intersectObject(vertexPoints, false).find(visibleHit) ?? null
       : null;
     const pointIsVisible = (hit) =>
       activeRenderMode !== "solid" ||
@@ -1928,7 +2033,9 @@ export function ThreeGeometryViewport(props) {
 
   const replaceGeometry = (sceneModel, filters, mode, showEdges) => {
     if (!ready() || !THREE || !threeScene) return;
+    if (sectionSpec) sectionDirty = true;
     if (updateMovingGeometry(sceneModel, filters, mode, showEdges)) return;
+    if (sectionSelection) clearSectionSelection();
     activeRenderMode = mode;
     geometryContext = null;
     motionBuffers = [];
@@ -2297,7 +2404,18 @@ export function ThreeGeometryViewport(props) {
     geometryOpacity = typeof opacity === "number" && Number.isFinite(opacity)
       ? Math.max(0, Math.min(1, opacity)) : null;
     if (!ready()) return;
+    updateSectionOpacity();
     updateGeometryOpacity();
+    clearHoverTooltip();
+    requestRender();
+  });
+
+  createEffect(() => {
+    const section = props.section ?? null;
+    if (!ready() || (!section && !sectionSpec)) return;
+    sectionSpec = section;
+    sectionDirty = true;
+    clearSectionSelection();
     clearHoverTooltip();
     requestRender();
   });
@@ -2363,6 +2481,7 @@ export function ThreeGeometryViewport(props) {
     controls?.dispose();
     disposeObject(geometryRoot);
     disposeObject(constructionRoot);
+    disposeObject(sectionRoot);
     disposeObject(demoAxes);
     disposeObject(demoArrows);
     disposeObject(helperRoot);
@@ -2399,8 +2518,20 @@ export function ThreeGeometryViewport(props) {
       class="three-geometry-viewport"
       role="img"
       aria-label="Трёхмерная геометрия элементов и областей"
+      onPointerDown={event => {
+        if (sectionSpec && event.target === renderer?.domElement && event.button === 0)
+          sectionPointerDown = { x: event.clientX, y: event.clientY, id: event.pointerId };
+      }}
+      onPointerCancel={() => { sectionPointerDown = null; }}
+      onPointerUp={event => {
+        const down = sectionPointerDown;
+        sectionPointerDown = null;
+        if (sectionSpec && down?.id === event.pointerId && !flightController?.active
+            && Math.hypot(event.clientX - down.x, event.clientY - down.y) <= 3) pickAtPointer(event, "select");
+      }}
       aria-busy={loading()}
     >
+      <Show when={sectionLabel()}><div class="geometry-section-selection" role="status">{sectionLabel()}</div></Show>
       <Show when={props.scene?.planar2D}>
         <span class="geometry-planar-mode">2D расчет</span>
       </Show>
