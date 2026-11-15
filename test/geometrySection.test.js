@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { intersectSection, buildSectionLayer } from '../src/services/visualization/geometrySection.js';
+import { intersectSection, buildSectionLayer, setViewSectionPlane } from '../src/services/visualization/geometrySection.js';
 import { geometryHitInstance } from '../src/services/visualization/geometryPicking.js';
 import { buildGeometryScene } from '../src/services/visualization/geometrySceneModel.js';
 
@@ -10,7 +10,7 @@ const element = { geoType: 2, geo: [[2, 3, 4]], dp: vec([1,1,1]), dr: vec([0,0,0
   symVi: vec([0,0,0]), symR0: vec([0,0,0]), symYl: 0, symYa: 0, symTx: 0, symLs: 1, symAs: 1, symPs: 1 };
 const scene = buildGeometryScene({ general: { mirrorSymmetryX: -1, mirrorSymmetryY: -1 }, elements: [element] });
 const box = scene.primitives[0], image = box.instances[0];
-const plane = (axis, coordinate, side = 1) => ({ axis, coordinate, side });
+const plane = (axis, coordinate, side = 1) => new THREE.Plane(new THREE.Vector3().setComponent(axis, side), -coordinate * side);
 const section = (s, p = box, i = image) => intersectSection(THREE, p, i, s);
 const area = cut => cut.triangles.reduce((a, face) => a + new THREE.Triangle(...face.map(i => cut.points[i])).getArea(), 0);
 
@@ -58,4 +58,44 @@ test('reflected and tilted images and warped faces use the displayed surface tri
   const warped = section(plane(1,1.2), p);
   assert.ok(area(warped) > 8);
   assert.ok(warped.points.every(p => p.y === 1.2));
+});
+
+test('an oblique cut through a box has the expected area and keeps only the far half-space', () => {
+  const direction = new THREE.Vector3(1, 1, 0).normalize();
+  const p = new THREE.Plane(direction, -2 * direction.x);
+  const cut = section(p);
+  assert.ok(Math.abs(area(cut) - 8 * Math.SQRT2) < 1e-10);
+  assert.ok(cut.points.every(v => Math.abs(p.distanceToPoint(v)) < 1e-12));
+  assert.ok(p.distanceToPoint(new THREE.Vector3(2, 3, 4)) > 0);
+});
+
+test('relative depth follows any camera direction, including opposite and diagonal views', () => {
+  const bounds = new THREE.Box3(new THREE.Vector3(7, -4, 10), new THREE.Vector3(9, -1, 14));
+  const center = bounds.getCenter(new THREE.Vector3());
+  for (const view of [[1, 2, -3], [-1, -2, 3], [0, 0, -1]]) {
+    const normal = new THREE.Vector3(...view).normalize();
+    const projection = [];
+    for (const x of [7, 9]) for (const y of [-4, -1]) for (const z of [10, 14]) {
+      projection.push(normal.dot(new THREE.Vector3(x, y, z)));
+    }
+    for (const depth of [0, 0.25, 0.5, 1]) {
+      const p = setViewSectionPlane(new THREE.Plane(), normal, bounds, depth);
+      const min = Math.min(...projection), max = Math.max(...projection);
+      assert.ok(Math.abs(-p.constant - (min + depth * (max - min))) < 1e-12);
+      assert.ok(p.normal.equals(normal));
+      if (depth === 0.5) assert.ok(Math.abs(p.distanceToPoint(center)) < 1e-12);
+    }
+  }
+});
+
+test('rotating the element and its cutting plane together preserves area and coplanar faces', () => {
+  const matrix = new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(0.26, -0.31, 0.72));
+  matrix.setPosition(100, -80, 60);
+  for (const offset of [0, 0.8]) {
+    const p = plane(0, offset).applyMatrix4(matrix);
+    const cut = section(p, box, { ...image, matrix: matrix.elements });
+    assert.ok(Math.abs(area(cut) - 12) < 1e-10);
+    assert.ok(cut.points.every(v => Math.abs(p.distanceToPoint(v)) < 1e-12));
+    if (!offset) assert.equal(section(p.clone().negate(), box, { ...image, matrix: matrix.elements }), null);
+  }
 });

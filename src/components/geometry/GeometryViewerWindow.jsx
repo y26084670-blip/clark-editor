@@ -255,20 +255,10 @@ function GeometryWindowContents(props) {
   // changes when the geometry itself has no trajectory.
   const displayScene = createMemo(() => displaySceneResult().scene);
   const [sectionEnabled, setSectionEnabled] = createSignal(false);
-  const [sectionAxis, setSectionAxis] = createSignal(0);
-  const [sectionOffset, setSectionOffset] = createSignal(null);
-  const [sectionSide, setSectionSide] = createSignal(1);
+  const [sectionDepth, setSectionDepth] = createSignal(50);
   const [movingSection, setMovingSection] = createSignal(false);
-  const sectionBounds = createMemo(() => {
-    const bounds = displayScene()?.bounds, axis = sectionAxis();
-    return bounds ? [bounds.min[axis], bounds.max[axis]] : [0, 0];
-  });
-  const sectionPosition = createMemo(() => {
-    const [low, high] = sectionBounds();
-    return Math.max(low, Math.min(high, sectionOffset() ?? (low / 2 + high / 2)));
-  });
   const section = createMemo(() => sectionEnabled() && displayScene()?.bounds
-    ? { axis: sectionAxis(), coordinate: sectionPosition(), side: sectionSide(), moving: movingSection() }
+    ? { depth: sectionDepth() / 100, moving: movingSection() }
     : null);
   const timeLabel = () => `${timeState().index} / ${timeState().maxIndex}`;
   const timeTitle = () => `Момент ${timeLabel()}; t = ${
@@ -635,7 +625,7 @@ function GeometryWindowContents(props) {
               Показ
             </button>
             <button type="button" class="geometry-viewer-menu-button" classList={{ active: sectionEnabled() }}
-              aria-pressed={sectionEnabled()} disabled={!displayScene()?.bounds}
+              aria-pressed={sectionEnabled()} title="Сечение по направлению взгляда. Глубина меняется колесом мыши или ползунком." disabled={!displayScene()?.bounds}
               onClick={() => { closePanel(); setMovingSection(false); setSectionEnabled(value => !value); }}>Сечение</button>
             <GeometryMaterialLegend buttonClass="geometry-viewer-menu-button"
               onOpen={() => setOpenPanel(null)} />
@@ -644,30 +634,20 @@ function GeometryWindowContents(props) {
 
         <Show when={sectionEnabled() && displayScene()?.bounds}>
           <div class="geometry-section-controls" role="group" aria-label="Настройки сечения">
-            <label>Плоскость <select aria-label="Плоскость сечения" value={sectionAxis()}
-              onChange={event => { setSectionOffset(null); setSectionAxis(Number(event.currentTarget.value)); }}>
-              <option value="0">YZ</option><option value="1">XZ</option><option value="2">XY</option>
-            </select></label>
-            <input type="range" aria-label="Положение сечения" min={sectionBounds()[0]} max={sectionBounds()[1]}
-              step="any" value={sectionPosition()} disabled={sectionBounds()[0] === sectionBounds()[1]}
-              onPointerDown={event => { event.currentTarget.setPointerCapture(event.pointerId); setMovingSection(true); }}
-              onKeyDown={event => {
-                if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End"].includes(event.key))
-                  setMovingSection(true);
-              }}
-              onKeyUp={() => setMovingSection(false)}
-              onInput={event => setSectionOffset(event.currentTarget.valueAsNumber)}
-              onPointerUp={() => setMovingSection(false)} onPointerCancel={() => setMovingSection(false)}
-              onLostPointerCapture={() => setMovingSection(false)} onBlur={() => setMovingSection(false)} />
-            <label>{"XYZ"[sectionAxis()]}, мм <input type="number" step="any" aria-label="Координата сечения, мм"
-              min={sectionBounds()[0]} max={sectionBounds()[1]} value={sectionPosition()}
-              onChange={event => {
-                const input = event.currentTarget;
-                if (Number.isFinite(input.valueAsNumber)) setSectionOffset(input.valueAsNumber);
-                input.value = String(sectionPosition());
-              }} /></label>
-            <button type="button" onClick={() => setSectionSide(value => -value)}
-              title={`Показана сторона ${"XYZ"[sectionAxis()]} ${sectionSide() > 0 ? "≥" : "≤"} ${sectionPosition()} мм`}>Сменить сторону</button>
+            <label>Глубина среза
+              <input type="range" min="0" max="100" step="0.1"
+                value={sectionDepth()} aria-valuetext={`${sectionDepth()}%`}
+                onPointerDown={event => { event.currentTarget.setPointerCapture(event.pointerId); setMovingSection(true); }}
+                onKeyDown={event => {
+                  if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End"].includes(event.key))
+                    setMovingSection(true);
+                }}
+                onKeyUp={() => setMovingSection(false)}
+                onInput={event => setSectionDepth(event.currentTarget.valueAsNumber)}
+                onPointerUp={() => setMovingSection(false)} onPointerCancel={() => setMovingSection(false)}
+                onLostPointerCapture={() => setMovingSection(false)} onBlur={() => setMovingSection(false)} />
+            </label>
+            <output>{sectionDepth()}%</output>
           </div>
         </Show>
         <Show when={openPanel()}>
@@ -1095,6 +1075,8 @@ function GeometryWindowContents(props) {
             onFlightProjectionRestore={projection => setOrthographicView(projection === "orthographic")}
             scene={displayScene()}
             section={section()}
+            onSectionDepthDelta={delta => setSectionDepth(value =>
+              Math.round(Math.max(0, Math.min(100, value + delta)) * 10) / 10)}
             geometryRevision={model()}
             active={props.open}
             beforeRender={commitPendingTime}

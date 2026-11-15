@@ -1,7 +1,7 @@
 import { createLensVectorDetails } from "../../services/visualization/lensVectorDetails.js";
 import { normalizeSourceVectorScale } from "../../services/visualization/sourceVectorScale.js";
 import { buildConstructionLayer } from "../../services/visualization/geometryConstructions.js";
-import { buildSectionLayer } from "../../services/visualization/geometrySection.js";
+import { buildSectionLayer, setViewSectionPlane } from "../../services/visualization/geometrySection.js";
 import { createSymmetryAxes, createSymmetryArrows } from "./SymmetryDemoLayer.js";
 import { createViewportLens } from "../../services/visualization/viewportLens.js";
 import { createViewportLensHintPreference } from "../../services/visualization/viewportLensHint.js";
@@ -1199,7 +1199,7 @@ export function ThreeGeometryViewport(props) {
   let discretizationPointCache = new Map();
   let geometryPickTargets = [];
   let sectionRoot, sectionPlane, sectionSpec = null, sectionDirty = false;
-  let sectionPointerDown, sectionSelection;
+  let sectionPointerDown, sectionSelection, sectionDirection, sectionFillTimer = 0;
   const [sectionLabel, setSectionLabel] = createSignal("");
   let motionBuffers = [];
   let geometryContext = null;
@@ -1299,7 +1299,6 @@ export function ThreeGeometryViewport(props) {
         sourcesDirty = false;
         replacePrescribedSources();
       }
-      if (sectionDirty) refreshSection();
       if (flightController?.active) {
         flightController.update(timestamp ?? performance.now());
         setFlightPivot(flightController.orbitTarget);
@@ -1307,6 +1306,7 @@ export function ThreeGeometryViewport(props) {
           camera.position.distanceTo(flightBoundsCenter) + flightSceneScale * 2);
         if (camera.far !== far) { camera.far = far; camera.updateProjectionMatrix(); }
       }
+      if (sectionSpec || sectionDirty) updateViewSection();
       if (profile) {
         updateMs = performance.now() - totalStart;
         renderer.info.autoReset = false;
@@ -1317,7 +1317,7 @@ export function ThreeGeometryViewport(props) {
       renderer.setViewport(0, 0, viewportWidth, viewportHeight);
       renderer.clear(true, true, true);
       vectorHover?.resize(viewportWidth, viewportHeight, renderer.getPixelRatio());
-      renderer.clippingPlanes = sectionSpec ? [sectionPlane] : [];
+      renderer.clippingPlanes = sectionPlane ? [sectionPlane] : [];
       if (viewportLens) viewportLens.render(threeScene, camera);
       else renderer.render(threeScene, camera);
       renderer.clippingPlanes = [];
@@ -1531,13 +1531,13 @@ export function ThreeGeometryViewport(props) {
   };
 
   function visibleHit(hit) {
-    if (!sectionSpec || hit.object.parent === sectionRoot) return true;
-    const { axis, coordinate, side } = sectionSpec;
-    let p = hit.point.getComponent(axis);
-    if (hit.object.isPoints) {
-      p = hit.object.geometry.getAttribute("position").getComponent(hit.index, axis);
-    }
-    return side * (p - coordinate) >= 0;
+    if (!sectionPlane || hit.object.parent === sectionRoot) return true;
+    // Raycaster returns the closest point on the ray for Points. Test the node itself.
+    const point = hit.object.isPoints
+      ? new THREE.Vector3().fromBufferAttribute(hit.object.geometry.getAttribute("position"), hit.index)
+        .applyMatrix4(hit.object.matrixWorld)
+      : hit.point;
+    return sectionPlane.distanceToPoint(point) >= 0;
   }
 
   function nearestGeometryHit() {
@@ -1588,20 +1588,47 @@ export function ThreeGeometryViewport(props) {
     }
   }
 
-  function refreshSection() {
+  function deferSectionFill() {
+    clearTimeout(sectionFillTimer);
+    sectionFillTimer = setTimeout(() => {
+      sectionFillTimer = 0;
+      sectionDirty = true;
+      requestRender();
+    }, 100);
+  }
+
+  function wheelSection(event) {
+    if (!sectionSpec || !event.deltaY || flightController?.active) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    const pixels = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? viewportHeight : 1);
+    deferSectionFill();
+    props.onSectionDepthDelta?.(Math.max(-100, Math.min(100, pixels / 40)));
+  }
+
+  function updateViewSection() {
+    const enabled = sectionSpec && currentBounds && !currentBounds.isEmpty();
+    if (enabled) {
+      sectionDirection ??= new THREE.Vector3();
+      camera.getWorldDirection(sectionDirection);
+      const turned = sectionPlane && sectionPlane.normal.distanceToSquared(sectionDirection) > 1e-24;
+      if (!sectionDirty && !turned) return;
+      if (turned) deferSectionFill();
+      sectionPlane ??= new THREE.Plane();
+      setViewSectionPlane(sectionPlane, sectionDirection, currentBounds, sectionSpec.depth);
+    } else {
+      sectionPlane = null;
+      clearTimeout(sectionFillTimer);
+      sectionFillTimer = 0;
+    }
     sectionDirty = false;
     if (sectionRoot) {
       threeScene.remove(sectionRoot);
       disposeObject(sectionRoot);
       sectionRoot = null;
     }
-    if (!sectionSpec) return;
-    const { axis, coordinate, side, moving } = sectionSpec;
-    sectionPlane ??= new THREE.Plane();
-    sectionPlane.normal.set(0, 0, 0).setComponent(axis, side);
-    sectionPlane.constant = -coordinate * side;
-    if (moving) return;
-    sectionRoot = buildSectionLayer(THREE, vertexBatches, sectionSpec,
+    if (!enabled || sectionSpec.moving || sectionFillTimer) return;
+    sectionRoot = buildSectionLayer(THREE, vertexBatches, sectionPlane,
       (primitive, image) => materialStyle(primitive, instanceCategory(image), activeRenderMode));
     threeScene.add(sectionRoot);
     for (const item of sectionRoot.children) item.userData.baseColor = item.material.color.clone();
@@ -2202,6 +2229,8 @@ export function ThreeGeometryViewport(props) {
       viewportLens = createViewportLens({ THREE, renderer, onActivate: () => lensHintPreference.dismiss(),
         renderDetails: (scene, camera) => lensVectorDetails.render(scene, camera, () => renderer.render(scene, camera)),
         enabled: () => props.enableLens === true && !contextLost, requestRender });
+      // Register after the lens so Space+wheel keeps its existing meaning.
+      renderer.domElement.addEventListener("wheel", wheelSection, { capture: true, passive: false });
       vectorHover = createThinVectorHover({ scene: threeScene, requestRender });
 
       OrbitControlsClass = controlsModule.OrbitControls;
@@ -2466,6 +2495,8 @@ export function ThreeGeometryViewport(props) {
 
   onCleanup(() => {
     disposed = true;
+    clearTimeout(sectionFillTimer);
+    renderer?.domElement.removeEventListener("wheel", wheelSection, true);
     viewportLens?.dispose(); vectorHover?.dispose(); lensVectorDetails?.dispose(); lensHintPreference?.dispose();
     axisRotationController?.dispose();
     flightController?.dispose();
