@@ -21,15 +21,15 @@ test("FMM detail projection preserves a long H-M table", () => {
     assert.deepEqual(rows[4], [4, 104]);
 });
 
-test("HTS detail contract lists eighteen current scalar parameters", () => {
-    assert.equal(HTS_PARAMETER_NAMES.length, 18);
+test("HTS detail contract lists seventeen current scalar parameters", () => {
+    assert.equal(HTS_PARAMETER_NAMES.length, 17);
     assert.deepEqual(
         HTS_PARAMETER_NAMES.slice(3, 6),
         ["JCb", "j_ani", "j_type"],
     );
     assert.deepEqual(
-        HTS_PARAMETER_NAMES.slice(-3),
-        ["KHabc", "Diag", "M3D"],
+        HTS_PARAMETER_NAMES.slice(-2),
+        ["KHabc", "M3D"],
     );
 
     const detailSchema = createHtsMaterialDetailSchema({

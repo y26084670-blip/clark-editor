@@ -1,4 +1,4 @@
-import { HTS_EFFECTIVE_DEFAULTS } from "../materials/materialConstants.js";
+import { HTS_EFFECTIVE_DEFAULTS, HTS_PARAMETER_NAMES } from "../materials/materialConstants.js";
 import {
     legacyMaterialFileName,
     validateLegacyMaterialName,
@@ -11,27 +11,7 @@ export const SUPPORTED_HTS_CONFIG_VERSIONS = Object.freeze([
     204,
 ]);
 
-export const HTS_PROPERTY_KEYS = Object.freeze([
-    "j_HC0",
-    "JC0",
-    "JCa",
-    "JCb",
-    "j_ani",
-    "j_type",
-    "j_gmin",
-    "j1_delta",
-    "j2_n",
-    "m_type",
-    "m_HC0",
-    "m1_delta",
-    "m3_Mmax",
-    "m3_a",
-    "m3_b",
-    "KHabc",
-    "Diag",
-    "M3D",
-    "comment",
-]);
+export const HTS_PROPERTY_KEYS = Object.freeze([...HTS_PARAMETER_NAMES, "comment"]);
 
 const FLOAT_PATTERN = /^[+-]?(?:(?:\d+(?:\.\d*)?)|(?:\.\d+))(?:[eE][+-]?\d+)?$/u;
 const INTEGER_PATTERN = /^[+-]?\d+$/u;
@@ -201,6 +181,12 @@ export function parseHtsConfig(source) {
     const j_type = reader.readInt32("Jtype");
     reader.readFloat32("Jscale");
     const j_gmin = reader.readFloat32("Jgmin");
+    // В полном 2XX config перед delta и N присутствует ещё одна числовая позиция.
+    // Короткие ранее поддерживаемые записи сразу переходят к двум рабочим полям.
+    const third = reader.lines[reader.index + 2];
+    if (third && /^[+\-.\d]/u.test(String.fromCharCode(third[0]))) {
+        reader.readFloat32("Jgmax");
+    }
     const j1_delta = reader.readFloat32("JMOD1delta");
     const j2_n = float32Integer(
         reader.readFloat32("JMOD2N"),
@@ -248,7 +234,6 @@ export function parseHtsConfig(source) {
             m3_a,
             m3_b,
             KHabc: 1,
-            Diag: 0,
             M3D: false,
         },
     };

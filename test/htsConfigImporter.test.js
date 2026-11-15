@@ -31,7 +31,6 @@ for (const version of [201, 202, 203, 204]) {
         assert.equal(parsed.property.m3_a, version >= 202 ? 1 : 2);
         assert.equal(parsed.property.m3_b, version >= 202 ? 10 : 1);
         assert.equal(parsed.property.KHabc, 1);
-        assert.equal(parsed.property.Diag, 0);
         assert.equal(parsed.property.M3D, false);
         assert.equal(Object.hasOwn(parsed.property, "m2_dh"), false);
         assert.equal(Object.hasOwn(parsed.property, "KFC"), false);
@@ -160,4 +159,10 @@ test("Float32-backed HTS integer fields are not narrowed to Int32", () => {
 
     assert.equal(parsed.property.m_type, Math.fround(3000000000));
     assert.equal(parsed.property.j2_n, Math.fround(3000000000));
+});
+
+test("extended and short positional configs give the same material", () => {
+    const full = buildHtsConfig(204);
+    const short = full.split(/\r?\n/).filter((_, i) => i !== 11).join("\n");
+    assert.deepEqual(parseHtsConfig(full), parseHtsConfig(short));
 });

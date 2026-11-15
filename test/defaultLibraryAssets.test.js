@@ -133,9 +133,11 @@ test("canonical web-gui default library contains the transferred solver snapshot
     const htsRoot = path.join(root, "xapLibHTS");
     const expectedHtsFiles = [
         "ВТСП Jc(H) базовая.txt",
-        "ВТСП пресет 2.txt",
-        "ВТСП пресет 3.txt",
-    ];
+        "BSCCO пресет.txt",
+        "Fe pnictides пресет.txt",
+        "Hg-Tl cuprates пресет.txt",
+        "YBCO пресет.txt",
+    ].sort();
     const fmm = JSON.parse(
         await readFile(path.join(root, "xapLibFMM", "STAL3.txt"), "utf8"),
     );

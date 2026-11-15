@@ -136,12 +136,6 @@ export default createSchema({
             "Параметр анизотропии для 3D",
             HTS_EFFECTIVE_DEFAULTS.KHabc,
         ),
-        Diag: scalar(
-            FIELD_TYPES.FLOAT,
-            "Diag",
-            "Диаграмма направленности для 3D",
-            HTS_EFFECTIVE_DEFAULTS.Diag,
-        ),
         M3D: scalar(
             FIELD_TYPES.BOOLEAN,
             "M3D",

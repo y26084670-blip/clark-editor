@@ -124,7 +124,6 @@
     "m3_a": 2,
     "m3_b": 1,
     "KHabc": 1,
-    "Diag": 0,
     "M3D": false,
     "comment": "Berger/MUFEM cube: isotropic n=25, constant Jc=2.5 A/mm2, Ec=1e-4 V/m. htcMu=false. Pure power law; MUFEM regularization differs."
   },

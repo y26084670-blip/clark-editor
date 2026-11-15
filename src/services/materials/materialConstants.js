@@ -19,7 +19,6 @@ export const HTS_PARAMETER_NAMES = Object.freeze([
     "m3_a",
     "m3_b",
     "KHabc",
-    "Diag",
     "M3D",
 ]);
 
@@ -27,6 +26,5 @@ export const HTS_PARAMETER_NAMES = Object.freeze([
 export const HTS_EFFECTIVE_DEFAULTS = Object.freeze({
     j_ani: true,
     KHabc: 1,
-    Diag: 0,
     M3D: false,
 });

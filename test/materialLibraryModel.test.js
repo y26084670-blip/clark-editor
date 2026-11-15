@@ -167,7 +167,6 @@ test("HTS model keeps scalar JSON fields and transient filename name", () => {
     assert.equal(material.name, "ВТСП");
     assert.equal(material.j_HC0, 2300);
     assert.equal(material.KHabc, 1);
-    assert.equal(material.Diag, 0);
     assert.equal(material.M3D, true);
     assert.equal(material.comment, "Описание");
     assert.deepEqual(
@@ -191,7 +190,6 @@ test("HTS model drops legacy fields and supplies solver defaults", () => {
     assert.equal(Object.hasOwn(material, "m2_dh"), false);
     assert.equal(Object.hasOwn(material, "m2_n"), false);
     assert.equal(material.KHabc, 1);
-    assert.equal(material.Diag, 0);
     assert.equal(material.M3D, false);
     assert.equal(material.j_ani, true);
 });
@@ -199,7 +197,7 @@ test("HTS model drops legacy fields and supplies solver defaults", () => {
 test("normalized legacy HTS material serializes as the current local format", () => {
     const legacyProperty = Object.fromEntries(
         HTS_PARAMETER_NAMES
-            .filter(name => !["j_ani", "KHabc", "Diag", "M3D"].includes(name))
+            .filter(name => !["j_ani", "KHabc", "M3D"].includes(name))
             .map((name, index) => [name, index + 1]),
     );
     const [material] = toHtsLibraryModel([{
@@ -220,7 +218,6 @@ test("normalized legacy HTS material serializes as the current local format", ()
         [...HTS_PARAMETER_NAMES, "comment"],
     );
     assert.equal(file.data.KHabc, 1);
-    assert.equal(file.data.Diag, 0);
     assert.equal(file.data.M3D, false);
     assert.equal(file.data.j_ani, true);
     assert.equal(file.text.includes("m2_dh"), false);
@@ -229,7 +226,7 @@ test("normalized legacy HTS material serializes as the current local format", ()
 test("isotropic HTS choice survives model projection, save and reload", () => {
     const legacyProperty = Object.fromEntries(
         HTS_PARAMETER_NAMES
-            .filter(name => !["j_ani", "KHabc", "Diag", "M3D"].includes(name))
+            .filter(name => !["j_ani", "KHabc", "M3D"].includes(name))
             .map((name, index) => [name, index + 1]),
     );
     const [material] = toHtsLibraryModel([{

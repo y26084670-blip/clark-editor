@@ -26,7 +26,7 @@ const delay = which => {
     else localDelay = new Promise(resolve => { releaseLocal = resolve; });
 };
 const fmm = { tabl: [...Array.from({ length: 12 }, (_, i) => i), ...Array.from({ length: 12 }, (_, i) => i * 2)], hip: 0, comment: 'Local test' };
-const hts = { j_HC0: 1, JC0: 2.5, JCa: 1, JCb: 1, j_ani: false, j_type: 2, j_gmin: 25000, j1_delta: .1, j2_n: 24, m_type: 3, m_HC0: 1, m1_delta: .1, m3_Mmax: 0, m3_a: 1, m3_b: 1, KHabc: 1, Diag: 0, M3D: false, comment: 'Local HTS test' };
+const hts = { j_HC0: 1, JC0: 2.5, JCa: 1, JCb: 1, j_ani: false, j_type: 2, j_gmin: 25000, j1_delta: .1, j2_n: 24, m_type: 3, m_HC0: 1, m1_delta: .1, m3_Mmax: 0, m3_a: 1, m3_b: 1, KHabc: 1, M3D: false, comment: 'Local HTS test' };
 const notFound = () => new DOMException('Missing fixture entry', 'NotFoundError');
 const writes = [];
 function file(name, data) {
