@@ -29,7 +29,7 @@ export const materialTabRegistry = Object.freeze([
             type: "record",
             defaultHeight: 540,
         }),
-        graphRegion: false,
+        graphRegion: true,
         loadRecords: options =>
             loadMaterialLibrary(MATERIAL_LIBRARY_KINDS.HTS, options),
     }),

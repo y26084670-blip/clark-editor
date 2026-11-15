@@ -6,6 +6,11 @@ export const MATERIAL_LAYOUT_LIMITS = Object.freeze({
     splitterSize: 6,
 });
 
+export const HTS_LAYOUT_LIMITS = Object.freeze({
+    ...MATERIAL_LAYOUT_LIMITS,
+    graphWidth: 630,
+});
+
 function clamp(value, minimum, maximum) {
     return Math.min(Math.max(value, minimum), maximum);
 }
