@@ -68,13 +68,14 @@ test('all 175 equation images keep their bytes, numbers, dimensions and alternat
     const tags = [...pages.values()].flatMap(html => [...html.matchAll(/<img\b[^>]*\bdata-equation="(\d+)"[^>]*>/gu)]);
     tags.sort((a,b) => Number(a[1]) - Number(b[1]));
     assert.deepEqual(tags.map(m => Number(m[1])), Array.from({length:175}, (_,i) => i+1));
-    // Computed from the sorted original <img> tags of Editor 1a50281, before separation.
-    assert.equal(sha256(tags.map(m => m[0]).join('\n')), '5fc948b9bc8a0c4062e98b9328e50f5e0a246775d994e781390e20d99fb3208e');
+    // Digest of the published figures, including the HTS current-law revision.
+    assert.equal(sha256(tags.map(m => m[0]).join('\n')), '565266ccf4da397a717319186c47392935a49ed9d7731912d57b5dca85da4ea4');
     assert.equal((theory.match(/data-equation=/gu) ?? []).length, 169);
     assert.equal((user.match(/data-equation=/gu) ?? []).length, 6);
     assert.doesNotMatch(theory, /<math\b|MathJax|katex|HT[CS]_JC_OFFSET/iu);
     for (const id of ['model-integral','model-discretization','model-weak','model-newton','model-hts','model-symmetries','model-scope','jweak1','model-hts-power','model-hts-tanh','prescribed-current-contact'])
         assert.ok(fragmentIds.get('theory.html').has(id), id);
+    assert.ok(tags[161][0].includes("b_{\\mathrm{eff}}"));
     assert.match(theory, /j2_n=24/u);
     assert.match(theory, /j_gmin=25000/u);
 });
