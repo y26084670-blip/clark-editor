@@ -2,21 +2,37 @@
 // its own contours, so an air gap or a neighbouring material cannot be filled.
 const localBounds = new WeakMap();
 
-function meetsPlane(THREE, primitive, matrix, axis, coordinate) {
+// Project a box onto a direction without transforming its eight corners.
+function projectedRange(box, x, y, z) {
+  const ax = x * box.min.x, bx = x * box.max.x;
+  const ay = y * box.min.y, by = y * box.max.y;
+  const az = z * box.min.z, bz = z * box.max.z;
+  return [Math.min(ax, bx) + Math.min(ay, by) + Math.min(az, bz),
+    Math.max(ax, bx) + Math.max(ay, by) + Math.max(az, bz)];
+}
+
+// The retained half-space is beyond the cut, looking from the camera into the model.
+export function setViewSectionPlane(plane, direction, bounds, depth) {
+  const [front, back] = projectedRange(bounds, direction.x, direction.y, direction.z);
+  plane.normal.copy(direction);
+  plane.constant = -(front * (1 - depth) + back * depth);
+  return plane;
+}
+
+function meetsPlane(THREE, primitive, matrix, plane) {
   let box = localBounds.get(primitive);
   if (!box) {
     box = new THREE.Box3().setFromArray(primitive.vertices);
     localBounds.set(primitive, box);
   }
-  let low = matrix[12 + axis], high = low;
-  for (let k = 0; k < 3; k++) {
-    const a = matrix[4 * k + axis] * box.min.getComponent(k);
-    const b = matrix[4 * k + axis] * box.max.getComponent(k);
-    low += Math.min(a, b);
-    high += Math.max(a, b);
-  }
-  const epsilon = 8 * Number.EPSILON * Math.max(Math.abs(low), Math.abs(high), Math.abs(coordinate));
-  return coordinate >= low - epsilon && coordinate <= high + epsilon;
+  const { x, y, z } = plane.normal;
+  const dotColumn = i => x * matrix[i] + y * matrix[i + 1] + z * matrix[i + 2];
+  const [low, high] = projectedRange(box, dotColumn(0), dotColumn(4), dotColumn(8));
+  const offset = dotColumn(12) + plane.constant;
+  // Include roundoff of the world offset even when the plane passes through the box.
+  const eps = 16 * Number.EPSILON * (Math.abs(low) + Math.abs(high) + Math.abs(plane.constant)
+    + Math.abs(x * matrix[12]) + Math.abs(y * matrix[13]) + Math.abs(z * matrix[14]));
+  return low + offset <= eps && high + offset >= -eps;
 }
 
 // Trace the bounded faces of the planar segment graph. At a plane through
@@ -54,28 +70,32 @@ function closedContours(points, segments) {
   return rings;
 }
 
-export function intersectSection(THREE, primitive, instance, { axis, coordinate, side }) {
-  if (primitive.kind === 'region-line' || !meetsPlane(THREE, primitive, instance.matrix, axis, coordinate)) return null;
+export function intersectSection(THREE, primitive, instance, plane) {
+  if (primitive.kind === 'region-line' || !meetsPlane(THREE, primitive, instance.matrix, plane)) return null;
   const xyz = primitive.vertices, indices = primitive.indices, volume = primitive.kind === 'element-volume';
+  // Drop the dominant normal component to obtain a well-conditioned 2D chart.
+  const { x, y, z } = plane.normal;
+  const axis = Math.abs(x) >= Math.max(Math.abs(y), Math.abs(z)) ? 0 : Math.abs(y) >= Math.abs(z) ? 1 : 2;
   const u = (axis + 1) % 3, v = (axis + 2) % 3;
   const transform = new THREE.Matrix4().fromArray(instance.matrix);
   const vertices = [], distances = [];
-  let lo = Infinity, hi = -Infinity;
+  let lo = Infinity, hi = -Infinity, scale = Math.abs(plane.constant);
   for (let k = 0; k < xyz.length; k += 3) {
     const p = new THREE.Vector3().fromArray(xyz, k).applyMatrix4(transform);
-    const d = p.getComponent(axis) - coordinate;
+    const d = plane.distanceToPoint(p);
+    scale = Math.max(scale, Math.abs(x * p.x) + Math.abs(y * p.y) + Math.abs(z * p.z));
     vertices.push(p); distances.push(d);
     lo = Math.min(d, lo); hi = Math.max(d, hi);
   }
-  const eps = 8 * Number.EPSILON * Math.max(Math.abs(coordinate), Math.abs(lo), Math.abs(hi));
-  if (lo > eps || hi < -eps || (volume && (side > 0 ? hi : -lo) <= eps)) return null;
+  const eps = 16 * Number.EPSILON * scale;
+  if (lo > eps || hi < -eps || (volume && hi <= eps)) return null;
   const signs = distances.map(d => Math.abs(d) <= eps ? 0 : Math.sign(d));
   const points = [], projected = [], nodes = new Map(), edges = new Map();
   function node(point) {
     const x = point.getComponent(u), y = point.getComponent(v), key = x + ',' + y;
     if (!nodes.has(key)) {
       nodes.set(key, points.length);
-      points.push(point.clone().setComponent(axis, coordinate));
+      points.push(plane.projectPoint(point, new THREE.Vector3()));
       projected.push(new THREE.Vector2(x, y));
     }
     return nodes.get(key);
