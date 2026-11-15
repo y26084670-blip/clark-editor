@@ -164,7 +164,9 @@ export function ForceSurfaceDialog(props) {
                 <Show when={warning()}><div class="force-surface-warning" role="status">{warning()}</div></Show>
                 <Show when={!props.request}><span>Для работы с поверхностями откройте вкладку «Элементы» задания.</span></Show>
                 <Show when={error()}><div class="force-surface-error" role="alert">{error()}</div></Show>
-                <Show when={busy() || plan()}><span role="status">{busy() ? "Выполнение…" : plan()?.surfaces.map(s => `Группа ${s.id}: ШГ ${s.members.map(i=>i+1).join(", ")} (${s.panels.length} пл.)`).join(" · ")}</span></Show>
+                <Show when={busy() || plan()}><span role="status">{busy() ? "Выполнение…" : plan()?.surfaces.map(s => `Группа ${s.id}: ШГ ${s.members.map(i=>i+1).join(", ")} (${s.panels.length} пл.)`).join(" · ")}
+                    <Show when={!busy() && plan()?.coverage}>{range => ` · Охват движения: ${range().start}–${range().end} с`}</Show>
+                </span></Show>
             </div>
             <div class="force-surface-actions">
                 <span title={transferHint}><button title={transferHint} onClick={transferSelected}

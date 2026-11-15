@@ -1,6 +1,7 @@
 import { forceBodies, generateForceSurface } from "./forceSurface.js";
 import { bounds, boxesMeet } from "../solver/medContactGeometry.js";
 import { ForceSeparationError, needsCommonForceShell } from "./forceSurfaceGeometry.js";
+import { forceSweepGeometry } from "./forceSurfaceSweep.js";
 
 const physical = row => row.targ !== 3;
 const groupOf = row => Number.isSafeInteger(row.take) && row.take > 0 ? row.take : 0;
@@ -74,11 +75,12 @@ function contactComponents(kernel,model,geometry,minimum) {
 
 export function buildForceGroups(kernel, model, {mode, indices = [], group, distance, minimumGap = model.general?.forceGroupMinGap ?? 2*distance}) {
     if (!Number.isFinite(minimumGap) || minimumGap < 0) throw new Error("Введите неотрицательный минимальный зазор.");
-    const geometry = forceBodies(model);
+    const initial = forceBodies(model);
+    const geometry = forceSweepGeometry(model,distance,initial);
     const selected = new Set(indices);
     let ids, replace, components;
     if (mode === "automatic") {
-        components = contactComponents(kernel,model,geometry,minimumGap);
+        components = contactComponents(kernel,model,initial,minimumGap);
         ids = components.ids();
         replace = [...new Set(ids.filter(Boolean))];
     } else {
@@ -88,7 +90,7 @@ export function buildForceGroups(kernel, model, {mode, indices = [], group, dist
             throw new Error("Выберите физические элементы группы.");
         ids = model.elements.map((row,i) => selected.has(i) ? group : groupOf(row));
         const conflicts = [];
-        visitClosePairs(kernel,model,geometry,minimumGap,
+        visitClosePairs(kernel,model,initial,minimumGap,
             (a,b) => ids[a] > 0 && ids[b] > 0 && ids[a] !== ids[b] && (selected.has(a) || selected.has(b)),
             (a,b) => conflicts.push([a,b]));
         if (conflicts.length) {
@@ -110,6 +112,8 @@ export function buildForceGroups(kernel, model, {mode, indices = [], group, dist
                 const panels = generateForceSurface(kernel,model,members,distance,geometry);
                 surfaces.push({id,members,panels});
             } catch (error) {
+                if (geometry.swept && error instanceof ForceSeparationError)
+                    throw new Error(`Группа ${id}. Огибающие траекторий элементов №${error.pair[0]+1} и №${error.pair[1]+1} не разделяются неподвижной поверхностью. Сократите интервал или задайте общую группу.`);
                 if (components && error instanceof ForceSeparationError &&
                     ids[error.pair[0]] !== ids[error.pair[1]]) {
                     components.merge(...error.pair);
@@ -121,7 +125,7 @@ export function buildForceGroups(kernel, model, {mode, indices = [], group, dist
                 throw new Error(`Группа ${id}. ${error.message}`);
             }
         }
-        if (!retry) return {ids,replace,surfaces,minimumGap,automatic:mode === "automatic"};
+        if (!retry) return {ids,replace,surfaces,minimumGap,automatic:mode === "automatic",coverage:geometry.coverage};
     }
 }
 
@@ -140,7 +144,7 @@ export function applyForceGroups(model, plan, step, defaultRegion) {
     const replaced = new Set(plan.replace);
     const regions = model.regions.filter(r => !(r.forceGroup > 0 && (plan.automatic || replaced.has(r.forceGroup))));
     for (const {id,panels} of plan.surfaces) for (const geo of panels)
-        regions.push({...defaultRegion(),geoType:0,geo,dp:panelNodeCounts(geo, step),forceGroup:id});
+        regions.push({...defaultRegion(),geoType:0,geo,dp:panelNodeCounts(geo, step),forceGroup:id,indMove:0});
     return {elements,regions};
 }
 

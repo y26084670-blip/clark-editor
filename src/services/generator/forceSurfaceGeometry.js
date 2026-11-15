@@ -1,5 +1,5 @@
 import { boxesMeet, hexPoint, MED_FACES } from "../solver/medContactGeometry.js";
-import { bilinearRegionNormals } from "../visualization/geometryDiscretization.js";
+import { orient3 } from "../solver/geometryShape.js";
 
 const axes = [0, 1, 2];
 const sub = (a, b) => a.map((x, i) => x - b[i]);
@@ -24,14 +24,30 @@ function boxPanels(box, sides) {
 
 // Prefer one four-corner TK where two adjacent triangles form a flat convex
 // quad. Every remaining triangle is partitioned into three proper quads.
-function meshPanels(solid, {reference, cast, sides, precision}, bounds) {
-    const mesh = solid.getMesh(), data = mesh.vertProperties;
+function meshPanels(solid, {kernel, reference, cast, sides, precision}, bounds) {
+    // Boolean provenance preserves seams between otherwise coplanar source
+    // faces. Their thin triangles can collapse in the Float32 output buffer.
+    // Rebuild the face relations before simplifying at that buffer's scale;
+    // deleting individual degenerate triangles would open the closed shell.
+    const span = Math.max(...bounds.map(([lo,hi]) => hi-lo));
+    const outputPrecision = Math.max(precision, span * 2**-23);
+    const original = solid.asOriginal();
+    let cleaned, mesh;
+    try {
+        cleaned = original.setTolerance(4 * outputPrecision);
+        if (cleaned.status() !== "NoError" || cleaned.isEmpty())
+            throw new Error("После обработки сетки не удалось сохранить замкнутую поверхность.");
+        mesh = cleaned.getMesh();
+    } finally {
+        cleaned?.delete(); original.delete();
+    }
+    const data = mesh.vertProperties;
     // Reserve three mantissa bits at the model scale. Midpoints and a point
     // with barycentric weights (1/4,3/8,3/8) then remain representable even
     // in a single-precision task. Every subquad lies on its triangle's plane.
-    const grid = 2 ** Math.ceil(Math.log2(8 * precision));
+    const grid = 2 ** Math.ceil(Math.log2(8 * outputPrecision));
     const gridBounds = bounds.map(([lo,hi]) => [Math.ceil(lo/grid), Math.floor(hi/grid)]);
-    const points = Array.from({length: mesh.numVert}, (_, i) => axes.map(d => {
+    let points = Array.from({length: mesh.numVert}, (_, i) => axes.map(d => {
         const local = data[i * mesh.numProp + d];
         // The WASM output mesh is Float32 even for double-precision inputs.
         if (sides[d] && local === Math.fround(-reference[d])) return 0;
@@ -39,6 +55,30 @@ function meshPanels(solid, {reference, cast, sides, precision}, bounds) {
         const [lo,hi] = gridBounds[d];
         return cast(Math.min(hi, Math.max(lo, Math.round(world/grid))) * grid);
     }));
+    // Snapping itself can collapse an edge or make a triangle collinear.
+    // Repair the entire manifold on the snapped lattice, retaining both sides
+    // of every edge. A lattice-aligned origin makes the Float32 round trip
+    // exact; rebuilding face relations also removes the old Boolean seams.
+    const origin = reference.map(v => Math.round(v/grid)*grid);
+    const rounded = new kernel.Mesh({numProp:3,
+        vertProperties:Float32Array.from(points.flatMap(p => sub(p,origin))),
+        triVerts:mesh.triVerts, mergeFromVert:mesh.mergeFromVert, mergeToVert:mesh.mergeToVert,
+        tolerance:4*outputPrecision});
+    rounded.merge();
+    const repaired = new kernel.Manifold(rounded);
+    let joined, relations;
+    try {
+        if (repaired.status() !== "NoError" || repaired.isEmpty())
+            throw new Error("При округлении координат нарушилась замкнутость поверхности.");
+        relations = repaired.asOriginal();
+        // Reserve the subdivision margin after snapping as well: one
+        // triangle becomes three quads with smaller corner area densities.
+        joined = relations.setTolerance(16*outputPrecision);
+        mesh = joined.getMesh();
+        const data = mesh.vertProperties;
+        points = Array.from({length:mesh.numVert},(_,i) => axes.map(d =>
+            cast(data[i*mesh.numProp+d]+origin[d])));
+    } finally { joined?.delete(); relations?.delete(); repaired.delete(); }
     const pairs = [], singles = [], triangles = [], adjacent = new Map();
     for (let i = 0; i < mesh.triVerts.length; i += 3) {
         const ids = Array.from(mesh.triVerts.subarray(i, i+3));
@@ -57,7 +97,8 @@ function meshPanels(solid, {reference, cast, sides, precision}, bounds) {
             if (peer === undefined || consumed.has(peer) || peer < index) continue;
             const w = triangles[peer].find(id => id !== u && id !== v);
             const quad = [v,ids[(j+2)%3],u,w].reverse().map(id => points[id]);
-            if (!validPanel(quad,outward,precision)) continue;
+            if (!validPanel(quad,outward,precision)
+                || !dividePanel(quad,cast).every(part => validPanel(part,outward,precision))) continue;
             consumed.add(index); consumed.add(peer); pairs.push(quad); break;
         }
         if (consumed.has(index)) continue;
@@ -69,11 +110,8 @@ function meshPanels(solid, {reference, cast, sides, precision}, bounds) {
     const panels = [];
     for (const face of [...pairs,...singles]) {
         const n = face.length;
-        const mids = face.map((p,j) => middle(p,face[(j+1)%n]).map(cast));
-        const center = n === 3 ? middle(middle(face[0], mids[1]), mids[1]) : middle(mids[0], mids[2]);
         const outward = cross(sub(face[n-1],face[0]),sub(face[1],face[0]));
-        for (let j = 0; j < n; j++) {
-            const quad = [face[j], mids[j], center, mids[(j+n-1)%n]];
+        for (const quad of dividePanel(face,cast)) {
             if (!validPanel(quad,outward,precision)) {
                 throw new Error("Недостаточная точность координат для плоской невырожденной площадки.");
             }
@@ -83,11 +121,20 @@ function meshPanels(solid, {reference, cast, sides, precision}, bounds) {
     return panels;
 }
 
+function dividePanel(face, cast) {
+    const n = face.length;
+    const mids = face.map((p,j) => middle(p,face[(j+1)%n]).map(cast));
+    const center = n === 3 ? middle(middle(face[0], mids[1]), mids[1]) : middle(mids[0], mids[2]);
+    return face.map((p,j) => [p, mids[j], center, mids[(j+n-1)%n]]);
+}
+
 function validPanel(quad, outward, precision) {
     const longest = Math.max(...quad.map((p,k) => Math.hypot(...sub(p,quad[(k+1)%4]))));
     const turns = quad.map((p,k) => cross(sub(quad[(k+3)%4],p), sub(quad[(k+1)%4],p)));
     return turns.every(n => dot(n,outward) > 0 && Math.hypot(...n) > longest*precision)
-        && bilinearRegionNormals(quad).length === 1;
+        // Normalizing a thin triangle's edges amplifies roundoff and can
+        // falsely classify its exact dyadic subdivisions as warped.
+        && orient3(...quad) === 0;
 }
 
 // Reconstruct the rounded output in the kernel and check the solids, including
@@ -142,6 +189,7 @@ function warped(vertices) {
 // contained in the convex hull of its eight controls. Tighten a warped hull
 // only if it prevents separation, along the element's own subdivision grid.
 function bodyHull(body, level, hull, union) {
+    if (body.hullVertices) return hull(body.hullVertices,body.padding);
     if (!level || !warped(body.vertices)) return hull(body.vertices);
     const n = body.dp.map(count => Math.min(count, 2**level));
     const pieces = [];
@@ -175,15 +223,18 @@ export function needsCommonForceShell(kernel, a, b, minimum, cast) {
     const reference = a.box.map(([lo,hi]) => lo/2+hi/2);
     const owned = [];
     const keep = solid => { owned.push(solid); return solid; };
-    const hull = vertices => keep(kernel.Manifold.hull(vertices.map(p => sub(p,reference))));
+    const hull = (vertices,padding=0) => {
+        const solid = keep(kernel.Manifold.hull(vertices.map(p => sub(p,reference))));
+        return padding ? keep(solid.minkowskiSum(keep(kernel.Manifold.cube(2*padding,true)))) : solid;
+    };
     const union = parts => parts.length === 1 ? parts[0] : keep(kernel.Manifold.union(parts));
     const reach = 2*Math.max(minimum,tolerance);
     try {
-        let left = hull(a.vertices), right = hull(b.vertices);
+        let left = bodyHull(a,0,hull,union), right = bodyHull(b,0,hull,union);
         for (let level=0; ; level++) {
             if (!tooClose(left.minGap(right,reach))) return false;
             if (level === 3) return true;
-            const refine = body => warped(body.vertices) && body.dp.some(n => n > 2**level);
+            const refine = body => !body.hullVertices && warped(body.vertices) && body.dp.some(n => n > 2**level);
             const refineA = refine(a), refineB = refine(b);
             if (!refineA && !refineB) return true;
             if (refineA) left = bodyHull(a,level+1,hull,union);
@@ -225,7 +276,10 @@ export function encloseBodies(kernel, options) {
     if (!candidates.length) return boxPanels(outer,sides);
     const owned = [], keep = solid => { owned.push(solid); return solid; };
     const {Manifold} = kernel;
-    const hull = vertices => keep(Manifold.hull(vertices.map(p => sub(p,reference))));
+    const hull = (vertices,padding=0) => {
+        const solid = keep(Manifold.hull(vertices.map(p => sub(p,reference))));
+        return padding ? keep(solid.minkowskiSum(keep(Manifold.cube(2*padding,true)))) : solid;
+    };
     const union = parts => parts.length === 1 ? parts[0] : keep(Manifold.union(parts));
     const makeBox = box => {
         const cube = keep(Manifold.cube(box.map(([lo,hi]) => hi-lo)));
@@ -246,13 +300,13 @@ export function encloseBodies(kernel, options) {
     };
     try {
         const wrap = makeBox(outer);
-        const groupParts = selected.map(b => ({body:b, solid:clip(hull(b.vertices))})).filter(p => !p.solid.isEmpty());
+        const groupParts = selected.map(b => ({body:b, solid:clip(bodyHull(b,0,hull,union))})).filter(p => !p.solid.isEmpty());
         for (const {solid} of groupParts) if (!valid(solid)) throw new Error("Вырожденный объём выбранного элемента.");
         if (!groupParts.length) throw new Error("В основном полупространстве отсутствует выбранный объём.");
         let group = union(groupParts.map(p => p.solid));
         const cuts = [], excluded = [];
         for (const body of candidates) {
-            let other = hull(body.vertices);
+            let other = bodyHull(body,0,hull,union);
             if (!valid(other)) throw new Error(`Вырожденный объём элемента №${body.index + 1}.`);
             if (wrap.minGap(other, reach) > epsilon*4) continue;
             let gap = group.minGap(other, reach);
@@ -261,11 +315,11 @@ export function encloseBodies(kernel, options) {
                 // overlap a different solid near a warped face even in free air.
                 for (let level=1; level<=3 && gap<=epsilon*8; level++) {
                     let refined = false;
-                    if (warped(body.vertices) && body.dp.some(n => n > 2**(level-1))) {
+                    if (!body.hullVertices && warped(body.vertices) && body.dp.some(n => n > 2**(level-1))) {
                         other = bodyHull(body,level,hull,union); refined = true;
                     }
                     for (const p of groupParts) {
-                        if (p.solid.minGap(other,reach)>epsilon*8 || !warped(p.body.vertices)
+                        if (p.body.hullVertices || p.solid.minGap(other,reach)>epsilon*8 || !warped(p.body.vertices)
                             || !p.body.dp.some(n => n>2**(level-1))) continue;
                         p.solid = clip(bodyHull(p.body,level,hull,union)); refined = true;
                     }
@@ -296,7 +350,7 @@ export function encloseBodies(kernel, options) {
         const candidate = makeBox(remainingBox);
         if (keep(candidate.subtract(result)).isEmpty() && keep(result.subtract(candidate)).isEmpty()) return boxPanels(remainingBox,sides);
         const neighbourhood = clip(makeBox(outer.map(([lo,hi]) => [lo-reach, hi+reach])));
-        return certifyPanels(meshPanels(result,options,outer), group, excluded, {...options,kernel}, neighbourhood, epsilon);
+        return certifyPanels(meshPanels(result,{...options,kernel},outer), group, excluded, {...options,kernel}, neighbourhood, epsilon);
     } finally {
         for (let i=owned.length-1; i>=0; i--) owned[i].delete();
     }

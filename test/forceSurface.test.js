@@ -1,10 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import createModule from 'manifold-3d/manifold';
-import { generateForceSurface } from '../src/services/generator/forceSurface.js';
-import { bilinearRegionNormals } from '../src/services/visualization/geometryDiscretization.js';
+import { forceBodies, generateForceSurface } from '../src/services/generator/forceSurface.js';
+import { orient3 } from '../src/services/solver/geometryShape.js';
 import { expandElementSymmetry } from '../src/services/solver/symmetryExpansion.js';
 import { applyMatrix4ToPoint } from '../src/services/solver/rotation3d.js';
+import { buildGeometryTimeModel } from '../src/services/visualization/geometryTimeModel.js';
 
 const kernel = await createModule(); kernel.setup();
 const prism = (origin, size) => ({ geoType:2, geo:[size], symR0:origin.map(x=>[x]), dp:[[2],[2],[2]] });
@@ -30,7 +31,7 @@ function checkEdges(panels, planes=[]) {
     const edges = new Map();
     for (const q of panels) {
         assert.equal(new Set(q.map(p=>p.join(','))).size,4);
-        assert.equal(bilinearRegionNormals(q).length,1);
+        assert.equal(orient3(...q),0);
         for (const [i,p] of q.entries()) {
             const next=q[(i+1)%4], a=p.join(','), b=next.join(',');
             if (planes.some(d=>p[d]===0 && next[d]===0)) continue;
@@ -196,3 +197,96 @@ test('node step uses both endpoints and the longer edge of each opposite pair in
     assert.deepEqual(input.regions, []);
     assert.equal(input.elements[0].take, 0);
 });
+
+// Geometry from input3XX(2).zip: 600 LS/AS/PS images and two separated groups.
+// Keep the original stored coordinates; rounding their decimal values hides
+// the near-collinear Boolean seams that caused the regression.
+function repeatedRadialModel(doubleFloat) {
+    const row = (geo, dp, extra={}) => ({
+        geo, dp, geoType:1, targ:0, take:0, indMove:0,
+        symR0:[0,0,0], symVi:[0,0,0], symYl:0, symYa:45, symTx:13,
+        symLs:1, symAs:8, symPs:3, symKya:1, symKyp:0, ...extra,
+    });
+    const elements = [
+        row([13,0,24.5,13,-2.5,24.372499465942383,13,0,27.5,13,-2.5,27.386499404907227,
+            10,0,24.5,10,-2.5,24.372499465942383,10,0,27.5,10,-2.5,27.386499404907227], [3,4,5], {geoType:0}),
+        row([13,2.5,24.372499465942383,13,0,24.5,13,2.5,27.386499404907227,13,0,27.5,
+            10,2.5,24.372499465942383,10,0,24.5,10,2.5,27.386499404907227,10,0,27.5], [3,4,5], {geoType:0}),
+        row([13,-2.5,24.372499465942383,13,-5,23.984500885009766,13,-2.5,27.386499404907227,13,-5,27.042499542236328,
+            10,-2.5,24.372499465942383,10,-5,23.984500885009766,10,-2.5,27.386499404907227,10,-5,27.042499542236328], [3,4,5], {geoType:0}),
+        row([13,5,23.984500885009766,13,2.5,24.372499465942383,13,5,27.042499542236328,13,2.5,27.386499404907227,
+            10,5,23.984500885009766,10,2.5,24.372499465942383,10,5,27.042499542236328,10,2.5,27.386499404907227], [3,4,4], {geoType:0}),
+        row([10,13,13,13,13,24.468399047851562,10,24.468399047851562,5.887499809265137], [4,12,3],
+            {symVi:[-8.831250190734863,0,0], symYl:5.887499809265137, symLs:4}),
+        row([10,12.789799690246582,13,12.789799690246582,13,24.07200050354004,10,24.07200050354004,21.450000762939453],
+            [4,12,8], {symVi:[22.5,0,0]}),
+        row([13,33.5,23,33.5,23,37,13,37,5], [10,4,4],
+            {symVi:[-7.699999809265137,0,0], symYl:5, symLs:9, symPs:2, indMove:1}),
+        row([10,30,13,30,13,37,10,37,5], [4,8,4],
+            {symVi:[-7.5,0,0], symYl:5, symLs:4, indMove:1}),
+        row([13,13,23,13,23,22,13,22,5], [1,1,1],
+            {targ:1, symYa:5, symAs:72, symPs:2, symKyp:-1}),
+    ];
+    return {...model(elements,{doubleFloat, countTimeSteps:40, timeStep:.05}), moves:[{
+        angle:[[0,0,0,0],[1,11.25,0,0],[2,0,0,0]],
+        position:[[0,0,0,0],[1,0,0,0],[2,3,0,0]],
+    }]};
+}
+
+// Exact integration of a uniform Maxwell stress over planar triangles. A
+// closed, consistently oriented shell has zero resultant and zero moment.
+function checkUniformStress(panels) {
+    const h = [2,-3,5], hh = dot(h,h), force = [0,0,0], moment = [0,0,0];
+    let forceScale = 0, momentScale = 0;
+    for (const q of panels) for (const ids of [[0,2,1],[0,3,2]]) {
+        const [a,b,c] = ids.map(i=>q[i]);
+        const area = cross(sub(b,a),sub(c,a)).map(v=>v/2);
+        const center = axes.map(d=>(a[d]+b[d]+c[d])/3);
+        const f = h.map((v,d)=>v*dot(h,area)-area[d]*hh/2);
+        const torque = cross(center,f);
+        forceScale += Math.hypot(...f); momentScale += Math.hypot(...torque);
+        for (const d of axes) { force[d] += f[d]; moment[d] += torque[d]; }
+    }
+    assert.ok(Math.hypot(...force) < 1e-12*forceScale);
+    assert.ok(Math.hypot(...moment) < 1e-12*momentScale);
+}
+
+for (const doubleFloat of [false,true]) {
+    test(`radial Boolean seams produce two closed full-trajectory shells (${doubleFloat ? 'double' : 'single'})`, () => {
+        const input = repeatedRadialModel(doubleFloat), saved = structuredClone(input);
+        const plan = automatic(input,2,1);
+        assert.deepEqual(plan.ids,[1,1,1,1,1,1,2,2,1]);
+        assert.equal(plan.coverage.end,2);
+        assert.ok(bounds(plan.surfaces[1].panels)[0][1]>42);
+        const {bodies} = forceBodies(input);
+        assert.equal(bodies.length,600);
+        const frames = [0,.337,1,1.789,2].map(time => {
+            const frame = buildGeometryTimeModel({...input,general:{...input.general,
+                countTimeSteps:time>0?1:0,timeStep:time}},input.moves,time>0?1:0);
+            return forceBodies({...frame.model,elements:frame.model.elements.map(e=>({...e,indMove:0}))}).bodies;
+        });
+        for (const shell of plan.surfaces) {
+            const grouped = {...input,elements:input.elements.map((e,i)=>({...e,take:plan.ids[i]}))};
+            const manual = buildForceGroups(kernel,grouped,{mode:'manual',group:shell.id,
+                indices:shell.members,distance:1,minimumGap:2});
+            assert.deepEqual(manual.surfaces[0].panels,shell.panels);
+            checkEdges(shell.panels);
+            checkUniformStress(shell.panels);
+            for (const q of shell.panels) {
+                const normal = cross(sub(q[3],q[0]),sub(q[1],q[0]));
+                for (const [j,p] of q.entries()) {
+                    const turn = cross(sub(q[(j+3)%4],p),sub(q[(j+1)%4],p));
+                    assert.ok(dot(turn,normal)>0);
+                    assert.ok(p.every(v=>Number.isFinite(v) && (doubleFloat || v===Math.fround(v))));
+                }
+            }
+            for (const snapshot of frames) for (const index of input.elements.keys()) {
+                const body = snapshot.find(b=>b.index===index);
+                const center = axes.map(d=>body.vertices.reduce((s,p)=>s+p[d]/8,0));
+                const expected = shell.members.includes(index) ? 1 : 0;
+                assert.ok(Math.abs(winding(shell.panels,center)-expected)<1e-8);
+            }
+        }
+        assert.deepEqual(input,saved);
+    });
+}
