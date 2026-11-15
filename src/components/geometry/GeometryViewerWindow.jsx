@@ -13,6 +13,7 @@ import {
 } from "solid-js";
 
 import { buildGeometryScene } from "../../services/visualization/geometrySceneModel.js";
+import { buildVisibleRegionNormalArrows } from "../../services/visualization/recordSymmetryDemo.js";
 import {
   buildGeometryTimeModel,
   geometryTimeState,
@@ -210,6 +211,7 @@ function GeometryWindowContents(props) {
   const [showDiscretizationLines, setShowDiscretizationLines] =
     createGeometryViewSetting("showDiscretizationLines", false);
   const [showCentersAndNodes, setShowCentersAndNodes] = createGeometryViewSetting("showCentersAndNodes", false);
+  const [showRegionNormals, setShowRegionNormals] = createGeometryViewSetting("showRegionNormals", false);
   const [showPrescribedSources, setShowPrescribedSources] = createGeometryViewSetting("showPrescribedSources", false);
   const [prescribedSourceStyle, setPrescribedSourceStyle] = createGeometryViewSetting("prescribedSourceStyle", "thin");
   const [currentSourceScale, setCurrentSourceScale] = createGeometryViewSetting("currentSourceScale", 1);
@@ -311,6 +313,9 @@ function GeometryWindowContents(props) {
       periodic: showPeriodicSymmetry(),
     },
   }));
+
+  const regionNormalArrows = createMemo(() => props.open && showRegionNormals()
+    ? buildVisibleRegionNormalArrows(displayScene(), filters()) : undefined);
 
   const sourceScene = createMemo(() => {
     if (!showPrescribedSources() || !displayScene()) return null;
@@ -910,6 +915,11 @@ function GeometryWindowContents(props) {
                 />
                 Центры и узлы
               </label>
+              <label>
+                <input type="checkbox" checked={showRegionNormals()}
+                  onChange={event => setShowRegionNormals(event.currentTarget.checked)} />
+                Нормали площадок
+              </label>
               <div class="geometry-viewer-source-option">
                 <label>
                   <input
@@ -1051,6 +1061,8 @@ function GeometryWindowContents(props) {
             showVertices={showVertices()}
             showDiscretizationLines={showDiscretizationLines()}
             showCentersAndNodes={showCentersAndNodes()}
+            demoArrows={regionNormalArrows()}
+            demoVectorKind="normal"
             showPrescribedSources={showPrescribedSources()}
             prescribedSourceScene={sourceScene()}
             prescribedSourceStyle={prescribedSourceStyle()}
