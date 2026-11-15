@@ -98,16 +98,8 @@ test("toolbar exposes option panels and transient camera commands", async () => 
     "aria-label=\"Общие опции отображения\"",
     ">\n              Симметрии",
   );
-  assertAppearsAfter(
-    source,
-    "aria-label=\"Прозрачность геометрии и рёбер\"",
-    "aria-label=\"Общие опции отображения\"",
-  );
-  assertAppearsAfter(
-    source,
-    ">\n              Показ",
-    "aria-label=\"Прозрачность геометрии и рёбер\"",
-  );
+  assertAppearsAfter(source, ">\n              Показ", "aria-label=\"Общие опции отображения\"");
+  assertAppearsAfter(source, "aria-label=\"Прозрачность геометрии и рёбер\"", ">\n              Показ");
 
   assert.match(source, /mode="solid"/u);
   assert.match(source, /geometryOpacity=\{1 - geometryTransparency\(\) \/ 100\}/u);
@@ -127,6 +119,20 @@ test("toolbar exposes option panels and transient camera commands", async () => 
   );
   assert.match(source, /viewRequest=\{viewRequest\(\)\}/u);
   assert.match(source, /filters=\{filters\(\)\}/u);
+});
+
+test("the section opens from Показ and its controls follow the editing sequence", async () => {
+  const source = await readFile(windowUrl, "utf8");
+  const toolbar = source.slice(source.indexOf('role="toolbar"'), source.indexOf('<Show when={sectionEnabled()'));
+  assertAppearsAfter(toolbar, 'class="geometry-viewer-transparency"', 'togglePanel("view", event)');
+  assert.doesNotMatch(toolbar, />Сечение</u);
+  const panel = source.slice(source.indexOf('<Show when={openPanel() === "view"}>'));
+  assertAppearsAfter(panel, '>Сечение</button>', '>Построения</button>');
+  const row = source.slice(source.indexOf('aria-label="Настройки сечения"'), source.indexOf('<Show when={openPanel()}>'));
+  assertAppearsAfter(row, '"Применить"', 'Глубина среза');
+  assertAppearsAfter(row, 'Сменить вид', '"Сбросить"');
+  assert.match(row, /disabled=\{!fixedSection\(\)\} checked=\{reverseSection\(\)\}\s+onChange=\{event => setReverseSection\(event\.currentTarget\.checked\)\}/u);
+  assertAppearsAfter(row, 'aria-label="Закрыть сечение"', 'Сменить вид');
 });
 
 test("object modes are exclusive while symmetry and general filters are independent", async () => {
