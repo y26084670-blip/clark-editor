@@ -42,12 +42,14 @@ export function forceBodies(model) {
             || !validateKvVertices(unpacked.vertices, {doubleFloat:cast === Number})) throw problem();
         const dp = row.dp?.flat() ?? [1, 1, 1];
         if (dp.length !== 3 || dp.some(n => !Number.isSafeInteger(n) || n < 1)) throw problem();
+        const dr = row.dr?.flat() ?? [0,0,0];
+        const motionRadius = Math.max(...unpacked.vertices.map(p => Math.hypot(...p.map((v,d) => v+dr[d]))));
         const images = expandElementSymmetry(row); // no EX/EY copies enter either list
         if (!images.length) throw problem();
         for (const image of images) {
             const vertices = unpacked.vertices.map(p => applyMatrix4ToPoint(image.matrix, p).map(cast));
             if (!vertices.every(p => p.every(Number.isFinite))) throw problem();
-            const body = {vertices, box: bounds(vertices), index, dp};
+            const body = {vertices, box: bounds(vertices), index, dp, motionRadius};
             bodies.push(body);
         }
     }

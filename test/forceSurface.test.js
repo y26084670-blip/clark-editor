@@ -2,9 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import createModule from 'manifold-3d/manifold';
 import { forceBodies, generateForceSurface } from '../src/services/generator/forceSurface.js';
-import { bilinearRegionNormals } from '../src/services/visualization/geometryDiscretization.js';
+import { orient3 } from '../src/services/solver/geometryShape.js';
 import { expandElementSymmetry } from '../src/services/solver/symmetryExpansion.js';
 import { applyMatrix4ToPoint } from '../src/services/solver/rotation3d.js';
+import { buildGeometryTimeModel } from '../src/services/visualization/geometryTimeModel.js';
 
 const kernel = await createModule(); kernel.setup();
 const prism = (origin, size) => ({ geoType:2, geo:[size], symR0:origin.map(x=>[x]), dp:[[2],[2],[2]] });
@@ -30,7 +31,7 @@ function checkEdges(panels, planes=[]) {
     const edges = new Map();
     for (const q of panels) {
         assert.equal(new Set(q.map(p=>p.join(','))).size,4);
-        assert.equal(bilinearRegionNormals(q).length,1);
+        assert.equal(orient3(...q),0);
         for (const [i,p] of q.entries()) {
             const next=q[(i+1)%4], a=p.join(','), b=next.join(',');
             if (planes.some(d=>p[d]===0 && next[d]===0)) continue;
@@ -251,12 +252,19 @@ function checkUniformStress(panels) {
 }
 
 for (const doubleFloat of [false,true]) {
-    test(`rounded radial Boolean seams produce two closed force shells (${doubleFloat ? 'double' : 'single'})`, () => {
+    test(`radial Boolean seams produce two closed full-trajectory shells (${doubleFloat ? 'double' : 'single'})`, () => {
         const input = repeatedRadialModel(doubleFloat), saved = structuredClone(input);
         const plan = automatic(input,2,1);
         assert.deepEqual(plan.ids,[1,1,1,1,1,1,2,2,1]);
+        assert.equal(plan.coverage.end,2);
+        assert.ok(bounds(plan.surfaces[1].panels)[0][1]>42);
         const {bodies} = forceBodies(input);
         assert.equal(bodies.length,600);
+        const frames = [0,.337,1,1.789,2].map(time => {
+            const frame = buildGeometryTimeModel({...input,general:{...input.general,
+                countTimeSteps:time>0?1:0,timeStep:time}},input.moves,time>0?1:0);
+            return forceBodies({...frame.model,elements:frame.model.elements.map(e=>({...e,indMove:0}))}).bodies;
+        });
         for (const shell of plan.surfaces) {
             const grouped = {...input,elements:input.elements.map((e,i)=>({...e,take:plan.ids[i]}))};
             const manual = buildForceGroups(kernel,grouped,{mode:'manual',group:shell.id,
@@ -272,8 +280,8 @@ for (const doubleFloat of [false,true]) {
                     assert.ok(p.every(v=>Number.isFinite(v) && (doubleFloat || v===Math.fround(v))));
                 }
             }
-            for (const index of input.elements.keys()) {
-                const body = bodies.find(b=>b.index===index);
+            for (const snapshot of frames) for (const index of input.elements.keys()) {
+                const body = snapshot.find(b=>b.index===index);
                 const center = axes.map(d=>body.vertices.reduce((s,p)=>s+p[d]/8,0));
                 const expected = shell.members.includes(index) ? 1 : 0;
                 assert.ok(Math.abs(winding(shell.panels,center)-expected)<1e-8);
