@@ -163,6 +163,10 @@
   min-width: 280px;
 }
 
+.material-library-lower.with-hts-graphs .material-library-detail {
+  min-width: 280px;
+}
+
 .material-library-detail .detail-region-host {
   display: flex;
 }

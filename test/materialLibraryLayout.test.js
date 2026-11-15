@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+    HTS_LAYOUT_LIMITS,
     resizedDetailRatio,
     resizedLowerHeight,
 } from "../src/services/materials/materialLibraryLayout.js";
@@ -22,6 +23,14 @@ test("horizontal material splitter keeps both regions usable", () => {
         deltaY: -500,
         availableHeight: 700,
     }), 514);
+});
+
+test("HTS splitter reserves space for three adjacent graphs", () => {
+    const limits = HTS_LAYOUT_LIMITS;
+    assert.equal(resizedDetailRatio({ pointerX: 400, containerLeft: 0,
+        containerWidth: 1206, limits }), 1 / 3);
+    assert.equal(resizedDetailRatio({ pointerX: 1200, containerLeft: 0,
+        containerWidth: 1206, limits }), (1200 - 630) / 1200);
 });
 
 test("vertical material splitter preserves detail and graph minimum widths", () => {

@@ -10,6 +10,7 @@ import {
 import { TabulatorFull as Tabulator } from "tabulator-tables";
 
 import { FmmGraphRegion } from "../components/materials/FmmGraphRegion.jsx";
+import { HtsGraphRegion } from "../components/materials/HtsGraphRegion.jsx";
 import { MaterialDeleteConfirmationDialog } from "../components/materials/MaterialDeleteConfirmationDialog.jsx";
 import { ConstantMuFmmDialog } from "../components/materials/ConstantMuFmmDialog.jsx";
 import { matchesConstantMuRecord, saveConstantMuFmm } from "../services/materials/constantMuFmm.js";
@@ -37,6 +38,7 @@ import { createHtsMaterialFile } from "../services/materialImport/htsConfigImpor
 import { materialLibraryHistoryService } from "../services/materialLibraryHistoryService.js";
 import { unsavedChangesService } from "../services/unsavedChangesService.js";
 import {
+  HTS_LAYOUT_LIMITS,
   resizedDetailRatio,
   resizedLowerHeight,
 } from "../services/materials/materialLibraryLayout.js";
@@ -146,6 +148,7 @@ export function MaterialLibraryTab(props) {
   const [dirtyRecords, setDirtyRecords] = createSignal([]);
   const [deleteRequest, setDeleteRequest] = createSignal(null);
   const [currentFmmRecord, setCurrentFmmRecord] = createSignal(null);
+  const [currentHtsRecord, setCurrentHtsRecord] = createSignal(null, { equals: false });
   const [clipboardRequest, setClipboardRequest] = createSignal(null);
   const [constantMuOpen, setConstantMuOpen] = createSignal(false);
   const [legacyFmmStatus, setLegacyFmmStatus] = createSignal("missing");
@@ -153,7 +156,7 @@ export function MaterialLibraryTab(props) {
   const [lowerHeight, setLowerHeight] = createSignal(
     definition.detail.defaultHeight ?? 360,
   );
-  const [detailRatio, setDetailRatio] = createSignal(0.5);
+  const [detailRatio, setDetailRatio] = createSignal(isFmm ? 0.5 : 1 / 3);
 
   let tableHost;
   let lowerRegionHost;
@@ -286,10 +289,12 @@ export function MaterialLibraryTab(props) {
     setActionMessage("");
     setActionError("");
     setSelectedRecords(selectedTableRecords(table.getSelectedRows()));
+    if (record === currentHtsRecord()) setCurrentHtsRecord(record);
   }
 
   function clearRenderedRecords() {
     setCurrentFmmRecord(null);
+    setCurrentHtsRecord(null);
     detailRegion.showHint("Выберите характеристику в таблице");
     for (const entry of recordDetailViews.values()) {
       entry.view.destroy();
@@ -365,6 +370,7 @@ export function MaterialLibraryTab(props) {
 
   function showHtsDetail(row) {
     const rowData = row.getData();
+    setCurrentHtsRecord(rowData);
     const entry = recordDetailViews.get(rowData)
       ?? createHtsDetail(row);
     const name = entry.record.name || rowData.rowLabel;
@@ -400,6 +406,7 @@ export function MaterialLibraryTab(props) {
   function showDetail(row) {
     if (!row) {
       setCurrentFmmRecord(null);
+      setCurrentHtsRecord(null);
       detailRegion.showHint("Выберите характеристику в таблице");
       return;
     }
@@ -999,6 +1006,7 @@ export function MaterialLibraryTab(props) {
         pointerX: moveEvent.clientX,
         containerLeft: bounds.left,
         containerWidth: bounds.width,
+        ...(isFmm ? {} : { limits: HTS_LAYOUT_LIMITS }),
       }));
     });
   }
@@ -1026,6 +1034,7 @@ export function MaterialLibraryTab(props) {
       pointerX: bounds.left + contentWidth * (detailRatio() + step),
       containerLeft: bounds.left,
       containerWidth: bounds.width,
+      ...(isFmm ? {} : { limits: HTS_LAYOUT_LIMITS }),
     }));
     scheduleLayoutRedraw();
   }
@@ -1313,6 +1322,7 @@ export function MaterialLibraryTab(props) {
         classList={{
           "material-library-lower": true,
           "with-graph": definition.graphRegion,
+          "with-hts-graphs": !isFmm,
         }}
         style={{
           "flex-basis": `${lowerHeight()}px`,
@@ -1350,12 +1360,14 @@ export function MaterialLibraryTab(props) {
             onPointerDown={beginVerticalResize}
             onKeyDown={handleVerticalSplitterKey}
           />
-          <FmmGraphRegion
-            records={selectedRecords()}
-            property={
-              tableSchema.properties[definition.detail.property]
-            }
-          />
+          <Show when={isFmm} fallback={<HtsGraphRegion record={currentHtsRecord()} />}>
+            <FmmGraphRegion
+              records={selectedRecords()}
+              property={
+                tableSchema.properties[definition.detail.property]
+              }
+            />
+          </Show>
         </Show>
       </div>
       <MaterialDeleteConfirmationDialog

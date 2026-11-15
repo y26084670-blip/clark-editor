@@ -1,0 +1,75 @@
+.hts-graph-region {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  box-sizing: border-box;
+  background: #20262d;
+  color: #dce4ec;
+  border: 1px solid #666;
+  font-size: 12px;
+}
+
+.hts-graph-selection {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  padding: 6px 8px 2px;
+}
+
+.hts-graph-material { font-weight: 600; overflow-wrap: anywhere; }
+.hts-graph-selection label { display: flex; align-items: center; gap: 6px; }
+.hts-graph-selection input {
+  width: 110px;
+  box-sizing: border-box;
+  padding: 3px 5px;
+  border: 1px solid #788795;
+  background: #151c23;
+  color: #f3f6fa;
+}
+.hts-field-slider { margin: 4px 10px; width: calc(100% - 20px); accent-color: #f6e493; }
+.hts-graph-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(210px, 1fr));
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-x: auto;
+}
+.hts-graph {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  border-left: 1px solid #58636e;
+}
+.hts-graph:first-child { border-left: 0; }
+.hts-graph-title { padding: 4px 8px; color: #f3f6fa; font-size: 13px; font-weight: 600; }
+.hts-graph-controls { display: flex; flex-wrap: wrap; gap: 3px; padding: 0 5px 4px; }
+.hts-graph-controls button {
+  padding: 3px 5px;
+  border: 1px solid #71808e;
+  border-radius: 2px;
+  background: #333e49;
+  color: #edf3f8;
+  font-size: 10px;
+  cursor: pointer;
+}
+.hts-graph-controls button:hover { background: #46596a; }
+.hts-graph-controls button:disabled { opacity: .45; cursor: default; }
+.hts-graph-host { position: relative; flex: 1 1 0; min-height: 100px; margin: 0 4px; }
+.hts-graph-host canvas { width: 100% !important; height: 100% !important; touch-action: none; }
+.hts-graph-host canvas:focus-visible { outline: 2px solid #f6e493; outline-offset: -2px; }
+.hts-graph-message {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 12px;
+  background: #20262d;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.hts-graph-note { min-height: 34px; padding: 3px 8px; font-size: 11px; color: #c4d0dc; }
+.hts-graph-gestures { padding: 4px 8px; border-top: 1px solid #58636e; color: #c4d0dc; font-size: 11px; }
