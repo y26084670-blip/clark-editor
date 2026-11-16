@@ -17,7 +17,9 @@ await server.listen();
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_EXECUTABLE || undefined,
   headless: true, args: ["--no-sandbox", "--disable-dev-shm-usage", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"] });
 const viewport = { width: Number(process.env.QUEUE_VIEWPORT_WIDTH ?? 1600), height: Number(process.env.QUEUE_VIEWPORT_HEIGHT ?? 960) };
-const page = await browser.newPage({ viewport });
+const context = await browser.newContext({ viewport });
+const page = await context.newPage();
+let viewer;
 page.setDefaultTimeout(15000);
 await page.addInitScript(() => localStorage.setItem("e3d.generalInformation.openAtStartup", "false"));
 const errors = []; page.on("pageerror", error => errors.push(error.message));
@@ -28,6 +30,70 @@ const rows = queue.locator(".task-launch-row");
 const start = queue.getByRole("button", { name: "Запустить", exact: true });
 const refresh = queue.getByRole("button", { name: "Обновить состояние расчета заданий", exact: true });
 const copy = queue.getByRole("button", { name: "Копировать список заданий", exact: true });
+const button = name => page.getByRole("button", { name, exact: true });
+const browse = button("Просмотр каталога с проектами");
+const refreshProjects = button("Обновить список проектов");
+const refreshTasks = button("Обновить список заданий");
+const showInViewer = button("Выбрать в Viewer");
+
+async function openViewerPeer() {
+  viewer = await context.newPage();
+  const url = new URL("/__task-queue-viewer", page.url()).href;
+  await viewer.route(url, route => route.fulfill({ contentType: "text/html", body: "<!doctype html><body></body>" }));
+  await viewer.goto(url);
+  await viewer.evaluate(async () => {
+    const { createTaskSelectionChannel, readTaskSelection } = await import("/src/services/taskSelectionChannel.js");
+    const disk = await (await navigator.storage.getDirectory()).getDirectoryHandle("task-queue-test");
+    const channel = createTaskSelectionChannel({ app: "viewer", async onSelection(request) {
+      const { root, project, task } = await readTaskSelection(null, request, { diskHandle: disk });
+      document.body.textContent = [root.name, project.name, task.name].join("/");
+    } });
+    window.selectInEditor = async (catalog, projectName) => channel.select({
+      diskHandle: disk, baseHandle: await disk.getDirectoryHandle(catalog), projectName, taskName: "Задание",
+    });
+  });
+}
+
+const selectInEditor = (catalog, project) => viewer.evaluate(([c, p]) => window.selectInEditor(c, p), [catalog, project]);
+
+async function addDirectory(path, name) {
+  await page.evaluate(async ({ path, name }) => {
+    let parent = await navigator.storage.getDirectory();
+    for (const part of ["task-queue-test", ...path]) parent = await parent.getDirectoryHandle(part);
+    await parent.getDirectoryHandle(name, { create: true });
+  }, { path, name });
+}
+
+async function checkQueueNavigation(catalog, project) {
+  const queueText = await page.evaluate(() => queueFixture.read("clark.tasks.txt"));
+  const loaded = await page.evaluate(() => queueFixture.loadedPath());
+  await selectInEditor(catalog, project);
+  const selected = page.locator("#listTask .selected .task-status-label");
+  assert.equal(await page.locator("#projectCatalog").inputValue(), catalog);
+  assert.equal(await page.locator("#listProject").inputValue(), project);
+  assert.equal((await selected.textContent()).trim(), "Задание");
+
+  await page.evaluate(() => {
+    window.browsedCatalog = null;
+    window.showOpenFilePicker = async ({ startIn }) => { window.browsedCatalog = startIn.name; return []; };
+  });
+  await browse.click();
+  assert.equal(await page.evaluate(() => window.browsedCatalog), catalog);
+  await addDirectory([catalog], "Добавленный проект");
+  await refreshProjects.click();
+  await page.locator('#listProject option[value="Добавленный проект"]').waitFor({ state: "attached" });
+  await addDirectory([catalog, project], "Добавленное задание");
+  await refreshTasks.click();
+  await page.locator("#listTask").getByText("Добавленное задание", { exact: true }).waitFor();
+  assert.equal((await selected.textContent()).trim(), "Задание");
+
+  await showInViewer.click();
+  await viewer.getByText([catalog, project, "Задание"].join("/"), { exact: true }).waitFor();
+  check(`navigation preserves the queue and loaded model in ${catalog}/${project}`, await queue.isVisible()
+    && await page.evaluate(() => queueFixture.read("clark.tasks.txt")) === queueText
+    && await page.evaluate(() => queueFixture.loadedPath()) === loaded);
+}
+
 async function checkPanelBounds(name) {
   const actual = await queue.boundingBox(), middle = await page.locator(".task-summary-panel").boundingBox();
   const right = await page.locator(".task-results-panel").boundingBox();
@@ -117,6 +183,9 @@ try {
     check(`launch remains available after navigating to ${catalog}/${project}`, await start.isEnabled());
   }
   check("queue navigation preserves the loaded editor model", await page.evaluate(() => queueFixture.loadedPath()) === loadedPath);
+  await page.evaluate(() => queueFixture.setDirty("CLARK.Tests/Проект 2/Задание"));
+  await openViewerPeer();
+  await checkQueueNavigation("clark.projects", "Проект 2");
   const title = queue.locator(".floating-window-titlebar");
   let bounds = await title.boundingBox();
   await page.mouse.move(bounds.x + 70, bounds.y + bounds.height / 2); await page.mouse.down();
@@ -126,6 +195,7 @@ try {
   check("minimized queue is a compact movable titlebar", await queue.evaluate(element => element.classList.contains("is-minimized"))
     && (await queue.boundingBox()).width === 400 && (await queue.boundingBox()).height < 80);
   check("copy and refresh are hidden while the queue is minimized", await copy.isHidden() && await refresh.isHidden());
+  await checkQueueNavigation("CLARK.Tests", "Проект 1");
   bounds = await title.boundingBox();
   await page.mouse.move(bounds.x + 60, bounds.y + bounds.height / 2); await page.mouse.down();
   await page.mouse.move(100, 180, { steps: 5 }); await page.mouse.up();
@@ -149,9 +219,12 @@ try {
   await page.waitForFunction(() => !document.querySelector(".task-launch-start").disabled);
   await start.click();
   check("launch freezes editing until acceptance", await rows.first().getByRole("button").isDisabled());
+  for (const control of [browse, refreshProjects, refreshTasks, showInViewer]) assert.ok(await control.isDisabled());
+  await assert.rejects(() => selectInEditor("clark.projects", "Проект 2"), /Editor занят/u);
   await page.evaluate(() => queueFixture.ack());
   await page.waitForFunction(() => !document.querySelector(".task-launch-remove").disabled);
   check("native acceptance restores ordinary controls", await rows.count() === 2 && await start.isEnabled());
+  for (const control of [browse, refreshProjects, refreshTasks, showInViewer]) await control.click({ trial: true });
   if (process.env.QUEUE_SCREENSHOT) await page.screenshot({ path: process.env.QUEUE_SCREENSHOT });
   await queue.getByRole("button", { name: "Закрыть окно", exact: true }).click();
   await page.getByRole("button", { name: "Формирование списка заданий и запуск приложений", exact: true }).click();

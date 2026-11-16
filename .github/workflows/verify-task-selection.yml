@@ -4,9 +4,13 @@ on:
   pull_request:
     paths:
       - 'src/components/SidePanel.jsx'
+      - 'src/components/tasks/TaskLaunchWindow.*'
+      - 'src/services/taskQueueService.js'
       - 'src/services/taskSelectionChannel.js'
       - 'src/tabs/Tasks.jsx'
+      - 'test/browser/taskQueue.fixture.jsx'
       - 'test/taskSelectionChannel.test.js'
+      - 'scripts/check-task-queue-browser.mjs'
       - 'scripts/check-task-selection-browser.mjs'
       - 'package*.json'
       - '.github/workflows/verify-task-selection.yml'
@@ -34,3 +38,5 @@ jobs:
           npx playwright install --with-deps chromium
       - name: Check real cross-tab selection
         run: node scripts/check-task-selection-browser.mjs
+      - name: Check navigation with the task queue open and minimized
+        run: node scripts/check-task-queue-browser.mjs

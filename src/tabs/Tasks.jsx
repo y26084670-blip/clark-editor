@@ -146,8 +146,9 @@ export function Tasks(props) {
 
   const browsingBlocked = () => sketchOpen() || accessBusy() || projectListBusy() || taskListBusy() || Boolean(operation()) || demoLoading() || bindingBusy()
     || launchBusy() || omClientState().busy || props.editorBusy || selectionReceiving() || protocolBusy();
+  const navigationBlocked = () => browsingBlocked() || galleryBusy();
   const galleryDisabled = () => browsingBlocked() || taskLaunchOpen();
-  const operationsBlocked = () => galleryDisabled() || galleryBusy();
+  const operationsBlocked = () => navigationBlocked() || taskLaunchOpen();
   createEffect(() => props.onTaskActionsChange?.({
     sketchEnabled: !operationsBlocked() && !omClientState().open,
     createProjectEnabled: Boolean(rootHandle()) && !operationsBlocked() && !omClientState().open,
@@ -343,7 +344,7 @@ export function Tasks(props) {
   onCleanup(() => selectionChannel.dispose());
 
   async function receiveTaskSelection(request) {
-    if (operationsBlocked() || pendingTaskLoad() || document.querySelector("dialog[open]")) {
+    if (navigationBlocked() || pendingTaskLoad() || document.querySelector("dialog[open]")) {
       throw new Error("Editor занят. Завершите текущую операцию и повторите переход.");
     }
     const root = rootHandle();
@@ -390,7 +391,7 @@ export function Tasks(props) {
   }
 
   async function showInViewer(event) {
-    if (!selectedTask() || selectedTask().isDemo || operationsBlocked() || selectionSending()) return;
+    if (!selectedTask() || selectedTask().isDemo || navigationBlocked() || selectionSending()) return;
     const sourceButton = event.currentTarget;
     const task = selectedTask(), project = selectedProject(), root = rootHandle();
     setSelectionSending(true); setSelectionNotice("");
@@ -439,7 +440,7 @@ export function Tasks(props) {
 
   const bindingIsCurrent = (disk, revision) => !disposed
     && disk === diskHandle() && revision === bindingRevision;
-  const accessDisabled = () => browsingBlocked() || galleryBusy() || omClientState().open;
+  const accessDisabled = () => navigationBlocked() || omClientState().open;
 
   function openBindingUri(uri) {
     setBindingNotice("В окне Решателя выберите тот же диск. Если окно не открылось или выбор отменён, нажмите «Связать с Решателем» ещё раз. Для этой функции нужен обновлённый обработчик Clark.");
@@ -620,7 +621,7 @@ export function Tasks(props) {
 
   async function browseProjects() {
     const handle = rootHandle();
-    if (!handle || operationsBlocked()) return;
+    if (!handle || navigationBlocked()) return;
     setProjectBrowseNotice("");
     const support = getFileSystemAccessSupport(window, { requireOpenFilePicker: true });
     if (!support.supported) { setProjectBrowseNotice(support.message); return; }
@@ -638,7 +639,7 @@ export function Tasks(props) {
 
   async function refreshDirectoryLists(refreshProjects) {
     const handle = rootHandle(), name = selectedProject();
-    if (!handle || operationsBlocked() || (!refreshProjects && !name)) return;
+    if (!handle || navigationBlocked() || (!refreshProjects && !name)) return;
     const request = invalidateBrowserSelection();
     const setBusy = refreshProjects ? setProjectListBusy : setTaskListBusy;
     setBusy(true);
@@ -663,7 +664,7 @@ export function Tasks(props) {
 
   // выбор проекта
   const handleProjectChange = async (event) => {
-    if (browsingBlocked() || galleryBusy()) return;
+    if (navigationBlocked()) return;
     const projectName = event.currentTarget.value;
     const requestId = invalidateBrowserSelection();
     setSelectedProject(projectName);
@@ -945,13 +946,13 @@ export function Tasks(props) {
             <div class="task-project-heading">
               <h4><label for="listProject">Список проектов</label></h4>
               <div class="task-project-actions">
-                <button type="button" class="task-project-browse" disabled={!rootHandle() || operationsBlocked()}
+                <button type="button" class="task-project-browse" disabled={!rootHandle() || navigationBlocked()}
                   aria-label="Просмотр каталога с проектами" title="Просмотр каталога с проектами (выбор не изменяется)" onClick={browseProjects}>
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
                     <path d="M3 7V5h7l2 2h9v13H3V7Z" /><path d="M3 10h18" />
                   </svg>
                 </button>
-                <button type="button" class="task-status-refresh" disabled={!rootHandle() || operationsBlocked()}
+                <button type="button" class="task-status-refresh" disabled={!rootHandle() || navigationBlocked()}
                   aria-label="Обновить список проектов" title="Обновить список проектов" aria-busy={projectListBusy()}
                   onClick={refreshProjects}>↻</button>
               </div>
@@ -960,7 +961,7 @@ export function Tasks(props) {
               id="listProject"
               class="task-project-select"
               value={selectedProject()}
-              disabled={browsingBlocked() || galleryBusy()}
+              disabled={navigationBlocked()}
               onChange={handleProjectChange}
             >
               <ProjectSelectValue value={selectedProject()} placeholder="Выбрать проект" marked={selectedProject() === lastProjectName()} />
@@ -987,7 +988,7 @@ export function Tasks(props) {
               <button
                 type="button"
                 class="task-status-refresh"
-                disabled={!selectedProject() || operationsBlocked() || taskStatus.busy()}
+                disabled={!selectedProject() || navigationBlocked() || taskStatus.busy()}
                 aria-label="Обновить список заданий"
                 aria-busy={taskListBusy() || taskStatus.busy()}
                 title="Обновить список заданий"
@@ -1007,9 +1008,9 @@ export function Tasks(props) {
                     "task-status-row": true,
                     selected: selectedTask()?.handle === task.handle,
                   }}
-                  draggable={taskLaunchOpen() && !browsingBlocked() && !galleryBusy() && !task.isDemo}
+                  draggable={taskLaunchOpen() && !navigationBlocked() && !task.isDemo}
                   onDragStart={event => {
-                    if (!taskLaunchOpen() || browsingBlocked() || galleryBusy() || task.isDemo) {
+                    if (!taskLaunchOpen() || navigationBlocked() || task.isDemo) {
                       event.preventDefault(); return;
                     }
                     setDraggedTask({ rootHandle: rootHandle(), handle: task.handle });
@@ -1062,7 +1063,7 @@ export function Tasks(props) {
             </span>
           </button>
           <button type="button" class="task-cross-open-button"
-            disabled={!selectedTask() || selectedTask()?.isDemo || !selectionChannel.supported || operationsBlocked() || selectionSending()}
+            disabled={!selectedTask() || selectedTask()?.isDemo || !selectionChannel.supported || navigationBlocked() || selectionSending()}
             aria-busy={selectionSending()}
             title="Выбрать каталог проектов, проект и задание в открытом Viewer; браузер может ограничить переключение вкладки"
             onClick={showInViewer}>Выбрать в Viewer</button>
