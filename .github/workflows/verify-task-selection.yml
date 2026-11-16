@@ -1,0 +1,36 @@
+name: Verify task selection
+
+on:
+  pull_request:
+    paths:
+      - 'src/components/SidePanel.jsx'
+      - 'src/services/taskSelectionChannel.js'
+      - 'src/tabs/Tasks.jsx'
+      - 'test/taskSelectionChannel.test.js'
+      - 'scripts/check-task-selection-browser.mjs'
+      - 'package*.json'
+      - '.github/workflows/verify-task-selection.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  selection:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Check cross-app selection
+        run: node --test test/taskSelectionChannel.test.js
+      - name: Install Chromium testing tools
+        run: |
+          npm install --no-save --package-lock=false playwright
+          npx playwright install --with-deps chromium
+      - name: Check real cross-tab selection
+        run: node scripts/check-task-selection-browser.mjs
