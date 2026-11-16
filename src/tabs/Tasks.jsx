@@ -97,6 +97,8 @@ export function Tasks(props) {
   const [taskLaunchRect, setTaskLaunchRect] = createSignal(null);
   const [draggedTask, setDraggedTask] = createSignal(null);
   const [queueRestoring, setQueueRestoring] = createSignal(false);
+  const [queueListRevision, setQueueListRevision] = createSignal(0);
+  const refreshDirectoryQueue = () => setQueueListRevision(revision => revision + 1);
   let queueRestoreRevision = 0;
   createEffect(() => {
     const disk = diskHandle(), revision = ++queueRestoreRevision;
@@ -149,23 +151,25 @@ export function Tasks(props) {
   const navigationBlocked = () => browsingBlocked() || galleryBusy();
   const galleryDisabled = () => browsingBlocked() || taskLaunchOpen();
   const operationsBlocked = () => navigationBlocked() || taskLaunchOpen();
+  const menuBlocked = () => navigationBlocked() || omClientState().open;
   createEffect(() => props.onTaskActionsChange?.({
-    sketchEnabled: !operationsBlocked() && !omClientState().open,
-    createProjectEnabled: Boolean(rootHandle()) && !operationsBlocked() && !omClientState().open,
-    projectEnabled: Boolean(selectedProject()) && !operationsBlocked() && !omClientState().open,
-    createEnabled: Boolean(selectedProject()) && !operationsBlocked() && !omClientState().open,
-    selectedEnabled: Boolean(selectedTask()) && !operationsBlocked() && !omClientState().open,
+    sketchEnabled: !menuBlocked(),
+    createProjectEnabled: Boolean(rootHandle()) && !menuBlocked(),
+    projectEnabled: Boolean(selectedProject()) && !menuBlocked(),
+    createEnabled: Boolean(selectedProject()) && !menuBlocked(),
+    selectedEnabled: Boolean(selectedTask()) && !menuBlocked(),
     run: openTaskOperation,
   }));
 
   function openTaskOperation(kind) {
+    if (menuBlocked()) return;
     if (kind === "sketch") {
-      if (!operationsBlocked() && !omClientState().open) setSketchOpen(true);
+      setSketchOpen(true);
       return;
     }
     if (kind.startsWith("project-")) {
       kind = kind.slice("project-".length);
-      if (!["create", "rename", "delete"].includes(kind) || operationsBlocked() || omClientState().open || !rootHandle()) return;
+      if (!["create", "rename", "delete"].includes(kind) || !rootHandle()) return;
       const project = projects().find(item => item.name === selectedProject());
       if (kind !== "create" && !project) return;
       invalidateBrowserSelection();
@@ -174,7 +178,7 @@ export function Tasks(props) {
         projectName: project?.name, task: selectedTask(), name: kind === "create" ? "Новый проект" : project.name });
       return;
     }
-    if (operationsBlocked() || omClientState().open || !selectedProject() || (kind !== "create" && !selectedTask())) return;
+    if (!selectedProject() || (kind !== "create" && !selectedTask())) return;
     const parent = projects().find(project => project.name === selectedProject())?.handle;
     if (!parent) return;
     invalidateBrowserSelection();
@@ -209,9 +213,10 @@ export function Tasks(props) {
         throw new Error("Сначала сохраните изменения выбранного задания и его библиотек. Операция не выполнялась.");
       }
       const result = await runTaskDirectoryOperation({ kind: request.kind, root: request.root,
+        queueRoot: taskLaunchRoot(), disk: diskHandle(),
         sourceParent: request.parent, source: request.kind === "create" ? null : request.task?.handle,
         destinationParent: destination, name: request.kind === "move" ? request.name : name,
-        initialize: initializeTaskDirectory });
+        initialize: initializeTaskDirectory }).finally(refreshDirectoryQueue);
       completedResult = result;
       await finishTaskOperation(request, destination, result, (relocate || request.kind === "delete") && wasLoaded);
       setOperation(null);
@@ -247,7 +252,8 @@ export function Tasks(props) {
         const markedTask = markedTasks[marker.taskIndex - 1];
         if (markedTask) bookmark = { projectName: markedProject.name, taskName: markedTask.name };
       }
-      const result = await runProjectDirectoryOperation({ kind: request.kind, root: request.root, source: request.parent, name });
+      const result = await runProjectDirectoryOperation({ kind: request.kind, root: request.root,
+        queueRoot: taskLaunchRoot(), disk: diskHandle(), source: request.parent, name }).finally(refreshDirectoryQueue);
       completedResult = result;
       await finishProjectOperation(request, result, loadedName, bookmark);
       setOperation(null);
@@ -1118,6 +1124,7 @@ export function Tasks(props) {
       <TaskLaunchWindow
         open={taskLaunchOpen() && props.active !== false}
         rootHandle={taskLaunchRoot()}
+        listRevision={queueListRevision()} directoryBusy={Boolean(operation()) || operationBusy()}
         diskHandle={diskHandle()} catalogs={catalogs()} draggedTask={draggedTask()}
         initialRect={taskLaunchRect()}
         onNavigate={navigateQueuedTask}
