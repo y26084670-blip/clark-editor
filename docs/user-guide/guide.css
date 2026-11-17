@@ -24,6 +24,15 @@
 .front-matter > p:first-of-type { font-size: 20px; }
 .jump-links, .source-note, .lesson-figure figcaption, .home-shortcuts { font: 15px/1.6 system-ui,sans-serif; }
 .source-note, .lesson-figure figcaption { color: var(--muted); }
+.solver-context-intro {
+    margin: 0 0 20px;
+    padding: 14px 18px;
+    border-left: 3px solid var(--link);
+    background: var(--side);
+    break-inside: avoid;
+}
+.solver-context-intro h3 { margin: 0 0 10px; }
+.solver-context-intro p:last-child { margin-bottom: 0; }
 .lesson-figure { margin: 20px 0 30px; }
 .lesson-figure img { display: block; width: 100%; max-width: 680px; height: auto; }
 blockquote { margin: 18px 0; padding: 4px 18px; border-left: 3px solid #547c93; }
