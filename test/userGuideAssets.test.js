@@ -88,6 +88,25 @@ test('four worked lessons have direct local downloads and control values', async
     for (const value of ['0,051689744','0,293799','0,057303','2,770620']) assert.ok(user.includes(value));
 });
 
+test('the solver context lesson delivers the current catalog archive in the offline guide', async () => {
+    assert.ok(attributes(pages.get('index.html'), 'href').includes('user.html#solver-context'));
+    for (const section of ['solver-context', 'context-download', 'context-chat', 'context-unpack', 'context-open',
+        'context-check', 'context-question', 'context-sketch', 'context-fem', 'context-trouble']) {
+        assert.ok(fragmentIds.get('user.html').has(section), section);
+    }
+    const catalog = path.join(root, 'context');
+    const readme = await readFile(path.join(catalog, 'README.md'), 'utf8');
+    const archives = (await readdir(path.join(catalog, 'archives'))).filter(name => name.endsWith('.zip'));
+    assert.ok(archives.length > 0);
+    for (const name of archives) assert.ok(readme.includes('(archives/' + name + '?raw=true)'), name);
+    const current = archives.sort((a, b) => b.localeCompare(a, 'en', { numeric: true }))[0];
+    assert.deepEqual(await readdir(path.join(USER_GUIDE_SOURCE, 'context')), [current]);
+    assert.ok(attributes(user, 'href').includes('context/' + current));
+    const download = await readFile(path.join(USER_GUIDE_SOURCE, 'context', current));
+    assert.equal(download.readUInt32LE(0), 0x04034b50);
+    assert.equal(sha256(download), sha256(await readFile(path.join(catalog, 'archives', current))));
+});
+
 test('guide retains the prepared images and recorded benchmark evidence', async () => {
     const webp = await readFile(path.join(USER_GUIDE_SOURCE, 'images/med-parents.webp'));
     assert.equal(webp.subarray(0, 4).toString(), 'RIFF');
