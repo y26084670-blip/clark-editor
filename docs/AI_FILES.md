@@ -1,6 +1,6 @@
 # Карта файлов и компонентов web-gui
 
-Обновлено: 2026-11-12 UTC.
+Обновлено: 2026-11-17 17:59 UTC+3.
 
 ## Интерактивная сцена «Лошадь», 4.90.0
 
@@ -92,7 +92,7 @@
 | `src/TaskInfoBar.jsx`, `src/TaskInfoBar.css` | Верхняя строка сведений о выбранном задании и состоянии данных. |
 | `package.json` | Версия приложения, зависимости и канонические npm-команды. |
 | `vite.config.js` | Конфигурация Vite, раздача примеров и включение third-party-notices в сборку. |
-| `docs/user-guide/` | `index.html` — вход и старые якоря. `user.html` — работа и учебные комплекты из `examples/`. `developer.html` — развитие с ИИ. `theory.html` — глава 16, приложения А и Б. Общие ресурсы — `guide.css`, `guide.js`, `images/`, `evidence/`. |
+| `docs/user-guide/` | `index.html` — вход и старые якоря. `user.html` — работа в Editor, [Практикум использования ИИ](user-guide/user.html#ai-practicum) и учебные комплекты из `examples/`. `developer.html` — развитие с ИИ. `theory.html` — глава 16, приложения А и Б. Общие ресурсы — `guide.css`, `guide.js`, `images/`, `evidence/`. |
 | `context/README.md`, `context/archives/` | Старт пользователя и архив публичных выпусков Контекста решателя. Версия Контекста, версия Editor и редакция профиля указаны раздельно. |
 | `scripts/build-solver-context.py`, `scripts/solver-context/` | Сборка публичных ZIP из закреплённых коммитов Editor, текстов, синтетических примеров и автономных программ проверки. Опция `--check` сверяет все три пути поставки. |
 | `docs/user-guide/context/` | Точная копия текущего ZIP для локальной HTML-справки и Pages. Справочный тест сверяет её с context/archives/. |
