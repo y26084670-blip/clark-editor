@@ -93,6 +93,9 @@
 | `package.json` | Версия приложения, зависимости и канонические npm-команды. |
 | `vite.config.js` | Конфигурация Vite, раздача примеров и включение third-party-notices в сборку. |
 | `docs/user-guide/` | `index.html` — вход и старые якоря. `user.html` — работа и учебные комплекты из `examples/`. `developer.html` — развитие с ИИ. `theory.html` — глава 16, приложения А и Б. Общие ресурсы — `guide.css`, `guide.js`, `images/`, `evidence/`. |
+| `context/README.md`, `context/archives/` | Старт пользователя и архив публичных выпусков Контекста решателя. Версия Контекста, версия Editor и редакция профиля указаны раздельно. |
+| `scripts/build-solver-context.py`, `scripts/solver-context/` | Сборка публичных ZIP из закреплённых коммитов Editor, текстов, синтетических примеров и автономных программ проверки. Опция `--check` сверяет все три пути поставки. |
+| `docs/user-guide/context/` | Точная копия текущего ZIP для локальной HTML-справки и Pages. Справочный тест сверяет её с context/archives/. |
 | `scripts/user-guide-assets.mjs` | Подготовка `.generated/user-guide` и побайтовая SHA-256-проверка `dist/user-guide`. |
 | `scripts/check-online-guide-browser.py`, `test/browser/guideMaterials.fixture.jsx` | Автономный браузерный стенд справки и реальных библиотечных компонентов с управляемыми файловыми дескрипторами; не включается в production. |
 | `test/userGuideAssets.test.js`, `test/materialLibrarySource.test.js` | Проверки доставки, ссылок и контрактов выбора источника. |

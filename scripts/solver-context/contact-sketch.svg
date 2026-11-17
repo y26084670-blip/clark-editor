@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="610" height="290" viewBox="0 0 610 290" role="img" aria-label="Проекция XY двух соприкасающихся брусков толщиной 4 мм">
+  <rect width="610" height="290" fill="white"/>
+  <g stroke="#233847" stroke-width="3">
+    <rect x="65" y="45" width="300" height="200" fill="#dceaf1"/>
+    <rect x="365" y="145" width="150" height="100" fill="#f8ddbc"/>
+    <path d="M65 145H365" stroke-dasharray="8 6"/>
+  </g>
+  <g fill="#20333f" font-family="sans-serif" font-size="19" text-anchor="middle">
+    <text x="215" y="98">A2</text><text x="215" y="203">A1</text><text x="440" y="203">B</text>
+    <text x="215" y="270">12 мм</text><text x="440" y="270">6 мм</text>
+    <text x="36" y="151">8 мм</text><text x="550" y="203">4 мм</text>
+    <text x="295" y="29">Проекция XY. Толщина по Z равна 4 мм</text>
+  </g>
+</svg>
