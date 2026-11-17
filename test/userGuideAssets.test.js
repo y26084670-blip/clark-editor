@@ -107,6 +107,34 @@ test('the solver context lesson delivers the current catalog archive in the offl
     assert.equal(sha256(download), sha256(await readFile(path.join(catalog, 'archives', current))));
 });
 
+test('the AI practicum is one jump before the catalog and lists all five user topics', () => {
+    const home = pages.get('index.html');
+    const shortcuts = [
+        [user.match(/<header class="front-matter"[^>]*>([\s\S]*?)<\/header>/u)?.[1], ''],
+        [home.match(/<p class="home-shortcuts">([\s\S]*?)<\/p>/u)?.[1], 'user.html'],
+    ];
+    for (const [row, prefix] of shortcuts) {
+        assert.ok(row, 'quick navigation');
+        const destinations = attributes(row, 'href');
+        const catalog = destinations.indexOf(prefix + '#case-catalog');
+        assert.ok(catalog > 0);
+        assert.equal(destinations[catalog - 1], prefix + '#ai-practicum');
+    }
+
+    const chapter = user.match(/<section class="chapter" id="ai-practicum">([\s\S]*?)<\/section>/u)?.[1];
+    const contents = user.match(/<li data-chapter="ai-practicum">([\s\S]*?)<\/li>/u)?.[1];
+    assert.ok(chapter && contents, 'chapter in the guide and its table of contents');
+    assert.match(chapter, /<h2>Практикум использования ИИ<\/h2>/u);
+    const menu = chapter.match(/<nav\b[^>]*>([\s\S]*?)<\/nav>/u)?.[1];
+    assert.ok(menu, 'topic links at the beginning of the chapter');
+    for (const id of ['task-sketch', 'solver-context', 'context-question', 'context-sketch', 'context-fem']) {
+        assert.ok(attributes(contents, 'href').includes('#' + id), 'contents → ' + id);
+        assert.ok(attributes(menu, 'href').includes('#' + id), 'chapter menu → ' + id);
+        assert.ok(chapter.includes('<h3 id="' + id + '">'), 'subsection ' + id);
+    }
+    assert.ok(user.includes('Глав в разделе: ' + attributes(user, 'data-chapter').length));
+});
+
 test('guide retains the prepared images and recorded benchmark evidence', async () => {
     const webp = await readFile(path.join(USER_GUIDE_SOURCE, 'images/med-parents.webp'));
     assert.equal(webp.subarray(0, 4).toString(), 'RIFF');
