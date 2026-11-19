@@ -23,8 +23,13 @@ async function graphPoint(kind, fx, fy) {
     return page.evaluate(({kind, fx, fy}) => {
         const c = htsGraphs.chart(kind), rect = c.canvas.getBoundingClientRect(), a = c.chartArea;
         const px = a.left + fx * (a.right - a.left), py = a.top + fy * (a.bottom - a.top);
-        return { x: rect.left + px * rect.width / c.width, y: rect.top + py * rect.height / c.height,
-            dataX: c.scales.x.getValueForPixel(px), dataY: c.scales.y.getValueForPixel(py) };
+        // Use actual screen pixels so browser pointer-coordinate rounding cannot
+        // turn subpixel placement into a data-range error on logarithmic axes.
+        const screenX = Math.floor(rect.left + px * rect.width / c.width);
+        const screenY = Math.floor(rect.top + py * rect.height / c.height);
+        return { x: screenX, y: screenY,
+            dataX: c.scales.x.getValueForPixel((screenX - rect.left) * c.width / rect.width),
+            dataY: c.scales.y.getValueForPixel((screenY - rect.top) * c.height / rect.height) };
     }, {kind, fx, fy});
 }
 async function dragBox(kind, start, end) {
@@ -386,9 +391,9 @@ try {
     assert.equal(await plot("mh").locator(".hts-graph-zoom-box").count(),0);
     check("Escape, pointer cancellation and tiny selections discard the rectangle without changing ranges or Auto");
 
-    const clipStart=await graphPoint("mh",.25,.25), outside=await graphPoint("mh",1.2,1.2), edge=await graphPoint("mh",1,1);
+    const clipRange=await ranges("mh"), clipStart=await graphPoint("mh",.25,.25), outside=await graphPoint("mh",1.2,1.2);
     await dragBox("mh",clipStart,outside); await page.mouse.up({button:"right"});
-    checkBoxRange(await ranges("mh"),clipStart,edge);
+    checkBoxRange(await ranges("mh"),clipStart,{dataX:clipRange.x[1],dataY:clipRange.y[0]});
     check("selection stays inside the plotting area when the captured pointer leaves the canvas");
 
     for (const width of [1100, 1920]) {
