@@ -65,7 +65,7 @@ try {
         args: ["--no-sandbox", "--disable-dev-shm-usage"] });
     page = await browser.newPage({ viewport: { width: 1440, height: 980 } });
     page.setDefaultTimeout(15000);
-    page.on("pageerror", error => errors.push(error.message));
+    page.on("pageerror", error => { errors.push(error.stack ?? error.message); console.error(error.stack ?? error.message); });
     await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/__hts-graphs`);
     await page.waitForFunction(() => window.htsGraphs && window.guideMaterials);
     await page.evaluate(() => { guideMaterials.mount("HTS", "A"); guideMaterials.setActive(true); });
@@ -147,6 +147,8 @@ try {
     await logarithm.check();
     await page.waitForFunction(() => ["x","y"].every(axis => htsGraphs.chart("ej").scales[axis].type === "logarithmic"));
     assert.ok(await page.evaluate(() => htsGraphs.chart("ej").data.datasets[0].data.every(p => p.x > 0 && p.y > 0)));
+    assert.ok(await page.evaluate(() => ["x","y"].every(axis => htsGraphs.chart("ej").scales[axis].ticks.every(tick => String(tick.label ?? "").length < 18))));
+    await page.screenshot({ path: path.join(output, "hts-ej-logarithm.png") });
     const logBefore = await ranges("ej");
     point = await canvasPoint("ej", 1.25);
     await page.mouse.move(point.x, point.y); await page.mouse.wheel(0, -200);

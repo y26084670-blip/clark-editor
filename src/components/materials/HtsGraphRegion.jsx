@@ -4,6 +4,7 @@ import { htsCriticalCurrent } from "../../services/solver/htsMaterialLaw.js";
 import "./HtsGraphRegion.css";
 
 const TITLES = { jc: "Jc(b_eff)", ej: "E(J)", mh: "M(H)" };
+const LOG_TICKS = new Intl.NumberFormat("ru-RU", { notation: "scientific", maximumSignificantDigits: 3 });
 
 function HtsPlot(props) {
     const [viewport, setViewport] = createSignal(null);
@@ -140,7 +141,7 @@ function HtsPlot(props) {
         const scale = (label, limits) => ({
             type: logAxes() ? "logarithmic" : "linear",
             title: { display: true, text: label, color: "#dce4ec", font: { size: 11 } },
-            ticks: { color: "#bccbd7", maxTicksLimit: 5, callback: graphNumber, font: { size: 10 } },
+            ticks: { color: "#bccbd7", maxTicksLimit: 5, callback: value => logAxes() ? LOG_TICKS.format(value) : graphNumber(value), font: { size: 10 } },
             grid: { color: "rgba(180,195,208,.16)" },
             ...(limits ? { min: limits[0], max: limits[1] } : {}),
         });
