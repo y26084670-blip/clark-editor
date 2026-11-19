@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { htsGraphModel, panGraphRange, zoomGraphRange } from "../src/services/materials/htsGraphModel.js";
+import { htsGraphFormula, htsGraphModel, panGraphRange, zoomGraphRange } from "../src/services/materials/htsGraphModel.js";
+
+import { htsElectricField } from "../src/services/solver/htsMaterialLaw.js";
 
 const p = Object.freeze({ j_HC0: 2, JC0: 10, JCa: 1, JCb: 1,
     j_type: 1, j_gmin: 2, j1_delta: .1, j2_n: 3,
@@ -65,4 +67,59 @@ test("zoom and pan keep nonnegative current domains and reject collapsed numeric
     assert.deepEqual(zoomGraphRange([1, 2], 0), [1, 2]);
     assert.deepEqual(zoomGraphRange([1, 2], Infinity), [1, 2]);
     assert.deepEqual(panGraphRange([1, 2], Infinity), [1, 2]);
+});
+
+
+test("log E(J) samples physical positive values over decades and preserves the n+1 power slope", () => {
+    for (const j_type of [1, 2]) {
+        const record = { ...p, j_type };
+        const graph = htsGraphModel("ej", record, 1, null, { logarithmic: true });
+        assert.equal(graph.error, undefined);
+        assert.ok(graph.xRange[0] > 0);
+        const points = graph.datasets[0].data;
+        assert.ok(points.length >= 400 && points.every(point => point.x > 0 && point.y > 0));
+        assert.ok(points.some(point => point.x === 5 && point.y === 2.5));
+        for (const point of points) assert.equal(point.y, htsElectricField(record, point.x, 1));
+        if (j_type === 2) {
+            const a = points[50], b = points[250];
+            const slope = Math.log(b.y / a.y) / Math.log(b.x / a.x);
+            assert.ok(Math.abs(slope - (p.j2_n + 1)) < 1e-12);
+        }
+    }
+    assert.equal(htsGraphModel("ej", p).xRange[0], 0);
+});
+
+test("logarithmic axes report a zero branch and omit underflow zeros without fabricated positive values", () => {
+    assert.match(htsGraphModel("ej", p, 2, null, { logarithmic: true }).error, /Jc = 0/);
+    const record = { ...p, j_type: 2, j2_n: 80 };
+    const graph = htsGraphModel("ej", record, 0, null, { logarithmic: true });
+    assert.equal(graph.error, undefined);
+    assert.ok(graph.datasets[0].data.every(point => point.y > 0 && point.y === htsElectricField(record, point.x, 0)));
+    assert.match(graph.note, /только J > 0 и E > 0/);
+    assert.match(htsGraphModel("ej", p, 0, [0, 1], { logarithmic: true }).error, /J > 0/);
+});
+
+test("log zoom and pan work in decades and keep both axis limits finite and positive", () => {
+    const zoom = zoomGraphRange([1, 100], .5, undefined, false, true);
+    assert.ok(Math.abs(zoom[0] - Math.sqrt(10)) < 1e-12);
+    assert.ok(Math.abs(zoom[1] - Math.sqrt(1000)) < 1e-12);
+    assert.deepEqual(panGraphRange([1, 100], 1, false, true), [10, 1000]);
+    assert.deepEqual(panGraphRange([1, 100], -1, false, true), [.1, 10]);
+    assert.deepEqual(zoomGraphRange([0, 100], .5, undefined, false, true), [0, 100]);
+    assert.deepEqual(panGraphRange([1, 100], 1000, false, true), [1, 100]);
+});
+
+test("formula help follows the active electrical and magnetic models", () => {
+    assert.match(htsGraphFormula("jc", p).lines.join(" "), /JC0.*JCa.*JCb/);
+    const tanh = htsGraphFormula("ej", p);
+    assert.match(tanh.title, /j_type = 1/);
+    assert.match(tanh.lines.join(" "), /j1_delta/);
+    const power = htsGraphFormula("ej", { ...p, j_type: 2 });
+    assert.match(power.title, /j_type = 2/);
+    assert.match(power.lines.join(" "), /j2_n \+ 1/);
+    assert.doesNotMatch(power.lines.join(" "), /j1_delta/);
+    assert.match(htsGraphFormula("mh", p).lines.join(" "), /m3_Mmax.*m3_a.*m3_b/);
+    assert.match(htsGraphFormula("mh", { ...p, m_type: 1 }).lines.join(" "), /m1_delta/);
+    assert.doesNotMatch(htsGraphFormula("mh", { ...p, m_type: 1 }).lines.join(" "), /m3_Mmax/);
+    assert.match(htsGraphFormula("mh", { ...p, m_type: 2 }).lines.join(" "), /зарезервирована/);
 });
