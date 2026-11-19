@@ -18,7 +18,11 @@ function HtsPlot(props) {
     const [magneticError, setMagneticError] = createSignal("");
     let canvas, chart, gesture, lastRecord, lastMagneticSignature, formulaDialog;
     const logAxes = () => props.kind === "ej" && logarithmic();
-    const baseModel = createMemo(() => htsGraphModel(props.kind, props.record, props.field, props.kind === "mh" && automatic() ? hRange() : viewport()?.x, { logarithmic: logAxes() }));
+    const horizontalRange = createMemo(() => {
+        if (automatic() && props.kind === "jc") return null; // Initial domain from the model.
+        return automatic() && props.kind === "mh" ? hRange() : viewport()?.x;
+    });
+    const baseModel = createMemo(() => htsGraphModel(props.kind, props.record, props.field, horizontalRange(), { logarithmic: logAxes() }));
     const model = createMemo(() => {
         const value = baseModel();
         return props.kind === "mh" && !value.error
@@ -96,7 +100,7 @@ function HtsPlot(props) {
         cancelGesture();
         const view = currentView();
         setAutomatic(checked);
-        setViewport(checked ? (props.kind === "mh" ? null : view ? { x: view.x, y: null } : null) : view);
+        setViewport(checked ? (props.kind === "ej" && view ? { x: view.x, y: null } : null) : view);
     }
 
     function zoom(factor, anchor) {
@@ -266,7 +270,7 @@ function HtsPlot(props) {
                 tooltip: { callbacks: { label: item => `${item.dataset.label}: ${props.kind === "ej" ? electricFieldNumber(item.parsed.y) : graphNumber(item.parsed.y)}` } },
             },
             scales: {
-                x: scale("x", value.xLabel, props.kind === "mh" && automatic() ? hRange() : view?.x ?? value.xRange),
+                x: scale("x", value.xLabel, horizontalRange() ?? value.xRange),
                 y: { ...scale("y", value.yLabel, automatic() ? null : view?.y), beginAtZero: !logAxes() },
             },
         };
@@ -290,7 +294,7 @@ function HtsPlot(props) {
     return <section class="hts-graph" data-hts-graph={props.kind} aria-label={`График ${TITLES[props.kind]}`}>
         <header class="hts-graph-title">
             <span>{TITLES[props.kind]}</span>
-            <label class="hts-graph-auto" title={props.kind === "mh" ? "Автоматический масштаб: H по пределам скролла, M по данным" : "Автоматически подбирать вертикальный масштаб для видимого диапазона"}>
+            <label class="hts-graph-auto" title={props.kind === "jc" ? "Автоматический масштаб: b_eff от 0 до 1,5·j_HC0, Jc по данным" : props.kind === "mh" ? "Автоматический масштаб: H по пределам скролла, M по данным" : "Автоматически подбирать вертикальный масштаб для видимого диапазона"}>
                 <input type="checkbox" checked={automatic()} disabled={Boolean(model().error)}
                     aria-label={`Авто ${TITLES[props.kind]}`}
                     onChange={event => changeAutomatic(event.currentTarget.checked)} /> Авто
