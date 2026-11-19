@@ -1,6 +1,7 @@
 import { createEffect, createMemo, createSignal, For, onCleanup, onMount, Show, untrack } from "solid-js";
 import { electricFieldNumber, graphNumber, HTS_GRAPH_KINDS, htsGraphFormula, htsGraphModel, htsMagneticStep, htsMagneticTrace, panGraphRange, zoomGraphRange } from "../../services/materials/htsGraphModel.js";
 import { htsCriticalCurrent } from "../../services/solver/htsMaterialLaw.js";
+import { HtsGraphFormula } from "./HtsGraphFormula.jsx";
 import "./HtsGraphRegion.css";
 
 const TITLES = { jc: "Jc(b_eff)", ej: "E(J)", mh: "M(H)" };
@@ -8,6 +9,7 @@ const LOG_TICKS = new Intl.NumberFormat("ru-RU", { notation: "scientific", maxim
 
 function HtsPlot(props) {
     const [viewport, setViewport] = createSignal(null);
+    const [automatic, setAutomatic] = createSignal(true);
     const [renderError, setRenderError] = createSignal("");
     const [logarithmic, setLogarithmic] = createSignal(false);
     const [magneticTrace, setMagneticTrace] = createSignal([{ x: 0, y: 0 }]);
@@ -43,7 +45,7 @@ function HtsPlot(props) {
             || !(limits[1] > limits[0]) || !setMagneticField(magneticPoint().x, limits)) {
             event.currentTarget.value = String(hRange()[index]); return;
         }
-        setMagneticRange(limits); setViewport({ x: limits, y: null });
+        setMagneticRange(limits); setViewport({ x: limits, y: automatic() ? null : currentView()?.y });
     }
     function clearMagneticTrace() {
         gesture = null;
@@ -51,7 +53,7 @@ function HtsPlot(props) {
         const limits = hRange();
         if (limits[0] > 0 || limits[1] < 0) {
             const next = [Math.min(0, limits[0]), Math.max(0, limits[1])];
-            setMagneticRange(next); setViewport({ x: next, y: null });
+            setMagneticRange(next); setViewport({ x: next, y: automatic() ? null : currentView()?.y });
         }
     }
     const formula = createMemo(() => htsGraphFormula(props.kind, props.record));
@@ -64,9 +66,17 @@ function HtsPlot(props) {
         };
     }
 
+    function changeAutomatic(checked) {
+        gesture = null;
+        const view = currentView();
+        setAutomatic(checked);
+        setViewport(checked ? (view ? { x: view.x, y: null } : null) : view);
+    }
+
     function zoom(factor, anchor) {
         const view = currentView();
         if (!view) return;
+        setAutomatic(false);
         setViewport({
             x: zoomGraphRange(view.x, factor, anchor?.x, props.kind !== "mh", logAxes()),
             y: zoomGraphRange(view.y, factor, anchor?.y, false, logAxes()),
@@ -109,6 +119,7 @@ function HtsPlot(props) {
         if (!gesture || event.pointerId !== gesture.id || !chart) return;
         if (gesture.cursor) { setCursor(event); return; }
         const point = coordinates(event), { view } = gesture;
+        setAutomatic(false);
         const span = range => logAxes() ? Math.log10(range[1]) - Math.log10(range[0]) : range[1] - range[0];
         setViewport({
             x: panGraphRange(view.x, -(point.x - gesture.point.x) / gesture.width * span(view.x), props.kind !== "mh", logAxes()),
@@ -168,7 +179,7 @@ function HtsPlot(props) {
         if (changed) {
             lastRecord = record;
             gesture = null;
-            setViewport(null); setMagneticRange(null);
+            setViewport(null); setMagneticRange(null); setAutomatic(true);
         }
         if (props.kind === "mh") {
             const signature = JSON.stringify([record?.m_type, record?.m_HC0, record?.m1_delta, record?.m3_Mmax, record?.m3_a, record?.m3_b]);
@@ -202,7 +213,7 @@ function HtsPlot(props) {
             },
             scales: {
                 x: scale("x", value.xLabel, view?.x ?? value.xRange),
-                y: { ...scale("y", value.yLabel, view?.y), beginAtZero: !logAxes() },
+                y: { ...scale("y", value.yLabel, automatic() ? null : view?.y), beginAtZero: !logAxes() },
             },
         };
         try {
@@ -225,8 +236,11 @@ function HtsPlot(props) {
     return <section class="hts-graph" data-hts-graph={props.kind} aria-label={`График ${TITLES[props.kind]}`}>
         <header class="hts-graph-title">
             <span>{TITLES[props.kind]}</span>
-            <button type="button" title="Подобрать вертикальный масштаб для видимого диапазона" disabled={Boolean(model().error)}
-                onClick={() => setViewport(current => current ? { x: current.x, y: null } : null)}>Авто</button>
+            <label class="hts-graph-auto" title="Автоматически подбирать вертикальный масштаб для видимого диапазона">
+                <input type="checkbox" checked={automatic()} disabled={Boolean(model().error)}
+                    aria-label={`Авто ${TITLES[props.kind]}`}
+                    onChange={event => changeAutomatic(event.currentTarget.checked)} /> Авто
+            </label>
             <Show when={props.kind === "mh"}>
                 <button type="button" disabled={!props.record} title="Очистить траекторию и установить H = M = 0"
                     onClick={clearMagneticTrace}>Очистить</button>
@@ -234,7 +248,7 @@ function HtsPlot(props) {
             <Show when={props.kind === "ej"}>
                 <label class="hts-graph-logarithm"><input type="checkbox" checked={logarithmic()} disabled={!props.record}
                     aria-label="Логарифмические оси E(J)" onChange={event => {
-                        gesture = null; setViewport(null); setLogarithmic(event.currentTarget.checked);
+                        gesture = null; setViewport(null); setAutomatic(true); setLogarithmic(event.currentTarget.checked);
                     }} /> логарифм</label>
             </Show>
             <button type="button" class="hts-graph-formula-help" aria-label={`Формулы ${TITLES[props.kind]}`}
@@ -270,7 +284,7 @@ function HtsPlot(props) {
             : props.kind === "ej" ? "Поле и Jc заданы курсором первого графика." : "")}</div>
         <dialog ref={formulaDialog} class="hts-graph-formula-dialog" aria-label={`Формулы ${TITLES[props.kind]}`}>
             <h3>{formula().title}</h3>
-            <For each={formula().lines}>{line => <p class="hts-graph-formula">{line}</p>}</For>
+            <HtsGraphFormula kind={props.kind} record={props.record} />
             <button type="button" onClick={() => formulaDialog.close()}>Закрыть</button>
         </dialog>
     </section>;

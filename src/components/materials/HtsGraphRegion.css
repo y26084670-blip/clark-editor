@@ -32,6 +32,9 @@
 .hts-graph-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(210px, 1fr));
+  gap: 5px;
+  padding: 5px;
+  box-sizing: border-box;
   flex: 1 1 0;
   min-height: 0;
   overflow-x: auto;
@@ -41,9 +44,10 @@
   flex-direction: column;
   min-width: 0;
   min-height: 0;
-  border-left: 1px solid #58636e;
+  border: 1px solid #788795;
+  border-radius: 3px;
+  box-sizing: border-box;
 }
-.hts-graph:first-child { border-left: 0; }
 .hts-graph-title { display: flex; align-items: center; gap: 5px; padding: 4px 6px; color: #f3f6fa; font-size: 13px; font-weight: 600; white-space: nowrap; }
 .hts-graph-title button {
   padding: 3px 5px;
@@ -56,7 +60,7 @@
 }
 .hts-graph-title button:hover { background: #46596a; }
 .hts-graph-title button:disabled { opacity: .45; cursor: default; }
-.hts-graph-host { position: relative; flex: 1 1 0; min-height: 100px; margin: 0 4px; }
+.hts-graph-host { position: relative; flex: 1 1 0; min-height: 100px; margin: 0 4px; border: 1px solid #586b7c; background: #19212a; }
 .hts-graph-host canvas { width: 100% !important; height: 100% !important; touch-action: none; }
 .hts-graph-host canvas:focus-visible { outline: 2px solid #f6e493; outline-offset: -2px; }
 .hts-graph-message {
@@ -73,12 +77,15 @@
 .hts-graph-gestures { padding: 4px 8px; border-top: 1px solid #58636e; color: #c4d0dc; font-size: 11px; }
 
 .hts-graph-title .hts-graph-formula-help { margin-left: auto; min-width: 22px; }
-.hts-graph-logarithm { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 400; }
-.hts-graph-logarithm input { margin: 0; accent-color: #f6e493; }
+.hts-graph-auto, .hts-graph-logarithm { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 400; }
+.hts-graph-auto input, .hts-graph-logarithm input { margin: 0; accent-color: #f6e493; }
 .hts-graph-formula-dialog { box-sizing: border-box; width: min(680px, 92vw); max-height: 85vh; overflow: auto; padding: 18px; background: #20262d; color: #edf3f8; border: 1px solid #788795; }
 .hts-graph-formula-dialog::backdrop { background: rgba(0, 0, 0, .5); }
 .hts-graph-formula-dialog h3 { margin: 0 0 12px; }
-.hts-graph-formula { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.6; }
+.hts-graph-formula { line-height: 1.6; }
+.hts-graph-formula math { display: block; width: max-content; min-width: 100%; box-sizing: border-box; padding: 10px 4px; font-size: 18px; }
+.hts-graph-formula p { margin: 8px 0; overflow-wrap: anywhere; }
+.hts-graph-formula-scroll { max-width: 100%; overflow-x: auto; }
 .hts-graph-formula-dialog button { padding: 5px 12px; color: #edf3f8; background: #333e49; border: 1px solid #788795; }
 
 .hts-magnetic-control { display: flex; flex: 0 0 auto; align-items: center; gap: 4px; padding: 2px 5px 4px; font-size: 10px; }
