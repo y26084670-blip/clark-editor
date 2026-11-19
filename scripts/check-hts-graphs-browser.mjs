@@ -303,8 +303,22 @@ try {
     const magneticPan = (await ranges("mh")).x;
     assert.equal(await auto("mh").isChecked(), false);
     await auto("mh").check();
-    assert.deepEqual((await ranges("mh")).x, magneticPan);
-    check("wheel zoom and pan resample magnetic curves without moving the virgin-line endpoint");
+    const sliderRange = [Number(await hMinimum.inputValue()), Number(await hMaximum.inputValue())];
+    assert.deepEqual((await ranges("mh")).x, sliderRange);
+    assert.notDeepEqual((await ranges("mh")).x, magneticPan);
+    check("magnetic Auto restores X to the slider limits after manual zoom and pan without moving the virgin-line endpoint");
+
+    await setLimit(hMinimum,-3); await setLimit(hMaximum,4);
+    assert.deepEqual((await ranges("mh")).x,[-3,4]);
+    const sampledMagneticRange = await page.evaluate(() => {
+        const nodes = htsGraphs.chart("mh").data.datasets[0].data;
+        return [Math.min(...nodes.map(p=>p.x)), Math.max(...nodes.map(p=>p.x))];
+    });
+    assert.deepEqual(sampledMagneticRange,[-3,4]);
+    assert.equal(await auto("mh").isChecked(),true);
+    await setLimit(hMinimum,-1.2); await setLimit(hMaximum,1.2);
+    assert.deepEqual((await ranges("mh")).x,[-1.2,1.2]);
+    check("enabled magnetic Auto follows both editable H limits and resamples the curves across the entire slider range");
 
     await edit("m_type", 2);
     await plot("mh").getByRole("alert").filter({ hasText: "зарезервирована" }).waitFor();
