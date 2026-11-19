@@ -376,6 +376,7 @@ export function HtsGraphRegion(props) {
                     disabled={!props.record} value={field()} onInput={event => selectField(event.currentTarget.valueAsNumber)} />
             </label>
             <output aria-label="Текущая критическая плотность тока">Jc = {graphNumber(currentJc())} А/мм²</output>
+            <strong class="hts-graph-zoom-hint">Выделить новую область графика рамкой с помощью правой кнопки мыши</strong>
         </div>
         <div class="hts-graph-grid">
             <For each={HTS_GRAPH_KINDS}>{kind => <HtsPlot kind={kind} record={props.record} field={field()}
