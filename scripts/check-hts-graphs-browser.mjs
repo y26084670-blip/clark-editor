@@ -343,6 +343,7 @@ try {
     for (const name of ["field", "viewport", "cursor", "currentJc", "datasets", "logarithmic", "magneticTrace", "magneticRange"]) assert.ok(!(name in stored));
     check("Undo/Redo restore chart data and saving keeps cursor, scale and computed curves out of the material file");
 
+    await select();
     const cursorBeforeBoxes = await page.getByRole("spinbutton", {name:"Текущее эффективное поле"}).inputValue();
     for (const kind of ["jc", "ej", "mh"]) {
         await auto(kind).check();
@@ -428,6 +429,11 @@ try {
     assert.deepEqual(errors, []);
     check("HTS chart cleanup and unchanged FMM chart on tab switch; no browser exceptions");
 } catch (error) {
+    if (page) console.error("HTS failure context:", await page.evaluate(() => ({
+        record: window.guideMaterials?.table()?.getData()?.[0],
+        alerts: [...document.querySelectorAll(".hts-graph-message")].map(node=>node.textContent),
+        charts: ["jc","ej","mh"].map(kind=>({kind,live:Boolean(window.htsGraphs?.chart(kind))})),
+    })).catch(()=>null));
     if (page) await page.screenshot({ path: path.join(output, "failure.png") });
     throw error;
 } finally {
