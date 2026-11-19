@@ -13,6 +13,7 @@ const checks = [], errors = [];
 let server, browser, page;
 const check = name => { checks.push(name); console.log(`PASS ${checks.length}: ${name}`); };
 const plot = kind => page.locator(`[data-hts-graph="${kind}"]`);
+const auto = kind => plot(kind).getByRole("checkbox", { name: `Авто ${{jc:"Jc(b_eff)",ej:"E(J)",mh:"M(H)"}[kind]}`, exact: true });
 const close = (a, b, tolerance = 1e-8) => assert.ok(Math.abs(a - b) < tolerance * Math.max(1, Math.abs(b)), `${a} != ${b}`);
 const ranges = kind => page.evaluate(kind => {
     const c = htsGraphs.chart(kind);
@@ -88,16 +89,52 @@ try {
     for (const kind of ["jc", "ej", "mh"]) {
         assert.equal(await plot(kind).locator(".hts-graph-controls").count(), 0);
         const header = plot(kind).locator(".hts-graph-title");
-        assert.deepEqual(await header.getByRole("button").allTextContents(), kind === "mh" ? ["Авто", "Очистить", "?"] : ["Авто", "?"]);
+        assert.deepEqual(await header.getByRole("button").allTextContents(), kind === "mh" ? ["Очистить", "?"] : ["?"]);
         await header.getByRole("button", { name: `Формулы ${{jc:"Jc(b_eff)",ej:"E(J)",mh:"M(H)"}[kind]}`, exact: true }).click();
+        assert.equal(await auto(kind).isChecked(), true);
         const dialog = plot(kind).getByRole("dialog");
         await dialog.waitFor();
         assert.match(await dialog.innerText(), kind === "jc" ? /JCa/ : kind === "ej" ? /j2_n/ : /m3_Mmax/);
+        const rendered = await dialog.locator("math").evaluateAll(nodes => nodes.map(node => ({
+            namespace: node.namespaceURI, height: node.getBoundingClientRect().height,
+            fractions: [...node.querySelectorAll("mfrac")].map(fraction => {
+                const [numerator, denominator] = [...fraction.children].map(child => child.getBoundingClientRect());
+                return numerator.top < denominator.top && numerator.bottom <= denominator.top + 2;
+            }),
+        })));
+        assert.ok(rendered.length >= 3 && rendered.every(value => value.namespace === "http://www.w3.org/1998/Math/MathML" && value.height > 15));
+        assert.ok(rendered.some(value => value.fractions.length));
+        assert.ok(rendered.every(value => value.fractions.every(Boolean)));
+        assert.ok(await dialog.locator("msup").count() > 0);
+        assert.ok(await dialog.locator("mtable").count() > 0);
+        await page.screenshot({ path: path.join(output, `hts-formulas-${kind}.png`) });
         await page.keyboard.press("Escape"); await dialog.waitFor({ state: "hidden" });
     }
-    assert.equal(await plot("jc").getByRole("checkbox").count(), 0);
-    assert.equal(await plot("mh").getByRole("checkbox").count(), 0);
-    check("compact titles contain Auto, magnetic Clear and help; formulas match selected models and log checkbox exists only for E(J)");
+    assert.equal(await plot("jc").getByRole("checkbox").count(), 1);
+    assert.equal(await plot("mh").getByRole("checkbox").count(), 1);
+    check("headers contain independent Auto checkboxes; selected-model formulas render as native MathML with fractions, powers and cases");
+    const frames = await page.locator(".hts-graph, .hts-graph-host").evaluateAll(nodes => nodes.map(node => {
+        const style = getComputedStyle(node);
+        return ["Top", "Right", "Bottom", "Left"].every(side => parseFloat(style[`border${side}Width`]) >= 1 && style[`border${side}Style`] === "solid");
+    }));
+    assert.equal(frames.length, 6); assert.ok(frames.every(Boolean));
+    check("all three plots and their canvas areas have separate visible frames");
+
+    const initialElectricRange = await ranges("ej");
+    await auto("ej").uncheck();
+    await field(.5);
+    assert.deepEqual(await ranges("ej"), initialElectricRange);
+    assert.equal(await auto("jc").isChecked(), true);
+    assert.equal(await auto("mh").isChecked(), true);
+    await auto("ej").check();
+    assert.deepEqual((await ranges("ej")).x, initialElectricRange.x);
+    assert.notDeepEqual((await ranges("ej")).y, initialElectricRange.y);
+    const automaticY = (await ranges("ej")).y;
+    await field(.25);
+    assert.notDeepEqual((await ranges("ej")).y, automaticY);
+    assert.equal(await auto("ej").isChecked(), true);
+    await field(0);
+    check("Auto continuously rescales Y on data changes; turning it off freezes ranges independently for each plot");
 
 
     await edit("m3_Mmax", .6);
@@ -174,7 +211,8 @@ try {
     await edit("j_type", 1);
     await edit("j1_delta", .2);
     assert.deepEqual(await ranges("ej"), zoomed);
-    await plot("ej").getByRole("button", { name: "Авто", exact: true }).click();
+    assert.equal(await auto("ej").isChecked(), false);
+    await auto("ej").check();
     assert.deepEqual((await ranges("ej")).x, zoomed.x);
     assert.notDeepEqual((await ranges("ej")).y, zoomed.y);
 
@@ -203,7 +241,8 @@ try {
     const logPan = await ranges("ej");
     assert.notDeepEqual(logPan.x, logZoom.x);
     assert.ok([...logPan.x, ...logPan.y].every(v => Number.isFinite(v) && v > 0));
-    await plot("ej").getByRole("button", { name: "Авто", exact: true }).click();
+    assert.equal(await auto("ej").isChecked(), false);
+    await auto("ej").check();
     assert.deepEqual((await ranges("ej")).x, logPan.x);
     await logarithm.uncheck();
     await page.waitForFunction(() => htsGraphs.chart("ej").scales.x.type === "linear" && htsGraphs.chart("ej").scales.y.type === "linear");
@@ -226,7 +265,8 @@ try {
     const contactAfterZoom = await page.evaluate(() => htsGraphs.chart("mh").data.datasets[1].data[1].x);
     close(contactAfterZoom, .375);
     const magneticPan = (await ranges("mh")).x;
-    await plot("mh").getByRole("button", { name: "Авто", exact: true }).click();
+    assert.equal(await auto("mh").isChecked(), false);
+    await auto("mh").check();
     assert.deepEqual((await ranges("mh")).x, magneticPan);
     check("wheel zoom and pan resample magnetic curves without moving the virgin-line endpoint");
 
