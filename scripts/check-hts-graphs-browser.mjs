@@ -427,7 +427,7 @@ try {
     await dragBox("mh",cleanupStart,cleanupEnd);
     await page.evaluate(() => { guideMaterials.mount("FMM", "A"); guideMaterials.setActive(true); });
     await page.mouse.up({button:"right"});
-    await page.waitForFunction(() => guideMaterials.snapshot().rows?.[0]?.name === "TaskA_FMM");
+    await page.waitForFunction(() => guideMaterials.table()?.getData()?.[0]?.name === "TaskA_FMM");
     await page.evaluate(() => guideMaterials.table().getRows()[0].select());
     await page.waitForFunction(() => document.querySelector(".fmm-graph-region canvas") && htsGraphs.charts().length === 1);
     assert.equal(await page.locator(".hts-graph-region").count(), 0);
