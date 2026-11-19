@@ -145,7 +145,7 @@ export default function App() {
     const {general, elements, regions, moves} = modelService.getModel();
     if (!task || !general || !elements?.some(row => row.targ !== 3) || !Array.isArray(regions)
       || activeTab() !== TABS.ELEMENTS.id) return null;
-    return {task, version:selectionService.taskDataVersion(), general, elements, regions, moves,
+    return {task, version:selectionService.taskDataVersion(), order:medEditor?.recordOrderVersion() ?? 0, general, elements, regions, moves,
       indices:selectedGeometryElementIndices()};
   }
   const forceSurfaceRequest = createMemo(() => forceSurfaceOpen() ? readForceRequest() : null);
@@ -160,9 +160,9 @@ export default function App() {
     setSidePanelOpen(false);
     if (readForceRequest()) setForceSurfaceOpen(true);
   }
-  function saveForceGroups(request, plan, step) {
+  function saveForceGroups(request, {plan, step, rememberZero = false}) {
     const current = readForceRequest();
-    if (!current || current.task !== request.task || current.version !== request.version
+    if (!current || current.task !== request.task || current.version !== request.version || current.order !== request.order
       || current.elements !== request.elements || current.regions !== request.regions
       || current.general !== request.general || current.moves !== request.moves
       || (!plan?.automatic && !sameRecordIndices(current.indices, request.indices)))
@@ -171,12 +171,17 @@ export default function App() {
     const regionSchema = tabRegistry.find(s => s.id === TABS.REGIONS.id);
     const updated = plan
       ? applyForceGroups(request, plan, step, () => dataService.createDefaultRecord(regionSchema))
-      : excludeForceElements(request, request.indices);
-    const changes = [{schema:elementSchema,data:updated.elements}, {schema:regionSchema,data:updated.regions}];
+      : excludeForceElements(request, request.indices, {preserveRegions:rememberZero});
+    const changes = [];
+    if (updated.elements.some((row,i) => row !== request.elements[i]))
+      changes.push({schema:elementSchema,data:updated.elements});
+    if (updated.regions !== request.regions) changes.push({schema:regionSchema,data:updated.regions});
     if (plan && plan.minimumGap !== request.general.forceGroupMinGap)
       changes.push({schema:tabRegistry.find(s=>s.id === TABS.GENERAL.id),data:{...request.general,forceGroupMinGap:plan.minimumGap}});
-    modelService.setModelParts(changes,{recordHistory:true});
-    void performModelValidation({restart:true});
+    if (changes.length) {
+      modelService.setModelParts(changes,{recordHistory:true});
+      void performModelValidation({restart:true});
+    }
     return readForceRequest();
   }
   const [coilTask,setCoilTask]=createSignal(null),[coilBusy,setCoilBusy]=createSignal(false);
@@ -352,6 +357,7 @@ export default function App() {
     createSignal([]);
   const forceMotionWarning = createMemo(() => {
     const model = modelService.getModel();
+    if (model.general?.forceFaceOffset > 0) return "";
     return forceSurfaceMotionWarning({
       elements: model.elements, selectedIndices: selectedGeometryElementIndices(), regions: model.regions,
     });
@@ -440,9 +446,10 @@ export default function App() {
     // without requiring equality to the copy read when the task was opened.
     const checkedSnapshot = { ...modelSnapshot, jweakLocal: await loadJweakLocal(taskHandle) };
     let forceClosePairs = [], gapError = "";
-    if (checkedSnapshot.general?.evalForce && new Set((checkedSnapshot.elements ?? [])
-        .filter(e => e.targ !== 3 && e.take > 0).map(e => e.take)).size > 1) {
-      const {elements,general,moves} = checkedSnapshot;
+    const {elements, general, moves} = checkedSnapshot;
+    const groupIds = new Set((elements ?? []).filter(e => e.targ !== 3).map(e => e.take ?? 0));
+    if (!(general?.forceFaceOffset > 0)) groupIds.delete(0);
+    if (general?.evalForce && groupIds.size > 1) {
       try {
         forceClosePairs = await checkForceGaps({elements,general,moves});
       } catch (error) { gapError = error.message || "Не удалось проверить зазоры между группами."; }

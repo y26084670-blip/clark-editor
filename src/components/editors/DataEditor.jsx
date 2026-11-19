@@ -149,6 +149,7 @@ export function DataEditor(props) {
   let observedModelRevision = 0;
   let modelApplyQueue = Promise.resolve();
   const [medRowsVersion,setMedRowsVersion] = createSignal(0);
+  const [recordOrderVersion,setRecordOrderVersion] = createSignal(0);
   async function flushMedEdits() {
     document.activeElement?.blur();
     await new Promise(resolve => setTimeout(resolve, 0));
@@ -315,6 +316,7 @@ export function DataEditor(props) {
     table = new Tabulator(tableDiv, options);
     props.onMedEditorReady?.({
       flush: flushMedEdits,
+      recordOrderVersion,
       rows: () => { medRowsVersion(); return table.getRows(); },
       selectedBlock: () => cardIndex() + 1,
       writeFaces: (row, values) => row.getCell("med").setValue(values.map(value => [value])),
@@ -353,6 +355,7 @@ export function DataEditor(props) {
         },
         endChange() {
           changingStructure = false;
+          setRecordOrderVersion(value => value + 1);
           const update = publishTableChanged(true);
           notifyRecordSelection();
           if (card) {

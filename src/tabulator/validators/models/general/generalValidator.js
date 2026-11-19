@@ -1,13 +1,28 @@
 import { createWarning, createError }
     from "../../common/createDiagnostic";
 import { TABS } from "../../../../services/schemas/common/constants";
+import { buildGeometryScene } from "../../../../services/visualization/geometrySceneModel.js";
 
 export function generalValidator(
     service,
     diagnostics,
 ) {
-    const general = service.getModel().general;
+    const {general, elements} = service.getModel();
     if (!general) return;
+
+    if (general.forceFaceOffset !== undefined && !Number.isFinite(general.forceFaceOffset)) {
+        diagnostics.push(createError({tab:TABS.GENERAL, property:"forceFaceOffset",
+            message:"Укажите конечный неотрицательный отступ в миллиметрах."}));
+    } else if (general.evalForce && general.forceFaceOffset > 0) {
+        if (general.fullAxialSymmetry || buildGeometryScene({general, elements}, {originalOnly:true}).planar2D) {
+            diagnostics.push(createError({tab:TABS.GENERAL, property:"forceFaceOffset",
+                message:"Расчёт по внешним ЭП доступен в конечной 3D-модели без полной осевой симметрии. Для расчёта по заданным площадкам установите отступ 0."}));
+        }
+        if (!elements?.some(row => row.targ !== 3 && row.take > 0)) {
+            diagnostics.push(createError({tab:TABS.GENERAL, property:"forceFaceOffset",
+                message:"Для расчёта по внешним ЭП назначьте хотя бы одному физическому элементу положительную силовую группу."}));
+        }
+    }
 
     if (general.fullAxialSymmetry === true && general.useMED !== false) {
         diagnostics.push(createError({

@@ -184,6 +184,47 @@ test('manual, exclusion, rebuild and automatic replacement change only the corre
     assert.throws(()=>buildForceGroups(kernel,rebuilt,{mode:'manual',group:8,indices:[0],distance:.1,minimumGap:.2}),/зазора/);
 });
 
+test('remembered zero rows neither receive panels nor connect the remaining contact components', () => {
+    const probe = {name:'probe',forceGroup:0,indCoil:2};
+    const old = {forceGroup:9};
+    const m = {...model([block(0),block(1.25,0,0,{take:9}),block(2.5),block(8)]), regions:[old,probe]};
+    const marked = {...m,...excludeForceElements(m,[1,3],{preserveRegions:true})};
+    assert.deepEqual(marked.elements.map(s=>s.take),[0,0,0,0]);
+    assert.equal(marked.regions,m.regions);
+    const options = {mode:'automatic',zeroIndices:[1,3],minimumGap:.3,distance:.05};
+    const plan = buildForceGroups(kernel,marked,options);
+    assert.deepEqual(plan.ids,[1,0,2,0]);
+    assert.deepEqual(plan.surfaces.map(s=>s.members),[[0],[2]]);
+    const result = apply(marked,plan);
+    assert.equal(result.regions[0],probe);
+    assert.deepEqual([...new Set(result.regions.slice(1).map(s=>s.forceGroup))],[1,2]);
+    assert.deepEqual(automatic(marked,.3,.05).ids,[1,1,1,2]);
+    const allZero = buildForceGroups(kernel,marked,{...options,zeroIndices:[0,1,2,3]});
+    assert.deepEqual(allZero.ids,[0,0,0,0]);
+    assert.deepEqual(apply(marked,allZero).regions,[probe]);
+    // A touching group-0 source remains a physical obstacle for a surrounding shell.
+    assert.throws(()=>buildForceGroups(kernel,model([block(0),block(1)]),
+        {...options,zeroIndices:[1]}),/№1.*№2|№2.*№1/);
+});
+
+test('external faces assign automatic and manual IDs without a swept shell, node spacing or TK changes', () => {
+    const general = {forceFaceOffset:.001,forceGroupMinGap:2};
+    const m = {...model([block(0),block(1.25),block(2.5),block(8,0,0,{targ:3})],general),
+        regions:[{forceGroup:17,indCoil:0},{forceGroup:0,indCoil:2}]};
+    const auto = buildForceGroups(kernel,m,{mode:'automatic',zeroIndices:[1]});
+    assert.deepEqual(auto.ids,[1,0,1,0]); // gap 1.5 is below the auto grouping threshold of 2
+    assert.deepEqual(auto.surfaces,[{id:1,members:[0,2],panels:[]}]);
+    const output = applyForceGroups(m,auto,undefined,()=>assert.fail('created TK in face mode'));
+    assert.equal(output.regions,m.regions);
+    const manual = buildForceGroups(kernel,{...m,...output},{mode:'manual',indices:[2],group:8});
+    assert.deepEqual(manual.ids,[1,0,8,0]);
+    assert.equal(excludeForceElements({...m,...output},[0,2]).regions,m.regions);
+    const separate = model([block(0,0,0,{take:7}),block(1.25),block(1.1,0,0,{targ:3})],general);
+    assert.deepEqual(conflictingForceContacts(kernel,separate),[]);
+    const touching = model([block(0,0,0,{take:7}),block(1)],general);
+    assert.deepEqual(conflictingForceContacts(kernel,touching),[[0,1]]);
+});
+
 test('node step uses both endpoints and the longer edge of each opposite pair independently', () => {
     const wide = [[0,0,0],[3,0,0],[4.5,2,0],[0,2,0]];
     const square = [[0,0,0],[1.5,0,0],[1.5,1.5,0],[0,1.5,0]];

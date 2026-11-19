@@ -21,8 +21,15 @@ export function ForceSurfaceDialog(props) {
     const [result, setResult] = createSignal(null);
     const [busy, setBusy] = createSignal(false);
     const [error, setError] = createSignal("");
+    const [zeroIndices, setZeroIndices] = createSignal([]);
+    let zeroNotice;
     const selected = () => props.request?.indices ?? [];
     const elements = () => props.request?.elements ?? [];
+    const externalFaces = () => props.request?.general.forceFaceOffset > 0;
+    const canTransfer = () => !busy() && selected().some(i => {
+        const row = elements()[i];
+        return row && row.targ !== 3 && (mode() === "automatic" || row.take > 0);
+    });
     const group = createMemo(() => {
         if (groupInput() !== null) return groupInput();
         const prior = new Set(selected().map(i => elements()[i]?.take).filter(id => id > 0));
@@ -33,9 +40,9 @@ export function ForceSurfaceDialog(props) {
         return String(free);
     });
     const canBuild = () => props.request && !busy()
-        && Number.isFinite(decimal(distance())) && decimal(distance()) > 0
         && gap().trim() !== "" && Number.isFinite(decimal(gap())) && decimal(gap()) >= 0
-        && Number.isFinite(decimal(step())) && decimal(step()) > 0
+        && (externalFaces() || (Number.isFinite(decimal(distance())) && decimal(distance()) > 0
+            && Number.isFinite(decimal(step())) && decimal(step()) > 0))
         && (mode() === "automatic" || (selected().length && Number.isSafeInteger(Number(group())) && Number(group()) > 0));
     const plan = createMemo(() => {
         const saved = result(), request = props.request;
@@ -45,7 +52,7 @@ export function ForceSurfaceDialog(props) {
         return null;
     });
     const panels = createMemo(() => plan()?.surfaces.flatMap(surface => surface.panels));
-    const warning = createMemo(() => forceSurfaceMotionWarning({elements:elements(),
+    const warning = createMemo(() => !externalFaces() && forceSurfaceMotionWarning({elements:elements(),
         selectedIndices:mode() === "automatic" ? elements().flatMap((row,i) => row.targ === 3 ? [] : [i]) : selected(),
         regions:props.request?.regions}));
     function clearResult() {
@@ -53,12 +60,25 @@ export function ForceSurfaceDialog(props) {
         setError("");
     }
 
-    let task, version;
+    let task, version, order, rowCount;
     createEffect(() => {
         const request = props.request;
-        if (!request || (request.task === task && request.version === version)) return;
+        if (!request) return;
+        const sameTask = request.task === task && request.version === version;
+        const rowsChanged = request.order !== order || request.elements.length !== rowCount;
+        order = request.order;
+        rowCount = request.elements.length;
+        if (sameTask) {
+            if (rowsChanged && zeroIndices().length) {
+                setZeroIndices([]);
+                setError("Состав или порядок строк изменился. Выберите элементы группы 0 заново.");
+            }
+            return;
+        }
         task = request.task;
         version = request.version;
+        setZeroIndices([]);
+        if (zeroNotice?.open) zeroNotice.close();
         const initialGap = request.general.forceGroupMinGap ?? 2;
         setGap(String(initialGap));
         linkGap = initialGap === 2;
@@ -79,7 +99,8 @@ export function ForceSurfaceDialog(props) {
             const request = await props.prepare();
             if (closed) return;
             const {general, elements, moves, indices} = request;
-            const options = {mode:mode(), group:Number(group()), indices, distance:decimal(distance()), minimumGap:decimal(gap())};
+            const marked = zeroIndices();
+            const options = {mode:mode(), group:Number(group()), indices, zeroIndices:marked, distance:decimal(distance()), minimumGap:decimal(gap())};
             const nodeStep = decimal(step());
             worker = new Worker(new URL("../../workers/forceSurface.worker.js", import.meta.url), {type:"module"});
             const built = await new Promise((resolve, reject) => {
@@ -89,7 +110,10 @@ export function ForceSurfaceDialog(props) {
             });
             if (closed) return;
             await props.prepare();
-            if (!closed) setResult({plan:built, request:props.onApply(request, built, nodeStep)});
+            if (!closed) {
+                const updated = props.onApply(request, {plan:built, step:nodeStep});
+                setResult({plan:built, request:updated});
+            }
         } catch (e) {
             setError(e.message);
         } finally {
@@ -98,12 +122,20 @@ export function ForceSurfaceDialog(props) {
     }
 
     async function transferSelected() {
-        if (busy()) return;
+        if (!canTransfer()) return;
         clearResult();
         setBusy(true);
         try {
             const request = await props.prepare();
-            if (!closed) props.onApply(request, null);
+            if (closed) return;
+            const physical = request.indices.filter(i => request.elements[i] && request.elements[i].targ !== 3);
+            if (!physical.length) return;
+            const automatic = mode() === "automatic";
+            props.onApply(request, {rememberZero:automatic});
+            if (automatic) {
+                setZeroIndices([...new Set([...zeroIndices(), ...physical])].sort((a,b) => a-b));
+                zeroNotice.showModal();
+            }
         } catch (e) {
             setError(e.message);
         } finally {
@@ -112,7 +144,7 @@ export function ForceSurfaceDialog(props) {
     }
 
     const preview = createMemo(() => {
-        if (!panels()) return null;
+        if (!panels()?.length) return null;
         const request = props.request;
         const elements = [...new Set(plan().surfaces.flatMap(s=>s.members))].map(i=>request.elements[i]);
         const general = {...request.general, mirrorSymmetryX: -1, mirrorSymmetryY: -1};
@@ -147,33 +179,44 @@ export function ForceSurfaceDialog(props) {
                     </div>}</Show>
                 </div>
                 <Show when={mode()==="automatic"} fallback={<span>Выделенные элементы: {selected().length ? selected().map(i=>i+1).join(", ") : "нет"}</span>}>
-                    <Show when={!plan()}><span>Построение обновит группы всех физических элементов и заменит их оболочки.</span></Show>
+                    <span>{zeroIndices().length ? `Запомнены для группы 0: ${zeroIndices().map(i=>i+1).join(", ")}.` :
+                        "Чтобы оставить элементы в группе 0, выделите их и нажмите «Перевести в группу 0» до построения."}</span>
                 </Show>
                 <div class="force-surface-inputs">
                     <Show when={mode()==="manual"}>
                         <label>Номер группы <input type="number" min="1" step="1" value={group()} disabled={busy()}
                             onInput={e=>{setGroupInput(e.currentTarget.value); clearResult();}}/></label>
                     </Show>
-                    <label>Рекомендуемое расстояние, мм<input type="text" inputMode="decimal" value={distance()} disabled={busy()}
-                        onInput={e => { setDistance(e.currentTarget.value); if (linkGap && decimal(distance()) > 0) setGap(String(2*decimal(distance()))); clearResult(); }} /></label>
+                    <Show when={!externalFaces()} fallback={<span>Поле на внешних ЭП при отступе {props.request.general.forceFaceOffset} мм. Узлы строит решатель.</span>}>
+                        <label>Рекомендуемое расстояние, мм<input type="text" inputMode="decimal" value={distance()} disabled={busy()}
+                            onInput={e => { setDistance(e.currentTarget.value); if (linkGap && decimal(distance()) > 0) setGap(String(2*decimal(distance()))); clearResult(); }} /></label>
+                    </Show>
                     <label title="Элементы с зазором меньше заданного объединяются. При 0 учитывается только разрешимая точность построения.">Минимальный зазор между группами, мм<input type="text" inputMode="decimal" value={gap()} disabled={busy()}
                         onInput={e => { linkGap=false; setGap(e.currentTarget.value); clearResult(); }} /></label>
-                    <label>Шаг по узлам, мм<input type="text" inputMode="decimal" value={step()} disabled={busy()}
-                        onInput={e => {setStep(e.currentTarget.value); clearResult();}} /></label>
+                    <Show when={!externalFaces()}>
+                        <label>Шаг по узлам, мм<input type="text" inputMode="decimal" value={step()} disabled={busy()}
+                            onInput={e => {setStep(e.currentTarget.value); clearResult();}} /></label>
+                    </Show>
                 </div>
                 <Show when={warning()}><div class="force-surface-warning" role="status">{warning()}</div></Show>
                 <Show when={!props.request}><span>Для работы с поверхностями откройте вкладку «Элементы» задания.</span></Show>
                 <Show when={error()}><div class="force-surface-error" role="alert">{error()}</div></Show>
-                <Show when={busy() || plan()}><span role="status">{busy() ? "Выполнение…" : plan()?.surfaces.map(s => `Группа ${s.id}: ШГ ${s.members.map(i=>i+1).join(", ")} (${s.panels.length} пл.)`).join(" · ")}
+                <Show when={busy() || plan()}><span role="status">{busy() ? "Выполнение…" : plan()?.surfaces.map(s =>
+                    `Группа ${s.id}: ШГ ${s.members.map(i=>i+1).join(", ")}` + (plan().externalFaces ? "" : ` (${s.panels.length} пл.)`)
+                ).join(" · ") || "Все физические элементы отнесены к группе 0."}
                     <Show when={!busy() && plan()?.coverage}>{range => ` · Охват движения: ${range().start}–${range().end} с`}</Show>
                 </span></Show>
             </div>
             <div class="force-surface-actions">
                 <span title={transferHint}><button title={transferHint} onClick={transferSelected}
-                    disabled={busy() || !selected().some(i=>elements()[i]?.take>0)}>Перевести в группу 0</button></span>
+                    disabled={!canTransfer()}>Перевести в группу 0</button></span>
                 <button onClick={build} disabled={!canBuild()}>Построить</button>
                 <button onClick={props.onClose}>Закрыть</button>
             </div>
+            <dialog ref={zeroNotice} class="modal-window" aria-labelledby="force-zero-notice">
+                <p class="modal-text" id="force-zero-notice">Элементы группы 0 запомнены</p>
+                <form method="dialog"><button class="validate-button" type="submit">ОК</button></form>
+            </dialog>
         </div>
     </FloatingWindow>;
 }
