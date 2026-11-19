@@ -160,3 +160,16 @@ test("electric field labels use compact scientific notation at very large and sm
     assert.equal(electricFieldNumber(42.5), graphNumber(42.5));
     assert.equal(electricFieldNumber(Infinity), "—");
 });
+
+
+test("formula help substitutes max expressions directly without auxiliary U or u definitions", () => {
+    for (const record of [p, { ...p, j_type: 1, m_type: 1 }, { ...p, j_type: 2 }]) {
+        for (const kind of ["jc", "ej", "mh"]) {
+            const text = htsGraphFormula(kind, record).lines.join(" ");
+            assert.doesNotMatch(text, /\bU\(|\bu\s*=/);
+            assert.match(text, /max\(0, 1 − \|x\|\^a\)/);
+            assert.match(text, /b < 0/);
+            assert.match(text, /b = 0/);
+        }
+    }
+});

@@ -10,6 +10,7 @@ const LOG_TICKS = new Intl.NumberFormat("ru-RU", { notation: "scientific", maxim
 function HtsPlot(props) {
     const [viewport, setViewport] = createSignal(null);
     const [automatic, setAutomatic] = createSignal(true);
+    const [selection, setSelection] = createSignal(null);
     const [renderError, setRenderError] = createSignal("");
     const [logarithmic, setLogarithmic] = createSignal(false);
     const [magneticTrace, setMagneticTrace] = createSignal([{ x: 0, y: 0 }]);
@@ -48,7 +49,7 @@ function HtsPlot(props) {
         setMagneticRange(limits); setViewport({ x: limits, y: automatic() ? null : currentView()?.y });
     }
     function clearMagneticTrace() {
-        gesture = null;
+        cancelGesture();
         setMagneticTrace([{ x: 0, y: 0 }]); setMagneticError("");
         const limits = hRange();
         if (limits[0] > 0 || limits[1] < 0) {
@@ -66,8 +67,33 @@ function HtsPlot(props) {
         };
     }
 
-    function changeAutomatic(checked) {
+    function cancelGesture() {
+        const id = gesture?.id;
         gesture = null;
+        setSelection(null);
+        if (id !== undefined && canvas?.hasPointerCapture(id)) canvas.releasePointerCapture(id);
+    }
+
+    function clippedPoint(event, area) {
+        const point = coordinates(event);
+        return {
+            x: Math.max(area.left, Math.min(area.right, point.x)),
+            y: Math.max(area.top, Math.min(area.bottom, point.y)),
+        };
+    }
+
+    function showSelection(point) {
+        const start = gesture.point;
+        setSelection({
+            left: `${100 * Math.min(start.x, point.x) / chart.width}%`,
+            top: `${100 * Math.min(start.y, point.y) / chart.height}%`,
+            width: `${100 * Math.abs(start.x - point.x) / chart.width}%`,
+            height: `${100 * Math.abs(start.y - point.y) / chart.height}%`,
+        });
+    }
+
+    function changeAutomatic(checked) {
+        cancelGesture();
         const view = currentView();
         setAutomatic(checked);
         setViewport(checked ? (view ? { x: view.x, y: null } : null) : view);
@@ -100,7 +126,7 @@ function HtsPlot(props) {
     }
 
     function pointerDown(event) {
-        if (!chart || event.button !== 0) return;
+        if (!chart || gesture || (event.button !== 0 && event.button !== 2)) return;
         const point = coordinates(event), area = chart.chartArea;
         if (point.x < area.left || point.x > area.right || point.y < area.top || point.y > area.bottom) return;
         event.preventDefault();
@@ -108,15 +134,23 @@ function HtsPlot(props) {
         canvas.setPointerCapture(event.pointerId);
         gesture = {
             id: event.pointerId,
-            cursor: props.kind === "jc" && !event.shiftKey,
+            box: event.button === 2,
+            cursor: event.button === 0 && props.kind === "jc" && !event.shiftKey,
+            area: { ...area }, chartWidth: chart.width, chartHeight: chart.height,
             point, view: currentView(),
             width: area.right - area.left, height: area.bottom - area.top,
         };
-        if (gesture.cursor) setCursor(event);
+        if (gesture.box) showSelection(point);
+        else if (gesture.cursor) setCursor(event);
     }
 
     function pointerMove(event) {
         if (!gesture || event.pointerId !== gesture.id || !chart) return;
+        if (gesture.box) {
+            if (chart.width !== gesture.chartWidth || chart.height !== gesture.chartHeight) { cancelGesture(); return; }
+            showSelection(clippedPoint(event, gesture.area));
+            return;
+        }
         if (gesture.cursor) { setCursor(event); return; }
         const point = coordinates(event), { view } = gesture;
         setAutomatic(false);
@@ -129,8 +163,23 @@ function HtsPlot(props) {
 
     function finishGesture(event) {
         if (gesture?.id !== event.pointerId) return;
-        gesture = null;
-        if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+        let nextView = null;
+        if (gesture.box && chart && chart.width === gesture.chartWidth && chart.height === gesture.chartHeight) {
+            const start = gesture.point, end = clippedPoint(event, gesture.area);
+            const rect = canvas.getBoundingClientRect();
+            // Reject clicks and narrow strips using CSS pixels, independently of DPI.
+            if (Math.abs(end.x - start.x) * rect.width / chart.width >= 6
+                && Math.abs(end.y - start.y) * rect.height / chart.height >= 6) {
+                const x = [start.x, end.x].map(pixel => chart.scales.x.getValueForPixel(pixel)).sort((a, b) => a - b);
+                const y = [start.y, end.y].map(pixel => chart.scales.y.getValueForPixel(pixel)).sort((a, b) => a - b);
+                const valid = range => range.every(Number.isFinite) && Number.isFinite(range[1] - range[0])
+                    && range[1] - range[0] > 32 * Number.EPSILON * Math.max(...range.map(Math.abs), Number.MIN_VALUE)
+                    && (!logAxes() || range[0] > 0);
+                if (valid(x) && valid(y)) nextView = { x, y };
+            }
+        }
+        cancelGesture();
+        if (nextView) { setAutomatic(false); setViewport(nextView); }
     }
 
     function wheel(event) {
@@ -138,6 +187,7 @@ function HtsPlot(props) {
         const point = coordinates(event), area = chart.chartArea;
         if (point.x < area.left || point.x > area.right || point.y < area.top || point.y > area.bottom) return;
         event.preventDefault();
+        cancelGesture();
         zoom(event.deltaY > 0 ? 1.2 : 1 / 1.2, {
             x: chart.scales.x.getValueForPixel(point.x),
             y: chart.scales.y.getValueForPixel(point.y),
@@ -145,6 +195,7 @@ function HtsPlot(props) {
     }
 
     function keyDown(event) {
+        if (event.key === "Escape" && gesture) { event.preventDefault(); cancelGesture(); return; }
         if (props.kind !== "jc" || !chart) return;
         const step = (chart.scales.x.max - chart.scales.x.min) / (event.shiftKey ? 10 : 100);
         if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
@@ -178,7 +229,7 @@ function HtsPlot(props) {
         const changed = record !== lastRecord;
         if (changed) {
             lastRecord = record;
-            gesture = null;
+            cancelGesture();
             setViewport(null); setMagneticRange(null); setAutomatic(true);
         }
         if (props.kind === "mh") {
@@ -192,6 +243,7 @@ function HtsPlot(props) {
 
     createEffect(() => {
         const value = model(), Chart = props.Chart;
+        if (gesture?.box) cancelGesture();
         const view = viewport();
         setRenderError("");
         if (!Chart || value.error || !canvas) {
@@ -231,7 +283,7 @@ function HtsPlot(props) {
     });
 
     onMount(() => canvas.addEventListener("wheel", wheel, { passive: false }));
-    onCleanup(() => { canvas.removeEventListener("wheel", wheel); gesture = null; chart?.destroy(); chart = null; });
+    onCleanup(() => { canvas.removeEventListener("wheel", wheel); cancelGesture(); chart?.destroy(); chart = null; });
 
     return <section class="hts-graph" data-hts-graph={props.kind} aria-label={`График ${TITLES[props.kind]}`}>
         <header class="hts-graph-title">
@@ -248,7 +300,7 @@ function HtsPlot(props) {
             <Show when={props.kind === "ej"}>
                 <label class="hts-graph-logarithm"><input type="checkbox" checked={logarithmic()} disabled={!props.record}
                     aria-label="Логарифмические оси E(J)" onChange={event => {
-                        gesture = null; setViewport(null); setAutomatic(true); setLogarithmic(event.currentTarget.checked);
+                        cancelGesture(); setViewport(null); setAutomatic(true); setLogarithmic(event.currentTarget.checked);
                     }} /> логарифм</label>
             </Show>
             <button type="button" class="hts-graph-formula-help" aria-label={`Формулы ${TITLES[props.kind]}`}
@@ -270,7 +322,9 @@ function HtsPlot(props) {
         <div class="hts-graph-host">
             <canvas ref={canvas} tabIndex="0" aria-label={props.kind === "jc" ? "Курсор эффективного поля" : TITLES[props.kind]}
                 onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={finishGesture}
-                onPointerCancel={finishGesture} onLostPointerCapture={() => { gesture = null; }} onKeyDown={keyDown} />
+                onPointerCancel={cancelGesture} onLostPointerCapture={cancelGesture} onKeyDown={keyDown}
+                onContextMenu={event => event.preventDefault()} />
+            <Show when={selection()}>{box => <div class="hts-graph-zoom-box" aria-hidden="true" style={box()} />}</Show>
             <Show when={model().error || renderError() || magneticError() || props.loadError}>
                 <div class="hts-graph-message" role={props.record ? "alert" : "status"}>
                     {model().error || renderError() || magneticError() || props.loadError}
@@ -282,7 +336,7 @@ function HtsPlot(props) {
         </Show>{model().note || (props.kind === "jc"
             ? "Курсор: щелчок или перетаскивание; ← → с клавиатуры."
             : props.kind === "ej" ? "Поле и Jc заданы курсором первого графика." : "")}</div>
-        <dialog ref={formulaDialog} class="hts-graph-formula-dialog" aria-label={`Формулы ${TITLES[props.kind]}`}>
+        <dialog ref={formulaDialog} class="hts-graph-formula-dialog" classList={{ "hts-graph-formula-compact": props.kind !== "mh" }} aria-label={`Формулы ${TITLES[props.kind]}`}>
             <h3>{formula().title}</h3>
             <HtsGraphFormula kind={props.kind} record={props.record} />
             <button type="button" onClick={() => formulaDialog.close()}>Закрыть</button>
@@ -325,6 +379,6 @@ export function HtsGraphRegion(props) {
             <For each={HTS_GRAPH_KINDS}>{kind => <HtsPlot kind={kind} record={props.record} field={field()}
                 onField={selectField} Chart={Chart()} loadError={loadError()} />}</For>
         </div>
-        <div class="hts-graph-gestures">Масштаб: колесо мыши. Перемещение: перетаскивание, на Jc — с Shift.</div>
+        <div class="hts-graph-gestures">Масштаб: колесо мыши; рамка — перетаскивание правой кнопкой, Esc — отмена. Перемещение: левая кнопка, на Jc — с Shift.</div>
     </section>;
 }

@@ -19,6 +19,29 @@ const ranges = kind => page.evaluate(kind => {
     const c = htsGraphs.chart(kind);
     return { x: [c.scales.x.min, c.scales.x.max], y: [c.scales.y.min, c.scales.y.max] };
 }, kind);
+async function graphPoint(kind, fx, fy) {
+    return page.evaluate(({kind, fx, fy}) => {
+        const c = htsGraphs.chart(kind), rect = c.canvas.getBoundingClientRect(), a = c.chartArea;
+        const px = a.left + fx * (a.right - a.left), py = a.top + fy * (a.bottom - a.top);
+        return { x: rect.left + px * rect.width / c.width, y: rect.top + py * rect.height / c.height,
+            dataX: c.scales.x.getValueForPixel(px), dataY: c.scales.y.getValueForPixel(py) };
+    }, {kind, fx, fy});
+}
+async function dragBox(kind, start, end) {
+    await page.mouse.move(start.x, start.y);
+    await page.mouse.down({button:"right"});
+    await page.mouse.move(end.x, end.y, {steps:4});
+    await plot(kind).locator(".hts-graph-zoom-box").waitFor();
+}
+function checkBoxRange(actual, start, end, logarithmic = false) {
+    for (const [axis, values] of [["x", [start.dataX, end.dataX]], ["y", [start.dataY, end.dataY]]]) {
+        const expected = values.sort((a,b)=>a-b);
+        for (let i=0;i<2;i++) {
+            if (logarithmic) close(Math.log10(actual[axis][i]), Math.log10(expected[i]), 1e-5);
+            else close(actual[axis][i], expected[i], 1e-5);
+        }
+    }
+}
 async function select() {
     await page.evaluate(() => guideMaterials.table().getRows()[0].select());
     await page.waitForFunction(() => htsGraphs.charts().length === 3);
@@ -86,6 +109,7 @@ try {
     assert.equal(await page.getByRole('spinbutton', { name: 'Текущее эффективное поле' }).count(), 1);
     assert.equal(await page.getByRole('slider', { name: 'Магнитное поле H, кА/м' }).inputValue(), '0');
     check("three adjacent real charts, requested initial ranges, one-quarter/three-quarters layout");
+    const dialogWidths = {};
     for (const kind of ["jc", "ej", "mh"]) {
         assert.equal(await plot(kind).locator(".hts-graph-controls").count(), 0);
         const header = plot(kind).locator(".hts-graph-title");
@@ -102,14 +126,21 @@ try {
                 return numerator.top < denominator.top && numerator.bottom <= denominator.top + 2;
             }),
         })));
-        assert.ok(rendered.length >= 3 && rendered.every(value => value.namespace === "http://www.w3.org/1998/Math/MathML" && value.height > 15));
+        assert.ok(rendered.length >= 2 && rendered.every(value => value.namespace === "http://www.w3.org/1998/Math/MathML" && value.height > 15));
         assert.ok(rendered.some(value => value.fractions.length));
         assert.ok(rendered.every(value => value.fractions.every(Boolean)));
         assert.ok(await dialog.locator("msup").count() > 0);
         assert.ok(await dialog.locator("mtable").count() > 0);
+        const tokens = await dialog.locator("math mi").allTextContents();
+        assert.ok(!tokens.includes("U") && !tokens.includes("u"));
+        const shapeLabel = await dialog.locator('math[aria-label^="K(x;"]').getAttribute("aria-label");
+        assert.match(shapeLabel, /max\(0, 1 − \|x\|\^a\)/);
+        dialogWidths[kind] = (await dialog.boundingBox()).width;
         await page.screenshot({ path: path.join(output, `hts-formulas-${kind}.png`) });
         await page.keyboard.press("Escape"); await dialog.waitFor({ state: "hidden" });
     }
+    assert.ok(dialogWidths.jc < dialogWidths.mh && dialogWidths.ej < dialogWidths.mh, JSON.stringify(dialogWidths));
+    check("first two help panels fit their content and all formulas inline max without U or u definitions");
     assert.equal(await plot("jc").getByRole("checkbox").count(), 1);
     assert.equal(await plot("mh").getByRole("checkbox").count(), 1);
     check("headers contain independent Auto checkboxes; selected-model formulas render as native MathML with fractions, powers and cases");
@@ -312,6 +343,53 @@ try {
     for (const name of ["field", "viewport", "cursor", "currentJc", "datasets", "logarithmic", "magneticTrace", "magneticRange"]) assert.ok(!(name in stored));
     check("Undo/Redo restore chart data and saving keeps cursor, scale and computed curves out of the material file");
 
+    const cursorBeforeBoxes = await page.getByRole("spinbutton", {name:"Текущее эффективное поле"}).inputValue();
+    for (const kind of ["jc", "ej", "mh"]) {
+        await auto(kind).check();
+        const other = kind === "mh" ? "jc" : "mh", beforeOther = await ranges(other);
+        const start = await graphPoint(kind, kind === "mh" ? .8 : .2, kind === "mh" ? .75 : .25);
+        const end = await graphPoint(kind, kind === "mh" ? .2 : .8, kind === "mh" ? .25 : .75);
+        await dragBox(kind, start, end);
+        if (kind === "jc") await page.screenshot({path:path.join(output,"hts-box-selection.png")});
+        await page.mouse.up({button:"right"});
+        await plot(kind).locator(".hts-graph-zoom-box").waitFor({state:"hidden"});
+        checkBoxRange(await ranges(kind), start, end);
+        assert.equal(await auto(kind).isChecked(), false);
+        assert.deepEqual(await ranges(other), beforeOther);
+    }
+    assert.equal(await page.getByRole("spinbutton", {name:"Текущее эффективное поле"}).inputValue(), cursorBeforeBoxes);
+    check("right-button box zoom selects both axes on all three charts, supports reverse dragging and preserves cursor and other charts");
+
+    await logarithm.check();
+    await page.waitForFunction(() => htsGraphs.chart("ej").scales.x.type === "logarithmic");
+    const logStart = await graphPoint("ej",.2,.2), logEnd = await graphPoint("ej",.8,.8);
+    await dragBox("ej",logStart,logEnd); await page.mouse.up({button:"right"});
+    checkBoxRange(await ranges("ej"),logStart,logEnd,true);
+    assert.ok(Object.values(await ranges("ej")).flat().every(value=>Number.isFinite(value)&&value>0));
+    await logarithm.uncheck();
+    check("box zoom converts pixels through logarithmic axes and keeps all limits positive");
+
+    await auto("mh").check();
+    const beforeCancel = await ranges("mh"), cancelStart = await graphPoint("mh",.2,.2), cancelEnd = await graphPoint("mh",.8,.8);
+    await dragBox("mh",cancelStart,cancelEnd);
+    await page.keyboard.press("Escape"); await page.mouse.up({button:"right"});
+    assert.deepEqual(await ranges("mh"),beforeCancel); assert.equal(await auto("mh").isChecked(),true);
+    assert.equal(await plot("mh").locator(".hts-graph-zoom-box").count(),0);
+    await page.mouse.move(cancelStart.x,cancelStart.y); await page.mouse.down({button:"right"});
+    await page.mouse.move(cancelStart.x+2,cancelStart.y+2); await page.mouse.up({button:"right"});
+    assert.deepEqual(await ranges("mh"),beforeCancel); assert.equal(await auto("mh").isChecked(),true);
+    await dragBox("mh",cancelStart,cancelEnd);
+    await plot("mh").locator("canvas").dispatchEvent("pointercancel",{pointerId:1});
+    await page.mouse.up({button:"right"});
+    assert.deepEqual(await ranges("mh"),beforeCancel);
+    assert.equal(await plot("mh").locator(".hts-graph-zoom-box").count(),0);
+    check("Escape, pointer cancellation and tiny selections discard the rectangle without changing ranges or Auto");
+
+    const clipStart=await graphPoint("mh",.25,.25), outside=await graphPoint("mh",1.2,1.2), edge=await graphPoint("mh",1,1);
+    await dragBox("mh",clipStart,outside); await page.mouse.up({button:"right"});
+    checkBoxRange(await ranges("mh"),clipStart,edge);
+    check("selection stays inside the plotting area when the captured pointer leaves the canvas");
+
     for (const width of [1100, 1920]) {
         await page.setViewportSize({ width, height: 980 });
         await page.waitForFunction(() => htsGraphs.charts().every(c => c.width > 150 && c.height > 150));
@@ -339,7 +417,10 @@ try {
     assert.equal(await page.evaluate(() => guideMaterials.table().getData()[0].JC0), 2.5);
     check("read-only base materials support interactive previews without edits");
 
+    const cleanupStart=await graphPoint("mh",.2,.2),cleanupEnd=await graphPoint("mh",.8,.8);
+    await dragBox("mh",cleanupStart,cleanupEnd);
     await page.evaluate(() => { guideMaterials.mount("FMM", "A"); guideMaterials.setActive(true); });
+    await page.mouse.up({button:"right"});
     await page.waitForFunction(() => guideMaterials.snapshot().rows?.[0]?.name === "TaskA_FMM");
     await page.evaluate(() => guideMaterials.table().getRows()[0].select());
     await page.waitForFunction(() => document.querySelector(".fmm-graph-region canvas") && htsGraphs.charts().length === 1);
