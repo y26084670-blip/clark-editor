@@ -211,7 +211,8 @@ export function GeneralInformationDialog(props) {
             <li>
               На вкладке «Выбор задания» сворачиваемый раздел <strong>«Работа с проектами»</strong>:
               <strong> «Создать проект»</strong>, <strong>«Переименовать проект»</strong>, <strong>«Удалить пустой проект»</strong>.
-              В разделе <strong>«Работа с заданиями»</strong>: <strong>«Создать геометрию по эскизу»</strong>,
+              В разделе <strong>«AI запросы»</strong> команда <strong>«Геометрия по эскизу»</strong> открывает окно <strong>«ZIP по эскизу для ИИ»</strong>.
+              В разделе <strong>«Работа с заданиями»</strong>:
               <strong> «Создать задание»</strong>, <strong>«Создать копию»</strong>, <strong>«Переименовать задание»</strong>,
               <strong> «Перенести в другой каталог»</strong>, <strong>«Удалить задание»</strong>.
             </li>
@@ -221,7 +222,7 @@ export function GeneralInformationDialog(props) {
             </li>
             <li>
               <strong>Действия текущей вкладки.</strong> На вкладке
-              «Элементы модели» можно назначать характеристики элементам,
+              «Элементы» можно назначать характеристики элементам,
               выделенным в списке.
             </li>
           </ul>
