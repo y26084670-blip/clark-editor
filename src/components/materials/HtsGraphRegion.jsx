@@ -1,6 +1,7 @@
 import { createEffect, createMemo, createSignal, For, onCleanup, onMount, Show, untrack } from "solid-js";
 import { graphNumber, HTS_GRAPH_KINDS, htsGraphModel, panGraphRange, zoomGraphRange } from "../../services/materials/htsGraphModel.js";
 import { htsCriticalCurrent } from "../../services/solver/htsMaterialLaw.js";
+import { HtsGraphHelp } from "./HtsGraphHelp.jsx";
 import "./HtsGraphRegion.css";
 
 const TITLES = { jc: "Jc(b_eff)", ej: "E(J)", mh: "M(H)" };
@@ -8,8 +9,10 @@ const TITLES = { jc: "Jc(b_eff)", ej: "E(J)", mh: "M(H)" };
 function HtsPlot(props) {
     const [viewport, setViewport] = createSignal(null);
     const [renderError, setRenderError] = createSignal("");
+    const [helpOpen, setHelpOpen] = createSignal(false);
+    const [logY, setLogY] = createSignal(false);
     let canvas, chart, gesture, lastRecord;
-    const model = createMemo(() => htsGraphModel(props.kind, props.record, props.field, viewport()?.x));
+    const model = createMemo(() => htsGraphModel(props.kind, props.record, props.field, viewport()?.x, logY()));
 
     function currentView() {
         if (!chart) return null;
@@ -24,7 +27,7 @@ function HtsPlot(props) {
         if (!view) return;
         setViewport({
             x: zoomGraphRange(view.x, factor, anchor?.x, props.kind !== "mh"),
-            y: zoomGraphRange(view.y, factor, anchor?.y),
+            y: zoomGraphRange(view.y, factor, anchor?.y, false, logY()),
         });
     }
 
@@ -36,11 +39,10 @@ function HtsPlot(props) {
         };
     }
 
-    function setCursor(event) {
+    function setCursor(point) {
         if (!chart) return;
-        const pixel = coordinates(event).x;
         props.onField(Math.max(0, chart.scales.x.getValueForPixel(
-            Math.max(chart.chartArea.left, Math.min(chart.chartArea.right, pixel)),
+            Math.max(chart.chartArea.left, Math.min(chart.chartArea.right, point.x)),
         )));
     }
 
@@ -53,31 +55,46 @@ function HtsPlot(props) {
         canvas.setPointerCapture(event.pointerId);
         gesture = {
             id: event.pointerId,
-            cursor: props.kind === "jc" && !event.shiftKey,
+            pan: event.shiftKey,
             point, view: currentView(),
+            end: point,
             width: area.right - area.left, height: area.bottom - area.top,
         };
-        if (gesture.cursor) setCursor(event);
     }
 
     function pointerMove(event) {
         if (!gesture || event.pointerId !== gesture.id || !chart) return;
-        if (gesture.cursor) { setCursor(event); return; }
-        const point = coordinates(event), { view } = gesture;
+        const point = coordinates(event), { view } = gesture, area = chart.chartArea;
+        gesture.end = { x: Math.max(area.left, Math.min(area.right, point.x)),
+            y: Math.max(area.top, Math.min(area.bottom, point.y)) };
+        if (!gesture.pan) { chart.draw(); return; }
+        const ySpan = logY() ? Math.log10(view.y[1]) - Math.log10(view.y[0]) : view.y[1] - view.y[0];
         setViewport({
             x: panGraphRange(view.x, -(point.x - gesture.point.x) / gesture.width * (view.x[1] - view.x[0]), props.kind !== "mh"),
-            y: panGraphRange(view.y, (point.y - gesture.point.y) / gesture.height * (view.y[1] - view.y[0])),
+            y: panGraphRange(view.y, (point.y - gesture.point.y) / gesture.height * ySpan, false, logY()),
         });
     }
 
-    function finishGesture(event) {
+    function finishGesture(event, cancelled = false) {
         if (gesture?.id !== event.pointerId) return;
+        const active = gesture;
         gesture = null;
         if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+        if (!cancelled && !active.pan && chart) {
+            const dx = Math.abs(active.end.x - active.point.x), dy = Math.abs(active.end.y - active.point.y);
+            if (dx >= 6 && dy >= 6) {
+                const x = [active.point.x, active.end.x].map(p => chart.scales.x.getValueForPixel(p)).sort((a, b) => a - b);
+                const y = [active.point.y, active.end.y].map(p => chart.scales.y.getValueForPixel(p)).sort((a, b) => a - b);
+                if ([...x, ...y].every(Number.isFinite) && x[1] > x[0] && y[1] > y[0] && (!logY() || y[0] > 0)) {
+                    setViewport({ x, y });
+                }
+            } else if (dx < 6 && dy < 6 && props.kind === "jc") setCursor(active.end);
+        }
+        chart?.draw();
     }
 
     function wheel(event) {
-        if (!chart || !event.deltaY) return;
+        if (!chart || gesture || !event.deltaY) return;
         const point = coordinates(event), area = chart.chartArea;
         if (point.x < area.left || point.x > area.right || point.y < area.top || point.y > area.bottom) return;
         event.preventDefault();
@@ -88,6 +105,11 @@ function HtsPlot(props) {
     }
 
     function keyDown(event) {
+        if (event.key === "Escape" && gesture) {
+            event.preventDefault();
+            finishGesture({ pointerId: gesture.id }, true);
+            return;
+        }
         if (props.kind !== "jc" || !chart) return;
         const step = (chart.scales.x.max - chart.scales.x.min) / (event.shiftKey ? 10 : 100);
         if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
@@ -125,6 +147,20 @@ function HtsPlot(props) {
         }
     });
 
+    const selectionPlugin = {
+        id: "htsZoomSelection",
+        afterDraw(instance) {
+            if (!gesture || gesture.pan) return;
+            const { point, end } = gesture, { ctx } = instance;
+            ctx.save();
+            ctx.fillStyle = "rgba(109,184,255,.18)";
+            ctx.strokeStyle = "#a8d5ff"; ctx.lineWidth = 1; ctx.setLineDash([4, 3]);
+            ctx.fillRect(point.x, point.y, end.x - point.x, end.y - point.y);
+            ctx.strokeRect(point.x, point.y, end.x - point.x, end.y - point.y);
+            ctx.restore();
+        },
+    };
+
     createEffect(() => {
         const value = model(), Chart = props.Chart;
         const view = viewport();
@@ -133,8 +169,8 @@ function HtsPlot(props) {
             chart?.destroy(); chart = null;
             return;
         }
-        const scale = (label, limits) => ({
-            type: "linear",
+        const scale = (label, limits, logarithmic = false) => ({
+            type: logarithmic ? "logarithmic" : "linear",
             title: { display: true, text: label, color: "#dce4ec", font: { size: 11 } },
             ticks: { color: "#bccbd7", maxTicksLimit: 5, callback: graphNumber, font: { size: 10 } },
             grid: { color: "rgba(180,195,208,.16)" },
@@ -148,7 +184,7 @@ function HtsPlot(props) {
             },
             scales: {
                 x: scale(value.xLabel, view?.x ?? value.xRange),
-                y: { ...scale(value.yLabel, view?.y), beginAtZero: true },
+                y: { ...scale(value.yLabel, view?.y ?? value.yRange, logY()), beginAtZero: !logY() },
             },
         };
         try {
@@ -157,7 +193,7 @@ function HtsPlot(props) {
                 chart.options = options;
                 chart.update("none");
             } else chart = new Chart(canvas, {
-                type: "line", data: { datasets: value.datasets }, options, plugins: [cursorPlugin],
+                type: "line", data: { datasets: value.datasets }, options, plugins: [cursorPlugin, selectionPlugin],
             });
         } catch (error) {
             chart?.destroy(); chart = null;
@@ -169,17 +205,23 @@ function HtsPlot(props) {
     onCleanup(() => { canvas.removeEventListener("wheel", wheel); gesture = null; chart?.destroy(); chart = null; });
 
     return <section class="hts-graph" data-hts-graph={props.kind} aria-label={`График ${TITLES[props.kind]}`}>
-        <header class="hts-graph-title">{TITLES[props.kind]}</header>
+        <header class="hts-graph-title"><span>{TITLES[props.kind]}</span>
+            <button type="button" class="hts-graph-help-button" title={`Формулы ${TITLES[props.kind]}`}
+                aria-label={`Формулы ${TITLES[props.kind]}`} onClick={() => setHelpOpen(true)}>?</button></header>
         <div class="hts-graph-controls">
-            <button type="button" aria-label={`Увеличить ${TITLES[props.kind]}`} title="Увеличить масштаб" disabled={Boolean(model().error)} onClick={() => zoom(1 / 1.5)}>+</button>
-            <button type="button" aria-label={`Уменьшить ${TITLES[props.kind]}`} title="Уменьшить масштаб" disabled={Boolean(model().error)} onClick={() => zoom(1.5)}>−</button>
-            <button type="button" title="Подобрать вертикальный масштаб для видимого диапазона" disabled={Boolean(model().error)} onClick={() => setViewport(current => current ? { x: current.x, y: null } : null)}>Автомасштаб</button>
-            <button type="button" disabled={Boolean(model().error)} onClick={() => setViewport(null)}>Исходный диапазон</button>
+            <button type="button" title="Показать полный диапазон и подобрать масштаб обеих осей" disabled={!props.record} onClick={() => setViewport(null)}>Автомасштаб</button>
+            <Show when={props.kind === "ej"}><label class="hts-log-scale"><input type="checkbox"
+                checked={logY()} onChange={event => {
+                    gesture = null;
+                    setLogY(event.currentTarget.checked);
+                    setViewport(current => current ? { x: current.x, y: null } : null);
+                }} />Логарифмическая E</label></Show>
         </div>
         <div class="hts-graph-host">
             <canvas ref={canvas} tabIndex="0" aria-label={props.kind === "jc" ? "Курсор эффективного поля" : TITLES[props.kind]}
                 onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={finishGesture}
-                onPointerCancel={finishGesture} onLostPointerCapture={() => { gesture = null; }} onKeyDown={keyDown} />
+                onPointerCancel={event => finishGesture(event, true)}
+                onLostPointerCapture={event => finishGesture(event, true)} onKeyDown={keyDown} />
             <Show when={model().error || renderError() || props.loadError}>
                 <div class="hts-graph-message" role={props.record ? "alert" : "status"}>
                     {model().error || renderError() || props.loadError}
@@ -187,8 +229,9 @@ function HtsPlot(props) {
             </Show>
         </div>
         <div class="hts-graph-note">{model().note || (props.kind === "jc"
-            ? "Курсор: щелчок или перетаскивание; ← → с клавиатуры."
+            ? "Поле: щелчок по графику; ← → с клавиатуры."
             : props.kind === "ej" ? "Поле и Jc заданы курсором первого графика." : "")}</div>
+        <Show when={helpOpen()}><HtsGraphHelp kind={props.kind} record={props.record} onClose={() => setHelpOpen(false)} /></Show>
     </section>;
 }
 
@@ -234,6 +277,6 @@ export function HtsGraphRegion(props) {
             <For each={HTS_GRAPH_KINDS}>{kind => <HtsPlot kind={kind} record={props.record} field={field()}
                 onField={selectField} Chart={Chart()} loadError={loadError()} />}</For>
         </div>
-        <div class="hts-graph-gestures">Масштаб: колесо мыши или +/−. Перемещение: перетаскивание, на Jc — с Shift.</div>
+        <div class="hts-graph-gestures">Масштаб: выделите область рамкой или прокрутите колесо мыши. Перемещение: Shift + перетаскивание. Esc отменяет рамку.</div>
     </section>;
 }

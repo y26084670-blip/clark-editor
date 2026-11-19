@@ -98,42 +98,90 @@ try {
     const selectedField = await page.getByRole("spinbutton", { name: "Текущее эффективное поле" }).inputValue();
     close(Number(selectedField), .5, .005);
     await page.waitForFunction(() => htsGraphs.chart("ej").data.datasets[0].data.at(-1).y > 1e6);
-    point = await canvasPoint("jc", .25);
-    const destination = await canvasPoint("jc", .75);
-    await page.mouse.move(point.x, point.y); await page.mouse.down();
-    await page.mouse.move(destination.x, destination.y, { steps: 8 }); await page.mouse.up();
+    point = await canvasPoint("jc", .75);
+    await page.mouse.click(point.x, point.y);
     close(Number(await page.getByRole("spinbutton", { name: "Текущее эффективное поле" }).inputValue()), .75, .005);
     await plot("jc").locator("canvas").press("ArrowRight");
     assert.ok(Number(await page.getByRole("spinbutton", { name: "Текущее эффективное поле" }).inputValue()) > .75);
     assert.equal(await page.evaluate(() => JSON.stringify(guideMaterials.table().getData())), beforeCursor);
-    check("mouse click, cursor drag and keyboard change E(J) without changing material data");
+    check("mouse click and keyboard change E(J) without changing material data");
 
+    async function rectangle(kind, reverse = false, cancel = false) {
+        const before = await ranges(kind);
+        const box = await plot(kind).locator("canvas").boundingBox();
+        const area = await page.evaluate(kind => {
+            const a = htsGraphs.chart(kind).chartArea;
+            return { left: a.left, top: a.top, right: a.right, bottom: a.bottom };
+        }, kind);
+        const start = { x: box.x + area.left + (area.right - area.left) * .2,
+            y: box.y + area.top + (area.bottom - area.top) * .2 };
+        const end = { x: box.x + area.left + (area.right - area.left) * .8,
+            y: box.y + area.top + (area.bottom - area.top) * .8 };
+        const from = reverse ? end : start, to = reverse ? start : end;
+        await page.mouse.move(from.x, from.y); await page.mouse.down();
+        await page.mouse.move(to.x, to.y, { steps: 5 });
+        if (cancel) await page.keyboard.press("Escape");
+        await page.mouse.up();
+        if (cancel) assert.deepEqual(await ranges(kind), before);
+        else {
+            const after = await ranges(kind);
+            close(after.x[0], before.x[0] + .2 * (before.x[1] - before.x[0]), .01);
+            close(after.x[1], before.x[0] + .8 * (before.x[1] - before.x[0]), .01);
+            assert.ok(after.y[0] > before.y[0] && after.y[1] < before.y[1]);
+        }
+    }
     await field(.5);
-    await plot("ej").getByRole("button", { name: "Увеличить E(J)", exact: true }).click();
+    await rectangle("ej", true);
     const zoomed = await ranges("ej");
-    assert.ok(zoomed.x[1] - zoomed.x[0] < 5);
-    await edit("j_type", 1);
-    await edit("j1_delta", .2);
+    await edit("j_type", 1); await edit("j1_delta", .2);
     assert.deepEqual(await ranges("ej"), zoomed);
     await plot("ej").getByRole("button", { name: "Автомасштаб", exact: true }).click();
-    assert.deepEqual((await ranges("ej")).x, zoomed.x);
-    assert.notDeepEqual((await ranges("ej")).y, zoomed.y);
-    await plot("ej").getByRole("button", { name: "Исходный диапазон", exact: true }).click();
     assert.deepEqual((await ranges("ej")).x, [0, 5]);
     const tanhY = await page.evaluate(() => htsGraphs.chart("ej").data.datasets[0].data.find(p => p.x === 1.25).y);
     close(tanhY, 1.25 / 25000);
-    check("tanh model, linked Jc, independent zoom, retained manual ranges and Y autoscaling");
+    await rectangle("jc");
+    close(Number(await page.getByRole("spinbutton", { name: "Текущее эффективное поле" }).inputValue()), .5);
+    await rectangle("jc", false, true);
+    await plot("jc").getByRole("button", { name: "Автомасштаб", exact: true }).click();
+    assert.equal(await page.getByRole("button", { name: "Исходный диапазон", exact: true }).count(), 0);
+    assert.equal(await page.getByRole("button", { name: "Увеличить E(J)", exact: true }).count(), 0);
+    check("rectangle in either direction, Esc cancellation, cursor preservation and full autoscaling");
+
+    for (const [kind, title, formula] of [["jc", "Jc(b_eff)", "Jc(b_eff) = JC0"],
+        ["ej", "E(J)", "Текущая модель: j_type = 1"], ["mh", "M(H)", "M₊(H) = L(H)"]]) {
+        await plot(kind).getByRole("button", { name: `Формулы ${title}`, exact: true }).click();
+        const help = page.getByRole("dialog", { name: `Формулы ${title}`, exact: true });
+        assert.ok((await help.innerText()).includes(formula));
+        await help.getByRole("button", { name: "Закрыть", exact: true }).click();
+        await help.waitFor({ state: "detached" });
+    }
+    await edit("j_type", 2);
+    const logToggle = plot("ej").getByRole("checkbox", { name: "Логарифмическая E", exact: true });
+    const linearValues = await page.evaluate(() => htsGraphs.chart("ej").data.datasets[0].data.filter(p => p.y > 0));
+    await logToggle.check();
+    await page.waitForFunction(() => htsGraphs.chart("ej").scales.y.type === "logarithmic");
+    assert.deepEqual(await page.evaluate(() => htsGraphs.chart("ej").data.datasets[0].data.filter(p => p.y !== null)), linearValues);
+    assert.ok((await ranges("ej")).y[0] > 0);
+    await rectangle("ej");
+    await plot("ej").getByRole("button", { name: "Автомасштаб", exact: true }).click();
+    await field(1);
+    await plot("ej").getByRole("alert").filter({ hasText: "Нет положительных значений E" }).waitFor();
+    assert.ok(await page.evaluate(() => Boolean(htsGraphs.chart("jc") && htsGraphs.chart("mh"))));
+    await logToggle.uncheck();
+    await page.waitForFunction(() => htsGraphs.chart("ej")?.data.datasets[0].data.every(p => p.y === 0));
+    await field(.5);
+    check("per-plot formula dialogs, log E preserves data, zero-only log diagnostic and linear recovery");
 
     point = await canvasPoint("mh", 0);
     await page.mouse.move(point.x, point.y); await page.mouse.wheel(0, -200);
     await page.waitForFunction(() => htsGraphs.chart("mh").scales.x.max - htsGraphs.chart("mh").scales.x.min < 2.4);
     const wheelRange = await ranges("mh");
-    await page.mouse.move(point.x, point.y); await page.mouse.down();
-    await page.mouse.move(point.x + 25, point.y + 10, { steps: 5 }); await page.mouse.up();
+    await page.mouse.move(point.x, point.y); await page.keyboard.down("Shift"); await page.mouse.down();
+    await page.mouse.move(point.x + 25, point.y + 10, { steps: 5 }); await page.mouse.up(); await page.keyboard.up("Shift");
     assert.notDeepEqual((await ranges("mh")).x, wheelRange.x);
     const contactAfterZoom = await page.evaluate(() => htsGraphs.chart("mh").data.datasets[1].data[1].x);
     close(contactAfterZoom, .375);
-    await plot("mh").getByRole("button", { name: "Исходный диапазон", exact: true }).click();
+    await plot("mh").getByRole("button", { name: "Автомасштаб", exact: true }).click();
     assert.deepEqual((await ranges("mh")).x, [-1.2, 1.2]);
     check("wheel zoom and pan resample magnetic curves without moving the virgin-line endpoint");
 

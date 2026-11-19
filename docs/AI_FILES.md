@@ -1,6 +1,22 @@
 # Карта файлов и компонентов web-gui
 
-Обновлено: 2026-11-17 17:59 UTC+3.
+Обновлено: 2026-11-19 15:45 UTC+3.
+
+## Графики ВТСП и снимки доступа — 4.115.0
+
+`src/components/materials/HtsGraphRegion.jsx`/`.css` владеют жестами,
+рамкой, масштабом, курсором поля и log E; `HtsGraphHelp.jsx` — модальной
+справкой с формулами. `src/services/materials/htsGraphModel.js` подготавливает
+кривые, log-представление и преобразования диапазонов, используя численного
+владельца `src/services/solver/htsMaterialLaw.js` без изменения его законов.
+Проверки: `test/htsGraphModel.test.js`, `test/htsMaterialLaw.test.js`,
+`scripts/check-hts-graphs-browser.mjs`.
+[UI-контракт](AI_UI_CONTRACTS.md#hts-material-graphs).
+
+`docs/user-guide/images/quickstart-access-01…05.png` заменены снимками владельца;
+8 новых `quickstart-editor-main.png` и `quickstart-viewer-*.png` показывают
+доступ, главные окна и графики над площадками. Идентичный системный диалог
+выбора диска повторно используется из `quickstart-access-02.png`.
 
 ## Интерактивная сцена «Лошадь», 4.90.0
 

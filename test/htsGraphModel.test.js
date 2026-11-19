@@ -66,3 +66,28 @@ test("zoom and pan keep nonnegative current domains and reject collapsed numeric
     assert.deepEqual(zoomGraphRange([1, 2], Infinity), [1, 2]);
     assert.deepEqual(panGraphRange([1, 2], Infinity), [1, 2]);
 });
+
+test("log E preserves positive physical values and hides zeros without an artificial floor", () => {
+    const material = { ...p, j_type: 2, j2_n: 24 };
+    const linear = htsGraphModel("ej", material, .5);
+    const log = htsGraphModel("ej", material, .5, null, true);
+    assert.equal(log.logY, true);
+    assert.equal(log.datasets[0].data[0].y, null);
+    assert.ok(log.yRange[0] > 0 && log.yRange[1] > log.yRange[0]);
+    assert.deepEqual(log.datasets[0].data.filter(v => v.y !== null), linear.datasets[0].data.filter(v => v.y > 0));
+    assert.match(htsGraphModel("ej", material, 2, null, true).error, /Нет положительных значений E/u);
+    assert.ok(htsGraphModel("ej", material, 2).datasets[0].data.every(v => v.y === 0));
+    assert.equal(htsGraphModel("jc", material, 0, null, true).logY, false);
+    assert.equal(htsGraphModel("mh", material, 0, null, true).logY, false);
+});
+
+test("logarithmic zoom and pan operate in decades and reject underflow and overflow", () => {
+    const zoom = zoomGraphRange([1e-8, 1e4], .5, 1e-2, false, true);
+    assert.ok(Math.abs(Math.log10(zoom[0]) + 5) < 1e-12);
+    assert.ok(Math.abs(Math.log10(zoom[1]) - 1) < 1e-12);
+    assert.deepEqual(panGraphRange([1e-8, 1e4], 2, false, true), [1e-6, 1e6]);
+    assert.deepEqual(panGraphRange([1e-8, 1e4], 400, false, true), [1e-8, 1e4]);
+    assert.deepEqual(panGraphRange([1e-8, 1e4], -400, false, true), [1e-8, 1e4]);
+    assert.deepEqual(zoomGraphRange([1e-8, 1e4], Infinity, undefined, false, true), [1e-8, 1e4]);
+    assert.deepEqual(zoomGraphRange([0, 1], .5, undefined, false, true), [0, 1]);
+});
