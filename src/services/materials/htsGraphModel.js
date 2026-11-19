@@ -201,20 +201,20 @@ function logGraphRange(range, transform) {
 /** Text equations mirror htsMaterialLaw; shown for the selected material model. */
 export function htsGraphFormula(kind, p) {
     if (!p) return { title: "Материал не выбран", lines: [] };
-    const shape = "U(x) = max(0, 1 − |x|); u = |x|ᵃ; K(x; a, b) = U(u)ᵇ при b ≥ 0, (1 + u)ᵇ при b < 0. При b = 0: K = 1.";
+    const shape = "K(x; a, b) = [max(0, 1 − |x|^a)]^b при b > 0, (1 + |x|^a)^b при b < 0. При b = 0: K = 1.";
     const jc = "Jc = JC0 · K(b_eff / j_HC0; JCa, JCb), b_eff = B_eff / μ₀.";
     const units = "b_eff, H, M — кА/м; J, Jc — А/мм²; j_gmin — МСм/м; E — В/м.";
     if (kind === "jc") return { title: "Jc(b_eff)", lines: [jc, shape, units] };
     if (kind === "ej") return { title: `E(J), j_type = ${p.j_type}`, lines: [
         jc,
-        ...(p.j_type === 1 ? ["E(J) = 2J / {j_gmin · [1 + exp(U(b_eff / j_HC0) · U(J / Jc) / j1_delta)]}."]
+        ...(p.j_type === 1 ? ["E(J) = 2J / {j_gmin · [1 + exp(max(0, 1 − |b_eff / j_HC0|) · max(0, 1 − |J / Jc|) / j1_delta)]}."]
             : p.j_type === 2 ? ["E(J) = (J / j_gmin) · (J / Jc)^(j2_n); показатель степени E по J равен j2_n + 1."]
                 : ["Выбранная модель E(J) не поддерживается."]),
         "При Jc ≤ 0 решатель задаёт E(J) = 0.",
         shape, units,
     ] };
     if (kind === "mh") return { title: `M(H), m_type = ${p.m_type}`, lines: [
-        ...(p.m_type === 1 ? ["M(H) = H · {2 / [1 + exp(U(H / m_HC0) / m1_delta)] − 1}.", shape, "Модель без гистерезиса."]
+        ...(p.m_type === 1 ? ["M(H) = H · {2 / [1 + exp(max(0, 1 − |H / m_HC0|) / m1_delta)] − 1}.", shape, "Модель без гистерезиса."]
             : p.m_type === 3 ? ["F(H) = m3_Mmax · K(H / m_HC0; m3_a, m3_b).",
                 "Предельная петля: M = −F(H) при возрастании H; M = +F(H) при убывании H.",
                 "Начальная линия: M = −H от (0, 0) до первого H* ≥ 0, для которого H* = F(H*).",

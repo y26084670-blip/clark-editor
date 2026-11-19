@@ -93,3 +93,7 @@
 .hts-magnetic-control input[type="range"] { flex: 1 1 40px; min-width: 35px; width: 0; margin: 0; accent-color: #79d6b2; }
 .hts-magnetic-limit { flex: 0 0 48px; width: 48px; min-width: 0; box-sizing: border-box; padding: 2px; border: 1px solid #788795; background: #151c23; color: #f3f6fa; font-size: 10px; }
 .hts-magnetic-value { display: block; margin-bottom: 2px; color: #f6e493; }
+
+.hts-graph-zoom-box { position: absolute; box-sizing: border-box; pointer-events: none; border: 2px solid #f6e493; background: rgba(246, 228, 147, .16); }
+.hts-graph-formula-dialog.hts-graph-formula-compact { width: fit-content; max-width: min(640px, 92vw); }
+.hts-graph-formula-compact .hts-graph-formula p { max-width: 48ch; }
