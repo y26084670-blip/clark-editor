@@ -380,6 +380,28 @@ try {
     assert.equal(await page.getByRole("spinbutton", {name:"Текущее эффективное поле"}).inputValue(), cursorBeforeBoxes);
     check("right-button box zoom selects both axes on all three charts, supports reverse dragging and preserves cursor and other charts");
 
+    const initialJcRange = await page.evaluate(() => [0, 1.5 * guideMaterials.table().getData()[0].j_HC0]);
+    const selectedJcRange = (await ranges("jc")).x, electricBeforeJcAuto = await ranges("ej"), magneticBeforeJcAuto = await ranges("mh");
+    await auto("jc").check();
+    assert.deepEqual((await ranges("jc")).x, initialJcRange);
+    assert.notDeepEqual((await ranges("jc")).x, selectedJcRange);
+    const sampledJcRange = await page.evaluate(() => {
+        const nodes = htsGraphs.chart("jc").data.datasets[0].data;
+        return [Math.min(...nodes.map(p=>p.x)), Math.max(...nodes.map(p=>p.x))];
+    });
+    assert.deepEqual(sampledJcRange, initialJcRange);
+    point = await canvasPoint("jc", initialJcRange[1] / 2);
+    await page.mouse.move(point.x,point.y); await page.mouse.wheel(0,-200);
+    await page.waitForFunction(() => !document.querySelector('[data-hts-graph="jc"] .hts-graph-auto input').checked);
+    assert.notDeepEqual((await ranges("jc")).x, initialJcRange);
+    await auto("jc").check();
+    assert.deepEqual((await ranges("jc")).x, initialJcRange);
+    assert.deepEqual(await ranges("ej"), electricBeforeJcAuto);
+    assert.deepEqual(await ranges("mh"), magneticBeforeJcAuto);
+    assert.equal(await page.getByRole("spinbutton", {name:"Текущее эффективное поле"}).inputValue(), cursorBeforeBoxes);
+    check("first-graph Auto restores 0..1.5*j_HC0 after rectangle and wheel zoom, resamples the entire range and leaves other charts and cursor unchanged");
+
+
     await logarithm.check();
     await page.waitForFunction(() => htsGraphs.chart("ej").scales.x.type === "logarithmic");
     const logStart = await graphPoint("ej",.2,.2), logEnd = await graphPoint("ej",.8,.8);
