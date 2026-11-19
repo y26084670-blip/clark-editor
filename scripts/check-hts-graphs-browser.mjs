@@ -403,6 +403,18 @@ try {
             const r = node.getBoundingClientRect(); return { x: r.x, width: r.width, height: r.height };
         }));
         assert.equal(boxes.length, 3);
+        const hint = await page.locator(".hts-graph-zoom-hint").evaluate(node => {
+            const style = getComputedStyle(node), box = node.getBoundingClientRect();
+            const row = node.parentElement.getBoundingClientRect(), value = node.previousElementSibling.getBoundingClientRect();
+            return { text: node.textContent, color: style.color, weight: Number(style.fontWeight), align: style.textAlign,
+                left: box.left, right: box.right, center: (box.top + box.bottom) / 2,
+                valueRight: value.right, valueCenter: (value.top + value.bottom) / 2, rowRight: row.right };
+        });
+        assert.equal(hint.text, "Выделить новую область графика рамкой с помощью правой кнопки мыши");
+        assert.equal(hint.color, "rgb(255, 255, 0)"); assert.ok(hint.weight >= 700); assert.equal(hint.align, "center");
+        assert.ok(hint.left > hint.valueRight && hint.right <= hint.rowRight && hint.rowRight - hint.right < 12);
+        assert.ok(Math.abs(hint.center - hint.valueCenter) < 2);
+
         const titles = await page.locator(".hts-graph-title").evaluateAll(nodes => nodes.map(node => {
             const r = node.getBoundingClientRect(), children = [...node.children].map(c => c.getBoundingClientRect());
             return { right:r.right, left:r.left, children:children.map(c=>({left:c.left,right:c.right,top:c.top,bottom:c.bottom})) };
