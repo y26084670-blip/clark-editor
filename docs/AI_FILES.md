@@ -10,7 +10,8 @@
 кривые, log-представление и преобразования диапазонов, используя численного
 владельца `src/services/solver/htsMaterialLaw.js` без изменения его законов.
 Проверки: `test/htsGraphModel.test.js`, `test/htsMaterialLaw.test.js`,
-`scripts/check-hts-graphs-browser.mjs`.
+`scripts/check-hts-graphs-browser.mjs`; `.github/workflows/verify-hts-graphs.yml`
+запускает интерактивный сценарий в Chromium и сохраняет свидетельства CI.
 [UI-контракт](AI_UI_CONTRACTS.md#hts-material-graphs).
 
 `docs/user-guide/images/quickstart-access-01…05.png` заменены снимками владельца;
