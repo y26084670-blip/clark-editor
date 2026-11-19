@@ -1,5 +1,5 @@
 import { createEffect, createMemo, createSignal, For, onCleanup, onMount, Show, untrack } from "solid-js";
-import { graphNumber, HTS_GRAPH_KINDS, htsGraphModel, panGraphRange, zoomGraphRange } from "../../services/materials/htsGraphModel.js";
+import { graphNumber, HTS_GRAPH_KINDS, htsGraphFormula, htsGraphModel, panGraphRange, zoomGraphRange } from "../../services/materials/htsGraphModel.js";
 import { htsCriticalCurrent } from "../../services/solver/htsMaterialLaw.js";
 import "./HtsGraphRegion.css";
 
@@ -8,8 +8,11 @@ const TITLES = { jc: "Jc(b_eff)", ej: "E(J)", mh: "M(H)" };
 function HtsPlot(props) {
     const [viewport, setViewport] = createSignal(null);
     const [renderError, setRenderError] = createSignal("");
-    let canvas, chart, gesture, lastRecord;
-    const model = createMemo(() => htsGraphModel(props.kind, props.record, props.field, viewport()?.x));
+    const [logarithmic, setLogarithmic] = createSignal(false);
+    let canvas, chart, gesture, lastRecord, formulaDialog;
+    const logAxes = () => props.kind === "ej" && logarithmic();
+    const model = createMemo(() => htsGraphModel(props.kind, props.record, props.field, viewport()?.x, { logarithmic: logAxes() }));
+    const formula = createMemo(() => htsGraphFormula(props.kind, props.record));
 
     function currentView() {
         if (!chart) return null;
@@ -23,8 +26,8 @@ function HtsPlot(props) {
         const view = currentView();
         if (!view) return;
         setViewport({
-            x: zoomGraphRange(view.x, factor, anchor?.x, props.kind !== "mh"),
-            y: zoomGraphRange(view.y, factor, anchor?.y),
+            x: zoomGraphRange(view.x, factor, anchor?.x, props.kind !== "mh", logAxes()),
+            y: zoomGraphRange(view.y, factor, anchor?.y, false, logAxes()),
         });
     }
 
@@ -64,9 +67,10 @@ function HtsPlot(props) {
         if (!gesture || event.pointerId !== gesture.id || !chart) return;
         if (gesture.cursor) { setCursor(event); return; }
         const point = coordinates(event), { view } = gesture;
+        const span = range => logAxes() ? Math.log10(range[1]) - Math.log10(range[0]) : range[1] - range[0];
         setViewport({
-            x: panGraphRange(view.x, -(point.x - gesture.point.x) / gesture.width * (view.x[1] - view.x[0]), props.kind !== "mh"),
-            y: panGraphRange(view.y, (point.y - gesture.point.y) / gesture.height * (view.y[1] - view.y[0])),
+            x: panGraphRange(view.x, -(point.x - gesture.point.x) / gesture.width * span(view.x), props.kind !== "mh", logAxes()),
+            y: panGraphRange(view.y, (point.y - gesture.point.y) / gesture.height * span(view.y), false, logAxes()),
         });
     }
 
@@ -134,7 +138,7 @@ function HtsPlot(props) {
             return;
         }
         const scale = (label, limits) => ({
-            type: "linear",
+            type: logAxes() ? "logarithmic" : "linear",
             title: { display: true, text: label, color: "#dce4ec", font: { size: 11 } },
             ticks: { color: "#bccbd7", maxTicksLimit: 5, callback: graphNumber, font: { size: 10 } },
             grid: { color: "rgba(180,195,208,.16)" },
@@ -148,7 +152,7 @@ function HtsPlot(props) {
             },
             scales: {
                 x: scale(value.xLabel, view?.x ?? value.xRange),
-                y: { ...scale(value.yLabel, view?.y), beginAtZero: true },
+                y: { ...scale(value.yLabel, view?.y), beginAtZero: !logAxes() },
             },
         };
         try {
@@ -169,13 +173,20 @@ function HtsPlot(props) {
     onCleanup(() => { canvas.removeEventListener("wheel", wheel); gesture = null; chart?.destroy(); chart = null; });
 
     return <section class="hts-graph" data-hts-graph={props.kind} aria-label={`График ${TITLES[props.kind]}`}>
-        <header class="hts-graph-title">{TITLES[props.kind]}</header>
-        <div class="hts-graph-controls">
-            <button type="button" aria-label={`Увеличить ${TITLES[props.kind]}`} title="Увеличить масштаб" disabled={Boolean(model().error)} onClick={() => zoom(1 / 1.5)}>+</button>
-            <button type="button" aria-label={`Уменьшить ${TITLES[props.kind]}`} title="Уменьшить масштаб" disabled={Boolean(model().error)} onClick={() => zoom(1.5)}>−</button>
-            <button type="button" title="Подобрать вертикальный масштаб для видимого диапазона" disabled={Boolean(model().error)} onClick={() => setViewport(current => current ? { x: current.x, y: null } : null)}>Автомасштаб</button>
-            <button type="button" disabled={Boolean(model().error)} onClick={() => setViewport(null)}>Исходный диапазон</button>
-        </div>
+        <header class="hts-graph-title">
+            <span>{TITLES[props.kind]}</span>
+            <button type="button" title="Подобрать вертикальный масштаб для видимого диапазона" disabled={Boolean(model().error)}
+                onClick={() => setViewport(current => current ? { x: current.x, y: null } : null)}>Авто</button>
+            <Show when={props.kind === "ej"}>
+                <label class="hts-graph-logarithm"><input type="checkbox" checked={logarithmic()} disabled={!props.record}
+                    aria-label="Логарифмические оси E(J)" onChange={event => {
+                        gesture = null; setViewport(null); setLogarithmic(event.currentTarget.checked);
+                    }} /> логарифм</label>
+            </Show>
+            <button type="button" class="hts-graph-formula-help" aria-label={`Формулы ${TITLES[props.kind]}`}
+                title="Формулы выбранной модели" aria-haspopup="dialog" disabled={!props.record}
+                onClick={() => formulaDialog.showModal()}>?</button>
+        </header>
         <div class="hts-graph-host">
             <canvas ref={canvas} tabIndex="0" aria-label={props.kind === "jc" ? "Курсор эффективного поля" : TITLES[props.kind]}
                 onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={finishGesture}
@@ -189,6 +200,11 @@ function HtsPlot(props) {
         <div class="hts-graph-note">{model().note || (props.kind === "jc"
             ? "Курсор: щелчок или перетаскивание; ← → с клавиатуры."
             : props.kind === "ej" ? "Поле и Jc заданы курсором первого графика." : "")}</div>
+        <dialog ref={formulaDialog} class="hts-graph-formula-dialog" aria-label={`Формулы ${TITLES[props.kind]}`}>
+            <h3>{formula().title}</h3>
+            <For each={formula().lines}>{line => <p class="hts-graph-formula">{line}</p>}</For>
+            <button type="button" onClick={() => formulaDialog.close()}>Закрыть</button>
+        </dialog>
     </section>;
 }
 
@@ -234,6 +250,6 @@ export function HtsGraphRegion(props) {
             <For each={HTS_GRAPH_KINDS}>{kind => <HtsPlot kind={kind} record={props.record} field={field()}
                 onField={selectField} Chart={Chart()} loadError={loadError()} />}</For>
         </div>
-        <div class="hts-graph-gestures">Масштаб: колесо мыши или +/−. Перемещение: перетаскивание, на Jc — с Shift.</div>
+        <div class="hts-graph-gestures">Масштаб: колесо мыши. Перемещение: перетаскивание, на Jc — с Shift.</div>
     </section>;
 }

@@ -82,6 +82,20 @@ try {
     });
     close(ratio, 1 / 3, .005);
     check("three adjacent real charts, requested initial ranges, one-third/two-thirds layout");
+    for (const kind of ["jc", "ej", "mh"]) {
+        assert.equal(await plot(kind).locator(".hts-graph-controls").count(), 0);
+        const header = plot(kind).locator(".hts-graph-title");
+        assert.deepEqual(await header.getByRole("button").allTextContents(), ["Авто", "?"]);
+        await header.getByRole("button", { name: `Формулы ${{jc:"Jc(b_eff)",ej:"E(J)",mh:"M(H)"}[kind]}`, exact: true }).click();
+        const dialog = plot(kind).getByRole("dialog");
+        await dialog.waitFor();
+        assert.match(await dialog.innerText(), kind === "jc" ? /JCa/ : kind === "ej" ? /j2_n/ : /m3_Mmax/);
+        await page.keyboard.press("Escape"); await dialog.waitFor({ state: "hidden" });
+    }
+    assert.equal(await plot("jc").getByRole("checkbox").count(), 0);
+    assert.equal(await plot("mh").getByRole("checkbox").count(), 0);
+    check("each compact title contains only Auto and help; formulas match selected models and log checkbox exists only for E(J)");
+
 
     await edit("m3_Mmax", .6);
     await page.waitForFunction(() => Math.abs(htsGraphs.chart("mh").data.datasets[1].data[1].x - .375) < 1e-10);
@@ -109,20 +123,53 @@ try {
     check("mouse click, cursor drag and keyboard change E(J) without changing material data");
 
     await field(.5);
-    await plot("ej").getByRole("button", { name: "Увеличить E(J)", exact: true }).click();
+    point = await canvasPoint("ej", 2.5);
+    await page.mouse.move(point.x, point.y); await page.mouse.wheel(0, -200);
+    await page.waitForFunction(() => htsGraphs.chart("ej").scales.x.max - htsGraphs.chart("ej").scales.x.min < 5);
     const zoomed = await ranges("ej");
     assert.ok(zoomed.x[1] - zoomed.x[0] < 5);
     await edit("j_type", 1);
     await edit("j1_delta", .2);
     assert.deepEqual(await ranges("ej"), zoomed);
-    await plot("ej").getByRole("button", { name: "Автомасштаб", exact: true }).click();
+    await plot("ej").getByRole("button", { name: "Авто", exact: true }).click();
     assert.deepEqual((await ranges("ej")).x, zoomed.x);
     assert.notDeepEqual((await ranges("ej")).y, zoomed.y);
-    await plot("ej").getByRole("button", { name: "Исходный диапазон", exact: true }).click();
-    assert.deepEqual((await ranges("ej")).x, [0, 5]);
+
     const tanhY = await page.evaluate(() => htsGraphs.chart("ej").data.datasets[0].data.find(p => p.x === 1.25).y);
     close(tanhY, 1.25 / 25000);
     check("tanh model, linked Jc, independent zoom, retained manual ranges and Y autoscaling");
+    await plot("ej").getByRole("button", { name: "Формулы E(J)", exact: true }).click();
+    const electricHelp = plot("ej").getByRole("dialog");
+    assert.match(await electricHelp.innerText(), /j1_delta/);
+    assert.doesNotMatch(await electricHelp.innerText(), /j2_n/);
+    await electricHelp.getByRole("button", { name: "Закрыть", exact: true }).click();
+    const logarithm = plot("ej").getByRole("checkbox", { name: "Логарифмические оси E(J)", exact: true });
+    await logarithm.check();
+    await page.waitForFunction(() => ["x","y"].every(axis => htsGraphs.chart("ej").scales[axis].type === "logarithmic"));
+    assert.ok(await page.evaluate(() => htsGraphs.chart("ej").data.datasets[0].data.every(p => p.x > 0 && p.y > 0)));
+    const logBefore = await ranges("ej");
+    point = await canvasPoint("ej", 1.25);
+    await page.mouse.move(point.x, point.y); await page.mouse.wheel(0, -200);
+    await page.waitForFunction(span => Math.log10(htsGraphs.chart("ej").scales.x.max / htsGraphs.chart("ej").scales.x.min) < span,
+        Math.log10(logBefore.x[1] / logBefore.x[0]));
+    const logZoom = await ranges("ej");
+    await page.mouse.move(point.x, point.y); await page.mouse.down();
+    await page.mouse.move(point.x+20, point.y+10, {steps:5}); await page.mouse.up();
+    const logPan = await ranges("ej");
+    assert.notDeepEqual(logPan.x, logZoom.x);
+    assert.ok([...logPan.x, ...logPan.y].every(v => Number.isFinite(v) && v > 0));
+    await plot("ej").getByRole("button", { name: "Авто", exact: true }).click();
+    assert.deepEqual((await ranges("ej")).x, logPan.x);
+    await logarithm.uncheck();
+    await page.waitForFunction(() => htsGraphs.chart("ej").scales.x.type === "linear" && htsGraphs.chart("ej").scales.y.type === "linear");
+    assert.deepEqual((await ranges("ej")).x, [0,5]);
+    await edit("j_type", 2);
+    await logarithm.check();
+    await page.waitForFunction(() => htsGraphs.chart("ej")?.scales.x.type === "logarithmic");
+    assert.ok(await page.evaluate(() => htsGraphs.chart("ej").data.datasets[0].data.every(p => p.x > 0 && p.y > 0)));
+    await logarithm.uncheck();
+    check("E(J) uses two real logarithmic axes; wheel, pan, Auto and return to linear work for both electrical models");
+
 
     point = await canvasPoint("mh", 0);
     await page.mouse.move(point.x, point.y); await page.mouse.wheel(0, -200);
@@ -133,8 +180,9 @@ try {
     assert.notDeepEqual((await ranges("mh")).x, wheelRange.x);
     const contactAfterZoom = await page.evaluate(() => htsGraphs.chart("mh").data.datasets[1].data[1].x);
     close(contactAfterZoom, .375);
-    await plot("mh").getByRole("button", { name: "Исходный диапазон", exact: true }).click();
-    assert.deepEqual((await ranges("mh")).x, [-1.2, 1.2]);
+    const magneticPan = (await ranges("mh")).x;
+    await plot("mh").getByRole("button", { name: "Авто", exact: true }).click();
+    assert.deepEqual((await ranges("mh")).x, magneticPan);
     check("wheel zoom and pan resample magnetic curves without moving the virgin-line endpoint");
 
     await edit("m_type", 2);
@@ -150,6 +198,12 @@ try {
     await edit("j_gmin", 25000);
     await field(1);
     await page.waitForFunction(() => htsGraphs.chart("ej")?.data.datasets[0].data.every(point => point.y === 0));
+    await logarithm.check();
+    await plot("ej").getByRole("alert").filter({ hasText: "Jc = 0" }).waitFor();
+    assert.ok(await page.evaluate(() => Boolean(htsGraphs.chart("jc") && htsGraphs.chart("mh"))));
+    await logarithm.uncheck();
+    await page.waitForFunction(() => htsGraphs.chart("ej")?.data.datasets[0].data.every(point => point.y === 0));
+
     check("reserved magnetic mode, memoryless tanh, invalid conductivity and zero-Jc diagnostics remain local to each plot");
 
     await field(.2);
@@ -166,7 +220,7 @@ try {
     await page.getByRole("button", { name: "Сохранить", exact: true }).click();
     await page.waitForFunction(async () => (await htsGraphs.saved()).JC0 === 4);
     const stored = await page.evaluate(() => htsGraphs.saved());
-    for (const name of ["field", "viewport", "cursor", "currentJc", "datasets"]) assert.ok(!(name in stored));
+    for (const name of ["field", "viewport", "cursor", "currentJc", "datasets", "logarithmic"]) assert.ok(!(name in stored));
     check("Undo/Redo restore chart data and saving keeps cursor, scale and computed curves out of the material file");
 
     for (const width of [1100, 1920]) {
@@ -176,6 +230,13 @@ try {
             const r = node.getBoundingClientRect(); return { x: r.x, width: r.width, height: r.height };
         }));
         assert.equal(boxes.length, 3);
+        const titles = await page.locator(".hts-graph-title").evaluateAll(nodes => nodes.map(node => {
+            const r = node.getBoundingClientRect(), children = [...node.children].map(c => c.getBoundingClientRect());
+            return { right:r.right, left:r.left, children:children.map(c=>({left:c.left,right:c.right,top:c.top,bottom:c.bottom})) };
+        }));
+        assert.ok(titles.every(t=>t.children.every(c=>c.left>=t.left-1 && c.right<=t.right+1)));
+        assert.ok(titles.every(t=>t.children.every(c=>Math.abs((c.top+c.bottom)/2-(t.children[0].top+t.children[0].bottom)/2)<2)));
+
         assert.ok(boxes.every((box, i) => i === 0 || box.x >= boxes[i - 1].x + boxes[i - 1].width - 1));
         await page.screenshot({ path: path.join(output, `hts-${width}.png`) });
     }
