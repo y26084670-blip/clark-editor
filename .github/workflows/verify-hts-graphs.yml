@@ -1,0 +1,49 @@
+name: Verify HTS graphs
+
+on:
+  pull_request:
+    paths:
+      - 'src/components/materials/HtsGraph*'
+      - 'src/services/materials/htsGraphModel.js'
+      - 'src/services/solver/htsMaterialLaw.js'
+      - 'test/htsGraphModel.test.js'
+      - 'test/htsMaterialLaw.test.js'
+      - 'test/browser/htsGraphs.fixture.jsx'
+      - 'test/browser/guideMaterials.fixture.jsx'
+      - 'scripts/check-hts-graphs-browser.mjs'
+      - 'package*.json'
+      - '.github/workflows/verify-hts-graphs.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  graphs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Prepare assets and test material laws
+        run: |
+          npm run assets:prepare
+          node --test test/htsGraphModel.test.js test/htsMaterialLaw.test.js
+      - name: Install Chromium testing tools
+        run: |
+          npm install --no-save --package-lock=false playwright
+          npx playwright install --with-deps chromium
+      - name: Check HTS graph interaction
+        run: node scripts/check-hts-graphs-browser.mjs
+      - name: Save browser verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hts-graph-browser-evidence
+          path: /tmp/editor-hts-graphs
+          if-no-files-found: ignore
+          retention-days: 7

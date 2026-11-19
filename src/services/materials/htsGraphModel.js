@@ -65,7 +65,7 @@ function dataset(label, points, color) {
     };
 }
 
-export function htsGraphModel(kind, p, beff = 0, visibleX = null) {
+export function htsGraphModel(kind, p, beff = 0, visibleX = null, logarithmicY = false) {
     try {
         if (!p) return { error: "Выберите характеристику в таблице." };
         let xRange, xLabel, yLabel, datasets, note = "";
@@ -127,13 +127,35 @@ export function htsGraphModel(kind, p, beff = 0, visibleX = null) {
         if (!xRange.every(Number.isFinite) || !(xRange[1] > xRange[0])) {
             throw new Error("Некорректный диапазон графика.");
         }
-        return { xRange, xLabel, yLabel, datasets, note };
+        const logY = kind === "ej" && logarithmicY;
+        let yRange;
+        if (logY) {
+            const positiveValues = datasets.flatMap(d => d.data.map(point => point.y))
+                .filter(y => Number.isFinite(y) && y > 0);
+            if (!positiveValues.length) {
+                return { error: "Нет положительных значений E для логарифмической шкалы. Выберите линейную шкалу или другое поле." };
+            }
+            const min = Math.min(...positiveValues), max = Math.max(...positiveValues);
+            yRange = min < max ? [min, max] : [min / 10 || min, max * 10 < Infinity ? max * 10 : max];
+            datasets = datasets.map(d => ({ ...d, data: d.data.map(point => ({
+                ...point, y: point.y > 0 ? point.y : null,
+            })) }));
+        }
+        return { xRange, xLabel, yLabel, datasets, note, yRange, logY };
     } catch (error) {
         return { error: error.message };
     }
 }
 
-export function zoomGraphRange(range, factor, anchor = (range[0] + range[1]) / 2, nonnegativeX = false) {
+export function zoomGraphRange(range, factor, anchor, nonnegativeX = false, logarithmic = false) {
+    if (logarithmic) {
+        if (!range.every(x => Number.isFinite(x) && x > 0)) return range;
+        const logs = range.map(Math.log10);
+        const scaled = zoomGraphRange(logs, factor, anchor > 0 ? Math.log10(anchor) : undefined);
+        const result = scaled.map(x => 10 ** x);
+        return result.every(x => Number.isFinite(x) && x > 0) && result[1] > result[0] ? result : range;
+    }
+    anchor ??= (range[0] + range[1]) / 2;
     let min = anchor + (range[0] - anchor) * factor;
     let max = anchor + (range[1] - anchor) * factor;
     if (nonnegativeX && min < 0) { max -= min; min = 0; }
@@ -143,7 +165,12 @@ export function zoomGraphRange(range, factor, anchor = (range[0] + range[1]) / 2
         ? [min, max] : range;
 }
 
-export function panGraphRange(range, offset, nonnegativeX = false) {
+export function panGraphRange(range, offset, nonnegativeX = false, logarithmic = false) {
+    if (logarithmic) {
+        if (!range.every(x => Number.isFinite(x) && x > 0)) return range;
+        const result = panGraphRange(range.map(Math.log10), offset).map(x => 10 ** x);
+        return result.every(x => Number.isFinite(x) && x > 0) && result[1] > result[0] ? result : range;
+    }
     const applied = nonnegativeX ? Math.max(offset, -range[0]) : offset;
     const result = range.map(x => x + applied);
     return result.every(Number.isFinite) && result[1] > result[0] ? result : range;
