@@ -1,5 +1,5 @@
 import { createEffect, createMemo, createSignal, For, onCleanup, onMount, Show, untrack } from "solid-js";
-import { graphNumber, HTS_GRAPH_KINDS, htsGraphFormula, htsGraphModel, panGraphRange, zoomGraphRange } from "../../services/materials/htsGraphModel.js";
+import { electricFieldNumber, graphNumber, HTS_GRAPH_KINDS, htsGraphFormula, htsGraphModel, htsMagneticStep, htsMagneticTrace, panGraphRange, zoomGraphRange } from "../../services/materials/htsGraphModel.js";
 import { htsCriticalCurrent } from "../../services/solver/htsMaterialLaw.js";
 import "./HtsGraphRegion.css";
 
@@ -10,9 +10,50 @@ function HtsPlot(props) {
     const [viewport, setViewport] = createSignal(null);
     const [renderError, setRenderError] = createSignal("");
     const [logarithmic, setLogarithmic] = createSignal(false);
-    let canvas, chart, gesture, lastRecord, formulaDialog;
+    const [magneticTrace, setMagneticTrace] = createSignal([{ x: 0, y: 0 }]);
+    const [magneticRange, setMagneticRange] = createSignal(null);
+    const [magneticError, setMagneticError] = createSignal("");
+    let canvas, chart, gesture, lastRecord, lastMagneticSignature, formulaDialog;
     const logAxes = () => props.kind === "ej" && logarithmic();
-    const model = createMemo(() => htsGraphModel(props.kind, props.record, props.field, viewport()?.x, { logarithmic: logAxes() }));
+    const baseModel = createMemo(() => htsGraphModel(props.kind, props.record, props.field, viewport()?.x, { logarithmic: logAxes() }));
+    const model = createMemo(() => {
+        const value = baseModel();
+        return props.kind === "mh" && !value.error
+            ? { ...value, datasets: [...value.datasets, htsMagneticTrace(magneticTrace())] } : value;
+    });
+    const magneticPoint = () => magneticTrace().at(-1);
+    const hRange = () => {
+        const bound = 1.2 * props.record?.m_HC0;
+        return magneticRange() ?? (Number.isFinite(bound) && bound > 0 ? [-bound, bound] : [-1, 1]);
+    };
+    function setMagneticField(value, limits = hRange()) {
+        if (!Number.isFinite(value) || !props.record) return false;
+        const H = Math.max(limits[0], Math.min(limits[1], value)), previous = magneticPoint();
+        if (H === previous.x) return true;
+        try {
+            const point = htsMagneticStep(props.record, H, previous);
+            setMagneticTrace(points => [...points, point]); setMagneticError("");
+            return true;
+        } catch (error) { setMagneticError(error.message); return false; }
+    }
+    function changeMagneticRange(index, event) {
+        const limits = [...hRange()], value = event.currentTarget.valueAsNumber;
+        limits[index] = value;
+        if (!limits.every(Number.isFinite) || !Number.isFinite(limits[1] - limits[0])
+            || !(limits[1] > limits[0]) || !setMagneticField(magneticPoint().x, limits)) {
+            event.currentTarget.value = String(hRange()[index]); return;
+        }
+        setMagneticRange(limits); setViewport({ x: limits, y: null });
+    }
+    function clearMagneticTrace() {
+        gesture = null;
+        setMagneticTrace([{ x: 0, y: 0 }]); setMagneticError("");
+        const limits = hRange();
+        if (limits[0] > 0 || limits[1] < 0) {
+            const next = [Math.min(0, limits[0]), Math.max(0, limits[1])];
+            setMagneticRange(next); setViewport({ x: next, y: null });
+        }
+    }
     const formula = createMemo(() => htsGraphFormula(props.kind, props.record));
 
     function currentView() {
@@ -123,10 +164,18 @@ function HtsPlot(props) {
 
     createEffect(() => {
         const record = props.record;
-        if (record !== lastRecord) {
+        const changed = record !== lastRecord;
+        if (changed) {
             lastRecord = record;
             gesture = null;
-            setViewport(null);
+            setViewport(null); setMagneticRange(null);
+        }
+        if (props.kind === "mh") {
+            const signature = JSON.stringify([record?.m_type, record?.m_HC0, record?.m1_delta, record?.m3_Mmax, record?.m3_a, record?.m3_b]);
+            if (changed || signature !== lastMagneticSignature) {
+                lastMagneticSignature = signature;
+                untrack(clearMagneticTrace);
+            }
         }
     });
 
@@ -138,10 +187,10 @@ function HtsPlot(props) {
             chart?.destroy(); chart = null;
             return;
         }
-        const scale = (label, limits) => ({
+        const scale = (axis, label, limits) => ({
             type: logAxes() ? "logarithmic" : "linear",
             title: { display: true, text: label, color: "#dce4ec", font: { size: 11 } },
-            ticks: { color: "#bccbd7", maxTicksLimit: 5, callback: value => logAxes() ? LOG_TICKS.format(value) : graphNumber(value), font: { size: 10 } },
+            ticks: { color: "#bccbd7", maxTicksLimit: 5, callback: value => logAxes() ? LOG_TICKS.format(value) : props.kind === "ej" && axis === "y" ? electricFieldNumber(value) : graphNumber(value), font: { size: 10 } },
             grid: { color: "rgba(180,195,208,.16)" },
             ...(limits ? { min: limits[0], max: limits[1] } : {}),
         });
@@ -149,11 +198,11 @@ function HtsPlot(props) {
             responsive: true, maintainAspectRatio: false, animation: false,
             plugins: {
                 legend: { display: props.kind === "mh", labels: { color: "#dce4ec", boxWidth: 16, font: { size: 11 } } },
-                tooltip: { callbacks: { label: item => `${item.dataset.label}: ${graphNumber(item.parsed.y)}` } },
+                tooltip: { callbacks: { label: item => `${item.dataset.label}: ${props.kind === "ej" ? electricFieldNumber(item.parsed.y) : graphNumber(item.parsed.y)}` } },
             },
             scales: {
-                x: scale(value.xLabel, view?.x ?? value.xRange),
-                y: { ...scale(value.yLabel, view?.y), beginAtZero: !logAxes() },
+                x: scale("x", value.xLabel, view?.x ?? value.xRange),
+                y: { ...scale("y", value.yLabel, view?.y), beginAtZero: !logAxes() },
             },
         };
         try {
@@ -178,6 +227,10 @@ function HtsPlot(props) {
             <span>{TITLES[props.kind]}</span>
             <button type="button" title="Подобрать вертикальный масштаб для видимого диапазона" disabled={Boolean(model().error)}
                 onClick={() => setViewport(current => current ? { x: current.x, y: null } : null)}>Авто</button>
+            <Show when={props.kind === "mh"}>
+                <button type="button" disabled={!props.record} title="Очистить траекторию и установить H = M = 0"
+                    onClick={clearMagneticTrace}>Очистить</button>
+            </Show>
             <Show when={props.kind === "ej"}>
                 <label class="hts-graph-logarithm"><input type="checkbox" checked={logarithmic()} disabled={!props.record}
                     aria-label="Логарифмические оси E(J)" onChange={event => {
@@ -188,17 +241,31 @@ function HtsPlot(props) {
                 title="Формулы выбранной модели" aria-haspopup="dialog" disabled={!props.record}
                 onClick={() => formulaDialog.showModal()}>?</button>
         </header>
+        <Show when={props.kind === "mh"}>
+            <div class="hts-magnetic-control">
+                <label for="hts-magnetic-field">H, кА/м</label>
+                <input type="number" class="hts-magnetic-limit" step="any" aria-label="Минимум H, кА/м"
+                    value={hRange()[0]} disabled={Boolean(model().error)} onChange={event => changeMagneticRange(0, event)} />
+                <input id="hts-magnetic-field" type="range" min={hRange()[0]} max={hRange()[1]} step={(hRange()[1] - hRange()[0]) / 1000}
+                    value={magneticPoint().x} aria-label="Магнитное поле H, кА/м" aria-valuetext={graphNumber(magneticPoint().x)}
+                    disabled={Boolean(model().error)} onInput={event => setMagneticField(event.currentTarget.valueAsNumber)} />
+                <input type="number" class="hts-magnetic-limit" step="any" aria-label="Максимум H, кА/м"
+                    value={hRange()[1]} disabled={Boolean(model().error)} onChange={event => changeMagneticRange(1, event)} />
+            </div>
+        </Show>
         <div class="hts-graph-host">
             <canvas ref={canvas} tabIndex="0" aria-label={props.kind === "jc" ? "Курсор эффективного поля" : TITLES[props.kind]}
                 onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={finishGesture}
                 onPointerCancel={finishGesture} onLostPointerCapture={() => { gesture = null; }} onKeyDown={keyDown} />
-            <Show when={model().error || renderError() || props.loadError}>
+            <Show when={model().error || renderError() || magneticError() || props.loadError}>
                 <div class="hts-graph-message" role={props.record ? "alert" : "status"}>
-                    {model().error || renderError() || props.loadError}
+                    {model().error || renderError() || magneticError() || props.loadError}
                 </div>
             </Show>
         </div>
-        <div class="hts-graph-note">{model().note || (props.kind === "jc"
+        <div class="hts-graph-note"><Show when={props.kind === "mh"}>
+            <output class="hts-magnetic-value" aria-label="Текущее состояние M(H)">H = {graphNumber(magneticPoint().x)} кА/м; M = {graphNumber(magneticPoint().y)} кА/м</output>
+        </Show>{model().note || (props.kind === "jc"
             ? "Курсор: щелчок или перетаскивание; ← → с клавиатуры."
             : props.kind === "ej" ? "Поле и Jc заданы курсором первого графика." : "")}</div>
         <dialog ref={formulaDialog} class="hts-graph-formula-dialog" aria-label={`Формулы ${TITLES[props.kind]}`}>
@@ -218,10 +285,6 @@ export function HtsGraphRegion(props) {
         try { return props.record ? htsCriticalCurrent(props.record, field()) : NaN; }
         catch { return NaN; }
     });
-    const fieldMax = () => {
-        const maximum = 1.5 * props.record?.j_HC0;
-        return Math.max(field(), Number.isFinite(maximum) && maximum > 0 ? maximum : 1);
-    };
     function selectField(value) { if (Number.isFinite(value)) setField(Math.max(0, value)); }
 
     createEffect(() => {
@@ -244,9 +307,6 @@ export function HtsGraphRegion(props) {
             </label>
             <output aria-label="Текущая критическая плотность тока">Jc = {graphNumber(currentJc())} А/мм²</output>
         </div>
-        <input class="hts-field-slider" type="range" min="0" max={fieldMax()} step={fieldMax() / 1000}
-            aria-label="Положение курсора эффективного поля" disabled={!props.record} value={field()}
-            onInput={event => selectField(event.currentTarget.valueAsNumber)} />
         <div class="hts-graph-grid">
             <For each={HTS_GRAPH_KINDS}>{kind => <HtsPlot kind={kind} record={props.record} field={field()}
                 onField={selectField} Chart={Chart()} loadError={loadError()} />}</For>

@@ -156,7 +156,7 @@ export function MaterialLibraryTab(props) {
   const [lowerHeight, setLowerHeight] = createSignal(
     definition.detail.defaultHeight ?? 360,
   );
-  const [detailRatio, setDetailRatio] = createSignal(isFmm ? 0.5 : 1 / 3);
+  const [detailRatio, setDetailRatio] = createSignal(isFmm ? 0.5 : 1 / 4);
 
   let tableHost;
   let lowerRegionHost;

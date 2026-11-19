@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { htsGraphFormula, htsGraphModel, panGraphRange, zoomGraphRange } from "../src/services/materials/htsGraphModel.js";
+import { electricFieldNumber, graphNumber, htsGraphFormula, htsGraphModel, htsMagneticStep, htsMagneticTrace, panGraphRange, zoomGraphRange } from "../src/services/materials/htsGraphModel.js";
 
 import { htsElectricField } from "../src/services/solver/htsMaterialLaw.js";
 
@@ -122,4 +122,41 @@ test("formula help follows the active electrical and magnetic models", () => {
     assert.match(htsGraphFormula("mh", { ...p, m_type: 1 }).lines.join(" "), /m1_delta/);
     assert.doesNotMatch(htsGraphFormula("mh", { ...p, m_type: 1 }).lines.join(" "), /m3_Mmax/);
     assert.match(htsGraphFormula("mh", { ...p, m_type: 2 }).lines.join(" "), /зарезервирована/);
+});
+
+
+test("magnetic slider steps retain hysteresis memory and reset from an independent zero state", () => {
+    let point = Object.freeze({ x: 0, y: 0 });
+    const points = [point];
+    for (const [H, M] of [[4, -1.2], [3, -.2], [0, 2]]) {
+        point = htsMagneticStep(p, H, point);
+        assert.ok(Math.abs(point.y - M) < 1e-12);
+        points.push(point);
+    }
+    assert.deepEqual(points[0], { x: 0, y: 0 });
+    assert.equal(htsMagneticStep(p, 0).y, 0, "clearing discards remanent magnetization");
+    const trace = htsMagneticTrace(points);
+    assert.equal(trace.data, points);
+    assert.equal(trace.label, "Траектория");
+    assert.equal(trace.pointRadius({ dataIndex: points.length - 1 }), 3);
+    assert.equal(trace.pointRadius({ dataIndex: 0 }), 0);
+});
+
+test("memoryless magnetic model ignores history and invalid magnetic steps leave the previous state intact", () => {
+    const record = { ...p, m_type: 1 }, previous = Object.freeze({ x: 5, y: 99 });
+    assert.equal(htsMagneticStep(record, 3, previous).y, htsMagneticStep(record, 3).y);
+    assert.equal(htsMagneticStep(record, 0, previous).y, 0);
+    assert.throws(() => htsMagneticStep({ ...p, m_type: 2 }, 1, previous), /зарезервирована/);
+    assert.throws(() => htsMagneticStep(p, Infinity, previous), /конечными/);
+    assert.deepEqual(previous, { x: 5, y: 99 });
+});
+
+test("electric field labels use compact scientific notation at very large and small magnitudes", () => {
+    for (const value of [1e250, -1e250, 1e-250, -1e-250]) {
+        const label = electricFieldNumber(value);
+        assert.ok(label.length < 20 && label.includes("E") && label.includes("250"), label);
+    }
+    assert.equal(electricFieldNumber(0), graphNumber(0));
+    assert.equal(electricFieldNumber(42.5), graphNumber(42.5));
+    assert.equal(electricFieldNumber(Infinity), "—");
 });

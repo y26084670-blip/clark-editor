@@ -29,7 +29,6 @@
   background: #151c23;
   color: #f3f6fa;
 }
-.hts-field-slider { margin: 4px 10px; width: calc(100% - 20px); accent-color: #f6e493; }
 .hts-graph-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(210px, 1fr));
@@ -81,3 +80,9 @@
 .hts-graph-formula-dialog h3 { margin: 0 0 12px; }
 .hts-graph-formula { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.6; }
 .hts-graph-formula-dialog button { padding: 5px 12px; color: #edf3f8; background: #333e49; border: 1px solid #788795; }
+
+.hts-magnetic-control { display: flex; flex: 0 0 auto; align-items: center; gap: 4px; padding: 2px 5px 4px; font-size: 10px; }
+.hts-magnetic-control label { white-space: nowrap; }
+.hts-magnetic-control input[type="range"] { flex: 1 1 40px; min-width: 35px; width: 0; margin: 0; accent-color: #79d6b2; }
+.hts-magnetic-limit { flex: 0 0 48px; width: 48px; min-width: 0; box-sizing: border-box; padding: 2px; border: 1px solid #788795; background: #151c23; color: #f3f6fa; font-size: 10px; }
+.hts-magnetic-value { display: block; margin-bottom: 2px; color: #f6e493; }

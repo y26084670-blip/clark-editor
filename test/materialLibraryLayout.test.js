@@ -50,3 +50,10 @@ test("vertical material splitter preserves detail and graph minimum widths", () 
         containerWidth: 806,
     }), 0.65);
 });
+
+
+test("HTS detail table can shrink to a quarter-width layout while retaining three graph columns", () => {
+    assert.equal(HTS_LAYOUT_LIMITS.detailWidth, 220);
+    assert.equal(resizedDetailRatio({ pointerX: 0, containerLeft: 0, containerWidth: 1206, limits: HTS_LAYOUT_LIMITS }), 220 / 1200);
+    assert.equal(resizedDetailRatio({ pointerX: 300, containerLeft: 0, containerWidth: 1206, limits: HTS_LAYOUT_LIMITS }), .25);
+});

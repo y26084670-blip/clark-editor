@@ -80,12 +80,15 @@ try {
         const lower = document.querySelector(".material-library-lower").getBoundingClientRect();
         return detail.width / lower.width;
     });
-    close(ratio, 1 / 3, .005);
-    check("three adjacent real charts, requested initial ranges, one-third/two-thirds layout");
+    close(ratio, 1 / 4, .005);
+    assert.equal(await page.locator('.hts-field-slider').count(), 0);
+    assert.equal(await page.getByRole('spinbutton', { name: 'Текущее эффективное поле' }).count(), 1);
+    assert.equal(await page.getByRole('slider', { name: 'Магнитное поле H, кА/м' }).inputValue(), '0');
+    check("three adjacent real charts, requested initial ranges, one-quarter/three-quarters layout");
     for (const kind of ["jc", "ej", "mh"]) {
         assert.equal(await plot(kind).locator(".hts-graph-controls").count(), 0);
         const header = plot(kind).locator(".hts-graph-title");
-        assert.deepEqual(await header.getByRole("button").allTextContents(), ["Авто", "?"]);
+        assert.deepEqual(await header.getByRole("button").allTextContents(), kind === "mh" ? ["Авто", "Очистить", "?"] : ["Авто", "?"]);
         await header.getByRole("button", { name: `Формулы ${{jc:"Jc(b_eff)",ej:"E(J)",mh:"M(H)"}[kind]}`, exact: true }).click();
         const dialog = plot(kind).getByRole("dialog");
         await dialog.waitFor();
@@ -94,7 +97,7 @@ try {
     }
     assert.equal(await plot("jc").getByRole("checkbox").count(), 0);
     assert.equal(await plot("mh").getByRole("checkbox").count(), 0);
-    check("each compact title contains only Auto and help; formulas match selected models and log checkbox exists only for E(J)");
+    check("compact titles contain Auto, magnetic Clear and help; formulas match selected models and log checkbox exists only for E(J)");
 
 
     await edit("m3_Mmax", .6);
@@ -105,6 +108,37 @@ try {
     assert.ok(magnetic[0].some(point => point.x === 0 && point.y === -.6));
     assert.equal(await page.evaluate(() => htsGraphs.chart("mh").getDatasetMeta(0)._sorted), false);
     check("editing magnetic parameters redraws both limiting branches and the exact virgin-line endpoint");
+    const hSlider = plot("mh").getByRole("slider", { name: "Магнитное поле H, кА/м", exact: true });
+    const hMinimum = plot("mh").getByRole("spinbutton", { name: "Минимум H, кА/м", exact: true });
+    const hMaximum = plot("mh").getByRole("spinbutton", { name: "Максимум H, кА/м", exact: true });
+    const trace = () => page.evaluate(() => htsGraphs.chart("mh").data.datasets.find(d=>d.label==="Траектория").data);
+    const setH = async value => {
+        await hSlider.evaluate((input,value)=>{input.value=String(value);input.dispatchEvent(new Event("input",{bubbles:true}));},value);
+        await page.waitForFunction(value=>Math.abs(htsGraphs.chart("mh").data.datasets.find(d=>d.label==="Траектория").data.at(-1).x-value)<1e-10,value);
+    };
+    const setLimit = async (input,value) => { await input.fill(String(value)); await input.press("Tab"); };
+    const beforeMagnetic = await page.evaluate(()=>JSON.stringify(guideMaterials.table().getData()));
+    for(const [H,M] of [[.6,-.24],[.3,.06],[0,.36]]) {
+        await setH(H);close((await trace()).at(-1).y,M);
+    }
+    assert.equal((await trace()).length,4);
+    assert.equal(await page.evaluate(()=>JSON.stringify(guideMaterials.table().getData())),beforeMagnetic);
+    await plot("mh").getByRole("button",{name:"Очистить",exact:true}).click();
+    assert.deepEqual(await trace(),[{x:0,y:0}]);assert.equal(await hSlider.inputValue(),"0");
+    assert.equal(await page.evaluate(()=>htsGraphs.chart("mh").data.datasets.length),3);
+    await setLimit(hMinimum,-2);await setLimit(hMaximum,3);
+    assert.equal(await hSlider.getAttribute("min"),"-2");assert.equal(await hSlider.getAttribute("max"),"3");
+    assert.deepEqual((await ranges("mh")).x,[-2,3]);
+    await setLimit(hMaximum,-3);assert.equal(await hMaximum.inputValue(),"3");
+    await hSlider.focus();await hSlider.press("ArrowRight");
+    await page.waitForFunction(()=>htsGraphs.chart("mh").data.datasets.find(d=>d.label==="Траектория").data.at(-1).x>0);
+    await plot("mh").getByRole("button",{name:"Очистить",exact:true}).click();
+    await setLimit(hMinimum,-1.2);await setLimit(hMaximum,1.2);
+    await setH(.6);await edit("m3_Mmax",.7);
+    await page.waitForFunction(()=>htsGraphs.chart("mh").data.datasets.find(d=>d.label==="Траектория").data.length===1);
+    assert.equal(await hSlider.inputValue(),"0");await edit("m3_Mmax",.6);
+    check("H slider and editable bounds compute a hysteretic trajectory; keyboard, Clear and parameter changes preserve correct zero-state behavior");
+
 
     const beforeCursor = await page.evaluate(() => JSON.stringify(guideMaterials.table().getData()));
     let point = await canvasPoint("jc", .5);
@@ -121,6 +155,15 @@ try {
     assert.ok(Number(await page.getByRole("spinbutton", { name: "Текущее эффективное поле" }).inputValue()) > .75);
     assert.equal(await page.evaluate(() => JSON.stringify(guideMaterials.table().getData())), beforeCursor);
     check("mouse click, cursor drag and keyboard change E(J) without changing material data");
+    const largeE=await page.evaluate(()=>{
+        const chart=htsGraphs.chart("ej");
+        return {tick:chart.options.scales.y.ticks.callback(1e250),
+            tooltip:chart.options.plugins.tooltip.callbacks.label({dataset:{label:"E"},parsed:{y:1e250}})};
+    });
+    assert.ok(largeE.tick.length<20 && largeE.tick.includes("E") && largeE.tick.includes("250"));
+    assert.ok(largeE.tooltip.length<25 && largeE.tooltip.includes("E") && largeE.tooltip.includes("250"));
+    check("linear E(J) axis and tooltips use compact scientific notation for extremely large electric fields");
+
 
     await field(.5);
     point = await canvasPoint("ej", 2.5);
@@ -191,9 +234,13 @@ try {
     await plot("mh").getByRole("alert").filter({ hasText: "зарезервирована" }).waitFor();
     assert.equal(await page.evaluate(() => htsGraphs.charts().length), 2);
     await edit("m_type", 1);
-    await page.waitForFunction(() => htsGraphs.chart("mh")?.data.datasets.length === 1);
-    await edit("m_type", 3);
     await page.waitForFunction(() => htsGraphs.chart("mh")?.data.datasets.length === 2);
+    await setH(.6); const memorylessM=(await trace()).at(-1).y;
+    await setH(0);close((await trace()).at(-1).y,0);
+    await setH(.6);close((await trace()).at(-1).y,memorylessM);
+    await edit("m_type", 3);
+    await page.waitForFunction(() => htsGraphs.chart("mh")?.data.datasets.length === 3);
+    assert.deepEqual(await trace(),[{x:0,y:0}]);
     await edit("j_gmin", 0);
     await plot("ej").getByRole("alert").filter({ hasText: "j_gmin" }).waitFor();
     assert.ok(await page.evaluate(() => Boolean(htsGraphs.chart("jc") && htsGraphs.chart("mh"))));
@@ -222,7 +269,7 @@ try {
     await page.getByRole("button", { name: "Сохранить", exact: true }).click();
     await page.waitForFunction(async () => (await htsGraphs.saved()).JC0 === 4);
     const stored = await page.evaluate(() => htsGraphs.saved());
-    for (const name of ["field", "viewport", "cursor", "currentJc", "datasets", "logarithmic"]) assert.ok(!(name in stored));
+    for (const name of ["field", "viewport", "cursor", "currentJc", "datasets", "logarithmic", "magneticTrace", "magneticRange"]) assert.ok(!(name in stored));
     check("Undo/Redo restore chart data and saving keeps cursor, scale and computed curves out of the material file");
 
     for (const width of [1100, 1920]) {
