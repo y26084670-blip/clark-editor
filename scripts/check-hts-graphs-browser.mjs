@@ -437,7 +437,13 @@ try {
     if (page) console.error("HTS failure context:", await page.evaluate(() => ({
         record: window.guideMaterials?.table()?.getData()?.[0],
         alerts: [...document.querySelectorAll(".hts-graph-message")].map(node=>node.textContent),
-        charts: ["jc","ej","mh"].map(kind=>({kind,live:Boolean(window.htsGraphs?.chart(kind))})),
+        charts: ["jc","ej","mh"].map(kind=>{
+            const c=window.htsGraphs?.chart(kind);
+            return {kind,live:Boolean(c),scales:c&&Object.fromEntries(["x","y"].map(axis=>{
+                const a=c.scales[axis];
+                return [axis,{min:a.min,max:a.max,userMin:a._userMin,userMax:a._userMax,optionMin:a.options.min,optionMax:a.options.max,bounds:a.options.bounds}];
+            }))};
+        }),
     })).catch(()=>null));
     if (page) await page.screenshot({ path: path.join(output, "failure.png") });
     throw error;

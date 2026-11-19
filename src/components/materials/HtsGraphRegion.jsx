@@ -252,6 +252,8 @@ function HtsPlot(props) {
         }
         const scale = (axis, label, limits) => ({
             type: logAxes() ? "logarithmic" : "linear",
+            // Keep manually selected limits exact instead of widening them to ticks.
+            bounds: limits ? "data" : "ticks",
             title: { display: true, text: label, color: "#dce4ec", font: { size: 11 } },
             ticks: { color: "#bccbd7", maxTicksLimit: 5, callback: value => logAxes() ? LOG_TICKS.format(value) : props.kind === "ej" && axis === "y" ? electricFieldNumber(value) : graphNumber(value), font: { size: 10 } },
             grid: { color: "rgba(180,195,208,.16)" },
