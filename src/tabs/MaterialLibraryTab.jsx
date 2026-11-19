@@ -156,7 +156,7 @@ export function MaterialLibraryTab(props) {
   const [lowerHeight, setLowerHeight] = createSignal(
     definition.detail.defaultHeight ?? 360,
   );
-  const [detailRatio, setDetailRatio] = createSignal(isFmm ? 0.5 : 1 / 3);
+  const [detailRatio, setDetailRatio] = createSignal(isFmm ? 0.5 : 1 / 4);
 
   let tableHost;
   let lowerRegionHost;
@@ -953,7 +953,8 @@ export function MaterialLibraryTab(props) {
     cancelAnimationFrame(redrawFrame);
     redrawFrame = requestAnimationFrame(() => {
       redrawFrame = 0;
-      table?.redraw(true);
+      if (disposed || !tableReady() || !table) return;
+      table.redraw(true);
       void Promise.resolve(detailRegion.onVisible()).catch((resizeError) => {
         console.error(`${definition.id} resize error:`, resizeError);
       });
@@ -1077,10 +1078,10 @@ export function MaterialLibraryTab(props) {
   });
 
   createEffect(() => {
-    if (!props.active || !table) return;
+    if (!props.active || !tableReady() || !table || disposed) return;
 
-    requestAnimationFrame(() => {
-      if (!props.active || !table) return;
+    const frame = requestAnimationFrame(() => {
+      if (!props.active || !tableReady() || !table || disposed) return;
       table.redraw(true);
       void Promise.resolve(detailRegion.onVisible()).catch(
         visibilityError => {
@@ -1091,6 +1092,7 @@ export function MaterialLibraryTab(props) {
         },
       );
     });
+    onCleanup(() => cancelAnimationFrame(frame));
   });
 
   createEffect(() => {

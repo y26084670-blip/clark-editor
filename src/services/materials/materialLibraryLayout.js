@@ -8,6 +8,7 @@ export const MATERIAL_LAYOUT_LIMITS = Object.freeze({
 
 export const HTS_LAYOUT_LIMITS = Object.freeze({
     ...MATERIAL_LAYOUT_LIMITS,
+    detailWidth: 220,
     graphWidth: 630,
 });
 

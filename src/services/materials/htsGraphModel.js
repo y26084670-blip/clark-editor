@@ -15,6 +15,35 @@ export function graphNumber(value) {
         : "—";
 }
 
+export function electricFieldNumber(value) {
+    return Number.isFinite(value) && value !== 0 && (Math.abs(value) >= 1e5 || Math.abs(value) < 1e-3)
+        ? new Intl.NumberFormat("ru-RU", { notation: "scientific", maximumSignificantDigits: 5 }).format(value)
+        : graphNumber(value);
+}
+
+function magneticParameters(p) {
+    if (!p) throw new Error("Выберите характеристику в таблице.");
+    positive(p, ["m_HC0"]);
+    if (p.m_type === 1) positive(p, ["m1_delta"]);
+    else if (p.m_type === 3) {
+        nonnegative(p, ["m3_Mmax"]); finite(p, ["m3_a", "m3_b"]);
+    } else throw new Error(p.m_type === 2
+        ? "m_type = 2: модель зарезервирована." : "m_type: поддерживаются модели 1 и 3.");
+}
+
+export function htsMagneticStep(p, H, previous = { x: 0, y: 0 }) {
+    magneticParameters(p);
+    if (![H, previous.x, previous.y].every(Number.isFinite)) throw new Error("H и предыдущее состояние M должны быть конечными.");
+    const M = htsMagneticValue(p, H, previous.x, previous.y);
+    if (!Number.isFinite(M)) throw new Error("M(H) выходит за числовой диапазон.");
+    return { x: H === 0 ? 0 : H, y: M === 0 ? 0 : M };
+}
+
+export function htsMagneticTrace(points) {
+    return { ...dataset("Траектория", points, "#f6e493"),
+        pointRadius: context => context.dataIndex === points.length - 1 ? 3 : 0 };
+}
+
 function finite(p, names) {
     for (const name of names) {
         if (!Number.isFinite(p[name])) throw new Error(`${name}: требуется конечное число.`);
@@ -106,18 +135,15 @@ export function htsGraphModel(kind, p, beff = 0, visibleX = null, { logarithmic 
                 if (jc === 0) note = "Jc = 0: нулевая ветвь E(J) решателя.";
             }
         } else if (kind === "mh") {
-            positive(p, ["m_HC0"]);
+            magneticParameters(p);
             xRange = [-1.2 * p.m_HC0, 1.2 * p.m_HC0];
             xLabel = "H вдоль c, кА/м";
             yLabel = "M, кА/м";
             const nodes = samples(visibleX ?? xRange, [-p.m_HC0, 0, p.m_HC0]);
             if (p.m_type === 1) {
-                positive(p, ["m1_delta"]);
                 datasets = [dataset("M(H), tanh", nodes.map(x => ({ x, y: htsMagneticValue(p, x) })), "#79d6b2")];
                 note = "Модель tanh без гистерезиса.";
             } else if (p.m_type === 3) {
-                nonnegative(p, ["m3_Mmax"]);
-                finite(p, ["m3_a", "m3_b"]);
                 const contact = htsInitialContact(p);
                 const loop = [
                     ...nodes.map(x => ({ x, y: -htsMagneticEnvelope(p, x) })),
@@ -191,7 +217,8 @@ export function htsGraphFormula(kind, p) {
         ...(p.m_type === 1 ? ["M(H) = H · {2 / [1 + exp(U(H / m_HC0) / m1_delta)] − 1}.", shape, "Модель без гистерезиса."]
             : p.m_type === 3 ? ["F(H) = m3_Mmax · K(H / m_HC0; m3_a, m3_b).",
                 "Предельная петля: M = −F(H) при возрастании H; M = +F(H) при убывании H.",
-                "Начальная линия: M = −H от (0, 0) до первого H* ≥ 0, для которого H* = F(H*).", shape]
+                "Начальная линия: M = −H от (0, 0) до первого H* ≥ 0, для которого H* = F(H*).",
+                "Траектория использует предыдущее состояние (H_prev, M_prev). На предельной ветви при продолжении движения сохраняется её знак; иначе M = clip(M_prev − (H − H_prev), −F(H), F(H)).", shape]
                 : ["Модель m_type = 2 зарезервирована; график для неё не строится."]),
         "H и M направлены вдоль оси c материала; единицы — кА/м.",
     ] };
