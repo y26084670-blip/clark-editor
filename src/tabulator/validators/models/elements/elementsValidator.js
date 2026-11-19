@@ -90,11 +90,12 @@ export function elementsValidator(
         diagnostics,
     );
     if (model.general?.evalForce) {
+        const externalFaces = model.general.forceFaceOffset > 0;
         const panels = new Set((model.regions ?? []).map(row => row.forceGroup));
         const missing = new Set();
         elements.forEach((row,i) => {
             if (!(row.take > 0)) return;
-            if (row.targ === 3 || (!panels.has(row.take) && !missing.has(row.take))) {
+            if (row.targ === 3 || (!externalFaces && !panels.has(row.take) && !missing.has(row.take))) {
                 diagnostics.push(createError({tab:TABS.ELEMENTS,row:i+1,property:"take",
                     message:row.targ === 3 ? "Виртуальный элемент должен иметь группу 0." :
                         `Для группы ${row.take} нет силовых площадок.`}));
@@ -103,7 +104,9 @@ export function elementsValidator(
         });
         for (const [a,b] of context.forceClosePairs ?? []) {
             diagnostics.push(createError({tab:TABS.ELEMENTS,row:a+1,property:"take",
-                message:`Элементы №${a+1} и №${b+1} принадлежат разным группам ${elements[a].take} и ${elements[b].take}. Недостаточный зазор при заданном минимуме ${model.general.forceGroupMinGap ?? 2} мм.`}));
+                message:`Элементы №${a+1} и №${b+1} принадлежат разным группам ${elements[a].take} и ${elements[b].take}. ` +
+                    (externalFaces ? "Для внешних ЭП между группами нужен воздушный зазор." :
+                        `Недостаточный зазор при заданном минимуме ${model.general.forceGroupMinGap ?? 2} мм.`)}));
         }
     }
     if (med) diagnostics.push(...medDiagnostics(med));

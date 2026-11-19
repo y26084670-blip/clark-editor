@@ -37,11 +37,12 @@ function visitClosePairs(kernel,model,geometry,minimum,relevant,visit) {
 }
 
 export function conflictingForceContacts(kernel, model, minimum=model.general?.forceGroupMinGap ?? 2) {
-    const ids = model.elements.map(row => physical(row) ? groupOf(row) : 0);
-    if (new Set(ids.filter(Boolean)).size < 2) return [];
+    const externalFaces = model.general?.forceFaceOffset > 0;
+    const ids = model.elements.map(row => physical(row) ? groupOf(row) : null);
+    if (new Set(ids.filter(id => id !== null && (externalFaces || id > 0))).size < 2) return [];
     const conflicts = new Map();
-    visitClosePairs(kernel,model,forceBodies(model),minimum,
-        (a,b) => ids[a] && ids[b] && ids[a] !== ids[b],
+    visitClosePairs(kernel,model,forceBodies(model),externalFaces ? 0 : minimum,
+        (a,b) => ids[a] !== ids[b] && (externalFaces || (ids[a] > 0 && ids[b] > 0)),
         (a,b) => {
             const pair = [Math.min(a,b),Math.max(a,b)];
             conflicts.set(pair.join(","),pair);
@@ -49,7 +50,7 @@ export function conflictingForceContacts(kernel, model, minimum=model.general?.f
     return [...conflicts.values()];
 }
 
-function contactComponents(kernel,model,geometry,minimum) {
+function contactComponents(kernel,model,geometry,minimum,excluded) {
     const parent = model.elements.map((_, i) => i);
     function root(i) {
         while (parent[i] !== i) {
@@ -58,13 +59,14 @@ function contactComponents(kernel,model,geometry,minimum) {
         }
         return i;
     }
-    visitClosePairs(kernel,model,geometry,minimum, (a,b) => root(a) !== root(b), (a,b) => {
+    const candidates = excluded.size ? {...geometry,bodies:geometry.bodies.filter(b => !excluded.has(b.index))} : geometry;
+    visitClosePairs(kernel,model,candidates,minimum, (a,b) => root(a) !== root(b), (a,b) => {
         parent[root(b)] = root(a);
     });
     function ids() {
         const numbers = new Map();
         return model.elements.map((row,i) => {
-            if (!physical(row)) return 0;
+            if (!physical(row) || excluded.has(i)) return 0;
             const key = root(i);
             if (!numbers.has(key)) numbers.set(key,numbers.size+1);
             return numbers.get(key);
@@ -73,14 +75,15 @@ function contactComponents(kernel,model,geometry,minimum) {
     return {ids, merge(a,b) { parent[root(b)] = root(a); }};
 }
 
-export function buildForceGroups(kernel, model, {mode, indices = [], group, distance, minimumGap = model.general?.forceGroupMinGap ?? 2*distance}) {
+export function buildForceGroups(kernel, model, {mode, indices = [], zeroIndices = [], group, distance,
+    minimumGap = model.general?.forceGroupMinGap ?? (model.general?.forceFaceOffset > 0 ? 2 : 2*distance)}) {
     if (!Number.isFinite(minimumGap) || minimumGap < 0) throw new Error("Введите неотрицательный минимальный зазор.");
     const initial = forceBodies(model);
-    const geometry = forceSweepGeometry(model,distance,initial);
-    const selected = new Set(indices);
+    if (!initial.bodies.length) throw new Error("В задании нет физических элементов.");
+    const externalFaces = model.general?.forceFaceOffset > 0;
     let ids, replace, components;
     if (mode === "automatic") {
-        components = contactComponents(kernel,model,initial,minimumGap);
+        components = contactComponents(kernel,model,initial,minimumGap,new Set(zeroIndices));
         ids = components.ids();
         replace = [...new Set(ids.filter(Boolean))];
     } else {
@@ -88,18 +91,21 @@ export function buildForceGroups(kernel, model, {mode, indices = [], group, dist
             throw new Error("Введите положительный целый номер группы.");
         if (!indices.length || indices.some(i => !model.elements[i] || !physical(model.elements[i])))
             throw new Error("Выберите физические элементы группы.");
+        const selected = new Set(indices);
         ids = model.elements.map((row,i) => selected.has(i) ? group : groupOf(row));
         const conflicts = [];
-        visitClosePairs(kernel,model,initial,minimumGap,
+        visitClosePairs(kernel,model,initial,externalFaces ? 0 : minimumGap,
             (a,b) => ids[a] > 0 && ids[b] > 0 && ids[a] !== ids[b] && (selected.has(a) || selected.has(b)),
             (a,b) => conflicts.push([a,b]));
         if (conflicts.length) {
             const [a,b] = conflicts[0];
-            throw new Error(`Между элементами №${a+1} и №${b+1} недостаточно зазора для разных групп при пороге ${minimumGap} мм.`);
+            throw new Error(`Между элементами №${a+1} и №${b+1} недостаточно зазора для разных групп при пороге ${externalFaces ? 0 : minimumGap} мм.`);
         }
         replace = [...new Set([group,...indices.map(i => groupOf(model.elements[i])).filter(Boolean)])];
     }
-    if (!replace.length) throw new Error("В задании нет физических элементов.");
+    // Group 0 still supplies a field and remains an obstacle for positive-group shells.
+    // In external-face mode the solver owns all force nodes, also during motion.
+    const geometry = !externalFaces && replace.length ? forceSweepGeometry(model,distance,initial) : null;
     // A large group's extraction precision can exceed the initial pairwise
     // tolerance. If the shell builder identifies that pair, join and retry.
     for (;;) {
@@ -109,13 +115,13 @@ export function buildForceGroups(kernel, model, {mode, indices = [], group, dist
             const members = ids.flatMap((value,i) => value === id ? [i] : []);
             if (!members.length) continue;
             try {
-                const panels = generateForceSurface(kernel,model,members,distance,geometry);
+                const panels = externalFaces ? [] : generateForceSurface(kernel,model,members,distance,geometry);
                 surfaces.push({id,members,panels});
             } catch (error) {
-                if (geometry.swept && error instanceof ForceSeparationError)
+                if (geometry?.swept && error instanceof ForceSeparationError)
                     throw new Error(`Группа ${id}. Огибающие траекторий элементов №${error.pair[0]+1} и №${error.pair[1]+1} не разделяются неподвижной поверхностью. Сократите интервал или задайте общую группу.`);
                 if (components && error instanceof ForceSeparationError &&
-                    ids[error.pair[0]] !== ids[error.pair[1]]) {
+                    error.pair.every(i => ids[i] > 0) && ids[error.pair[0]] !== ids[error.pair[1]]) {
                     components.merge(...error.pair);
                     ids = components.ids();
                     replace = [...new Set(ids.filter(Boolean))];
@@ -125,7 +131,7 @@ export function buildForceGroups(kernel, model, {mode, indices = [], group, dist
                 throw new Error(`Группа ${id}. ${error.message}`);
             }
         }
-        if (!retry) return {ids,replace,surfaces,minimumGap,automatic:mode === "automatic",coverage:geometry.coverage};
+        if (!retry) return {ids,replace,surfaces,minimumGap,automatic:mode === "automatic",externalFaces,coverage:geometry?.coverage};
     }
 }
 
@@ -139,8 +145,9 @@ function panelNodeCounts([a, b, c, d], step) {
 }
 
 export function applyForceGroups(model, plan, step, defaultRegion) {
-    if (!Number.isFinite(step) || step <= 0) throw new Error("Введите положительный шаг по узлам в миллиметрах.");
     const elements = model.elements.map((row,i) => row.take === plan.ids[i] ? row : {...row,take:plan.ids[i]});
+    if (plan.externalFaces) return {elements, regions:model.regions};
+    if (!Number.isFinite(step) || step <= 0) throw new Error("Введите положительный шаг по узлам в миллиметрах.");
     const replaced = new Set(plan.replace);
     const regions = model.regions.filter(r => !(r.forceGroup > 0 && (plan.automatic || replaced.has(r.forceGroup))));
     for (const {id,panels} of plan.surfaces) for (const geo of panels)
@@ -150,10 +157,11 @@ export function applyForceGroups(model, plan, step, defaultRegion) {
 
 // The transferred element becomes a group-0 source. Keep the old shell
 // while it still has positive-group members.
-export function excludeForceElements(model, indices) {
+export function excludeForceElements(model, indices, {preserveRegions = false} = {}) {
     const selected = new Set(indices);
-    const removed = new Set(indices.map(i=>groupOf(model.elements[i])).filter(Boolean));
-    const elements = model.elements.map((row,i) => selected.has(i) && physical(row) ? {...row,take:0} : row);
+    const elements = model.elements.map((row,i) => selected.has(i) && physical(row) && row.take !== 0 ? {...row,take:0} : row);
+    if (preserveRegions || model.general?.forceFaceOffset > 0) return {elements, regions:model.regions};
+    const removed = new Set(model.elements.filter((row,i) => selected.has(i) && physical(row)).map(groupOf).filter(Boolean));
     const used = new Set(elements.map(groupOf));
     const regions = model.regions.filter(r => !removed.has(r.forceGroup) || used.has(r.forceGroup));
     return {elements,regions};

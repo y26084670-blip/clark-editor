@@ -196,6 +196,15 @@ export default createSchema({
             textOff: "Нет",
         },
 
+        forceFaceOffset: {
+            type: FIELD_TYPES.FLOAT,
+            label: "(3D): Отступ точки вычисления поля от внешней ЭП, мм",
+            description: "0 — заданные силовые площадки. При положительном отступе решатель строит узлы по внешним ЭП групп и вычисляет поле в воздухе. Выбирайте отступ в пределах воздушного зазора. Применяется в конечной 3D-модели без полной осевой симметрии.",
+            default: 0,
+            minimum: 0,
+            digits: 8,
+        },
+
         htsRegimFC: {
             storageAliases: ["htcRegimFC"],
             type: FIELD_TYPES.BOOLEAN,
