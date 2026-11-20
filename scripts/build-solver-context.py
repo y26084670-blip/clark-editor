@@ -1,9 +1,10 @@
-"""Build the public CLARK context ZIPs from pinned Editor commits and teaching sources."""
+"""Build reproducible public CLARK context ZIPs from pinned project sources and teaching materials."""
 import argparse
+from datetime import date
 import hashlib
 import io
 import json
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import subprocess
 import sys
 import tempfile
@@ -11,10 +12,24 @@ from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
 
 REPO = Path(__file__).resolve().parents[1]
 SOURCE = REPO / "scripts" / "solver-context"
-DATE = "2026-11-17"
+# These published editions were built with the original, pre-force teaching texts.
+LEGACY_TEXT_COMMIT = "13dcef1a419a5d0ba8ebca3008e8957b44b60eba"
+VIEWER_COMMIT = "f6127ba245135f953ae48f708668f7859eefefd1"
+VIEWER_URL = "https://github.com/y26084670-blip/clark-viewer"
+VIEWER_FILES = (
+    "package.json", "README.md", "docs/AI_3D_RENDERING.md", "docs/AI_CHART_RENDERING.md",
+    "docs/AI_PLOT_CONSTRUCTOR.md", "src/services/results/resultMappings.js",
+    "src/services/results/resultHistories.js", "src/services/results/resultLosses.js",
+    "src/services/results/workResiduals.js", "src/services/results/plotConstructor.js",
+)
+FORCE_EXAMPLES = {
+    "three-cubes-forces.zip": "examples/04_three_cubes_forces",
+    "empty-force-surface.zip": "examples/05_empty_force_surface",
+}
 RELEASES = [
-    ("1.0", "4.114.3", "1.7", "aff00360d92d60275781c19854c5b4dbdd3393c5"),
-    ("1.1", "4.114.4", "1.8", "a60904c57235f26189f67c25b7cc5173f0ba05b5"),
+    ("1.0", "4.114.3", "1.7", "aff00360d92d60275781c19854c5b4dbdd3393c5", "2026-11-17"),
+    ("1.1", "4.114.4", "1.8", "a60904c57235f26189f67c25b7cc5173f0ba05b5", "2026-11-17"),
+    ("1.2", "4.120.0", "1.8", "13dcef1a419a5d0ba8ebca3008e8957b44b60eba", "2026-11-20"),
 ]
 GRID_TOOLS = {"grid_report.mjs", "estimate_ram.py", "test_grid_ram.py"}
 REFERENCE = ("AI_CLARK_INTEGRATION.md", "AI_DATA_CONTRACTS.md", "AI_GEOMETRY_GENERATION.md")
@@ -103,7 +118,61 @@ def create_example(root, temporary, schemas, contact):
         json_file(result / "DOCS" / filename, report)
 
 
-def build(root, version, editor, profile, commit):
+def add_force_examples(root):
+    sources = {}
+    for filename, target in FORCE_EXAMPLES.items():
+        path = "reference/user-guide/examples/" + filename
+        with ZipFile(root / path) as archive:
+            for entry in archive.infolist():
+                member = PurePosixPath(entry.filename)
+                if member.is_absolute() or ".." in member.parts or any(c in entry.filename for c in (":", "\\")):
+                    raise ValueError(f"Invalid member in {filename}: {entry.filename}")
+                if not entry.is_dir():
+                    put(root / target / member, archive.read(entry))
+        sources[target] = {"archive": path, "solverVersion": "2.01.03"}
+    return sources
+
+
+def add_viewer_reference(root, checkout):
+    if checkout is None:
+        checkout = root.parent / "viewer-sources"
+        subprocess.run(["git", "init", "--quiet", str(checkout)], check=True)
+        subprocess.run(["git", "-C", str(checkout), "fetch", "--quiet", "--no-tags", "--depth=1",
+                        VIEWER_URL + ".git", VIEWER_COMMIT], check=True)
+    sources = {}
+    for path in VIEWER_FILES:
+        dest = "reference/clark-viewer/" + path
+        put(root / dest, subprocess.check_output(["git", "-C", str(checkout), "show", f"{VIEWER_COMMIT}:{path}"]))
+        sources[dest] = path
+    version = json.loads((root / "reference/clark-viewer/package.json").read_bytes())["version"]
+    return {"repository": VIEWER_URL, "commit": VIEWER_COMMIT, "version": version, "files": sources}
+
+
+def localize_context_lesson(root, version, editor, profile, name):
+    # A ZIP cannot contain a copy of itself. Point its download lesson at the local entry point.
+    page = root / "reference/user-guide/user.html"
+    html = page.read_text(encoding="utf-8")
+    start = html.index('<h4 id="context-download">')
+    end = html.index('<h4 id="context-chat">', start)
+    lesson = (
+        '<h4 id="context-download">1. Подготовьте архив для нового чата</h4>\n'
+        f'<p>Открыт комплект {version} для Editor {editor}, профиль по эскизу {profile}. '
+        f'Прикрепите <code>{name}.zip</code> к сообщению. Внутри архива начните с '
+        '<a href="../../START.txt">START.txt</a>. Для расчёта сил откройте '
+        '<a href="../../AI_FORCE_AND_VIEWER.md">силовые группы и результаты Viewer</a>.</p>\n'
+    )
+    html = html[:start] + lesson + html[end:]
+    for path in VIEWER_FILES:
+        url = VIEWER_URL + "/blob/main/" + path
+        html = html.replace('href="' + url, 'href="../clark-viewer/' + path)
+    html = html.replace('href="' + VIEWER_URL + '#просмотр-результатов"',
+                        'href="../clark-viewer/README.md#просмотр-результатов"')
+    put(page, html)
+
+
+def build(root, version, editor, profile, commit, published, viewer_repo=None):
+    legacy = version in ("1.0", "1.1")
+    name = f"Solver_Context_v{version}_public_{published}"
     pinned = {}
     def copy_pinned(dest, source):
         put(root / dest, git("show", f"{commit}:{source}"))
@@ -111,17 +180,22 @@ def build(root, version, editor, profile, commit):
 
     for path in (SOURCE / "runtime-files.txt").read_text(encoding="utf-8").splitlines():
         copy_pinned("runtime/editor/" + path, path)
-    for name in REFERENCE:
-        copy_pinned("reference/" + name, "docs/" + name)
+    for filename in REFERENCE:
+        copy_pinned("reference/" + filename, "docs/" + filename)
     guide_paths = git("ls-tree", "-r", "-z", "--name-only", commit, "docs/user-guide").decode().split("\0")
     for path in filter(None, guide_paths):
+        if not legacy and path.startswith("docs/user-guide/context/"):
+            continue
         copy_pinned("reference/" + path.removeprefix("docs/"), path)
     for path in sorted((SOURCE / "tools").iterdir()):
         if path.is_file() and (version != "1.0" or path.name not in GRID_TOOLS):
             put(root / "tools" / path.name, path.read_text(encoding="utf-8"))
     ram = (SOURCE / "text/RAM.md").read_text(encoding="utf-8").strip() + "\n" if version != "1.0" else ""
     for filename in ("START.txt", "AI_SOLVER_CONTEXT.md", "AI_FEM_IMPORT.md", "README.md"):
-        text = (SOURCE / "text" / filename).read_text(encoding="utf-8")
+        if legacy:
+            text = git("show", f"{LEGACY_TEXT_COMMIT}:scripts/solver-context/text/{filename}").decode("utf-8")
+        else:
+            text = (SOURCE / "text" / filename).read_text(encoding="utf-8")
         for key, value in (("VERSION", version), ("EDITOR", editor), ("PROFILE", profile), ("RAM_SECTION", ram)):
             text = text.replace("{" + key + "}", value)
         put(root / filename, text)
@@ -135,7 +209,7 @@ def build(root, version, editor, profile, commit):
     for contact in (False, True):
         create_example(root, root.parent, contract["schemas"], contact)
     profile_file = "runtime/editor/data/ai-context/AI_SKETCH_CONTEXT.md"
-    json_file(root / "source-lock.json", {
+    lock = {
         "edition": "public", "version": version, "editorVersion": editor, "sketchProfileVersion": profile,
         "repository": "https://github.com/y26084670-blip/clark-editor", "editorCommit": commit,
         "profileSha256": digest((root / profile_file).read_bytes()), "publicRepositoryFiles": dict(sorted(pinned.items())),
@@ -144,16 +218,28 @@ def build(root, version, editor, profile, commit):
                       "examples/01_prescribed_source": "Synthetic 10 mm prescribed cube",
                       "examples/02_contact_geometry": "Synthetic three-block partial contact",
                       "examples/03_fem_square": "Synthetic ASCII Gmsh 2.2 square"},
-    })
+    }
+    if not legacy:
+        put(root / "AI_FORCE_AND_VIEWER.md", (SOURCE / "text/AI_FORCE_AND_VIEWER.md").read_text(encoding="utf-8"))
+        lock["viewer"] = add_viewer_reference(root, viewer_repo)
+        lock["expectedSolverVersion"] = json.loads(git("show", f"{commit}:data/updates/changes.json"))["recommendedClark"]["version"]
+        lock["forceExamples"] = add_force_examples(root)
+        localize_context_lesson(root, version, editor, profile, name)
+        guide = "reference/user-guide/user.html"
+        lock["adaptedFiles"] = {guide: {
+            "editorSource": lock["publicRepositoryFiles"].pop(guide),
+            "changes": "Local context lesson and bundled Viewer references",
+        }}
+    json_file(root / "source-lock.json", lock)
     entries = {p.relative_to(root).as_posix(): p.read_bytes() for p in root.rglob("*") if p.is_file()}
     json_file(root / "manifest.json", {"version": version, "edition": "public", "excludedSelf": "manifest.json",
         "files": [{"path": path, "size": len(data), "sha256": digest(data)} for path, data in sorted(entries.items())]})
     entries["manifest.json"] = (root / "manifest.json").read_bytes()
-    name = f"Solver_Context_v{version}_public_{DATE}"
+    stamp = date.fromisoformat(published)
     stream = io.BytesIO()
     with ZipFile(stream, "w") as archive:
         for path, data in sorted(entries.items()):
-            entry = ZipInfo(f"{name}/{path}", (2026, 11, 17, 0, 0, 0))
+            entry = ZipInfo(f"{name}/{path}", (stamp.year, stamp.month, stamp.day, 0, 0, 0))
             entry.create_system = 3
             entry.external_attr = 0o100644 << 16
             archive.writestr(entry, data, compress_type=ZIP_DEFLATED, compresslevel=9)
@@ -163,12 +249,13 @@ def build(root, version, editor, profile, commit):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true", help="compare with tracked ZIPs without writing")
+    parser.add_argument("--viewer-repo", type=Path, help="local clark-viewer Git checkout containing the pinned commit")
     args = parser.parse_args()
     targets = {}
     for release in RELEASES:
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp) / "context"
-            name, data = build(root, *release)
+            name, data = build(root, *release, viewer_repo=args.viewer_repo)
         targets[REPO / "context/archives" / name] = data
         if release == RELEASES[-1]:
             targets[REPO / "docs/user-guide/context" / name] = data
@@ -179,6 +266,15 @@ def main():
         else:
             put(target, data)
         print(f"{target.relative_to(REPO)}  {len(data)} bytes  SHA-256 {digest(data)}")
+    # The guide ships one current bundle; every earlier release remains in the catalog.
+    for older in (REPO / "docs/user-guide/context").glob("Solver_Context_*.zip"):
+        archive = REPO / "context/archives" / older.name
+        if older not in targets and archive in targets:
+            if older.read_bytes() != targets[archive]:
+                raise SystemExit(f"Old guide copy differs from its archived release: {older}")
+            if args.check:
+                raise SystemExit(f"Outdated guide copy: {older}")
+            older.unlink()
 
 
 if __name__ == "__main__":
