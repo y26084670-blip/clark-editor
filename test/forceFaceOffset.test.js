@@ -61,6 +61,17 @@ test("external-face validation follows the 3D solver and treats TK as ordinary o
     assert.ok(check(.001,[medBox({take:7,origin:[-10,0,0],size:[20,1,1]})]).some(d=>/3D/.test(d.message)));
     assert.deepEqual(check(.001,[cube],{evalForce:false,fullAxialSymmetry:true}),[]);
     assert.ok(check(Infinity,[cube]).some(d=>/конечный/.test(d.message)));
+    const panel = {geoType:0, forceGroup:7, geo:[[0,0,0],[1,0,0],[1,1,0],[0,1,0]]};
+    assert.deepEqual(check(0,[cube],{},[panel]),[]);
+    for (const invalid of [{...panel,indCoil:1},{...panel,geoType:2},
+        {...panel,geo:[[0,0,0],[0,0,0],[1,0,0],[1,0,0]]},
+        {...panel,geo:[[0,0,0],[1,1,1],[2,2,2],[3,3,3]]}]) {
+        const issues = check(0,[cube],{},[invalid]);
+        assert.ok(issues.some(d => d.property === "take" && /«Области».*номер 7/.test(d.message)));
+        assert.ok(issues.some(d => d.property === "forceGroup"));
+    }
+    assert.deepEqual(check(0,[medBox({take:0})],{},[{...panel,forceGroup:0}]),[]);
+    assert.ok(check(0,[medBox({take:0})],{},[panel]).some(d=>d.message.includes("Нет физических элементов группы 7")));
     const observation = {geoType:2,forceGroup:99,indCoil:1};
     assert.deepEqual(check(.001,[cube],{},[observation]),[]);
     assert.ok(check(0,[cube],{},[observation]).some(d=>d.property==="forceGroup"));

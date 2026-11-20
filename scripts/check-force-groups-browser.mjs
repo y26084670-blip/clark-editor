@@ -56,7 +56,7 @@ async function checkMode(offset) {
         await page.locator(".tabs-header button").getByText("Элементы",{exact:true}).click();
         const open = async () => {
             await page.getByRole("button",{name:"Открыть дополнительные функции"}).click();
-            await page.locator(".side-panel").getByRole("button",{name:"Поверхность для расчета силы/момента"}).click();
+            await page.locator(".side-panel").getByRole("button",{name:"Создание силовых групп"}).click();
             await windowBox.waitFor();
         };
         const windowBox = page.locator(".force-surface-window");
@@ -86,9 +86,17 @@ async function checkMode(offset) {
             }
         }
         assert.match(await windowBox.innerText(),/Запомнены для группы 0: 2, 4/);
-        assert.equal(await windowBox.getByLabel("Шаг по узлам, мм").isVisible(),offset === 0);
-        await button("Построить").click();
-        await waitIds([1,0,2,0]);
+        assert.equal(await windowBox.locator("input, select").count(),0);
+        const done = page.getByRole("dialog",{name:"Построение силовых групп завершено"});
+        async function buildAndConfirm(expected) {
+            await button("Построить").click();
+            await waitIds(expected);
+            await done.waitFor();
+            assert.ok(await done.evaluate(d => d.matches(":modal")));
+            assert.match(await done.innerText(),offset ? /решатель по внешним граням/ : /«Области».*замкнутую оболочку.*«Силовая группа»/s);
+            await done.getByRole("button",{name:"ОК"}).click();
+        }
+        await buildAndConfirm([1,0,2,0]);
         const savedCount = await page.evaluate(()=>editorFixture.writes.filter(x=>x==="general.txt").length);
         await page.keyboard.press("Control+s");
         await page.waitForFunction(n=>editorFixture.writes.filter(x=>x==="general.txt").length>n,savedCount);
@@ -99,25 +107,11 @@ async function checkMode(offset) {
             regions:(await editorFixture.read("input3XX/tks.txt")).trim().split("\n").filter(Boolean).map(s=>JSON.parse(s)),
         }));
         assert.equal(saved.general.forceFaceOffset,offset);
-        if (offset) assert.deepEqual(saved.regions,initialRegions);
-        else {
-            assert.deepEqual(saved.regions.filter(r => r.indCoil === 1),[initialRegions[1]]);
-            assert.deepEqual([...new Set(saved.regions.filter(r=>r.forceGroup).map(r=>r.forceGroup))],[1,2]);
-        }
+        assert.deepEqual(saved.regions,initialRegions);
         await button("Закрыть").click();
         await open();
         assert.doesNotMatch(await windowBox.innerText(),/Запомнены для группы 0:/);
-        await button("Построить").click();
-        await waitIds([1,2,3,4]);
-        if (offset) {
-            await select(2);
-            await windowBox.getByRole("radio",{name:"Вручную по выделенным элементам"}).check();
-            await windowBox.getByLabel("Номер группы").fill("17");
-            await button("Построить").click();
-            await waitIds([1,2,17,4]);
-            assert.equal(await page.evaluate(()=>editorFixture.model().regions.length),2);
-        }
-        await windowBox.getByRole("radio",{name:"Автоматически по контактам"}).check();
+        await buildAndConfirm([1,2,3,4]);
         await select(1);
         await button("Перевести в группу 0").click();
         await page.getByRole("dialog",{name:"Элементы группы 0 запомнены"}).getByRole("button",{name:"ОК"}).click();
@@ -125,8 +119,31 @@ async function checkMode(offset) {
         await page.getByTitle("Переместить выделенные вверх",{exact:true}).filter({visible:true}).click();
         await windowBox.getByText(/порядок строк изменился/).waitFor();
         assert.doesNotMatch(await windowBox.innerText(),/Запомнены для группы 0:/);
+        await button("Закрыть").click();
+        await page.locator(".tabs-header button").getByText("Области",{exact:true}).click();
+        async function forceDiagnostics() {
+            await page.getByRole("button",{name:"Проверить модель",exact:true}).click();
+            await page.locator(".model-validation-button.validation-button-success").waitFor();
+            return page.evaluate(async () => {
+                const {diagnosticService} = await import("/src/services/diagnosticService.js");
+                return diagnosticService.diagnostics().map(d => d.message);
+            });
+        }
+        const before = await forceDiagnostics();
+        assert.equal(before.some(m => m.includes("Для группы 1 нет силовых площадок")),offset === 0);
+        assert.equal(before.some(m => m.includes("Нет физических элементов группы 7")),offset === 0);
+        await page.evaluate(() => {
+            const table = editorFixture.tables(".tabulator").find(t => t.getData().some(r => r.forceGroup === 7));
+            table.getRows()[0].getCell("forceGroup").setValue(1);
+        });
+        await page.waitForFunction(() => editorFixture.model().regions[0].forceGroup === 1);
+        const after = await forceDiagnostics();
+        assert.ok(!after.some(m => m.includes("Для группы 1 нет силовых площадок") || m.includes("Нет физических элементов группы 7")));
+        assert.equal(after.some(m => m.includes("Для группы 3 нет силовых площадок")),offset === 0);
+        await page.keyboard.press("Control+s");
+        await page.waitForFunction(async () => JSON.parse((await editorFixture.read("input3XX/tks.txt")).split("\n")[0]).forceGroup === 1);
         assert.deepEqual(errors,[]);
-        console.log(`PASS group-0 selection, modal, rebuild, save and reopen; offset=${offset}`);
+        console.log(`PASS group-0 selection, rebuild, manual TK assignment, validation and save; offset=${offset}`);
     } finally {
         await page.close();
     }

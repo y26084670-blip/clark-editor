@@ -142,10 +142,10 @@ export default function App() {
   }
   function readForceRequest() {
     const task = selectionService.loadedTaskHandle();
-    const {general, elements, regions, moves} = modelService.getModel();
-    if (!task || !general || !elements?.some(row => row.targ !== 3) || !Array.isArray(regions)
+    const {general, elements, moves} = modelService.getModel();
+    if (!task || !general || !elements?.some(row => row.targ !== 3)
       || activeTab() !== TABS.ELEMENTS.id) return null;
-    return {task, version:selectionService.taskDataVersion(), order:medEditor?.recordOrderVersion() ?? 0, general, elements, regions, moves,
+    return {task, version:selectionService.taskDataVersion(), order:medEditor?.recordOrderVersion() ?? 0, general, elements, moves,
       indices:selectedGeometryElementIndices()};
   }
   const forceSurfaceRequest = createMemo(() => forceSurfaceOpen() ? readForceRequest() : null);
@@ -160,28 +160,18 @@ export default function App() {
     setSidePanelOpen(false);
     if (readForceRequest()) setForceSurfaceOpen(true);
   }
-  function saveForceGroups(request, {plan, step, rememberZero = false}) {
+  function saveForceGroups(request, plan) {
     const current = readForceRequest();
     if (!current || current.task !== request.task || current.version !== request.version || current.order !== request.order
-      || current.elements !== request.elements || current.regions !== request.regions
-      || current.general !== request.general || current.moves !== request.moves
-      || (!plan?.automatic && !sameRecordIndices(current.indices, request.indices)))
+      || current.elements !== request.elements || current.general !== request.general || current.moves !== request.moves
+      || (!plan && !sameRecordIndices(current.indices, request.indices)))
       throw new Error("Исходные данные или выделение изменились. Повторите операцию.");
-    const elementSchema = tabRegistry.find(s => s.id === TABS.ELEMENTS.id);
-    const regionSchema = tabRegistry.find(s => s.id === TABS.REGIONS.id);
-    const updated = plan
-      ? applyForceGroups(request, plan, step, () => dataService.createDefaultRecord(regionSchema))
-      : excludeForceElements(request, request.indices, {preserveRegions:rememberZero});
-    const changes = [];
-    if (updated.elements.some((row,i) => row !== request.elements[i]))
-      changes.push({schema:elementSchema,data:updated.elements});
-    if (updated.regions !== request.regions) changes.push({schema:regionSchema,data:updated.regions});
-    if (plan && plan.minimumGap !== request.general.forceGroupMinGap)
-      changes.push({schema:tabRegistry.find(s=>s.id === TABS.GENERAL.id),data:{...request.general,forceGroupMinGap:plan.minimumGap}});
-    if (changes.length) {
-      modelService.setModelParts(changes,{recordHistory:true});
-      void performModelValidation({restart:true});
+    const elements = plan ? applyForceGroups(request.elements, plan.ids) : excludeForceElements(request.elements, request.indices);
+    if (elements.some((row, index) => row !== request.elements[index])) {
+      const schema = tabRegistry.find(tab => tab.id === TABS.ELEMENTS.id);
+      modelService.setModelParts([{schema, data:elements}], {recordHistory:true});
     }
+    void performModelValidation({restart:true});
     return readForceRequest();
   }
   const [coilTask,setCoilTask]=createSignal(null),[coilBusy,setCoilBusy]=createSignal(false);

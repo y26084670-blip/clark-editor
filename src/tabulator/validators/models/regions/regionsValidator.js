@@ -1,6 +1,6 @@
 import { validatePanel } from "../../../../services/solver/geometryShape.js";
 import { validateRegionReferences } from "../../../../services/modelReferenceValidation.js";
-import { forceSurfaceMotionWarning } from "../../../../services/generator/forceSurfaceMotion.js";
+import { forceSurfaceMotionWarning, isForcePanel } from "../../../../services/generator/forceSurfaceMotion.js";
 import {
     createError,
     createWarning,
@@ -33,10 +33,10 @@ export function regionsValidator(
     const groups = new Set((model.elements ?? []).filter(row => row.targ !== 3 && row.take > 0).map(row => row.take));
     regions.forEach((record, index) => {
         if (panelForces && record?.forceGroup > 0) {
-            if (!groups.has(record.forceGroup) || record.geoType === 2 || (record.indCoil ?? 0) !== 0) {
+            if (!groups.has(record.forceGroup) || !isForcePanel(record)) {
                 diagnostics.push(createError({tab:TABS.REGIONS,row:index+1,property:"forceGroup",
-                    message:!groups.has(record.forceGroup) ? `Нет физических элементов группы ${record.forceGroup}.` :
-                        "Силовую группу можно назначить только площадке, свободной от измерительной катушки."}));
+                    message:!groups.has(record.forceGroup) ? `Нет физических элементов группы ${record.forceGroup}. На вкладке «Области» проверьте номер «Силовая группа». Для обычной области наблюдения задайте 0.` :
+                        "Назначьте силовую группу площадке ненулевой площади без измерительной катушки. Для отрезка или катушки укажите 0."}));
             }
         }
         for (const shape of FIXED_ARRAY_SHAPES) {
