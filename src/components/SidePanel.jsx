@@ -135,7 +135,7 @@ export function SidePanel(props) {
                   onClick={props.onCreateUniformFieldCoil}>Катушка однородного поля</button>
                 <button class="side-panel-option" disabled={!props.open || !props.medActionEnabled} onClick={props.onCreateContactElement}>Контактное возбуждение</button>
                 <button class="side-panel-option" disabled={!props.open || !props.forceSurfaceEnabled}
-                  onClick={props.onCreateForceSurface}>Поверхность для расчета силы/момента</button>
+                  onClick={props.onCreateForceSurface}>Создание силовых групп</button>
               </div>
             </section>
           </>

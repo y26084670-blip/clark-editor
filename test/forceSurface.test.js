@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import createModule from 'manifold-3d/manifold';
 import { forceBodies, generateForceSurface } from '../src/services/generator/forceSurface.js';
+import { forceSweepGeometry } from '../src/services/generator/forceSurfaceSweep.js';
 import { orient3 } from '../src/services/solver/geometryShape.js';
 import { expandElementSymmetry } from '../src/services/solver/symmetryExpansion.js';
 import { applyMatrix4ToPoint } from '../src/services/solver/rotation3d.js';
@@ -137,8 +138,8 @@ test('actual group panels support axial mode and invalid inputs yield no partial
 const {buildForceGroups, applyForceGroups, excludeForceElements, conflictingForceContacts} =
     await import('../src/services/generator/forceGroups.js');
 const block = (x,y=0,z=0, extra={}) => ({...prism([x,y,z],[1,1,1]),targ:0,take:0,...extra});
-const automatic = (m,minimumGap=.2,distance=.1) => buildForceGroups(kernel,m,{mode:'automatic',minimumGap,distance});
-const apply = (m,plan) => ({...m,...applyForceGroups(m,plan,3,()=>({name:"panel"}))});
+const automatic = (m, minimumGap=.2, excluded=[]) => buildForceGroups(kernel,
+    {...m, general:{...m.general, forceGroupMinGap:minimumGap}}, excluded);
 
 test('automatic grouping uses resolvable solid distance at a face, edge, point, overlap and containment', () => {
     for (const b of [block(1,.5),block(1,1),block(1,1,1),block(.45,.4,.1),
@@ -164,79 +165,33 @@ test('rotated bodies with intersecting AABBs use spatial gap and complete mirror
     assert.deepEqual(automatic(mirror,.2).ids,[1,1]);
 });
 
-test('manual, exclusion, rebuild and automatic replacement change only the corresponding groups', () => {
-    const input={...model([block(0),block(1),block(7),block(13),block(0,0,0,{targ:3})]),regions:[{name:'probe',forceGroup:0}]};
-    let m=apply(input,automatic(input));
-    assert.deepEqual(m.elements.map(e=>e.take),[1,1,2,3,0]);
-    const own=m.regions.filter(r=>r.forceGroup===1);
-    m={...m,...excludeForceElements(m,[0])};
-    assert.equal(m.elements[0].take,0);
-    assert.deepEqual(m.regions.filter(r=>r.forceGroup===1),own);
-    m={...m,...excludeForceElements(m,[1])};
-    assert.ok(m.regions.every(r=>r.forceGroup!==1));
-    m=apply(m,buildForceGroups(kernel,m,{mode:'manual',group:17,indices:[2,3],distance:.1,minimumGap:.2}));
-    assert.deepEqual(m.elements.map(e=>e.take),[0,0,17,17,0]);
-    assert.ok(m.regions.every(r=>[0,17].includes(r.forceGroup)));
-    const rebuilt=apply(m,automatic(m));
-    assert.deepEqual(rebuilt.elements.map(e=>e.take),[1,1,2,3,0]);
-    assert.equal(rebuilt.regions[0],input.regions[0]);
-    assert.deepEqual(automatic(rebuilt).surfaces,automatic(input).surfaces);
-    assert.throws(()=>buildForceGroups(kernel,rebuilt,{mode:'manual',group:8,indices:[0],distance:.1,minimumGap:.2}),/зазора/);
-});
-
-test('remembered zero rows neither receive panels nor connect the remaining contact components', () => {
-    const probe = {name:'probe',forceGroup:0,indCoil:2};
-    const old = {forceGroup:9};
-    const m = {...model([block(0),block(1.25,0,0,{take:9}),block(2.5),block(8)]), regions:[old,probe]};
-    const marked = {...m,...excludeForceElements(m,[1,3],{preserveRegions:true})};
-    assert.deepEqual(marked.elements.map(s=>s.take),[0,0,0,0]);
-    assert.equal(marked.regions,m.regions);
-    const options = {mode:'automatic',zeroIndices:[1,3],minimumGap:.3,distance:.05};
-    const plan = buildForceGroups(kernel,marked,options);
-    assert.deepEqual(plan.ids,[1,0,2,0]);
-    assert.deepEqual(plan.surfaces.map(s=>s.members),[[0],[2]]);
-    const result = apply(marked,plan);
-    assert.equal(result.regions[0],probe);
-    assert.deepEqual([...new Set(result.regions.slice(1).map(s=>s.forceGroup))],[1,2]);
-    assert.deepEqual(automatic(marked,.3,.05).ids,[1,1,1,2]);
-    const allZero = buildForceGroups(kernel,marked,{...options,zeroIndices:[0,1,2,3]});
-    assert.deepEqual(allZero.ids,[0,0,0,0]);
-    assert.deepEqual(apply(marked,allZero).regions,[probe]);
-    // A touching group-0 source remains a physical obstacle for a surrounding shell.
-    assert.throws(()=>buildForceGroups(kernel,model([block(0),block(1)]),
-        {...options,zeroIndices:[1]}),/№1.*№2|№2.*№1/);
-});
-
-test('external faces assign automatic and manual IDs without a swept shell, node spacing or TK changes', () => {
+for (const offset of [0, .001]) {
+    test(`contact groups only change element IDs and preserve manual panels, offset ${offset}`, () => {
+        const regions = [{name:"measurement",forceGroup:0,indCoil:2},{name:"manual shell",forceGroup:9}];
+        const m = {...model([block(0),block(1.25,0,0,{take:9}),block(2.5),block(8),
+            block(10,0,0,{targ:3})], {forceFaceOffset:offset}), regions};
+        const before = structuredClone(m);
+        const elements = excludeForceElements(m.elements,[1,3]);
+        assert.deepEqual(elements.map(s=>s.take),[0,0,0,0,0]);
+        const marked = {...m, elements};
+        const plan = automatic(marked,.3,[1,3]);
+        assert.deepEqual(plan,{ids:[1,0,2,0,0],groups:[{id:1,members:[0]},{id:2,members:[2]}]});
+        const assigned = applyForceGroups(elements,plan.ids);
+        assert.equal(assigned[1],elements[1]);
+        assert.deepEqual(assigned.map(s=>s.take),plan.ids);
+        assert.deepEqual(automatic(marked,.3).ids,[1,1,1,2,0]);
+        assert.deepEqual(automatic(marked,.3,[0,1,2,3]).groups,[]);
+        assert.deepEqual(automatic(model([block(0),block(1)]),0,[1]).ids,[1,0]);
+        assert.deepEqual(automatic({...m, regions:[]},.3,[1,3]),plan);
+        assert.deepEqual(m,before);
+        assert.equal(m.regions,regions);
+    });
+}
+test('external faces validate contacts with group zero independently of the grouping threshold', () => {
     const general = {forceFaceOffset:.001,forceGroupMinGap:2};
-    const m = {...model([block(0),block(1.25),block(2.5),block(8,0,0,{targ:3})],general),
-        regions:[{forceGroup:17,indCoil:0},{forceGroup:0,indCoil:2}]};
-    const auto = buildForceGroups(kernel,m,{mode:'automatic',zeroIndices:[1]});
-    assert.deepEqual(auto.ids,[1,0,1,0]); // gap 1.5 is below the auto grouping threshold of 2
-    assert.deepEqual(auto.surfaces,[{id:1,members:[0,2],panels:[]}]);
-    const output = applyForceGroups(m,auto,undefined,()=>assert.fail('created TK in face mode'));
-    assert.equal(output.regions,m.regions);
-    const manual = buildForceGroups(kernel,{...m,...output},{mode:'manual',indices:[2],group:8});
-    assert.deepEqual(manual.ids,[1,0,8,0]);
-    assert.equal(excludeForceElements({...m,...output},[0,2]).regions,m.regions);
     const separate = model([block(0,0,0,{take:7}),block(1.25),block(1.1,0,0,{targ:3})],general);
     assert.deepEqual(conflictingForceContacts(kernel,separate),[]);
-    const touching = model([block(0,0,0,{take:7}),block(1)],general);
-    assert.deepEqual(conflictingForceContacts(kernel,touching),[[0,1]]);
-});
-
-test('node step uses both endpoints and the longer edge of each opposite pair independently', () => {
-    const wide = [[0,0,0],[3,0,0],[4.5,2,0],[0,2,0]];
-    const square = [[0,0,0],[1.5,0,0],[1.5,1.5,0],[0,1.5,0]];
-    const input = {elements:[block(0)],regions:[]};
-    const plan = {ids:[1], replace:[1], surfaces:[{id:1,panels:[wide,square]}]};
-    const write = step => applyForceGroups(input, plan, step, () => ({}));
-    // max(3,4.5) / 1.5 = 3 intervals; max(2,2.5) / 1.5 rounds up to 2.
-    assert.deepEqual(write(1.5).regions.map(r=>r.dp), [[[4],[3]], [[2],[2]]]);
-    assert.deepEqual(write(10).regions.map(r=>r.dp), [[[2],[2]], [[2],[2]]]);
-    for (const step of [0,-1,NaN,Infinity,Number.MIN_VALUE]) assert.throws(()=>write(step), /шаг/);
-    assert.deepEqual(input.regions, []);
-    assert.equal(input.elements[0].take, 0);
+    assert.deepEqual(conflictingForceContacts(kernel,model([block(0,0,0,{take:7}),block(1)],general)),[[0,1]]);
 });
 
 // Geometry from input3XX(2).zip: 600 LS/AS/PS images and two separated groups.
@@ -295,10 +250,12 @@ function checkUniformStress(panels) {
 for (const doubleFloat of [false,true]) {
     test(`radial Boolean seams produce two closed full-trajectory shells (${doubleFloat ? 'double' : 'single'})`, () => {
         const input = repeatedRadialModel(doubleFloat), saved = structuredClone(input);
-        const plan = automatic(input,2,1);
+        const plan = automatic(input,2);
+        const geometry = forceSweepGeometry(input,1);
+        const shells = plan.groups.map(group => ({...group, panels:generateForceSurface(kernel,input,group.members,1,geometry)}));
         assert.deepEqual(plan.ids,[1,1,1,1,1,1,2,2,1]);
-        assert.equal(plan.coverage.end,2);
-        assert.ok(bounds(plan.surfaces[1].panels)[0][1]>42);
+        assert.equal(geometry.coverage.end,2);
+        assert.ok(bounds(shells[1].panels)[0][1]>42);
         const {bodies} = forceBodies(input);
         assert.equal(bodies.length,600);
         const frames = [0,.337,1,1.789,2].map(time => {
@@ -306,11 +263,7 @@ for (const doubleFloat of [false,true]) {
                 countTimeSteps:time>0?1:0,timeStep:time}},input.moves,time>0?1:0);
             return forceBodies({...frame.model,elements:frame.model.elements.map(e=>({...e,indMove:0}))}).bodies;
         });
-        for (const shell of plan.surfaces) {
-            const grouped = {...input,elements:input.elements.map((e,i)=>({...e,take:plan.ids[i]}))};
-            const manual = buildForceGroups(kernel,grouped,{mode:'manual',group:shell.id,
-                indices:shell.members,distance:1,minimumGap:2});
-            assert.deepEqual(manual.surfaces[0].panels,shell.panels);
+        for (const shell of shells) {
             checkEdges(shell.panels);
             checkUniformStress(shell.panels);
             for (const q of shell.panels) {

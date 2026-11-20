@@ -1,3 +1,4 @@
+import { isForcePanel } from "../../../../services/generator/forceSurfaceMotion.js";
 import { modelGeometrySettings } from "../../../../services/solver/geometryValidationSettings.js";
 import { validateSubdivision } from "../../../../services/solver/hexSubdivision.js";
 import { buildGeometryTimeModel } from "../../../../services/visualization/geometryTimeModel.js";
@@ -6,6 +7,7 @@ import { validateElementReferences } from "../../../../services/modelReferenceVa
 import {
     createError,
     createWarning,
+    createSuccess,
 } from "../../common/createDiagnostic.js";
 import { TABS } from "../../../../services/schemas/common/constants.js";
 import { ELEMENT_NAME_CONSTRAINTS } from "../../../../services/schemas/common/elementNameConstraints.js";
@@ -91,23 +93,42 @@ export function elementsValidator(
     );
     if (model.general?.evalForce) {
         const externalFaces = model.general.forceFaceOffset > 0;
-        const panels = new Set((model.regions ?? []).map(row => row.forceGroup));
-        const missing = new Set();
-        elements.forEach((row,i) => {
-            if (!(row.take > 0)) return;
-            if (row.targ === 3 || (!externalFaces && !panels.has(row.take) && !missing.has(row.take))) {
-                diagnostics.push(createError({tab:TABS.ELEMENTS,row:i+1,property:"take",
-                    message:row.targ === 3 ? "Виртуальный элемент должен иметь группу 0." :
-                        `Для группы ${row.take} нет силовых площадок.`}));
-                if (row.targ !== 3) missing.add(row.take);
+        const panels = new Set();
+        if (!externalFaces) {
+            for (const region of model.regions ?? []) {
+                if (isForcePanel(region)) panels.add(region.forceGroup ?? 0);
             }
+        }
+        const targets = new Set();
+        elements.forEach((row, i) => {
+            if (!(row.take > 0)) return;
+            if (row.targ === 3) {
+                diagnostics.push(createError({tab:TABS.ELEMENTS,row:i+1,property:"take",
+                    message:"Виртуальный элемент должен иметь группу 0."}));
+                return;
+            }
+            if (!externalFaces && !targets.has(row.take) && !panels.has(row.take)) {
+                diagnostics.push(createError({tab:TABS.ELEMENTS,row:i+1,property:"take",
+                    message:`Для группы ${row.take} нет силовых площадок. На вкладке «Области» создайте замкнутую оболочку или назначьте её площадкам номер ${row.take} в столбце «Силовая группа».`}));
+            }
+            targets.add(row.take);
         });
+        if (!externalFaces && !targets.size && !panels.has(0)) {
+            diagnostics.push(createWarning({tab:TABS.REGIONS,property:"forceGroup",
+                message:"Для расчёта по полному полю задайте на вкладке «Области» силовые площадки с номером 0."}));
+        } else if (externalFaces && targets.size) {
+            diagnostics.push(createSuccess("При положительном отступе силовую поверхность строит решатель по внешним граням. Площадки для расчёта силы задавать не требуется."));
+        } else if (!externalFaces && targets.size && [...targets].every(id => panels.has(id))) {
+            diagnostics.push(createSuccess("Для каждой положительной группы найдены площадки. На вкладке «Области» проверьте вручную охват группы, замкнутость оболочки и направление нормалей."));
+        }
         for (const [a,b] of context.forceClosePairs ?? []) {
             diagnostics.push(createError({tab:TABS.ELEMENTS,row:a+1,property:"take",
                 message:`Элементы №${a+1} и №${b+1} принадлежат разным группам ${elements[a].take} и ${elements[b].take}. ` +
                     (externalFaces ? "Для внешних ЭП между группами нужен воздушный зазор." :
                         `Недостаточный зазор при заданном минимуме ${model.general.forceGroupMinGap ?? 2} мм.`)}));
         }
+    } else if (!(model.general?.forceFaceOffset > 0) && elements.some(row => row.targ !== 3 && row.take > 0)) {
+        diagnostics.push(createSuccess("Силовые группы заданы. Для расчёта включите «Вычисление силы/момента» и на вкладке «Области» задайте площадкам оболочек номера групп."));
     }
     if (med) diagnostics.push(...medDiagnostics(med));
 }

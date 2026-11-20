@@ -10,7 +10,7 @@ self.onmessage = async ({data}) => {
             self.postMessage({pairs:conflictingForceContacts(kernel,data.model)});
             return;
         }
-        self.postMessage({plan: buildForceGroups(kernel, data.model, data.options)});
+        self.postMessage({plan: buildForceGroups(kernel, data.model, data.zeroIndices)});
     } catch (error) {
         self.postMessage({error: error.message || String(error)});
     }

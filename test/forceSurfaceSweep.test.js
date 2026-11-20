@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import createModule from 'manifold-3d/manifold';
-import { forceBodies } from '../src/services/generator/forceSurface.js';
+import { forceBodies, generateForceSurface } from '../src/services/generator/forceSurface.js';
 import { forceSweepGeometry } from '../src/services/generator/forceSurfaceSweep.js';
-import { buildForceGroups, applyForceGroups } from '../src/services/generator/forceGroups.js';
+import { buildForceGroups } from '../src/services/generator/forceGroups.js';
 import { buildGeometryTimeModel } from '../src/services/visualization/geometryTimeModel.js';
 
 const kernel = await createModule(); kernel.setup();
@@ -13,33 +13,34 @@ const box = (x=0, extra={}) => ({geoType:2,geo:[[1,1,1]],dp:[1,1,1],
 const move = (position,angle=[[0,0,0,0]]) => ({position,angle});
 const model = (elements,moves=[],general={}) => ({elements,moves,regions:[],
     general:{doubleFloat:true,mirrorSymmetryX:-1,mirrorSymmetryY:-1,countTimeSteps:1,timeStep:2,...general}});
-const automatic = m => buildForceGroups(kernel,m,{mode:'automatic',distance:.25,minimumGap:.5});
+const sweptPanels = m => {
+    const geometry = forceSweepGeometry(m,.25);
+    return {coverage:geometry.coverage, panels:generateForceSurface(kernel,m,[0],.25,geometry)};
+};
 function atTime(m,time) {
     const frame = buildGeometryTimeModel({...m,general:{...m.general,
         countTimeSteps:time>0?1:0,timeStep:time}},m.moves,time>0?1:0);
     return forceBodies({...frame.model,elements:frame.model.elements.map(e=>({...e,indMove:0}))});
 }
 
-test('translation is covered to the final time and generated panels stay fixed', () => {
+test('geometric envelope of a translating body covers the final time', () => {
     const m = model([box(0,{indMove:1})],[move([[0,0,0,0],[2,3,0,0]])]);
-    const saved = structuredClone(m), plan = automatic(m);
+    const saved = structuredClone(m), plan = sweptPanels(m);
     assert.equal(plan.coverage.end,2);
-    const panels = plan.surfaces[0].panels;
+    const panels = plan.panels;
     assert.ok(Math.max(...panels.flat().map(p=>p[0]))>4);
     for (const time of [0,.337,1,1.789,2]) for (const body of atTime(m,time).bodies)
         for (const p of body.vertices) for (const d of [0,1,2]) {
             assert.ok(p[d]>Math.min(...panels.flat().map(q=>q[d])));
             assert.ok(p[d]<Math.max(...panels.flat().map(q=>q[d])));
         }
-    const applied = applyForceGroups(m,plan,.5,()=>({indMove:7}));
-    assert.ok(applied.regions.every(r=>r.indMove===0));
     assert.deepEqual(m,saved);
 });
 
 test('rotation includes the bulge between endpoints even with one solver interval', () => {
     const m = model([box(0,{indMove:1,dr:[2,0,0]})],
         [move([[0,0,0,0]],[[0,0,0,0],[2,0,0,90]])]);
-    const plan = automatic(m), panels = plan.surfaces[0].panels;
+    const plan = sweptPanels(m), panels = plan.panels;
     assert.ok(plan.coverage.poses>2);
     // The far corner's y maximum is sqrt(3^2+1^2), at atan(3), not at an endpoint.
     assert.ok(Math.max(...panels.flat().map(p=>p[1]))>Math.sqrt(10));
@@ -68,18 +69,11 @@ test('mixed Euler rotations, local/axial/periodic images and translation knots h
     } finally { envelopes.forEach(s=>s.delete()); }
 });
 
-test('a future collision rejects separate shells without silently merging the groups', () => {
-    const m = model([box(0,{indMove:1}),box(10)],
-        [move([[0,0,0,0],[2,10,0,0]])]);
-    const saved = structuredClone(m);
-    assert.throws(()=>automatic(m),/Огибающие.*№1.*№2.*не разделяются/);
-    assert.deepEqual(m,saved);
-});
-
-test('overlapping swept paths at different times do not imply physical contact or group merging', () => {
-    const m = model([box(0,{indMove:1}),box(3,{indMove:1})],
-        [move([[0,0,0,0],[2,10,0,0]])]);
-    assert.throws(()=>automatic(m),/Огибающие.*не разделяются/);
+test('group assignment uses the initial physical positions also when trajectories subsequently cross', () => {
+    for (const second of [box(10),box(3,{indMove:1})]) {
+        const m = model([box(0,{indMove:1}),second],[move([[0,0,0,0],[2,10,0,0]])],{forceGroupMinGap:.5});
+        assert.deepEqual(buildForceGroups(kernel,m).ids,[1,2]);
+    }
 });
 
 test('only the requested time range is swept and static geometry is preserved', () => {
