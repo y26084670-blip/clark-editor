@@ -35,6 +35,106 @@ const browse = button("Просмотр каталога с проектами")
 const refreshProjects = button("Обновить список проектов");
 const refreshTasks = button("Обновить список заданий");
 const showInViewer = button("Выбрать в Viewer");
+const drawer = page.locator("aside.side-panel.open");
+const operationDialog = page.locator(".task-operation-dialog[open]");
+const menuCommands = ["Геометрия по эскизу", "Создать проект", "Переименовать проект", "Удалить пустой проект",
+  "Создать задание", "Создать копию", "Переименовать задание", "Перенести в другой каталог", "Удалить задание"];
+
+async function openDrawer() {
+  await button("Открыть дополнительные функции").click();
+  for (const title of ["AI запросы", "Работа с проектами"]) {
+    const summary = drawer.locator("summary").filter({ hasText: title });
+    if (!await summary.evaluate(element => element.parentElement.open)) await summary.click();
+  }
+}
+
+async function checkDrawer(name, available) {
+  await openDrawer();
+  for (const label of menuCommands) {
+    const command = drawer.getByRole("button", { name: label, exact: true });
+    if (available) await command.click({ trial: true });
+    else assert.ok(await command.isDisabled(), label);
+  }
+  await drawer.getByRole("button", { name: "Закрыть дополнительные функции" }).click();
+  check(name, await drawer.count() === 0);
+}
+
+async function applyMenuCommand(label, name) {
+  await openDrawer();
+  await drawer.getByRole("button", { name: label, exact: true }).click();
+  await operationDialog.waitFor();
+  if (name) await operationDialog.getByRole("textbox").fill(name);
+  const stopped = operationDialog.getByRole("checkbox");
+  const submit = operationDialog.locator('button[type="submit"]');
+  if (await stopped.count()) {
+    assert.ok(await submit.isDisabled(), label + " requires confirmation");
+    await stopped.check();
+  }
+  await submit.click();
+  await operationDialog.waitFor({ state: "hidden" });
+}
+
+async function checkDirectoryMenu() {
+  const renamed = "Новое имя", newProject = "Рабочий проект";
+  const loaded = "CLARK.Tests/Проект 2/Задание";
+  await page.evaluate(path => queueFixture.setDirty(path), loaded);
+  await selectInEditor("clark.projects", "Проект 1");
+  await checkDrawer("all nine menu commands are reachable with the queue expanded", true);
+  const before = await page.evaluate(async () => JSON.parse(await queueFixture.read("clark.launch.json")).requestId);
+  await applyMenuCommand("Создать копию");
+  await page.waitForFunction(async previous => {
+    const text = await queueFixture.read("clark.launch.json");
+    return text && JSON.parse(text).requestId !== previous && !document.querySelector(".task-launch-start").disabled;
+  }, before);
+  check("copy selects the new task, keeps it disabled for calculation and renews the launch request",
+    (await page.locator("#listTask .selected .task-status-label").innerText()).trim() === "Задание — копия"
+    && (await page.evaluate(() => queueFixture.read("clark.tasks.txt"))).includes("*Проект 1/Задание — копия\n")
+    && await rows.count() === 2);
+
+  await selectInEditor("clark.projects", "Проект 2");
+  await drop(page.locator("#listTask").getByText("Задание", { exact: true }));
+  await rows.filter({ hasText: "clark.projects/Проект 2/Задание" }).getByRole("button").click();
+  await page.waitForFunction(() => document.querySelectorAll(".task-launch-row").length === 2 && !document.querySelector(".task-launch-start").disabled);
+  check("editing other queue rows preserves the excluded copy",
+    (await page.evaluate(() => queueFixture.read("clark.tasks.txt"))).includes("*Проект 1/Задание — копия\n"));
+
+  await selectInEditor("CLARK.Tests", "Проект 1");
+  await queue.getByRole("button", { name: "Свернуть окно" }).click();
+  const title = await queue.locator(".floating-window-titlebar").boundingBox();
+  await page.mouse.move(title.x + 60, title.y + title.height / 2); await page.mouse.down();
+  await page.mouse.move(100, 180, { steps: 5 }); await page.mouse.up();
+  await checkDrawer("all nine menu commands are reachable over the minimized queue", true);
+  await applyMenuCommand("Переименовать задание", renamed);
+  await applyMenuCommand("Переименовать проект", newProject);
+  await rows.getByText(`CLARK.Tests/${newProject}/${renamed}`, { exact: true }).waitFor({ state: "attached" });
+  check("task and project renames update the sibling queue while it is minimized",
+    await queue.evaluate(element => element.classList.contains("is-minimized"))
+    && (await page.evaluate(() => queueFixture.read("clark.tasks.txt"))).includes(`../CLARK.Tests/${newProject}/${renamed}\n`));
+
+  await page.evaluate(async () => {
+    const disk = await (await navigator.storage.getDirectory()).getDirectoryHandle("task-queue-test");
+    const destination = await (await disk.getDirectoryHandle("clark.projects")).getDirectoryHandle("Проект 2");
+    const picker = window.showDirectoryPicker;
+    window.showDirectoryPicker = options => options.id === "task-move-project" ? Promise.resolve(destination) : picker(options);
+  });
+  await applyMenuCommand("Перенести в другой каталог");
+  await queue.getByRole("button", { name: "Развернуть окно" }).click();
+  await rows.getByText("clark.projects/Проект 2/" + renamed, { exact: true }).dblclick();
+  await page.waitForFunction(name => document.querySelector("#listTask .selected .task-status-label")?.textContent.trim() === name, renamed);
+  check("the moved queue row navigates to its real destination", await page.locator("#projectCatalog").inputValue() === "clark.projects"
+    && await page.locator("#listProject").inputValue() === "Проект 2");
+  await applyMenuCommand("Удалить задание");
+  await page.waitForFunction(() => document.querySelectorAll(".task-launch-row").length === 1 && !document.querySelector(".task-launch-start").disabled);
+  check("deletion removes only its own row and preserves the unrelated loaded model",
+    await rows.locator(".task-status-name").innerText() === "clark.projects/Проект 1/Задание"
+    && !(await page.evaluate(() => queueFixture.read("clark.tasks.txt"))).includes(renamed)
+    && await page.evaluate(() => queueFixture.loadedPath()) === loaded);
+  await selectInEditor("clark.projects", "Проект 1");
+  await drop(page.locator("#listTask").getByText("Задание — копия", { exact: true }));
+  check("explicitly dropping the copy enables it once at the end of the queue",
+    await rows.last().locator(".task-status-name").innerText() === "clark.projects/Проект 1/Задание — копия"
+    && await page.evaluate(() => queueFixture.read("clark.tasks.txt")) === "Проект 1/Задание\nПроект 1/Задание — копия\n");
+}
 
 async function openViewerPeer() {
   viewer = await context.newPage();
@@ -101,9 +201,9 @@ async function checkPanelBounds(name) {
     && Math.abs(actual.width - (right.x + right.width - middle.x)) < 2
     && Math.abs(actual.height - middle.height) < 2);
 }
-async function drop() {
+async function drop(source = page.locator("#listTask .task-status-label").first()) {
   const count = await rows.count();
-  await page.locator("#listTask .task-status-label").first().dragTo(list);
+  await source.dragTo(list);
   await page.waitForFunction(expected => document.querySelectorAll(".task-launch-row").length === expected, count + 1);
   await page.waitForFunction(() => !document.querySelector(".task-launch-remove").disabled);
 }
@@ -219,6 +319,7 @@ try {
   await page.waitForFunction(() => !document.querySelector(".task-launch-start").disabled);
   await start.click();
   check("launch freezes editing until acceptance", await rows.first().getByRole("button").isDisabled());
+  await checkDrawer("all nine menu commands are disabled until native acceptance", false);
   for (const control of [browse, refreshProjects, refreshTasks, showInViewer]) assert.ok(await control.isDisabled());
   await assert.rejects(() => selectInEditor("clark.projects", "Проект 2"), /Editor занят/u);
   await page.evaluate(() => queueFixture.ack());
@@ -238,6 +339,7 @@ try {
   check("F5 restores the formed queue even while another catalog is selected", (await rows.locator(".task-status-name").allTextContents()).join("|")
     === "clark.projects/Проект 1/Задание|CLARK.Tests/Проект 1/Задание");
   await checkPanelBounds("reopening after F5 uses only the panel-sized expanded state");
+  await checkDirectoryMenu();
   check("no browser errors", errors.length === 0);
   console.log(`Task queue browser PASS: ${checks} checks`);
 } finally { await browser.close(); await server.close(); }

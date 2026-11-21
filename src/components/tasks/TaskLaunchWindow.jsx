@@ -1,6 +1,6 @@
 import {
   For, Show, batch, createEffect, createMemo, createSignal, createUniqueId,
-  onCleanup, onMount, untrack,
+  on, onCleanup, onMount, untrack,
 } from "solid-js";
 import { FloatingWindow } from "../window/FloatingWindow.jsx";
 import { selectionService } from "../../services/selectionService.js";
@@ -23,7 +23,9 @@ const errorText = error => error?.message || String(error);
 
 export function TaskLaunchWindow(props) {
   const listId = createUniqueId();
-  const [entries, setEntries] = createSignal([]);
+  const [storedEntries, setStoredEntries] = createSignal([]);
+  const entries = createMemo(() => props.rootHandle
+    ? describeTaskQueue(props.rootHandle, props.catalogs ?? [], storedEntries()) : []);
   const taskStatus = useTaskStatuses(
     () => entries().map(entry => ({ key: entry.path, root: entry.rootHandle, path: entry.taskPath })),
     { refreshOnChange: false, read: readTaskSolutionEntry },
@@ -70,13 +72,14 @@ export function TaskLaunchWindow(props) {
   });
   const includedDirty = createMemo(() => unsavedChangesService.hasDirty() && loadedIncluded());
   const awaitingAcceptance = () => pending()?.state === "waiting";
-  const locked = () => busy() || awaitingAcceptance() || props.bindingBusy;
+  const externalBusy = () => props.bindingBusy || props.directoryBusy;
+  const locked = () => busy() || awaitingAcceptance() || externalBusy();
   const queueSupported = () => !entries().some(entry => entry.path.startsWith("../"))
     || binding()?.taskQueueVersion === 1;
   const includedBlock = () => loadedIncluded() ? props.blockedMessage : "";
   const launchBaseReason = createMemo(() => {
     if (awaitingAcceptance()) return "Дождитесь ответа Clark на предыдущий запуск.";
-    if (busy() || props.bindingBusy) return "Дождитесь завершения текущей операции.";
+    if (busy() || externalBusy()) return "Дождитесь завершения текущей операции.";
     if (!props.rootHandle) return "Выберите каталог с проектами.";
     if (!listExists() || !listValid()) return "Сформируйте список заданий перетаскиванием.";
     if (binding()?.bindingState !== "bound") return "Свяжите каталог списка с Решателем.";
@@ -112,11 +115,11 @@ export function TaskLaunchWindow(props) {
     if (!current(root, revision)) return;
     setProof(null);
     setPreparationError("");
-    if (!marker || marker.bindingState !== "bound" || !listExists() || !listValid()) return;
+    if (!marker || marker.bindingState !== "bound" || !listExists() || !listValid() || awaitingAcceptance() || externalBusy()) return;
     if (!queueSupported()) return;
     try {
       const prepared = await prepareLaunchRequest(root, marker);
-      if (current(root, revision) && !awaitingAcceptance() && !props.bindingBusy
+      if (current(root, revision) && !awaitingAcceptance() && !externalBusy()
         && marker.workspaceId === binding()?.workspaceId
         && binding()?.bindingState === "bound") setProof(prepared);
     } catch (failure) {
@@ -127,10 +130,15 @@ export function TaskLaunchWindow(props) {
   async function loadRoot(root, revision) {
     if (!root) return;
     setBusy(true);
+    setListValid(false);
+    setProof(null);
+    setPreparationError("");
+    setError("");
+    setConfirmImport(false);
     try {
       const result = await readTaskList(root);
       if (!current(root, revision)) return;
-      setEntries(describeTaskQueue(root, props.catalogs ?? [], result.entries));
+      setStoredEntries(result.entries);
       setListExists(result.exists);
       setListValid(true);
       if (result.exists) await props.onQueueChange?.(root);
@@ -138,7 +146,10 @@ export function TaskLaunchWindow(props) {
       if (!current(root, revision)) return;
       await armLaunch(root, revision);
     } catch (failure) {
-      if (current(root, revision)) setError(errorText(failure));
+      if (current(root, revision)) {
+        if (!listValid()) setStoredEntries([]);
+        setError(errorText(failure));
+      }
     } finally {
       if (current(root, revision)) setBusy(false);
     }
@@ -150,7 +161,7 @@ export function TaskLaunchWindow(props) {
     modelicaDialog?.close();
     untrack(() => {
       batch(() => {
-        setEntries([]);
+        setStoredEntries([]);
         setListExists(false);
         setListValid(false);
         setDragOver(false);
@@ -170,6 +181,12 @@ export function TaskLaunchWindow(props) {
       void loadRoot(root, revision);
     });
   });
+
+  // Directory operations invalidate the on-disk launch request. Reload only the
+  // list, preserving the open window, MPI settings and any accepted native run.
+  createEffect(on(() => props.listRevision, () => {
+    void loadRoot(props.rootHandle, rootRevision);
+  }, { defer: true }));
 
   createEffect(() => {
     const marker = binding();
@@ -246,7 +263,7 @@ export function TaskLaunchWindow(props) {
     try {
       const result = await operation(root);
       if (!current(root, revision)) return;
-      setEntries(describeTaskQueue(root, props.catalogs ?? [], result.entries));
+      setStoredEntries(result.entries);
       setListExists(result.exists);
       setListValid(true);
       await props.onQueueChange?.(root);
@@ -277,15 +294,17 @@ export function TaskLaunchWindow(props) {
     if (!acceptsDrop(event)) return;
     event.preventDefault();
     const source = props.draggedTask;
-    const snapshot = entries();
+    const snapshot = storedEntries();
     void changeList(async root => {
       const entry = await createTaskQueueEntry(root, props.diskHandle, source);
-      return writeTaskList(root, [...snapshot, entry]);
+      // An explicit drop enables this task. Keep other excluded rows on disk.
+      const retained = snapshot.filter(item => item.enabled || keyOf(item.path) !== keyOf(entry.path));
+      return writeTaskList(root, [...retained, entry]);
     }, true);
   }
 
   function removeEntry(entry) {
-    const snapshot = entries().filter(item => keyOf(item.path) !== keyOf(entry.path));
+    const snapshot = storedEntries().filter(item => keyOf(item.path) !== keyOf(entry.path));
     return changeList(root => writeTaskList(root, snapshot));
   }
 
@@ -438,7 +457,7 @@ export function TaskLaunchWindow(props) {
   }
 
   async function pollNative() {
-    if (polling || disposed || busy() || props.bindingBusy || !props.rootHandle) return;
+    if (polling || disposed || busy() || externalBusy() || !props.rootHandle) return;
     const root = props.rootHandle;
     const revision = rootRevision;
     const run = pending();
@@ -451,7 +470,7 @@ export function TaskLaunchWindow(props) {
         catch { /* A concurrent native replacement is retried on the next poll. */ }
         if (!current(root, revision) || pending()?.requestId !== run.requestId) return;
         // A list write may have started while the result file was being read.
-        if (busy() || props.bindingBusy) return;
+        if (busy() || externalBusy()) return;
         if (result?.workspaceId === run.workspaceId && result.action === run.action) {
           if (result.state === "accepted") {
             await acceptRun(root, revision, run, result);
@@ -495,7 +514,7 @@ export function TaskLaunchWindow(props) {
   async function refreshOnFocus() {
     if (pending()) await pollNative();
     if (awaitingAcceptance()) return;
-    if (busy() || props.bindingBusy || disposed || !props.rootHandle) return;
+    if (busy() || externalBusy() || disposed || !props.rootHandle) return;
     const root = props.rootHandle;
     const revision = rootRevision;
     try {
@@ -513,7 +532,7 @@ export function TaskLaunchWindow(props) {
   createEffect(() => {
     const ready = props.open && props.rootHandle && listExists() && listValid()
       && binding()?.bindingState === "bound" && queueSupported();
-    const idle = !busy() && !awaitingAcceptance() && !props.bindingBusy;
+    const idle = !busy() && !awaitingAcceptance() && !externalBusy();
     const prepared = proof(), failure = preparationError();
     if (ready && idle && !prepared && !failure) untrack(() => { void refreshOnFocus(); });
   });
@@ -541,7 +560,7 @@ export function TaskLaunchWindow(props) {
       title="Список заданий для расчета: сформируйте перетаскиванием из списков в проектах и запустите расчет"
       expandedRect={props.initialRect}
       minimizedTitle="Список заданий для расчета"
-      minimizedWidth={400} minWidth={280} minHeight={360}
+      minimizedWidth={400} minWidth={280} minHeight={360} zIndex={2980}
       allowMaximize={false}
       storageKey="web-gui:task-queue-window-v2"
       titleActions={<>

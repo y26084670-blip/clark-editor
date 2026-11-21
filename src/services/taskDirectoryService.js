@@ -1,6 +1,7 @@
 // Filesystem-only operations. A verified destination is retained on any partial
 // relocation; the caller receives its handle and whether deletion was attempted.
 import { DIRECTORIES, TASK_UNAPPROVED_FILE } from "./schemas/common/constants.js";
+import { isProjectCatalog } from "./projectDiskAccessService.js";
 import { readTaskList, writeTaskList, invalidateLaunchRequest } from "./taskLaunchService.js";
 
 export function validateTaskName(value) {
@@ -93,36 +94,87 @@ export async function suggestTaskCopyName(parent, name) {
   return candidate;
 }
 
-// Only the list in the selected root is owned by the GUI. An external move
-// removes the old row; it cannot invent an absolute path or edit another root.
-async function prepareListUpdate(root, source, destinationParent, name, relocate) {
-  if (!root) return async () => {};
-  const before = await readTaskList(root);
-  if (!before.exists) return async () => {};
-  const oldSegments = source ? await root.resolve(source) : null;
-  const parentSegments = await root.resolve(destinationParent);
-  const oldPath = oldSegments?.join("/").toLowerCase();
-  const newPath = parentSegments?.length === 1 ? [...parentSegments, name].join("/") : null;
-  const entries = before.entries.flatMap(entry => {
-    if (!relocate || entry.path.toLowerCase() !== oldPath) return [entry];
-    return newPath ? [{ ...entry, path: newPath }] : [];
-  });
-  if (newPath && !entries.some(entry => entry.path.toLowerCase() === newPath.toLowerCase())) {
-    entries.push({ path: newPath, enabled: false });
-  }
-  // Reject obsolete destination rows instead of merging their enabled state.
-  if (newPath && before.entries.some(entry => entry.path.toLowerCase() === newPath.toLowerCase())) {
+async function listPath(root, directory, depth, disk) {
+  if (!directory) return null;
+  const local = await root.resolve(directory);
+  if (local) return local.length === depth ? local.join("/") : null;
+  if (!disk) return null;
+  const [origin, parts] = await Promise.all([disk.resolve(root), disk.resolve(directory)]);
+  if (origin?.length !== 1 || !isProjectCatalog(origin[0])
+    || parts?.length !== depth + 1 || !isProjectCatalog(parts[0])) return null;
+  return ["..", ...parts].join("/");
+}
+
+function revisedEntries(entries, from, to, project, addDisabled) {
+  const key = path => path.normalize("NFC").toLowerCase();
+  const matches = (path, base) => base && (project
+    ? key(path).startsWith(key(base) + "/") : key(path) === key(base));
+  if (to && entries.some(entry => matches(entry.path, to))) {
     throw new Error("В списке запуска уже есть путь назначения. Обновите список и повторите операцию.");
   }
-  return async () => {
-    if (JSON.stringify(await readTaskList(root)) !== JSON.stringify(before)) {
-      throw new Error("Список запуска изменился во время операции. Источник сохранён; проверьте список.");
+  const result = entries.flatMap(entry => {
+    if (!matches(entry.path, from)) return [entry];
+    if (!to) return [];
+    const suffix = project ? entry.path.split("/").slice(from.split("/").length) : [];
+    return [{ ...entry, path: [to, ...suffix].join("/") }];
+  });
+  if (addDisabled && to && !result.some(entry => matches(entry.path, to))) {
+    result.push({ path: to, enabled: false });
+  }
+  return result;
+}
+
+// Only the selected catalog's list and the current queue may own this operation.
+async function prepareListUpdate({ kind, root, queueRoot, disk, source, destinationParent, name, project = false }) {
+  const lists = root ? [root] : [];
+  if (root && queueRoot && !await root.isSameEntry(queueRoot)) lists.push(queueRoot);
+  const changesSource = kind === "rename" || kind === "move" || kind === "delete";
+  const changes = [];
+  for (const list of lists) {
+    const from = changesSource ? await listPath(list, source, project ? 1 : 2, disk) : null;
+    let to = null;
+    if (kind !== "delete") {
+      if (project && from) to = from.slice(0, from.lastIndexOf("/") + 1) + name;
+      if (!project) {
+        const parent = await listPath(list, destinationParent, 1, disk);
+        if (parent) to = parent + "/" + name;
+      }
     }
-    await writeTaskList(root, entries);
+    if (list !== root && !from && !to) continue;
+    const before = await readTaskList(list);
+    const entries = revisedEntries(before.entries, from, to, project, !project && list === root);
+    changes.push({ list, before, entries, write: list === root || JSON.stringify(entries) !== JSON.stringify(before.entries) });
+  }
+  return async () => {
+    const written = [];
+    try {
+      for (const change of changes) {
+        const { list, before, entries, write } = change;
+        if (JSON.stringify(await readTaskList(list)) !== JSON.stringify(before)) {
+          throw new Error("Список запуска изменился во время операции. Источник сохранён; проверьте список.");
+        }
+        if (before.exists && write) {
+          await writeTaskList(list, entries);
+          written.push(change);
+        } else if (!before.exists && list === root && (project || kind === "delete")) {
+          await invalidateLaunchRequest(list);
+        }
+      }
+    } catch (error) {
+      // A second list can fail after the first write. Never undo a later edit.
+      for (const { list, before, entries } of written.reverse()) {
+        try {
+          const latest = await readTaskList(list);
+          if (!latest.exists || JSON.stringify(latest.entries) !== JSON.stringify(entries)) throw new Error("Список изменён.");
+          await writeTaskList(list, before.entries);
+        } catch (failure) { error.message += `\nНе удалось восстановить список в «${list.name}»: ${failure.message}`; }
+      }
+      throw error;
+    }
   };
 }
 
-async function deleteTaskDirectory({ root, sourceParent, source }) {
+async function deleteTaskDirectory({ root, sourceParent, source, queueRoot, disk }) {
   // Удалять разрешено только выбранное задание непосредственно в проекте.
   const assertSource = async () => {
     if (!root || !sourceParent || !source
@@ -135,20 +187,12 @@ async function deleteTaskDirectory({ root, sourceParent, source }) {
     if (!await current.isSameEntry(source)) throw new Error("Каталог задания был заменён. Обновите список и выберите его заново.");
   };
   await assertSource();
-  const before = await readTaskList(root);
-  const oldPath = (await root.resolve(source)).join("/").toLowerCase();
+  const publishList = await prepareListUpdate({ kind: "delete", root, source, queueRoot, disk });
   const result = { name: source.name, deletionStarted: false, sourceRemoved: false };
   try {
-    if (JSON.stringify(await readTaskList(root)) !== JSON.stringify(before)) {
-      throw new Error("Список запуска изменился во время операции. Обновите список и повторите удаление.");
-    }
     await assertSource();
     // Сначала исключаем запуск удаляемого задания. Сбой записи оставляет каталог.
-    if (before.exists) {
-      await writeTaskList(root, before.entries.filter(entry => entry.path.toLowerCase() !== oldPath));
-    } else {
-      await invalidateLaunchRequest(root);
-    }
+    await publishList();
     await assertSource();
     result.deletionStarted = true;
     await sourceParent.removeEntry(source.name, { recursive: true });
@@ -164,8 +208,8 @@ async function deleteTaskDirectory({ root, sourceParent, source }) {
   }
 }
 
-export async function runTaskDirectoryOperation({ kind, root, sourceParent, source, destinationParent, name, initialize }) {
-  if (kind === "delete") return deleteTaskDirectory({ root, sourceParent, source });
+export async function runTaskDirectoryOperation({ kind, root, queueRoot, disk, sourceParent, source, destinationParent, name, initialize }) {
+  if (kind === "delete") return deleteTaskDirectory({ root, sourceParent, source, queueRoot, disk });
   if (!["create", "copy", "rename", "move"].includes(kind)) throw new Error("Неизвестная операция с заданием.");
   validateTaskName(name);
   const relocate = kind === "rename" || kind === "move";
@@ -186,7 +230,7 @@ export async function runTaskDirectoryOperation({ kind, root, sourceParent, sour
     } catch (error) { if (error.name !== "NotFoundError") throw error; }
   }
   await assertUnused(destinationParent, name);
-  const publishList = await prepareListUpdate(root, source, destinationParent, name, relocate);
+  const publishList = await prepareListUpdate({ kind, root, queueRoot, disk, source, destinationParent, name });
   const include = kind === "copy" ? includeTaskInput : () => true;
   if (kind === "copy") await source.getDirectoryHandle(DIRECTORIES.INPUT);
   const expected = source ? await manifest(source, include) : null;
@@ -249,10 +293,9 @@ export async function runTaskDirectoryOperation({ kind, root, sourceParent, sour
 
 // Projects are direct children of the selected catalog. Reuse the task file
 // manifest/verification mechanism, but update every launch path in the project.
-export async function runProjectDirectoryOperation({ kind, root, source, name }) {
+export async function runProjectDirectoryOperation({ kind, root, queueRoot, disk, source, name }) {
   if (!root || root.kind !== "directory") throw new Error("Выберите базовый каталог проектов.");
   if (!["create", "rename", "delete"].includes(kind)) throw new Error("Неизвестная операция с проектом.");
-  const key = value => value.normalize("NFC").toLowerCase();
   const assertSource = async () => {
     if (!source || (await root.resolve(source))?.length !== 1) {
       throw new Error("Выберите проект непосредственно в текущем базовом каталоге.");
@@ -272,22 +315,7 @@ export async function runProjectDirectoryOperation({ kind, root, source, name })
     return { handle, name, verified: true };
   }
 
-  const before = await readTaskList(root);
-  if (kind === "rename" && before.entries.some(entry => key(entry.path.split("/")[0]) === key(name))) {
-    throw new Error("В списке запуска уже есть пути проекта назначения. Обновите список и повторите операцию.");
-  }
-  const entries = before.entries.flatMap(entry => {
-    const [project, ...parts] = entry.path.split("/");
-    if (key(project) !== key(source.name)) return [entry];
-    return kind === "delete" ? [] : [{ ...entry, path: [name, ...parts].join("/") }];
-  });
-  const publishList = async () => {
-    if (JSON.stringify(await readTaskList(root)) !== JSON.stringify(before)) {
-      throw new Error("Список запуска изменился во время операции. Источник сохранён; проверьте список.");
-    }
-    if (before.exists) await writeTaskList(root, entries);
-    else await invalidateLaunchRequest(root);
-  };
+  const publishList = await prepareListUpdate({ kind, root, queueRoot, disk, source, name, project: true });
   const result = { name: kind === "delete" ? source.name : name, verified: false, deletionStarted: false, sourceRemoved: false };
   const guards = [];
   try {

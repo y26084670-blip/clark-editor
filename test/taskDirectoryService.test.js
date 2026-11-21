@@ -39,11 +39,12 @@ class Handle {
     else await fs.rm(target, { recursive });
   }
 }
-async function fixture(t) {
+async function fixture(t, catalog) {
   const base = await fs.mkdtemp(path.join(os.tmpdir(), 'clark-task-'));
   t.after(() => fs.rm(base, { recursive: true, force: true }));
   let hook = () => {};
-  const root = new Handle(base, 'directory', (...args) => hook(...args));
+  const disk = new Handle(base, 'directory', (...args) => hook(...args));
+  const root = catalog ? await disk.getDirectoryHandle(catalog, { create: true }) : disk;
   const parent = await root.getDirectoryHandle('Project', { create: true });
   const source = await parent.getDirectoryHandle('Original', { create: true });
   const put = async (where, relative, bytes) => { const name = path.join(where.location, relative); await fs.mkdir(path.dirname(name), { recursive: true }); await fs.writeFile(name, bytes); };
@@ -57,13 +58,85 @@ async function fixture(t) {
   await put(source, 'protocol.log', 'old log');
   await put(source, 'input3XX/a.tmp', 'temporary');
   await put(root, 'clark.tasks.txt', 'Project/Original\n*Project/Other\n');
-  return { root, parent, source, put, read, exists, setHook: fn => { hook = fn; },
+  return { disk, root, parent, source, put, read, exists, setHook: fn => { hook = fn; },
     run: options => run({ root, sourceParent: parent, source, destinationParent: parent, name: 'New', ...options }) };
 }
 
 test('portable names reject traversal, Windows aliases and ambiguous endings', () => {
   for (const name of ['', '.', '..', '../x', 'x/y', 'x\\y', ' x', 'x ', 'x.', 'CON', 'nul.txt', 'LPT9.x', 'a:b', 'a\n', 'x'.repeat(121)]) assert.throws(() => validateTaskName(name), undefined, name);
   assert.equal(validateTaskName('Катушка 160 — вариант 2'), 'Катушка 160 — вариант 2');
+});
+
+test('sibling task commands keep the active queue in order and the copy out of the run', async t => {
+  const f = await fixture(t, 'CLARK.Tests');
+  const queueRoot = await f.disk.getDirectoryHandle('clark.projects', { create: true });
+  const scope = { disk: f.disk, queueRoot }, file = 'clark.tasks.txt';
+  const initial = 'Project/Original\n*../CLARK.Tests/Project/Original\n../CLARK.Tests/Project/Other\n';
+  await f.put(queueRoot, file, initial);
+  await f.put(queueRoot, 'clark.launch.json', 'prepared');
+  await f.run({ ...scope, kind: 'copy', name: 'Copy' });
+  assert.equal(await f.read(queueRoot, file), initial);
+  assert.equal(await f.read(queueRoot, 'clark.launch.json'), 'prepared');
+  assert.equal(await f.read(f.root, file), 'Project/Original\n*Project/Other\n*Project/Copy\n');
+  const renamed = await f.run({ ...scope, kind: 'rename', name: 'Renamed' });
+  assert.equal(await f.read(queueRoot, file), initial.replace('/Project/Original', '/Project/Renamed'));
+  assert.equal(await f.read(queueRoot, 'clark.launch.json'), '');
+  const second = await f.root.getDirectoryHandle('Second', { create: true });
+  const moved = await f.run({ ...scope, kind: 'move', source: renamed.handle, destinationParent: second, name: 'Renamed' });
+  assert.equal(await f.read(queueRoot, file), initial.replace('/Project/Original', '/Second/Renamed'));
+  await f.run({ ...scope, kind: 'delete', source: moved.handle, sourceParent: second });
+  assert.equal(await f.read(queueRoot, file), 'Project/Original\n../CLARK.Tests/Project/Other\n');
+  assert.equal(await f.read(f.root, file), '*Project/Other\n*Project/Copy\n');
+});
+
+test('moving between registered catalogs retains participation, moving outside them removes the row', async t => {
+  const f = await fixture(t, 'clark.projects');
+  const queueRoot = await f.disk.getDirectoryHandle(f.root.name);
+  const sibling = await f.disk.getDirectoryHandle('CLARK.Tests', { create: true });
+  const dest = await sibling.getDirectoryHandle('Other', { create: true });
+  const moved = await f.run({ kind: 'move', queueRoot, disk: f.disk, destinationParent: dest, name: 'Original' });
+  assert.equal(await f.read(queueRoot, 'clark.tasks.txt'), '../CLARK.Tests/Other/Original\n*Project/Other\n');
+  const outside = await f.disk.getDirectoryHandle('external', { create: true });
+  await run({ kind: 'move', root: sibling, queueRoot, disk: f.disk, source: moved.handle,
+    sourceParent: dest, destinationParent: outside, name: 'Original' });
+  assert.equal(await f.read(queueRoot, 'clark.tasks.txt'), '*Project/Other\n');
+  assert.equal(await f.exists(sibling, 'clark.tasks.txt'), false);
+  assert.equal(await f.exists(outside, 'Original/input3XX/general.txt'), true);
+});
+
+test('sibling project rename and empty project deletion touch only complete matching paths', async t => {
+  const f = await fixture(t, 'CLARK.Tests');
+  const queueRoot = await f.disk.getDirectoryHandle('clark.projects', { create: true });
+  const scope = { root: f.root, disk: f.disk, queueRoot };
+  const queue = 'Project/Original\n../clark.tests/PROJECT/Original\n*../CLARK.Tests/Project/Other\n../CLARK.Tests/Project2/Keep\n';
+  await f.put(queueRoot, 'clark.tasks.txt', queue);
+  await projectRun({ ...scope, kind: 'rename', source: f.parent, name: 'New' });
+  const after = 'Project/Original\n../CLARK.Tests/New/Original\n*../CLARK.Tests/New/Other\n../CLARK.Tests/Project2/Keep\n';
+  assert.equal(await f.read(queueRoot, 'clark.tasks.txt'), after);
+  const empty = await f.root.getDirectoryHandle('Empty', { create: true });
+  await f.put(queueRoot, 'clark.tasks.txt', after + '*../CLARK.Tests/Empty/Ghost\n');
+  await projectRun({ ...scope, kind: 'delete', source: empty });
+  assert.equal(await f.read(queueRoot, 'clark.tasks.txt'), after);
+});
+
+test('a failed second queue write preserves the source and rolls back only our own first write', async t => {
+  for (const concurrentEdit of [false, true]) {
+    const f = await fixture(t, 'CLARK.Tests'), file = 'clark.tasks.txt';
+    const queueRoot = await f.disk.getDirectoryHandle('clark.projects', { create: true });
+    const original = await f.read(f.root, file);
+    const queued = '../CLARK.Tests/Project/Original\n';
+    await f.put(queueRoot, file, queued);
+    f.setHook(async (op, p) => {
+      if (op === 'write' && p.endsWith('/clark.projects/' + file)) {
+        if (concurrentEdit) await f.put(f.root, file, 'Another/Task\n');
+        throw new Error('queue locked');
+      }
+    });
+    await assert.rejects(f.run({ kind: 'rename', disk: f.disk, queueRoot, name: 'New' }), /queue locked/);
+    assert.equal(await f.exists(f.parent, 'Original/input3XX/general.txt'), true);
+    assert.equal(await f.read(f.root, file), concurrentEdit ? 'Another/Task\n' : original);
+    assert.equal(await f.read(queueRoot, file), queued);
+  }
 });
 
 test('project creation makes an empty direct child; conflicts and invalid names do not overwrite', async t => {
