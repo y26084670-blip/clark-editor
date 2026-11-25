@@ -258,28 +258,10 @@
   max-height: min(360px, calc(100% - 54px));
 }
 
-.geometry-viewer-source-option {
+.geometry-viewer-face-options {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 6px;
-}
-
-.geometry-viewer-source-settings-button {
-  flex: 0 0 27px;
-  min-height: 25px;
-  padding: 1px 4px;
-  border: 1px solid #56626e;
-  border-radius: 3px;
-  background: #303943;
-  color: #edf2f7;
-  font-size: 17px;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.geometry-viewer-source-settings-button:hover {
-  background: #3b4651;
+  gap: 18px;
 }
 
 .geometry-viewer-source-style {

@@ -21,7 +21,6 @@ import {
 } from "../../services/visualization/geometryTimeModel.js";
 import { buildSourceVectorScene } from "../../services/visualization/sourceVectorSceneModel.js";
 import {
-  GEOMETRY_CAMERA_COMMANDS,
   geometryCameraCommandFromKeyboardEvent,
   isGeometryCameraShortcutTarget,
 } from "../../services/visualization/geometryCameraView.js";
@@ -206,6 +205,7 @@ function GeometryWindowContents(props) {
   const [geometryTransparency, setGeometryTransparency] = createGeometryViewSetting("geometryTransparency", 0);
   const [orthographicView, setOrthographicView] = createGeometryViewSetting("orthographicView", true);
   const [showFaces, setShowFaces] = createGeometryViewSetting("showFaces", false);
+  const [bilinear, setBilinear] = createGeometryViewSetting("bilinear", false);
   const [showEdges, setShowEdges] = createGeometryViewSetting("showEdges", true);
   const [showVertices, setShowVertices] = createGeometryViewSetting("showVertices", false);
   const [showDiscretizationLines, setShowDiscretizationLines] =
@@ -243,7 +243,7 @@ function GeometryWindowContents(props) {
   const timeState = createMemo(() => geometryTimeState(model()?.general, timeSelection().index));
   const timeFrame = createMemo(() => buildGeometryTimeModel(model(), moves(), timeState().index));
   function buildScene(input) {
-    try { return { scene: buildGeometryScene(input), error: "" }; }
+    try { return { scene: buildGeometryScene(input, { bilinear: bilinear(), alignGrid: bilinear() && showDiscretizationLines() }), error: "" }; }
     catch (error) { return { scene: null, error: error instanceof Error ? error.message : String(error) }; }
   }
   const baseScene = createMemo(() => buildScene(model()));
@@ -439,7 +439,7 @@ function GeometryWindowContents(props) {
   };
 
   const togglePanel = (name, event) => {
-    if (openPanel() === name || (name === "general" && openPanel() === "sources")) {
+    if (openPanel() === name || (name === "view" && openPanel() === "sources")) {
       setOpenPanel(null);
       return;
     }
@@ -458,7 +458,7 @@ function GeometryWindowContents(props) {
   };
 
   const closeSourceSettings = () => {
-    setOpenPanel("general");
+    setOpenPanel("view");
     queueMicrotask(() => {
       updatePanelPosition();
       sourceSettingsButton?.focus();
@@ -615,9 +615,9 @@ function GeometryWindowContents(props) {
             <button
               type="button"
               class="geometry-viewer-menu-button"
-              classList={{ active: openPanel() === "general" || openPanel() === "sources" }}
+              classList={{ active: openPanel() === "general" }}
               aria-label="Общие опции отображения"
-              aria-expanded={openPanel() === "general" || openPanel() === "sources"}
+              aria-expanded={openPanel() === "general"}
               aria-controls={OPTIONS_PANEL_ID}
               aria-haspopup="dialog"
               title="Настроить общие опции отображения"
@@ -629,8 +629,8 @@ function GeometryWindowContents(props) {
             <button
               type="button"
               class="geometry-viewer-menu-button"
-              classList={{ active: openPanel() === "view" }}
-              aria-expanded={openPanel() === "view"}
+              classList={{ active: openPanel() === "view" || openPanel() === "sources" }}
+              aria-expanded={openPanel() === "view" || openPanel() === "sources"}
               aria-controls={OPTIONS_PANEL_ID}
               aria-haspopup="dialog"
               title="Вписать геометрию или выбрать направление взгляда"
@@ -724,83 +724,8 @@ function GeometryWindowContents(props) {
               <button type="button" class="geometry-viewer-view-command geometry-section-command"
                 aria-pressed={sectionEnabled()} disabled={!displayScene()?.bounds}
                 onClick={() => { closePanel(true); setSectionEnabled(true); }}>Сечение</button>
-              <button
-                type="button"
-                class="geometry-viewer-view-command"
-                title="A — показать все; Ctrl+A — показать все в начальном виде под углом"
-                onClick={() => requestView(
-                  GEOMETRY_CAMERA_COMMANDS.FIT_ALL,
-                  true,
-                )}
-              >
-                Показать все
-              </button>
-              <button
-                type="button"
-                class="geometry-viewer-view-command"
-                title="X — вид по оси. Ctrl+X или Ctrl+щелчок — против оси"
-                onClick={event => requestView(
-                  event.ctrlKey ? GEOMETRY_CAMERA_COMMANDS.VIEW_NEGATIVE_X : GEOMETRY_CAMERA_COMMANDS.VIEW_POSITIVE_X,
-                  true,
-                )}
-              >
-                вид по X
-              </button>
-              <button
-                type="button"
-                class="geometry-viewer-view-command"
-                title="Направить взгляд против оси X (Ctrl+X)"
-                onClick={() => requestView(
-                  GEOMETRY_CAMERA_COMMANDS.VIEW_NEGATIVE_X,
-                  true,
-                )}
-              >
-                вид против X
-              </button>
-              <button
-                type="button"
-                class="geometry-viewer-view-command"
-                title="Y — вид по оси. Ctrl+Y или Ctrl+щелчок — против оси"
-                onClick={event => requestView(
-                  event.ctrlKey ? GEOMETRY_CAMERA_COMMANDS.VIEW_NEGATIVE_Y : GEOMETRY_CAMERA_COMMANDS.VIEW_POSITIVE_Y,
-                  true,
-                )}
-              >
-                вид по Y
-              </button>
-              <button
-                type="button"
-                class="geometry-viewer-view-command"
-                title="Направить взгляд против оси Y (Ctrl+Y)"
-                onClick={() => requestView(
-                  GEOMETRY_CAMERA_COMMANDS.VIEW_NEGATIVE_Y,
-                  true,
-                )}
-              >
-                вид против Y
-              </button>
-              <button
-                type="button"
-                class="geometry-viewer-view-command"
-                title="Z — вид по оси. Ctrl+Z или Ctrl+щелчок — против оси"
-                onClick={event => requestView(
-                  event.ctrlKey ? GEOMETRY_CAMERA_COMMANDS.VIEW_NEGATIVE_Z : GEOMETRY_CAMERA_COMMANDS.VIEW_POSITIVE_Z,
-                  true,
-                )}
-              >
-                вид по Z
-              </button>
-              <button
-                type="button"
-                class="geometry-viewer-view-command"
-                title="Направить взгляд против оси Z (Ctrl+Z)"
-                onClick={() => requestView(
-                  GEOMETRY_CAMERA_COMMANDS.VIEW_NEGATIVE_Z,
-                  true,
-                )}
-              >
-                вид против Z
-              </button>
+              <button ref={element => (sourceSettingsButton = element)} type="button"
+                class="geometry-viewer-view-command" onClick={openSourceSettings}>Настройка стрелок</button>
             </Show>
 
             <Show when={openPanel() === "elements"}>
@@ -940,11 +865,13 @@ function GeometryWindowContents(props) {
                 />
                 Ортогональный вид
               </label>
-              <label>
-                <input type="checkbox" checked={showFaces()}
-                  onChange={event => setShowFaces(event.currentTarget.checked)} />
-                Грани
-              </label>
+              <div class="geometry-viewer-face-options">
+                <label><input type="checkbox" checked={showFaces()}
+                  onChange={event => setShowFaces(event.currentTarget.checked)} />Грани</label>
+                <label title="Показ неплоских граней/площадок 'как-есть' или более производительный показ как двух треугольников">
+                  <input type="checkbox" checked={bilinear()}
+                    onChange={event => setBilinear(event.currentTarget.checked)} />Билинейность</label>
+              </div>
               <label>
                 <input
                   type="checkbox"
@@ -985,27 +912,15 @@ function GeometryWindowContents(props) {
                   onChange={event => setShowRegionNormals(event.currentTarget.checked)} />
                 Нормали площадок
               </label>
-              <div class="geometry-viewer-source-option">
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={showPrescribedSources()}
-                    onChange={(event) =>
-                      changePrescribedSources(event.currentTarget.checked)}
-                  />
-                  Заданные источники
-                </label>
-                <button
-                  ref={(element) => (sourceSettingsButton = element)}
-                  type="button"
-                  class="geometry-viewer-source-settings-button"
-                  title="Настройка стрелок"
-                  aria-label="Настройка стрелок заданных источников"
-                  onClick={openSourceSettings}
-                >
-                  ⚙
-                </button>
-              </div>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={showPrescribedSources()}
+                  onChange={(event) =>
+                    changePrescribedSources(event.currentTarget.checked)}
+                />
+                Заданные источники
+              </label>
             </Show>
 
             <Show when={openPanel() === "sources"}>
@@ -1015,7 +930,7 @@ function GeometryWindowContents(props) {
                 class="geometry-viewer-view-command"
                 onClick={closeSourceSettings}
               >
-                ← Общие опции
+                ← Показ
               </button>
               <div class="geometry-viewer-options-title">Стрелки заданных источников</div>
               <fieldset class="geometry-viewer-source-style">

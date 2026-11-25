@@ -4,7 +4,7 @@ import { modelService } from "../../services/modelService";
 import { geometryCameraCommandFromKeyboardEvent } from "../../services/visualization/geometryCameraView.js";
 import {
   SYMMETRY_STAGES, NUMBERED_SYMMETRIES, activeSymmetryStages, snapSymmetryStage, demoImageNumber,
-  buildRecordSymmetryStage, buildDemoVectors, buildRegionNormalArrows,
+  buildRecordSymmetryStage, buildDemoVectors, buildRegionNormalArrows, buildElementNormalArrows,
 } from "../../services/visualization/recordSymmetryDemo.js";
 import { ThreeGeometryViewport } from "../geometry/ThreeGeometryViewport.jsx";
 import { FloatingWindow } from "../window/FloatingWindow.jsx";
@@ -22,6 +22,7 @@ export function createRecordSymmetryDemo(element, record, index, active) {
   const [length, setLength] = createSignal(45);
   const [transparency, setTransparency] = createSignal(58);
   const [edges, setEdges] = createSignal(true);
+  const [normals, setNormals] = createSignal(false);
   const [images, setImages] = createSignal({});
   const [choice, setChoice] = createSignal("magnetization");
   const [error, setError] = createSignal("");
@@ -43,7 +44,8 @@ export function createRecordSymmetryDemo(element, record, index, active) {
   const arrows = createMemo(() => element
     ? buildDemoVectors(geometry(), components(), length(), kind())
     : buildRegionNormalArrows(geometry(), length()));
-  return { element, record, open, setOpen, stages, stage, setPosition, geometry, arrows,
+  const faceNormals = createMemo(() => element && normals() ? buildElementNormalArrows(geometry()) : []);
+  return { element, record, open, setOpen, stages, stage, setPosition, geometry, arrows, normals, setNormals, faceNormals,
     components, setComponents, kind, setChoice, length, setLength, error, setError,
     transparency, setTransparency, edges, setEdges, image, changeImage };
 }
@@ -121,8 +123,13 @@ export function RecordSymmetryControls(props) {
     <div class="record-demo-columns">
       <div class="record-demo-list">{stageList(1, demo.element ? 5 : 3)}
         <fieldset class="record-demo-display" aria-label="Вид геометрии" disabled={!demo.record()}>
-          <label class="record-demo-edges"><input type="checkbox" checked={demo.edges()}
-            onChange={e => demo.setEdges(e.currentTarget.checked)} />Ребра</label>
+          <div class="record-demo-face-options">
+            <label class="record-demo-edges"><input type="checkbox" checked={demo.edges()}
+              onChange={e => demo.setEdges(e.currentTarget.checked)} />Ребра</label>
+            <Show when={demo.element}><label class="record-demo-edges" title="Внешние нормали граней исходного образа">
+              <input type="checkbox" checked={demo.normals()} onChange={e => demo.setNormals(e.currentTarget.checked)} />Нормали
+            </label></Show>
+          </div>
           <label class="record-demo-length">Прозрачность<input type="range" min="0" max="100" step="1"
             aria-label="Прозрачность" aria-valuetext={demo.transparency() + "%"} value={demo.transparency()}
             onInput={e => demo.setTransparency(e.currentTarget.valueAsNumber)} /></label>
@@ -181,7 +188,7 @@ export function RecordSymmetryViewport(props) {
       onPointerDown={() => panel.focus({ preventScroll: true })}>
       <Show when={demo.geometry()?.scene.primitives.length}>
         <ThreeGeometryViewport scene={demo.geometry().scene} demoStage={demo.geometry()}
-          demoArrows={demo.arrows()} demoVectorKind={demo.element ? demo.kind() : "normal"} projection="orthographic"
+          demoArrows={demo.arrows()} faceNormals={demo.faceNormals()} demoVectorKind={demo.element ? demo.kind() : "normal"} projection="orthographic"
           autoFit={true} mode="solid" showVertices={true} showEdges={demo.edges()} geometryOpacity={1 - demo.transparency() / 100}
           viewRequest={viewRequest()} />
       </Show>

@@ -5,7 +5,7 @@ import {
     expandElementSymmetry,
     expandRegionSymmetry,
 } from "../solver/symmetryExpansion.js";
-import { tessellateBilinearRegionSurface }
+import { ELEMENT_FACES, bilinearDisplayDivisions, bilinearFaceFrame, createElementPointMapper, tessellateBilinearRegionSurface }
     from "./geometryDiscretization.js";
 import { classifyGeometryMaterial }
     from "./geometryMaterialStyle.js";
@@ -30,16 +30,9 @@ const SOLVER_ARRAY_SHAPES = Object.freeze({
     symR0: Object.freeze({ nColumns: 1 }),
 });
 
-// Six outward-facing quads in solver vertex order, split into triangles.
-// Vertex numbers in the model are one-based; indices below are zero-based.
-const ELEMENT_INDICES = new Uint16Array([
-    0, 4, 6, 0, 6, 2, // 1-5-7-3
-    1, 3, 7, 1, 7, 5, // 2-4-8-6
-    0, 2, 3, 0, 3, 1, // 1-3-4-2
-    4, 5, 7, 4, 7, 6, // 5-6-8-7
-    0, 1, 5, 0, 5, 4, // 1-2-6-5
-    2, 6, 7, 2, 7, 3, // 3-7-8-4
-]);
+const QUAD_INDICES = new Uint16Array([0, 1, 2, 0, 2, 3]);
+const ELEMENT_INDICES = Uint16Array.from(ELEMENT_FACES.flatMap(({ corners: [a, b, c, d] }) => [a, b, c, a, c, d]));
+const ELEMENT_TRIANGLE_FACES = Uint8Array.from(ELEMENT_FACES.flatMap(({ number }) => [number, number]));
 
 // Explicit main-edge topology is retained in the Scene DTO. Besides avoiding
 // the angle-based heuristics of Three.EdgesGeometry, it gives collapsed
@@ -236,13 +229,12 @@ function transformPoint(matrix, x, y, z) {
 }
 
 function hasRenderableCoordinates(primitive) {
+    const corners = primitive.controlVertices ?? primitive.vertices;
     for (const instance of primitive.instances) {
-        for (let offset = 0; offset < primitive.vertices.length; offset += 3) {
+        for (let offset = 0; offset < corners.length; offset += 3) {
             const point = transformPoint(
                 instance.matrix,
-                primitive.vertices[offset],
-                primitive.vertices[offset + 1],
-                primitive.vertices[offset + 2],
+                corners[offset], corners[offset + 1], corners[offset + 2],
             );
 
             if (point.some(coordinate =>
@@ -258,13 +250,12 @@ function hasRenderableCoordinates(primitive) {
 }
 
 function includePrimitiveBounds(accumulator, primitive) {
+    const corners = primitive.controlVertices ?? primitive.vertices;
     for (const instance of primitive.instances) {
-        for (let offset = 0; offset < primitive.vertices.length; offset += 3) {
+        for (let offset = 0; offset < corners.length; offset += 3) {
             const point = transformPoint(
                 instance.matrix,
-                primitive.vertices[offset],
-                primitive.vertices[offset + 1],
-                primitive.vertices[offset + 2],
+                corners[offset], corners[offset + 1], corners[offset + 2],
             );
 
             for (let axis = 0; axis < 3; axis++) {
@@ -345,7 +336,85 @@ function createCounts(primitives, skipped) {
     return counts;
 }
 
-function elementPrimitive(record, recordIndex, general, originalOnly, selected) {
+function elementSurface(corners, bilinear, grid) {
+    const controlVertices = flattenVertices(corners);
+    const warped = ELEMENT_FACES.map(face =>
+        bilinearFaceFrame(face.corners.map(i => corners[i]))?.warped === true);
+    if (!warped.some(Boolean)) {
+        return { vertices: controlVertices, indices: ELEMENT_INDICES.slice(), triangleFaces: ELEMENT_TRIANGLE_FACES.slice() };
+    }
+
+    const divisions = [1, 1, 1];
+    ELEMENT_FACES.forEach((face, i) => {
+        if (bilinear && warped[i]) {
+            for (const axis of face.axes) divisions[axis] = bilinearDisplayDivisions(grid?.[axis]);
+        }
+    });
+    const positions = Array.from(controlVertices);
+    const indices = [], renderIndices = [], triangleFaces = [];
+    // Sections use one index per shared point. Lighting uses separate face
+    // vertices so smoothing never crosses a physical hexahedron edge.
+    const canonical = new Map();
+    const canonicalIndex = [];
+    const gridCorner = i => divisions.map((n, axis) => (i & (1 << axis)) ? n : 0);
+    for (let i = 0; i < 8; i++) canonical.set(gridCorner(i).join(","), i);
+    const map = createElementPointMapper(controlVertices);
+    for (const [index, face] of ELEMENT_FACES.entries()) {
+        const [u, v] = face.axes, nu = divisions[u], nv = divisions[v];
+        const start = gridCorner(face.corners[0]);
+        function vertex(i, j) {
+            const gridPoint = start.slice();
+            gridPoint[u] += start[u] ? -i : i;
+            gridPoint[v] += start[v] ? -j : j;
+            const key = gridPoint.join(",");
+            const id = positions.length / 3;
+            const shared = canonical.get(key);
+            if (shared === undefined) {
+                canonical.set(key, id);
+                positions.push(...map(...gridPoint.map((n, axis) => n / divisions[axis])));
+            } else {
+                positions.push(positions[3 * shared], positions[3 * shared + 1], positions[3 * shared + 2]);
+            }
+            canonicalIndex[id] = shared ?? id;
+            return id;
+        }
+        function triangle(a, b, c) {
+            renderIndices.push(a, b, c);
+            indices.push(canonicalIndex[a], canonicalIndex[b], canonicalIndex[c]);
+            triangleFaces.push(face.number);
+        }
+        if (warped[index]) {
+            const rows = Array.from({ length: nu + 1 }, (_, i) =>
+                Array.from({ length: nv + 1 }, (_, j) => vertex(i, j)));
+            for (let i = 0; i < nu; i++) for (let j = 0; j < nv; j++) {
+                const a = rows[i][j], b = rows[i + 1][j], c = rows[i + 1][j + 1], d = rows[i][j + 1];
+                triangle(a, b, c);
+                triangle(a, c, d);
+            }
+        } else {
+            // A planar patch only needs its perimeter. Match the neighboring
+            // patch's edge samples exactly, even for an oblique section plane.
+            const ring = [];
+            for (let i = 0; i < nu; i++) ring.push(vertex(i, 0));
+            for (let j = 0; j < nv; j++) ring.push(vertex(nu, j));
+            for (let i = nu; i > 0; i--) ring.push(vertex(i, nv));
+            for (let j = nv; j > 0; j--) ring.push(vertex(0, j));
+            if (ring.length === 4) {
+                triangle(ring[0], ring[1], ring[2]);
+                triangle(ring[0], ring[2], ring[3]);
+            } else {
+                const center = vertex(nu / 2, nv / 2);
+                ring.forEach((id, i) => triangle(center, id, ring[(i + 1) % ring.length]));
+            }
+        }
+    }
+    return {
+        controlVertices, vertices: Float64Array.from(positions), indices: Uint32Array.from(indices),
+        renderIndices: Uint32Array.from(renderIndices), triangleFaces: Uint8Array.from(triangleFaces), smoothSurface: true,
+    };
+}
+
+function elementPrimitive(record, recordIndex, general, originalOnly, selected, bilinear, alignGrid) {
     const normalized = normalizedRecord(record);
 
     if (!ELEMENT_GEO_TYPES.has(normalized.geoType)) {
@@ -439,17 +508,14 @@ function elementPrimitive(record, recordIndex, general, originalOnly, selected) 
             materialKind: classifyGeometryMaterial(record, general),
             source: source(ELEMENTS_SCHEMA_ID, recordIndex, record),
             ...(discretization && { discretization }),
-            vertices: flattenVertices(unpacked.vertices),
-            indices: new Uint16Array(ELEMENT_INDICES),
-            // MED numbering of the two triangles of each solver macro face.
-            triangleFaces: new Uint8Array([5, 5, 6, 6, 1, 1, 2, 2, 3, 3, 4, 4]),
+            ...elementSurface(unpacked.vertices, bilinear, alignGrid && discretization?.counts),
             edgeIndices: new Uint16Array(ELEMENT_EDGE_INDICES),
             instances,
         },
     };
 }
 
-function regionPrimitive(record, recordIndex, originalOnly, selected) {
+function regionPrimitive(record, recordIndex, originalOnly, selected, bilinear, alignGrid) {
     const normalized = normalizedRecord(record);
 
     if (!REGION_GEO_TYPES.has(normalized.geoType)) {
@@ -530,12 +596,11 @@ function regionPrimitive(record, recordIndex, originalOnly, selected) {
         };
     }
 
-    const surface = isLine
-        ? null
-        : tessellateBilinearRegionSurface(unpacked.vertices);
-    const vertices = isLine
-        ? flattenVertices([unpacked.vertices[0], unpacked.vertices[2]])
-        : surface.vertices;
+    const controlVertices = flattenVertices(isLine ? [unpacked.vertices[0], unpacked.vertices[2]] : unpacked.vertices);
+    const warped = !isLine && bilinearFaceFrame(unpacked.vertices)?.warped;
+    const intervals = alignGrid && discretization?.counts;
+    const surface = warped && bilinear && tessellateBilinearRegionSurface(unpacked.vertices,
+        [0, 1].map(axis => bilinearDisplayDivisions(intervals ? Math.max(1, intervals[axis] - 1) : 1)));
 
     return {
         ...(!discretization && {
@@ -548,13 +613,10 @@ function regionPrimitive(record, recordIndex, originalOnly, selected) {
             kind: isLine ? "region-line" : "region-surface",
             source: source(REGIONS_SCHEMA_ID, recordIndex, record),
             ...(discretization && { discretization }),
-            ...(!isLine && {
-                controlVertices: flattenVertices(unpacked.vertices),
-            }),
-            vertices,
-            indices: isLine
-                ? new Uint16Array(REGION_LINE_INDICES)
-                : surface.indices,
+            ...(!isLine && { controlVertices }),
+            vertices: surface ? surface.vertices : controlVertices,
+            indices: surface ? surface.indices : (isLine ? REGION_LINE_INDICES : QUAD_INDICES).slice(),
+            ...(warped && { smoothSurface: true }),
             edgeIndices: isLine
                 ? new Uint16Array(REGION_LINE_INDICES)
                 : new Uint16Array(REGION_EDGE_INDICES),
@@ -619,7 +681,7 @@ function appendRecords({
 }
 
 // BaseModel -> detached render-oriented DTO. The original model is not changed.
-export function buildGeometryScene(model = {}, { originalOnly = false, imageIndexes } = {}) {
+export function buildGeometryScene(model = {}, { originalOnly = false, imageIndexes, bilinear = false, alignGrid = false } = {}) {
     const primitives = [];
     const diagnostics = [];
     const general = model?.general ?? {};
@@ -630,12 +692,14 @@ export function buildGeometryScene(model = {}, { originalOnly = false, imageInde
         general,
         originalOnly,
         selected,
+        bilinear, alignGrid,
     );
     const createRegion = (record, recordIndex) => regionPrimitive(
         record,
         recordIndex,
         originalOnly,
         selected,
+        bilinear, alignGrid,
     );
 
     createElement.schemaId = ELEMENTS_SCHEMA_ID;
@@ -666,6 +730,7 @@ export function buildGeometryScene(model = {}, { originalOnly = false, imageInde
         }));
     }
     return {
+        surfaceMode: bilinear ? (alignGrid ? "bilinear-grid" : "bilinear") : "faceted",
         primitives,
         diagnostics,
         planar2D,

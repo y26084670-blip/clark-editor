@@ -27,7 +27,7 @@ import {
   countRegionDiscretization,
 } from "../../services/visualization/geometryDiscretization.js";
 import {
-  GEOMETRY_CAMERA_COMMANDS,
+  GEOMETRY_CAMERA_COMMANDS, GEOMETRY_AXES_HELP,
   geometryCameraFrame,
   createGeometryAxisRotationController,
   normalizeGeometryCameraCommand,
@@ -320,6 +320,7 @@ function captureMotionBuffer(THREE, object, ranges, worldPositions = null) {
   return {
     object, worldPositions,
     reference: new Float64Array(worldPositions ?? attribute.array),
+    referenceNormals: object.geometry.hasAttribute("normal") ? object.geometry.getAttribute("normal").array.slice() : null,
     ranges: ranges.map(range => ({
       ...range,
       inverses: range.instances.map(instance => new THREE.Matrix4().fromArray(instance.matrix).invert()),
@@ -329,6 +330,7 @@ function captureMotionBuffer(THREE, object, ranges, worldPositions = null) {
 
 function updateMotionBuffer(THREE, buffer, resolveInstances) {
   const attribute = buffer.object.geometry.getAttribute("position");
+  const normal = buffer.object.geometry.getAttribute("normal");
   const matrix = new THREE.Matrix4();
   const vertex = new THREE.Vector3();
   for (const range of buffer.ranges) {
@@ -341,10 +343,12 @@ function updateMotionBuffer(THREE, buffer, resolveInstances) {
         vertex.fromArray(buffer.reference, offset).applyMatrix4(matrix);
         vertex.toArray(attribute.array, offset);
         if (buffer.worldPositions) vertex.toArray(buffer.worldPositions, offset);
+        if (normal) vertex.fromArray(buffer.referenceNormals, offset).transformDirection(matrix).toArray(normal.array, offset);
       }
     }
   }
   attribute.needsUpdate = true;
+  if (normal) normal.needsUpdate = true;
   buffer.object.geometry.computeBoundingBox();
   buffer.object.geometry.computeBoundingSphere();
 }
@@ -482,7 +486,7 @@ function mergedDegeneratePointGeometry(THREE, primitive, instances) {
 
 function mergedGeometry(THREE, primitive, instances) {
   const sourceVertices = primitive.vertices ?? [];
-  const sourceIndices = primitive.indices ?? [];
+  const sourceIndices = primitive.renderIndices ?? primitive.indices ?? [];
   const sourceVertexCount = Math.floor(sourceVertices.length / 3);
   if (sourceVertexCount === 0 || sourceVertices.length % 3 !== 0) return null;
 
@@ -540,105 +544,12 @@ function mergedGeometry(THREE, primitive, instances) {
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
   if (indices) geometry.setIndex(new THREE.BufferAttribute(indices, 1));
+  if (primitive.smoothSurface) geometry.computeVertexNormals();
   return geometry;
 }
 
-function mergedRegionBoundaryGeometry(THREE, primitive, instances) {
-  const vertices = primitive.controlVertices;
-  if (!vertices || vertices.length !== 12) return null;
-
-  const order = [0, 1, 1, 2, 2, 3, 3, 0];
-  const sourcePositions = new Float64Array(order.length * 3);
-  for (let index = 0; index < order.length; index += 1) {
-    const sourceOffset = order[index] * 3;
-    const targetOffset = index * 3;
-    sourcePositions[targetOffset] = vertices[sourceOffset];
-    sourcePositions[targetOffset + 1] = vertices[sourceOffset + 1];
-    sourcePositions[targetOffset + 2] = vertices[sourceOffset + 2];
-  }
-
-  const positions = [];
-  appendTransformedPositions(
-    THREE,
-    sourcePositions,
-    instances,
-    positions,
-  );
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute(
-    "position",
-    new THREE.BufferAttribute(new Float32Array(positions), 3),
-  );
-  return { geometry, vertexSpan: order.length };
-}
-
-function mergedWireframeGeometry(
-  THREE,
-  primitive,
-  instances,
-  boundaryOnly = false,
-) {
-  if (boundaryOnly && primitive.kind === "region-surface") {
-    return mergedRegionBoundaryGeometry(THREE, primitive, instances);
-  }
-
-  const sourceVertices = primitive.vertices ?? [];
-  const sourceIndices = primitive.indices ?? [];
-  if (sourceVertices.length === 0 || sourceIndices.length === 0) return null;
-
-  const sourceGeometry = new THREE.BufferGeometry();
-  sourceGeometry.setAttribute(
-    "position",
-    new THREE.BufferAttribute(new Float32Array(sourceVertices), 3),
-  );
-  sourceGeometry.setIndex(Array.from(sourceIndices));
-  const sourceEdges = new THREE.EdgesGeometry(sourceGeometry);
-  sourceGeometry.dispose();
-
-  const sourcePositions = sourceEdges.getAttribute("position");
-  const vertexSpan = sourcePositions?.count ?? 0;
-  if (vertexSpan === 0) {
-    sourceEdges.dispose();
-    return null;
-  }
-
-  const positions = new Float32Array(
-    sourcePositions.array.length * instances.length,
-  );
-  const matrix = new THREE.Matrix4();
-  const vertex = new THREE.Vector3();
-  instances.forEach((instance, instanceIndex) => {
-    matrix.fromArray(instance.matrix);
-    const targetOffset = instanceIndex * sourcePositions.array.length;
-    for (let index = 0; index < vertexSpan; index += 1) {
-      vertex.fromBufferAttribute(sourcePositions, index).applyMatrix4(matrix);
-      const offset = targetOffset + index * 3;
-      positions[offset] = vertex.x;
-      positions[offset + 1] = vertex.y;
-      positions[offset + 2] = vertex.z;
-    }
-  });
-  sourceEdges.dispose();
-
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-  return { geometry, vertexSpan };
-}
-
-function appendSurfaceEdges(
-  THREE,
-  surface,
-  primitive,
-  instances,
-  style,
-  mode,
-) {
-  const wireframe = mergedWireframeGeometry(
-    THREE,
-    primitive,
-    instances,
-    true,
-  );
+function appendSurfaceEdges(THREE, surface, primitive, instances, style) {
+  const wireframe = mergedTopologyLineGeometry(THREE, primitive, instances);
   if (!wireframe) return;
 
   const edges = new THREE.LineSegments(
@@ -705,12 +616,7 @@ function renderableFor(
     pickKind = "lines";
     pickSpan = lines.vertexSpan;
   } else if (mode === "wireframe") {
-    const wireframe = mergedWireframeGeometry(
-      THREE,
-      primitive,
-      instances,
-      true,
-    );
+    const wireframe = mergedTopologyLineGeometry(THREE, primitive, instances);
     if (!wireframe) return null;
     object = new THREE.LineSegments(
       wireframe.geometry,
@@ -732,7 +638,7 @@ function renderableFor(
         opacity: style.opacity,
         transparent: style.opacity < 1,
         depthWrite: mode !== "translucent",
-        flatShading: true,
+        flatShading: !primitive.smoothSurface,
         polygonOffset: showSurfaceEdges,
         polygonOffsetFactor: showSurfaceEdges ? 1 : 0,
         polygonOffsetUnits: showSurfaceEdges ? 1 : 0,
@@ -740,14 +646,7 @@ function renderableFor(
       }),
     );
     if (showSurfaceEdges) {
-      appendSurfaceEdges(
-        THREE,
-        object,
-        primitive,
-        instances,
-        style,
-        mode,
-      );
+      appendSurfaceEdges(THREE, object, primitive, instances, style);
     }
     pickKind = "mesh";
     pickSpan = Math.floor((primitive.indices?.length ?? 0) / 3);
@@ -1461,10 +1360,10 @@ export function ThreeGeometryViewport(props) {
     return positions.subarray(offset, offset + 3);
   };
 
-  const showTooltip = (text, x, y) => {
+  const showTooltip = (text, x, y, aboveAxes = false) => {
     const lines = String(text).split("\n");
     const longestLineLength = Math.max(1, ...lines.map((line) => line.length));
-    const widthEstimate = Math.min(390, Math.max(180, longestLineLength * 6));
+    const widthEstimate = Math.min(Math.max(1, viewportWidth - 16), 390, Math.max(180, longestLineLength * 6));
     const charactersPerLine = Math.max(1, Math.floor(widthEstimate / 6));
     const lineCount = lines.reduce(
       (count, line) => count + Math.max(
@@ -1477,7 +1376,7 @@ export function ThreeGeometryViewport(props) {
     const left = x + 14 + widthEstimate <= viewportWidth
       ? x + 14
       : Math.max(8, x - widthEstimate - 14);
-    const top = y + 14 + heightEstimate <= viewportHeight
+    const top = aboveAxes ? Math.max(8, y - heightEstimate - 6) : y + 14 + heightEstimate <= viewportHeight
       ? y + 14
       : Math.max(8, y - heightEstimate - 14);
     setHoverTooltip({ left, text, top });
@@ -1652,6 +1551,7 @@ export function ThreeGeometryViewport(props) {
   const pickAtPointer = (pointer, action = "hover") => {
     const flightPicking = action === "flight";
     if (!flightPicking) vectorHover?.clear();
+    if (axisRotationController?.active) return;
     if (
       !pointer ||
       !renderer ||
@@ -1678,7 +1578,9 @@ export function ThreeGeometryViewport(props) {
       !props.demoStage && x <= AXES_GIZMO_MARGIN + gizmoSize &&
       y >= bounds.height - AXES_GIZMO_MARGIN - gizmoSize
     ) {
-      setHoverTooltip(null);
+      if (action === "hover") showTooltip(GEOMETRY_AXES_HELP, AXES_GIZMO_MARGIN,
+        bounds.height - AXES_GIZMO_MARGIN - gizmoSize, true);
+      else setHoverTooltip(null);
       return;
     }
 
@@ -2033,7 +1935,7 @@ export function ThreeGeometryViewport(props) {
     // Preview callers without a revision continue to use full replacement.
     if (!revision || !context || revision !== context.revision
       || filters !== context.filters || mode !== context.mode || showEdges !== context.showEdges
-      || sceneModel?.primitives?.length !== context.primitiveCount) return false;
+      || sceneModel?.surfaceMode !== context.surfaceMode || sceneModel?.primitives?.length !== context.primitiveCount) return false;
     const key = source => `${source.schemaId}:${source.recordIndex}`;
     const images = new Map(sceneModel.primitives.map(p => [key(p.source),
       new Map(p.instances.map(i => [sourceInstanceKey(p.source, i), i]))]));
@@ -2157,7 +2059,7 @@ export function ThreeGeometryViewport(props) {
     if (discretizationPointsVisible) materializeDiscretizationPoints();
     geometryContext = {
       revision: props.geometryRevision, filters, mode, showEdges,
-      primitiveCount: sceneModel?.primitives?.length ?? 0,
+      surfaceMode: sceneModel?.surfaceMode, primitiveCount: sceneModel?.primitives?.length ?? 0,
     };
     updateGeometryOpacity();
     sourcesDirty = true;
@@ -2426,10 +2328,10 @@ export function ThreeGeometryViewport(props) {
   });
 
   createEffect(() => {
-    const arrows = props.demoArrows, kind = props.demoVectorKind;
-    if (!ready() || (!arrows && !demoArrows)) return;
+    const arrows = props.demoArrows, kind = props.demoVectorKind, faceNormals = props.faceNormals;
+    if (!ready() || (!arrows && !faceNormals && !demoArrows)) return;
     if (demoArrows) { threeScene.remove(demoArrows); disposeObject(demoArrows); }
-    demoArrows = arrows?.length ? createSymmetryArrows(THREE, arrows, kind) : null;
+    demoArrows = createSymmetryArrows(THREE, arrows ?? [], kind, faceNormals);
     if (demoArrows) threeScene.add(demoArrows);
     requestRender();
   });

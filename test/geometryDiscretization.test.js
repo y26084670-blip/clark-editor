@@ -326,7 +326,7 @@ test("region-line ignores collapsed D1 and returns unique D2 nodes", () => {
 test("bilinear surface tessellation is fixed-quality and axis-capped", () => {
     const surface = tessellateBilinearRegionSurface(WARPED_REGION_VERTICES);
 
-    assert.equal(REGION_SURFACE_SUBDIVISION_LIMIT, 4);
+    assert.ok(REGION_SURFACE_SUBDIVISION_LIMIT >= 8);
     assert.equal(surface.vertices.length, 25 * 3);
     assert.equal(surface.indices.length, 4 * 4 * 6);
     assert.deepEqual(plain(surface.vertices.slice(36, 39)), [1, 1, 0.5]);
@@ -337,7 +337,7 @@ test("bilinear surface tessellation is fixed-quality and axis-capped", () => {
         WARPED_REGION_VERTICES,
         [99, 2],
     );
-    assert.equal(capped.vertices.length, (4 + 1) * (2 + 1) * 3);
-    assert.equal(capped.indices.length, 4 * 2 * 6);
+    assert.equal(capped.vertices.length, (REGION_SURFACE_SUBDIVISION_LIMIT + 1) * (2 + 1) * 3);
+    assert.equal(capped.indices.length, REGION_SURFACE_SUBDIVISION_LIMIT * 2 * 6);
     assert.equal(capped.indices instanceof Uint32Array, true);
 });

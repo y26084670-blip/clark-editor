@@ -207,6 +207,7 @@
 .record-demo-components select { font: inherit; }
 .record-demo-length { margin-top: 3px; }
 .record-demo-edges { gap: 4px; }
+.record-demo-face-options { display: flex; align-items: center; gap: 10px; }
 .record-demo-length input { flex: 1; min-width: 0; margin: 0 2px; }
 .record-demo-view {
   /* Reserve the card, the minimum table width, the splitter and three gaps. */

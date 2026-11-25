@@ -50,7 +50,7 @@ function elementContext(primitive, record, filters) {
         instances.get(key).push(instance);
     }
 
-    const point = createElementPointMapper(primitive.vertices);
+    const point = createElementPointMapper(primitive.controlVertices ?? primitive.vertices);
     if (!point) return null;
     return {
         point,

@@ -7,7 +7,17 @@ export const DEFAULT_DISCRETIZATION_LIMITS = Object.freeze({
     points: Infinity,
 });
 
-export const REGION_SURFACE_SUBDIVISION_LIMIT = 4;
+export const REGION_SURFACE_SUBDIVISION_LIMIT = 32;
+
+// MED face numbers, outward cyclic corner order and the two local dp axes.
+export const ELEMENT_FACES = [
+    { number: 5, corners: [0, 4, 6, 2], axes: [2, 1] },
+    { number: 6, corners: [1, 3, 7, 5], axes: [1, 2] },
+    { number: 1, corners: [0, 2, 3, 1], axes: [1, 0] },
+    { number: 2, corners: [4, 5, 7, 6], axes: [0, 1] },
+    { number: 3, corners: [0, 1, 5, 4], axes: [0, 2] },
+    { number: 4, corners: [2, 6, 7, 3], axes: [2, 0] },
+];
 
 const EMPTY_FLOAT64 = () => new Float64Array(0);
 
@@ -275,15 +285,15 @@ export function bilinearRegionPoint(vertices, d1, d2) {
     return bilinearPoint(points, d1, d2);
 }
 
-/** Normals of the bilinear observation surface, oriented as QD in Solver's
- * 05_clfields.jl: tangent along 1→4 crossed with tangent along 1→2. */
-export function bilinearRegionNormals(vertices) {
+/** Corner area vectors use the solver's observation normal (1→4) × (1→2).
+ * The center vector is their average before normalization. */
+export function bilinearFaceFrame(vertices) {
     const points = normalizedVertices(vertices, 4);
-    if (!points) return [];
+    if (!points) return null;
 
     const edges = points.map((point, i) => points[(i + 1) % 4].map((x, d) => x - point[d]));
     const scale = Math.max(...edges.map(edge => Math.hypot(...edge)));
-    if (!(scale > 0) || !Number.isFinite(scale)) return [];
+    if (!(scale > 0) || !Number.isFinite(scale)) return null;
     const sides = edges.map(edge => edge.map(x => x / scale));
     const areas = sides.map((outgoing, i) => {
         const incoming = sides[(i + 3) % 4];
@@ -295,7 +305,7 @@ export function bilinearRegionNormals(vertices) {
     });
     const magnitudes = areas.map(area => Math.hypot(...area));
     const largest = Math.max(...magnitudes);
-    if (!largest) return [];
+    if (!largest) return null;
 
     // The two sides at the largest corner define the most stable reference
     // plane. The next side reaches the fourth vertex from a point in that plane.
@@ -303,17 +313,20 @@ export function bilinearRegionNormals(vertices) {
     const nextSide = sides[(reference + 1) % 4];
     const distance = areas[reference].reduce((sum, x, d) => sum + x * nextSide[d], 0) / largest;
     const tolerance = 64 * Number.EPSILON;
-    if (Math.abs(distance) > tolerance) {
-        return areas.map((area, i) => ({
-            origin: points[i], direction: area.map(x => x / magnitudes[i]),
-        }));
-    }
-
-    // The oriented area of a bilinear map is affine in its two parameters.
+    const warped = Math.abs(distance) > tolerance;
     const centerArea = [0, 1, 2].map(d => areas.reduce((sum, area) => sum + area[d], 0) / 4);
     const magnitude = Math.hypot(...centerArea);
-    if (magnitude <= tolerance * largest) return [];
-    return [{ origin: bilinearPoint(points, 0.5, 0.5), direction: centerArea.map(x => x / magnitude) }];
+    if (magnitude <= tolerance * largest) return null;
+    const center = { origin: bilinearPoint(points, 0.5, 0.5), direction: centerArea.map(x => x / magnitude) };
+    const corners = warped ? areas.map((area, i) => ({
+        origin: points[i], direction: area.map(x => x / magnitudes[i]),
+    })) : [];
+    return { center, corners, warped };
+}
+
+export function bilinearRegionNormals(vertices) {
+    const frame = bilinearFaceFrame(vertices);
+    return frame ? (frame.warped ? frame.corners : [frame.center]) : [];
 }
 
 function appendPoint(target, point) {
@@ -583,10 +596,14 @@ function normalizedSubdivisions(value) {
     return Math.min(normalized, REGION_SURFACE_SUBDIVISION_LIMIT);
 }
 
-/**
- * Approximates the solver's bilinear region surface without coupling render
- * quality to `dp`. The per-axis subdivision count is capped at four.
- */
+// Include visible grid lines when their spacing is coarser than the display
+// limit. In particular dp for a region counts nodes, not intervals.
+export function bilinearDisplayDivisions(intervals = 1) {
+    if (!Number.isSafeInteger(intervals) || intervals < 1) intervals = 1;
+    return Math.min(REGION_SURFACE_SUBDIVISION_LIMIT, intervals * Math.ceil(8 / intervals));
+}
+
+/** Render samples of the four-corner bilinear map in cyclic order. */
 export function tessellateBilinearRegionSurface(vertices, subdivisions = 4) {
     const points = normalizedVertices(vertices, 4);
     if (!points) {

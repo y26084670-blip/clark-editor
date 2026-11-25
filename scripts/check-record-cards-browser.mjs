@@ -198,7 +198,7 @@ const ready = (part, type, index = 0) => page.waitForFunction(([part, type, inde
   [part,type,index]);
 
 try {
-  await page.goto("http://127.0.0.1:" + server.httpServer.address().port + "/__record-cards");
+  await page.goto("http://127.0.0.1:" + server.httpServer.address().port + "/__record-cards", { waitUntil: "domcontentloaded", timeout: 45_000 });
   await page.waitForFunction(() => window.editorFixture?.ready, undefined, { timeout: 30000 });
   await chooseProjectDisk(page);
   await page.locator("#listProject").selectOption("Project");
@@ -515,6 +515,16 @@ try {
     console.error("3D-панель:", await viewport.innerText(), "карточка:", await card.locator("header").innerText());
     throw error;
   }
+  const normals = demo.getByRole("checkbox", { name: "Нормали", exact: true });
+  assert.equal(await normals.isChecked(), false);
+  const [edgesBox, normalsBox] = await Promise.all([edges.boundingBox(), normals.boundingBox()]);
+  assert.ok(normalsBox.x > edgesBox.x && Math.abs(normalsBox.y - edgesBox.y) < 2);
+  const withoutNormals = await image();
+  await normals.check();
+  assert.ok(!withoutNormals.equals(await image()), "outward normals appear alongside the demo vector");
+  await normals.uncheck();
+  assert.ok(withoutNormals.equals(await image()), "normal toggle restores the original 3D1 rendering");
+  console.log("PASS element face normals toggle beside the edge checkbox in 3D1");
   assert.equal((await viewport.boundingBox()).width, 660, "element preview opens at double width");
   await page.setViewportSize({width:1050,height:1000});
   assert.equal((await viewport.boundingBox()).width, 360, "narrow screens get twice the old 180 px minimum");
@@ -630,6 +640,7 @@ try {
   await assertAligned("Region columns after resizing the 3D preview");
   assert.equal(await demo.locator("[data-stage]").count(),5);
   assert.equal(await demo.locator(".record-demo-vector").count(),0);
+  assert.equal(await normals.count(), 0);
   assert.equal(await kind.count(),0);
   assert.equal(await length.count(),0);
   assert.ok(await edges.isChecked() && await transparency.isEnabled());

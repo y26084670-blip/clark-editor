@@ -31,14 +31,19 @@ try {
     const prototype = WebGL2RenderingContext.prototype;
     const clear = prototype.clear;
     prototype.clear = function(mask) {
-      if (mask & this.COLOR_BUFFER_BIT) { stats.lineSizes = []; stats.pointSizes = []; }
+      if (mask & this.COLOR_BUFFER_BIT) { stats.lineSizes = []; stats.pointSizes = []; this.canvas.surfaceCounts = []; this.canvas.edgeCounts = []; }
       return clear.call(this, mask);
+    };
+    const drawElements = prototype.drawElements;
+    prototype.drawElements = function(mode, count, ...args) {
+      if (mode === this.TRIANGLES && !this.isEnabled(this.SCISSOR_TEST)) this.canvas.surfaceCounts?.push(count);
+      return drawElements.call(this, mode, count, ...args);
     };
     const buffer = prototype.createBuffer, draw = prototype.drawArrays;
     prototype.createBuffer = function(...args) { stats.buffers++; return buffer.apply(this,args); };
     prototype.drawArrays = function(mode, first, count) {
       stats.draws++;
-      if (mode === this.LINES) stats.lines = Math.max(stats.lines, count / 2);
+      if (mode === this.LINES) { stats.lines = Math.max(stats.lines, count / 2); this.canvas.edgeCounts?.push(count); }
       if (mode === this.POINTS) { stats.points = Math.max(stats.points, count); stats.pointSizes.push(count); }
       if (mode === this.LINE_STRIP && count === 3) stats.strips++;
       if (mode === this.LINE_LOOP && count === 3) stats.loops++;
@@ -110,6 +115,73 @@ try {
   assert.equal(await win.locator("canvas").evaluate(c => c === appCanvas && !c.getContext("webgl2").isContextLost()), true);
   assert.deepEqual(errors, []);
   console.log("PASS full Editor loads an OPFS task and restores its canvas via the 3D toolbar button");
+
+  const general = win.getByRole("button", { name: "Общие опции отображения" });
+  const show = win.getByRole("button", { name: "Показ", exact: true });
+  const viewportCanvas = win.locator("canvas");
+  await general.click();
+  const bilinear = win.getByRole("checkbox", { name: "Билинейность" });
+  const faces = win.getByRole("checkbox", { name: "Грани", exact: true });
+  assert.equal(await bilinear.isChecked(), false);
+  const [faceBox, bilinearBox] = await Promise.all([faces.boundingBox(), bilinear.boundingBox()]);
+  assert.ok(Math.abs(faceBox.y - bilinearBox.y) < 2 && faceBox.x < bilinearBox.x);
+  assert.equal(await bilinear.locator("..").getAttribute("title"),
+    "Показ неплоских граней/площадок 'как-есть' или более производительный показ как двух треугольников");
+  await faces.check();
+  await page.evaluate(async () => {
+    const {modelService} = await import("/src/services/modelService.js");
+    const {tabRegistry} = await import("/src/services/tabRegistry.js");
+    const original = editorFixture.model();
+    const set = (key, data) => modelService.setModelPart(tabRegistry.find(s => s.id === key), data);
+    const geo = Array.from({length:8}, (_, i) => [i & 1, (i >> 1) & 1, (i >> 2) & 1]);
+    geo[7][2] = 2;
+    const vector = values => values.map(x => [x]);
+    const options = { geoType: 0, dr: vector([0,0,0]), dp: vector([3,5,1]), symVi: vector([0,0,0]),
+      symR0: vector([0,0,0]), symLs: 1, symAs: 1, symPs: 1, symTx: 0, symYa: 0, symYl: 0, targ: 0 };
+    set("elements", [{ ...original.elements[0], ...options, geo }]);
+    set("regions", [{ ...original.regions[0], ...options, geo: [4,5,7,6].map(i => geo[i]), dp: vector([4,6]) }]);
+    window.restoreGeometryInputs = () => { set("elements", original.elements); set("regions", original.regions); };
+  });
+  const fastSurface = () => page.waitForFunction(() => appCanvas.surfaceCounts?.includes(6) && appCanvas.surfaceCounts.includes(36));
+  await fastSurface();
+  await bilinear.check();
+  await page.waitForFunction(() => appCanvas.surfaceCounts?.filter(n => n > 36).length === 2);
+  assert.deepEqual(await viewportCanvas.evaluate(c => c.edgeCounts.slice().sort((a,b) => a-b)), [8,24]);
+  await general.click();
+  await win.focus();
+  await page.keyboard.press("Control+z");
+  await frames();
+  const faceView = await viewportCanvas.boundingBox();
+  await viewportCanvas.hover({ position: { x: faceView.width / 2, y: faceView.height / 2 } });
+  await win.getByRole("tooltip").filter({hasText: "грань №2"}).waitFor();
+  await general.click();
+  await bilinear.uncheck(); await fastSurface();
+  assert.deepEqual(await viewportCanvas.evaluate(c => c.edgeCounts.slice().sort((a,b) => a-b)), [8,24]);
+  await page.evaluate(() => restoreGeometryInputs());
+  await faces.uncheck(); await general.click();
+  await show.click();
+  assert.deepEqual(await win.locator(".is-view-panel button").allTextContents(),
+    ["Полёт", "Построения", "Сечение", "Настройка стрелок"]);
+  await win.getByRole("button", { name: "Настройка стрелок", exact: true }).click();
+  const arrowSettings = win.getByRole("dialog", { name: "Настройка стрелок заданных источников" });
+  const position = await arrowSettings.boundingBox();
+  await arrowSettings.getByRole("radio", {name:"Объёмные"}).check();
+  await arrowSettings.getByRole("slider", {name:"Масштаб длины стрелок плотности тока"}).fill("1");
+  assert.deepEqual(await arrowSettings.boundingBox(), position);
+  await arrowSettings.getByRole("button", {name:"← Показ"}).click();
+  await win.getByRole("button", {name:"Настройка стрелок", exact:true}).click();
+  assert.equal(await arrowSettings.getByRole("slider", {name:"Масштаб длины стрелок плотности тока"}).inputValue(), "1");
+  await arrowSettings.getByRole("button", {name:"Сбросить длины к ×1"}).click();
+  await arrowSettings.getByRole("radio", {name:"Тонкие"}).check();
+  await show.click();
+  const bounds = await viewportCanvas.boundingBox();
+  await viewportCanvas.hover({position:{x:45, y:bounds.height-45}});
+  const axesHelp = win.getByRole("tooltip");
+  await axesHelp.waitFor();
+  const help = await axesHelp.textContent();
+  for (const key of ["Ctrl+A","Ctrl+X","Ctrl+Y","Ctrl+Z","Alt+X/Y/Z","Shift+X/Y/Z"])
+    assert.ok(help.includes(key));
+  console.log("PASS bilinear element and region reach WebGL, only perimeter edges are drawn, arrow settings and axes help work");
 
   const showConstructions = async () => {
     await win.getByRole("button", { name: "Показ", exact: true }).click();
@@ -240,9 +312,16 @@ try {
     await page.keyboard.press("Control+" + axis.toLowerCase());
     const negative = await viewImage();
     assert.ok(!positive.equals(negative), `Ctrl+${axis} must reverse the view`);
-    await win.getByRole("button", { name: "Показ", exact: true }).click();
-    await win.getByRole("button", { name: "вид по " + axis, exact: true }).click({ modifiers: ["Control"] });
-    assert.ok((await viewImage()).equals(negative), `Ctrl+click on the ${axis} button must match the keyboard view`);
+
+  }
+  for (const modifier of ["Alt", "Shift"]) {
+    await win.focus(); await page.keyboard.press("Control+a");
+    const initial = await viewImage(), box = await canvas.boundingBox();
+    const x = box.x + box.width / 2, y = box.y + box.height / 2;
+    await page.mouse.move(x, y); await page.keyboard.down(modifier);
+    await page.keyboard.press("y"); await page.mouse.move(x + 45, y, {steps:6});
+    await page.keyboard.up(modifier);
+    assert.ok(!(await viewImage()).equals(initial), modifier + " and mouse must rotate the view");
   }
   await page.evaluate(() => { editorFixture.setLoaded(false); });
   await page.waitForFunction(() => !appCanvas.isConnected);

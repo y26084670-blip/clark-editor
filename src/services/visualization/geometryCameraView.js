@@ -11,6 +11,14 @@ export const GEOMETRY_CAMERA_COMMANDS = Object.freeze({
 
 const COMMAND_VALUES = new Set(Object.values(GEOMETRY_CAMERA_COMMANDS));
 
+export const GEOMETRY_AXES_HELP = [
+    "A — вписать сцену. Ctrl+A — начальный наклонный вид с вписыванием.",
+    "X, Y, Z — взгляд вдоль положительного направления выбранной оси.",
+    "Ctrl+X, Ctrl+Y, Ctrl+Z — взгляд в противоположном направлении.",
+    "Alt+X/Y/Z и движение мыши — вращение вокруг оси через текущий центр вида.",
+    "Shift+X/Y/Z и движение мыши — вращение вокруг оси через начало координат (0, 0, 0).",
+].join("\n");
+
 const KEYBOARD_COMMANDS = Object.freeze({
     KeyX: Object.freeze({
         positive: GEOMETRY_CAMERA_COMMANDS.VIEW_POSITIVE_X,
@@ -164,6 +172,7 @@ export function createGeometryAxisRotationController({
     const owner = element.ownerDocument, win = owner.defaultView;
     let axis = null, pivot = "target", inside = false, previous = null, dragAxis = null;
     let motionX = 0, motionY = 0;
+    let altRotation = false, suppressViewsUntil = 0;
     let ownedControls = null, previousEnabled = true, disposed = false;
     const point = event => Number.isFinite(event.clientX) && Number.isFinite(event.clientY)
         ? { x: event.clientX, y: event.clientY, id: event.pointerId } : null;
@@ -181,6 +190,11 @@ export function createGeometryAxisRotationController({
     }
     function keyDown(event) {
         if (!inside || !available()) { stop(); return; }
+        if (KEYBOARD_COMMANDS[event.code] && !event.altKey && !event.shiftKey && !event.metaKey
+            && performance.now() < suppressViewsUntil && isGeometryCameraShortcutTarget(event.target)) {
+            event.preventDefault();
+            return;
+        }
         const targetAxis = geometryAxisRotationFromKeyboardEvent(event, { allowControls: true });
         const originAxis = geometryOriginAxisRotationFromKeyboardEvent(event, { allowControls: true });
         const nextAxis = targetAxis ?? originAxis, nextPivot = originAxis ? "origin" : "target";
@@ -190,6 +204,7 @@ export function createGeometryAxisRotationController({
         }
         const controls = getControls();
         if (!controls || !getCamera()) return;
+        if (targetAxis) altRotation = true;
         event.preventDefault();
         if (axis === nextAxis && pivot === nextPivot) return;
         const wasActive = Boolean(axis);
@@ -200,7 +215,13 @@ export function createGeometryAxisRotationController({
         axis = nextAxis; pivot = nextPivot; resetDirection();
         if (!wasActive) onStateChange(true);
     }
-    function keyUp(event) { if (axis && !modifierHeld(event)) stop(); }
+    function keyUp(event) {
+        if (altRotation && !event.altKey) {
+            altRotation = false;
+            suppressViewsUntil = performance.now() + 700;
+        }
+        if (axis && !modifierHeld(event)) stop();
+    }
     function pointerEnter(event) { inside = true; previous = point(event); resetDirection(); }
     function pointerMove(event) {
         inside = true;
@@ -232,7 +253,7 @@ export function createGeometryAxisRotationController({
     function pointerLeave() {
         inside = false; previous = null; resetDirection(); onPointerLeave();
     }
-    function blur() { inside = false; previous = null; stop(); }
+    function blur() { inside = false; previous = null; altRotation = false; stop(); }
     element.addEventListener("pointerenter", pointerEnter);
     element.addEventListener("pointermove", pointerMove);
     element.addEventListener("pointerleave", pointerLeave);

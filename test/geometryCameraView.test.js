@@ -4,7 +4,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 
 import {
-    GEOMETRY_CAMERA_COMMANDS,
+    GEOMETRY_CAMERA_COMMANDS, GEOMETRY_AXES_HELP,
     geometryCameraCommandFromKeyboardEvent,
     geometryCameraFrame,
     isGeometryCameraShortcutTarget,
@@ -262,6 +262,17 @@ const AXIS_GESTURE_MODIFIERS = [
     ["AltLeft", { altKey: true }, false],
     ["ShiftLeft", { shiftKey: true }, true],
 ];
+
+test("axis help lists both pivots and releasing Alt cannot snap the camera with a repeated axis key", () => {
+    for (const command of ["Ctrl+A", "Ctrl+X", "Ctrl+Y", "Ctrl+Z", "Alt+X/Y/Z", "Shift+X/Y/Z"])
+        assert.ok(GEOMETRY_AXES_HELP.includes(command));
+    const f = axisGestureFixture();
+    try {
+        f.enter(); f.key("keydown", "KeyY", { altKey: true }); f.key("keyup", "AltLeft");
+        assert.equal(f.key("keydown", "KeyY", { repeat: true }).defaultPrevented, true);
+        assert.equal(f.key("keydown", "KeyA", {}).defaultPrevented, false);
+    } finally { f.close(); }
+});
 const axisVector = axis => new THREE.Vector3(...({ x: [1,0,0], y: [0,1,0], z: [0,0,1] }[axis]));
 
 test("axis keyboard/mouse gestures use client coordinates with real OrbitControls in both projections", () => {
