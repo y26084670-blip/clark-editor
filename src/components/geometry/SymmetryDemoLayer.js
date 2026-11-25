@@ -40,7 +40,7 @@ export function createSymmetryAxes(THREE, stage, createLabelTexture) {
     const primitive = stage.scene.primitives[0];
     if (!primitive) return root;
     const frames = [{matrix: identityMatrix4(), origin: [0, 0, 0], length: stage.axisLength, suffix: ""}];
-    const original = primitive.instances.find(i => !i.ls && !i.as && !i.ps && !i.mirrorX && !i.mirrorY);
+    const original = stage.original;
     if (original) frames.push({
         matrix: original.matrix, origin: applyMatrix4ToPoint(original.matrix, stage.frameOrigin),
         length: stage.axisLength / 2, suffix: "′",
@@ -66,10 +66,11 @@ export function createSymmetryAxes(THREE, stage, createLabelTexture) {
     return root;
 }
 
-export function createSymmetryArrows(THREE, arrows, kind) {
-    if (!arrows.length) return null;
+export function createSymmetryArrows(THREE, arrows, kind, faceNormals = []) {
+    if (!arrows.length && !faceNormals.length) return null;
     const root = new THREE.Group();
     const colors = { current: "#ffac70", normal: "#ffe274", magnetization: "#8bf1c4" };
-    addArrows(root, THREE, arrows, colors[kind] ?? colors.magnetization, 31);
+    if (arrows.length) addArrows(root, THREE, arrows, colors[kind] ?? colors.magnetization, 31);
+    if (faceNormals.length) addArrows(root, THREE, faceNormals, colors.normal, 31);
     return root;
 }

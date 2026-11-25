@@ -2,7 +2,7 @@ import { toRowMajor } from "../model/arrayShape.js";
 import { unpackKvVertices } from "../solver/geometryKv.js";
 import { unpackTkVertices } from "../solver/geometryTk.js";
 import { applyMatrix4ToPoint } from "../solver/rotation3d.js";
-import { bilinearRegionNormals } from "./geometryDiscretization.js";
+import { ELEMENT_FACES, bilinearFaceFrame, bilinearRegionNormals } from "./geometryDiscretization.js";
 import { buildGeometryScene } from "./geometrySceneModel.js";
 import { instanceVisible, primitiveVisible } from "./geometryRenderFilters.js";
 import { buildGeometryTimeModel } from "./geometryTimeModel.js";
@@ -92,7 +92,7 @@ export function buildRecordSymmetryStage(record, general, moves, element, stage,
             imageIndexes[family.index] = demoImageNumber(choice.number, staged[family.count]) - 1;
         }
     }
-    const scene = buildGeometryScene({ general: settings, [group]: [staged] }, { imageIndexes });
+    const scene = buildGeometryScene({ general: settings, [group]: [staged] }, { imageIndexes, bilinear: true });
     const primitive = scene.primitives[0];
     const result = { scene, record: staged, general: settings, index,
         unpacked: unpackedGeometry(record, element, primitive),
@@ -116,17 +116,41 @@ export function buildRecordSymmetryStage(record, general, moves, element, stage,
     const frameOrigin = staged.dr.map(v => -(Array.isArray(v) ? v[0] : v));
     const axisLength = Math.hypot(...max.map((v, i) => v - min[i])) * 0.7 || 1;
     const regionNormals = primitive.kind === "region-surface" ? bilinearRegionNormals(vertices) : [];
-    return { ...result, center, frameOrigin, axisLength, regionNormals };
+    const original = primitive.instances.find(i => !i.ls && !i.as && !i.ps && !i.mirrorX && !i.mirrorY);
+    return { ...result, center, frameOrigin, axisLength, regionNormals, original };
 }
 
 export function buildRegionNormalArrows(stage, length) {
     if (!stage?.regionNormals?.length || !(length > 0)) return [];
     const arrows = [];
-    appendRegionNormalArrows(arrows, stage.scene.primitives[0].instances, stage.regionNormals, stage.axisLength * length / 100);
+    appendNormalArrows(arrows, stage.scene.primitives[0].instances, stage.regionNormals, stage.axisLength * length / 100);
     return arrows;
 }
 
-function appendRegionNormalArrows(arrows, instances, normals, length) {
+export function buildElementNormalArrows(stage) {
+    const primitive = stage?.scene.primitives[0];
+    const original = stage?.original;
+    if (!original || primitive.kind !== "element-volume") return [];
+    const corners = stage.unpacked.vertices;
+    if (corners.length !== 8) return [];
+    const arrows = [];
+    for (const face of ELEMENT_FACES) {
+        const frame = bilinearFaceFrame(face.corners.map(i => corners[i]));
+        if (!frame) continue;
+        // At the face center the vector from the volume center follows the
+        // outward parameter direction, including reversed element numbering.
+        const outward = frame.center.direction.reduce((dot, n, i) =>
+            dot + n * (frame.center.origin[i] - stage.center[i]), 0);
+        if (!outward) continue;
+        const normals = [frame.center, ...frame.corners].map(({origin, direction}) => ({
+            origin, direction: direction.map(x => x * Math.sign(outward)),
+        }));
+        appendNormalArrows(arrows, [original], normals, stage.axisLength / 4);
+    }
+    return arrows;
+}
+
+function appendNormalArrows(arrows, instances, normals, length) {
     for (const { matrix } of instances) {
         for (const { origin, direction } of normals) {
             // Region images use rigid rotations. Translation moves the anchor only.
@@ -151,7 +175,7 @@ export function buildVisibleRegionNormalArrows(scene, filters) {
         if (!normals.length) continue;
         const diagonal = (a, b) => Math.hypot(v[a] - v[b], v[a+1] - v[b+1], v[a+2] - v[b+2]);
         const length = Math.max(diagonal(0, 6), diagonal(3, 9)) / 4;
-        appendRegionNormalArrows(arrows, instances, normals, length);
+        appendNormalArrows(arrows, instances, normals, length);
     }
     return arrows;
 }

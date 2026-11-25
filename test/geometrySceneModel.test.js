@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import * as THREE from "three";
+import { intersectSection } from "../src/services/visualization/geometrySection.js";
 
 import { buildGeometryScene }
     from "../src/services/visualization/geometrySceneModel.js";
@@ -227,7 +229,7 @@ test("general mirrors apply only to elements; regions use local copies", () => {
     });
 });
 
-test("surface regions use bilinear tessellation and compact dp metadata", () => {
+test("planar regions retain four corners and compact dp metadata", () => {
     const scene = buildGeometryScene({
         regions: [region({
             geoType: 3,
@@ -244,7 +246,7 @@ test("surface regions use bilinear tessellation and compact dp metadata", () => 
         counts: new Uint32Array([20, 30]),
     });
     assert.equal(surface.vertices instanceof Float64Array, true);
-    assert.equal(surface.indices instanceof Uint32Array, true);
+    assert.deepEqual(plain(surface.indices), [0, 1, 2, 0, 2, 3]);
     assert.deepEqual(plain(surface.edgeIndices), [
         0, 1, 1, 2, 2, 3, 3, 0,
     ]);
@@ -254,10 +256,7 @@ test("surface regions use bilinear tessellation and compact dp metadata", () => 
         0, 2, 3,
         0, 2, 0,
     ]);
-    assert.equal(surface.vertices.length > 4 * 3, true);
-    assert.equal(surface.indices.length > 2 * 3, true);
-    assert.deepEqual(plain(surface.vertices.slice(0, 3)), [0, 0, 0]);
-    assert.deepEqual(plain(surface.vertices.slice(-3)), [0, 2, 3]);
+    assert.deepEqual(surface.vertices, surface.controlVertices);
     assert.equal(surface.instances.length, 3);
     assert.equal(
         scene.counts.triangles,
@@ -277,7 +276,7 @@ test("non-planar region quads retain their bilinear surface", () => {
             ],
             dp: vector([3, 4]),
         })],
-    });
+    }, { bilinear: true });
     const [surface] = scene.primitives;
     const points = Array.from(
         { length: surface.vertices.length / 3 },
@@ -292,6 +291,42 @@ test("non-planar region quads retain their bilinear surface", () => {
         && point[2] > 0
         && point[2] < 1
     ), true);
+});
+
+test("warped element and region switch together, fit their grid and keep a closed section", () => {
+    const geo = Array.from({length: 8}, (_, i) => [i & 1, (i >> 1) & 1, (i >> 2) & 1]);
+    geo[7][2] = 2;
+    const model = {
+        elements: [element({ geoType: 0, geo, dp: vector([3, 5, 1]) })],
+        regions: [region({ geoType: 0, geo: [4,5,7,6].map(i => geo[i]), dp: vector([4, 6]) })],
+    };
+    function surfaceHeight(p, x, y) {
+        const ray = new THREE.Ray(new THREE.Vector3(x, y, 3), new THREE.Vector3(0,0,-1));
+        let top = -Infinity;
+        const point = new THREE.Vector3();
+        for (let i = 0; i < p.indices.length; i += 3) {
+            if (p.triangleFaces && p.triangleFaces[i / 3] !== 2) continue;
+            const corners = Array.from(p.indices.slice(i, i+3), index => new THREE.Vector3().fromArray(p.vertices, 3*index));
+            if (ray.intersectTriangle(...corners, false, point)) top = Math.max(top, point.z);
+        }
+        return top;
+    }
+    const x = 1/3, y = 0.37;
+    const fast = buildGeometryScene(model), fine = buildGeometryScene(model, { bilinear: true, alignGrid: true });
+    assert.deepEqual(fast.primitives.map(p => p.indices.length / 3), [12, 2]);
+    for (const p of fast.primitives) assert.ok(Math.abs(surfaceHeight(p, x, y) - (1 + x)) < 1e-12);
+    for (const p of fine.primitives) assert.ok(Math.abs(surfaceHeight(p, x, y) - (1 + x*y)) < 1e-12);
+    const [volume] = fine.primitives;
+    assert.equal(volume.controlVertices.length, 24);
+    assert.equal(volume.edgeIndices.length, 24);
+    assert.equal(volume.triangleFaces.length, volume.indices.length / 3);
+    assert.deepEqual(new Set(volume.triangleFaces), new Set([1,2,3,4,5,6]));
+    const plane = new THREE.Plane(new THREE.Vector3(1, 0.2, 0.4).normalize(), -0.7);
+    const cut = intersectSection(THREE, volume, volume.instances[0], plane);
+    assert.ok(cut.triangles.length > 0);
+    const degree = new Map();
+    for (const [a, b] of cut.segments) for (const i of [a,b]) degree.set(i, (degree.get(i) ?? 0) + 1);
+    assert.ok([...degree.values()].every(n => n === 2));
 });
 
 test("invalid discretization hides only its overlay, not base geometry", () => {

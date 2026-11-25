@@ -29,7 +29,7 @@ function assertAppearsAfter(source, later, earlier) {
 test("geometry viewer builds a reactive scene in a modeless floating window", async () => {
   const source = await readFile(windowUrl, "utf8");
 
-  assert.match(source, /buildGeometryScene\(input\)/u);
+  assert.match(source, /buildGeometryScene\(input, \{ bilinear: bilinear\(\)/u);
   assert.match(source, /<FloatingWindow/u);
   assert.match(source, /open=\{props\.open\}/u);
   assert.match(source, /onClose=\{props\.onClose\}/u);
@@ -54,7 +54,7 @@ test("toolbar exposes option panels and transient camera commands", async () => 
   assert.match(source, /aria-expanded=\{openPanel\(\) === "regions"\}/u);
   assert.match(source, /aria-expanded=\{openPanel\(\) === "symmetry"\}/u);
   assert.match(source, /aria-expanded=\{openPanel\(\) === "general"\}/u);
-  assert.match(source, /aria-expanded=\{openPanel\(\) === "view"\}/u);
+  assert.match(source, /aria-expanded=\{openPanel\(\) === "view" \|\| openPanel\(\) === "sources"\}/u);
   assert.match(source, /aria-haspopup="dialog"/u);
   assert.match(source, /aria-label="Общие опции отображения"/u);
 
@@ -63,13 +63,10 @@ test("toolbar exposes option panels and transient camera commands", async () => 
   assert.doesNotMatch(source, /<option value="(?:solid|translucent|wireframe)"/u);
   assert.doesNotMatch(source, /Вписать всё/u);
   assert.doesNotMatch(source, /fitRequest/u);
-  assert.match(source, />\s*Показать все\s*<\/button>/u);
-  assert.match(source, />\s*вид по X\s*<\/button>/u);
-  assert.match(source, />\s*вид против X\s*<\/button>/u);
-  assert.match(source, />\s*вид по Y\s*<\/button>/u);
-  assert.match(source, />\s*вид против Y\s*<\/button>/u);
-  assert.match(source, />\s*вид по Z\s*<\/button>/u);
-  assert.match(source, />\s*вид против Z\s*<\/button>/u);
+  const menu = source.slice(source.indexOf('<Show when={openPanel() === "view"}>'), source.indexOf('<Show when={openPanel() === "elements"}>'));
+  assertAppearsAfter(menu, ">Настройка стрелок</button>", ">Сечение</button>");
+  assert.doesNotMatch(menu, /Показать все|вид (по|против) [XYZ]/u);
+  assert.match(source, /createGeometryViewSetting\("bilinear", false\)/u);
   assert.doesNotMatch(source, /role="menuitem"/u);
   assert.match(source, /setViewRequest\(\(previous\) =>/u);
   assert.match(source, /sequence:\s*\(previous\?\.sequence \?\? 0\) \+ 1/u);
@@ -79,17 +76,6 @@ test("toolbar exposes option panels and transient camera commands", async () => 
   assert.match(source, /geometryCameraCommandFromKeyboardEvent\(event\)/u);
   assert.match(source, /isGeometryCameraShortcutTarget\(event\.target\)/u);
   assert.match(source, /fitAllPadding=\{FLOATING_FIT_ALL_PADDING\}/u);
-  for (const shortcut of [
-    "A",
-    "X",
-    "Ctrl-X",
-    "Y",
-    "Ctrl-Y",
-    "Z",
-    "Ctrl-Z",
-  ]) {
-    assert.match(source, new RegExp(`title="или нажмите ${shortcut}"`, "u"));
-  }
   assert.doesNotMatch(source, /aria-label="Детализация геометрии"/u);
   assert.doesNotMatch(source, /aria-label="Тип проекции"/u);
 
@@ -138,74 +124,24 @@ test("the section opens from Показ and its controls follow the editing sequ
 test("object modes are exclusive while symmetry and general filters are independent", async () => {
   const source = await readFile(windowUrl, "utf8");
 
-  assert.match(source, /createSignal\("all"\)/u);
   assert.match(source, /objectModes:\s*\{\s*elements:/su);
   assert.match(source, /selections:\s*\{\s*elements:/su);
   assert.match(source, /symmetry:\s*\{\s*axial:/su);
-
-  assert.equal(
-    source.match(/type="radio"/gu)?.length,
-    6,
-    "elements and regions must each expose three exclusive modes",
-  );
-  assert.match(source, /name="geometry-elements-mode"/u);
-  assert.match(source, /name="geometry-regions-mode"/u);
-  assert.match(source, /Все элементы/u);
-  assert.match(source, /Все области/u);
-  assert.equal(source.match(/Выделенные в списке/gu)?.length, 2);
-  assert.equal(source.match(/Не показывать/gu)?.length, 2);
-
-  assert.equal(
-    source.match(/type="checkbox"/gu)?.length,
-    10,
-    "four symmetry and six general options must use checkboxes",
-  );
-  assert.match(source, /Локальная/u);
-  assert.match(source, /Азимутальная/u);
-  assert.match(source, /Периодическая/u);
-  assert.match(source, /Зеркальная/u);
-
-  assert.match(
-    source,
-    /const \[orthographicView, setOrthographicView\] = createSignal\(true\)/u,
-  );
-  assert.match(
-    source,
-    /const \[showEdges, setShowEdges\] = createSignal\(true\)/u,
-  );
-  assert.match(
-    source,
-    /const \[showVertices, setShowVertices\] = createSignal\(false\)/u,
-  );
-  assert.match(
-    source,
-    /const \[showDiscretizationLines, setShowDiscretizationLines\][\s\S]*?createSignal\(false\)/u,
-  );
-  assert.match(
-    source,
-    /const \[showCentersAndNodes, setShowCentersAndNodes\] = createSignal\(false\)/u,
-  );
-  assert.match(source, /Ортогональный вид/u);
-  assert.match(source, /Рёбра/u);
-  assert.match(source, /Вершины/u);
-  assert.match(source, /Линии дискретизации/u);
-  assert.match(source, /Центры и узлы/u);
-  assert.match(source, /Заданные источники/u);
-  assert.match(
-    source,
-    /checked=\{showEdges\(\)\}/u,
-  );
+  for (const group of ["elements", "regions"]) {
+    assert.ok(source.includes('createGeometryViewSetting("' + group + 'Mode", "all")'));
+    assert.equal(source.split('name="geometry-' + group + '-mode"').length - 1, 4);
+  }
+  for (const label of ["Выделенные в списке", "Кроме выделенных", "Не показывать"])
+    assert.equal(source.split(label + "\n").length - 1, 2);
+  for (const flag of ["showLocalSymmetry","showAxialSymmetry","showPeriodicSymmetry","showMirrorSymmetry",
+    "orthographicView","showFaces","bilinear","showEdges","showVertices","showDiscretizationLines","showCentersAndNodes",
+    "showRegionNormals","showPrescribedSources"]) {
+    assert.ok(source.includes("checked={" + flag + "()}"), flag);
+  }
+  assert.match(source, /createGeometryViewSetting\("showEdges", true\)/u);
+  assert.match(source, /createGeometryViewSetting\("showVertices", false\)/u);
+  assert.match(source, /createGeometryViewSetting\("bilinear", false\)/u);
   assert.doesNotMatch(source, /disabled=\{renderMode\(\) === "wireframe"\}/u);
-  assert.equal(
-    source.match(/title="Функция будет реализована позднее"/gu)?.length,
-    1,
-  );
-  assert.equal(source.match(/checked=\{false\} disabled/gu)?.length, 1);
-  assert.match(
-    source,
-    /checked=\{showDiscretizationLines\(\)\}/u,
-  );
-  assert.match(source, /checked=\{showCentersAndNodes\(\)\}/u);
 });
 
 test("diagnostics retain record numbers and concise reasons", async () => {
@@ -324,7 +260,7 @@ test("vertices and geometry expose hover picking metadata", async () => {
   assert.match(source, /geometryHitInstance\(/u);
   assert.match(source, /vertexHitMetadata\(/u);
   assert.match(source, /instances,\s*kind:\s*pickKind,\s*span:\s*pickSpan/su);
-  assert.match(source, /mergedWireframeGeometry\(/u);
+  assert.match(source, /mergedTopologyLineGeometry\(/u);
   assert.match(source, /pickSpan = wireframe\.vertexSpan/u);
   assert.match(source, /pickFrame = requestAnimationFrame/u);
   assert.match(source, /PICK_INTERVAL_MS = 80/u);
@@ -403,11 +339,11 @@ test("surface lighting preserves visibly flat faces", async () => {
   const source = await readFile(viewportUrl, "utf8");
 
   assert.match(source, /new THREE\.MeshLambertMaterial/u);
-  assert.match(source, /flatShading:\s*true/u);
+  assert.match(source, /flatShading:\s*!primitive\.smoothSurface/u);
   assert.match(source, /new THREE\.AmbientLight\(0xffffff, 1\.25\)/u);
   assert.match(source, /new THREE\.DirectionalLight\(0xffffff, 0\.55\)/u);
   assert.doesNotMatch(source, /new THREE\.MeshStandardMaterial/u);
-  assert.doesNotMatch(source, /geometry\.computeVertexNormals\(\)/u);
+  assert.match(source, /if \(primitive\.smoothSurface\) geometry\.computeVertexNormals\(\)/u);
   assert.doesNotMatch(source, /new THREE\.HemisphereLight/u);
 });
 
@@ -436,13 +372,9 @@ test("surface edges are controlled independently and remain thin", async () => {
   assert.match(source, /linewidth:\s*1/u);
   assert.match(source, /polygonOffset:\s*showSurfaceEdges/u);
   assert.match(source, /appendSurfaceEdges\(/u);
-  assert.match(source, /mergedRegionBoundaryGeometry/u);
-  assert.match(source, /primitive\.controlVertices/u);
-  assert.equal(
-    source.match(/mergedWireframeGeometry\([\s\S]*?true,[\s\S]*?\);/gu)?.length,
-    2,
-    "surface edges and wireframe mode must both avoid render-tessellation edges",
-  );
+  assert.doesNotMatch(source, /new THREE\.EdgesGeometry/u);
+  assert.match(source, /const wireframe = mergedTopologyLineGeometry\(THREE, primitive, instances\)/u);
+  assert.match(source, /primitive\.edgeIndices/u);
 });
 
 test("axes use a separate bottom-left screen-space scene", async () => {

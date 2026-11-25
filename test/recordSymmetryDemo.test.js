@@ -3,7 +3,7 @@ import test from "node:test";
 import * as THREE from "three";
 import { applyMatrix4ToPoint } from "../src/services/solver/rotation3d.js";
 import { buildGeometryScene } from "../src/services/visualization/geometrySceneModel.js";
-import { activeSymmetryStages, snapSymmetryStage, buildRecordSymmetryStage, buildDemoVectors, buildRegionNormalArrows, buildVisibleRegionNormalArrows, demoImageNumber }
+import { activeSymmetryStages, snapSymmetryStage, buildRecordSymmetryStage, buildDemoVectors, buildRegionNormalArrows, buildVisibleRegionNormalArrows, buildElementNormalArrows, demoImageNumber }
     from "../src/services/visualization/recordSymmetryDemo.js";
 import { bilinearRegionNormals } from "../src/services/visualization/geometryDiscretization.js";
 import { createSymmetryAxes, createSymmetryArrows } from "../src/components/geometry/SymmetryDemoLayer.js";
@@ -55,6 +55,36 @@ function near(actual, expected) {
     assert.equal(actual.length, expected.length);
     actual.forEach((x, i) => assert.ok(Math.abs(x - expected[i]) < 1e-10, actual + " vs " + expected));
 }
+
+test("3D1 normals use the bilinear derivatives and only the visible original", () => {
+    const geo = Array.from({length: 8}, (_, i) => [i & 1, (i >> 1) & 1, (i >> 2) & 1]);
+    const planar = stage(1, {geoType: 0, geo});
+    assert.equal(buildElementNormalArrows(planar).length, 6);
+    geo[7][2] = 2;
+    const warped = stage(1, {geoType: 0, geo});
+    assert.ok(warped.scene.primitives[0].indices.length > 36);
+    const arrows = buildElementNormalArrows(warped);
+    assert.equal(arrows.length, 10);
+    const roof = arrows.filter(a => a.direction[2] > 0);
+    assert.equal(roof.length, 5);
+    for (const {origin: [x,y,z], direction} of roof) {
+        assert.equal(z, 1 + x*y);
+        near(direction, new THREE.Vector3(-y,-x,1).normalize().toArray());
+    }
+    const reversed = stage(1, {geoType: 0, geo: geo.map(([x,y,z]) => [-x,y,z])});
+    for (const [i, arrow] of buildElementNormalArrows(reversed).entries()) {
+        const [x,y,z] = arrows[i].direction;
+        near(arrow.direction, [-x,y,z]);
+    }
+    const transformed = stage(9, {geoType: 0, geo});
+    const originals = buildElementNormalArrows(transformed);
+    assert.equal(originals.length, 10);
+    const matrix = new THREE.Matrix4().fromArray(transformed.scene.primitives[0].instances[0].matrix);
+    near(originals[0].origin, new THREE.Vector3(...arrows[0].origin).applyMatrix4(matrix).toArray());
+    near(originals[0].direction, new THREE.Vector3(...arrows[0].direction).transformDirection(matrix).toArray());
+    const onlyCopy = buildRecordSymmetryStage(hex, settings, [], true, 9, 0, {ls:{all:false, number:2}});
+    assert.deepEqual(buildElementNormalArrows(onlyCopy), []);
+});
 
 test("fixed positions skip absent symmetries in either direction, independently per tab", () => {
     const one = { ...hex, symLs: 1, symAs: 1, symKyp: 0 };
