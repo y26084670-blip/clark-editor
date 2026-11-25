@@ -49,6 +49,7 @@ export default createSchema({
         // итерационный процесс
 
         startITER: {
+            optionalOnRead: true,
             type: FIELD_TYPES.BOOLEAN,
             label: "StartITER: Задание начального приближения",
             description: "Начальное приближение итерационного процесса: "
@@ -106,6 +107,7 @@ export default createSchema({
 
 
         POLAR_EPS_PERCENT: {
+            optionalOnRead: true,
             type: FIELD_TYPES.FLOAT,
             label: "(3D): Полярное интегрирование по ЭП, %",
             description: "Целевая относительная погрешность скалярного интеграла и нормы векторного интеграла на одной ЭП в конечной 3D-задаче. Применяется к полярной квадратуре граней всех объёмных шестигранников. Меньший процент увеличивает число узлов. По умолчанию 0,05 %.",
@@ -116,6 +118,7 @@ export default createSchema({
         },
 
         DIPOLE_RTOL: {
+            optionalOnRead: true,
             type: FIELD_TYPES.FLOAT,
             label: "(3D): DIPOLE_RTOL: Допуск дипольного приближения",
             description: "Относительный допуск нормы отдельного блока дальней зоны. Используется также для дальнего приближения в чистой 2D-модели. "
@@ -134,6 +137,7 @@ export default createSchema({
         // материальные уравнения
 
         CF_FMMEPS: {
+            optionalOnRead: true,
             type: FIELD_TYPES.FLOAT,
             label: "CF_FMMEPS: Допуск поиска пробного решения для ФММ, кА/м",
             description: "Абсолютный допуск невязки намагниченности ФММ: "
@@ -146,6 +150,7 @@ export default createSchema({
         },
 
         CF_HTSEPS: {
+            optionalOnRead: true,
             type: FIELD_TYPES.FLOAT,
             label: "CF_HTSEPS: Допуск поиска пробного решения для ВТСП, кА/м",
             description: "Абсолютный допуск невязки намагниченности магнитной подсистемы ВТСП: "
@@ -158,6 +163,7 @@ export default createSchema({
         },
 
         fullJNewton: {
+            optionalOnRead: true,
             type: FIELD_TYPES.BOOLEAN,
             label: "fullJNewton: Полный метод Ньютона [J/λ] для J = const * E",
             description: "Выбор метода решения совместной системы для плотности тока J "
