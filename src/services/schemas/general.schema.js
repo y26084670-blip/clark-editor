@@ -100,6 +100,7 @@ export default createSchema({
     properties: {
 
         useMED: {
+            optionalOnRead: true,
             type: FIELD_TYPES.BOOLEAN,
             label: "Учёт зарядов",
             labelColor: "#ff6060",
@@ -180,6 +181,7 @@ export default createSchema({
         },
 
         forceGroupMinGap: {
+            optionalOnRead: true,
             type: FIELD_TYPES.FLOAT,
             label: "Минимальный зазор между силовыми группами, мм",
             description: "Команда «Создание силовых групп» объединяет элементы с зазором меньше указанного. При 0 учитывается геометрическая точность определения контакта.",
@@ -197,6 +199,7 @@ export default createSchema({
         },
 
         forceFaceOffset: {
+            optionalOnRead: true,
             type: FIELD_TYPES.FLOAT,
             label: "(3D): Отступ точки вычисления поля от внешней ЭП, мм",
             description: "При 0 задайте силовые площадки и их номера вручную на вкладке «Области». При положительном отступе решатель строит узлы по внешним ЭП групп и вычисляет поле в воздухе. Начните с 0,001 мм (1 мкм). В узком зазоре решатель может уменьшить отступ до половины его ширины. Применяется в конечной 3D-модели без полной осевой симметрии.",
@@ -206,6 +209,7 @@ export default createSchema({
         },
 
         htsRegimFC: {
+            optionalOnRead: true,
             storageAliases: ["htcRegimFC"],
             type: FIELD_TYPES.BOOLEAN,
             label: "ВТСП: режим",
@@ -216,6 +220,7 @@ export default createSchema({
         },
 
         htsMu: {
+            optionalOnRead: true,
             storageAliases: ["htcMu"],
             type: FIELD_TYPES.BOOLEAN,
             label: "ВТСП: Магнитная подсистема",
@@ -226,6 +231,7 @@ export default createSchema({
         },
 
         htsRo: {
+            optionalOnRead: true,
             storageAliases: ["htcRo"],
             type: FIELD_TYPES.BOOLEAN,
             label: "ВТСП: Токовая подсистема",

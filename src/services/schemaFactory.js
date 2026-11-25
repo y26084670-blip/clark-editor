@@ -121,6 +121,7 @@ export function createSchema({
 
         storageKey      Ключ или точечный путь в StorageModel. По умолчанию используется имя свойства схемы.
         storageAliases  Прежние пути только для чтения; канонический storageKey имеет приоритет.
+        optionalOnRead  При отсутствии всех путей решатель применяет тот же default, что и редактор.
 
         Форматирование float параметра
         floatExp        Использовать экспоненциальный формат отображения вещественного числа.
@@ -212,6 +213,10 @@ function validateSchema(schema) {
     for (const [propertyName, property] of Object.entries(schema.properties)) {
 
         validatePropertyEnum(schema.id, propertyName, property);
+        if (property.optionalOnRead !== undefined &&
+            (typeof property.optionalOnRead !== "boolean" || !isStoredProperty(property) || property.default === undefined)) {
+            throw new Error(`Schema '${schema.id}', property '${propertyName}': optionalOnRead requires a boolean, a stored property and an explicit default.`);
+        }
         if (property.storageAliases !== undefined &&
             (!isStoredProperty(property) || !Array.isArray(property.storageAliases))) {
             throw new Error(`Schema '${schema.id}', property '${propertyName}': storageAliases requires a stored property and an array.`);

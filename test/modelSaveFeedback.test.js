@@ -255,7 +255,15 @@ async function createStorageHarness(t, options = {}) {
       return messages;
     },
   });
-  return { ...h, files, dataService, conrab, diagnostics };
+  async function loadInput(id, text) {
+    const { default: schema } = await server.ssrLoadModule(`/src/services/schemas/${id}.schema.js`);
+    files.set(schema.config.file, text);
+    const messages = [], state = {};
+    const value = await dataService.load(task, schema, messages, state);
+    assert.equal(files.get(schema.config.file), text);
+    return { value, messages, requiresSave: state.requiresSave };
+  }
+  return { ...h, files, dataService, conrab, diagnostics, loadInput };
 }
 
 test("bundled demo has all canonical profile keys and loads without missing-parameter warnings", async t => {
@@ -274,12 +282,66 @@ test("bundled demo has all canonical profile keys and loads without missing-para
   assert.deepEqual(h.loadDiagnostics().conrab, []);
 });
 
-test("actual file round trip removes missing defaults and keeps unresolved motion model errors", async t => {
+test("old solver-compatible inputs load quietly with their effective values", async t => {
+  const h = await createStorageHarness(t);
+  const fixture = name => readFile(new URL(name, import.meta.url), "utf8");
+  const generalText = await fixture("fixtures/team7-med/general.txt");
+  const general = await h.loadInput("general", generalText);
+  assert.deepEqual(general.messages, []);
+  assert.equal(general.requiresSave, false);
+  assert.equal(general.value.useMED, true);
+  assert.equal(general.value.forceGroupMinGap, 2);
+  assert.equal(general.value.forceFaceOffset, 0);
+  assert.equal(general.value.htsMu, JSON.parse(generalText).htcMu);
+  const explicit = { ...JSON.parse(generalText), htcMu: true, htsMu: false, forceGroupMinGap: 0 };
+  const loaded = await h.loadInput("general", JSON.stringify(explicit));
+  assert.equal(loaded.value.htsMu, false);
+  assert.equal(loaded.value.forceGroupMinGap, 0);
+  assert.deepEqual(loaded.messages, []);
+
+  const [first] = (await fixture("fixtures/team7-med/kvs.txt")).trim().split("\n").map(JSON.parse);
+  const records = [true, false, undefined, 0, 3].map(take => JSON.stringify({ ...first, take }));
+  const elements = await h.loadInput("elements", records.join("\n"));
+  assert.deepEqual(elements.value.map(row => row.take), [0, 0, 0, 0, 3]);
+  assert.deepEqual(elements.messages, []);
+  assert.equal(elements.requiresSave, false);
+
+  const regions = await h.loadInput("regions", await fixture("../data/demo/tks.txt"));
+  assert.equal(regions.value[0].forceGroup, 0);
+  assert.deepEqual(regions.messages, []);
+  assert.equal(regions.requiresSave, false);
+
+  const incomplete = { ...first, unexpected: 5 };
+  delete incomplete.geo;
+  const damaged = await h.loadInput("elements", JSON.stringify(incomplete));
+  assert.ok(damaged.messages.some(d => d.message.includes("unexpected")));
+  assert.ok(damaged.messages.some(d => /отсутствуют свойства схемы: geo$/u.test(d.message)));
+});
+
+test("both precision profiles accept compatible defaults independently; a missing profile requires saving", async t => {
+  const h = await createStorageHarness(t);
+  const old = { EPS: 0.005, TAU: 0.3, EXTRA: true, ADMIN: 0.001, UZMIN: 0.005 };
+  const first = JSON.stringify(old);
+  const second = JSON.stringify({ ...old, DIPOLE_RTOL: 0, POLAR_EPS_PERCENT: 0.2, fullJNewton: true });
+  const profiles = await h.loadInput("conrab", first + "\n" + second);
+  assert.deepEqual(profiles.messages, []);
+  assert.equal(profiles.requiresSave, false);
+  assert.deepEqual(profiles.value.map(p => [p.POLAR_EPS_PERCENT, p.DIPOLE_RTOL, p.fullJNewton]), [
+    [0.05, 0.001, false], [0.2, 0, true],
+  ]);
+  const single = await h.loadInput("conrab", first);
+  assert.equal(single.requiresSave, true);
+  assert.deepEqual(single.messages.map(d => d.message), [h.conrab.config.singleRecordFallback.message]);
+  assert.deepEqual(single.value, [profiles.value[0], profiles.value[0]]);
+});
+
+test("actual file round trip clears missing-property warnings and keeps unresolved motion model errors", async t => {
   const closed = deferred();
   const h = await createStorageHarness(t, {
     close: name => name === "conrab.txt" ? closed.promise : undefined,
   });
-  assert.ok(h.loadDiagnostics().conrab.some(d => d.message.includes("DIPOLE_RTOL")));
+  assert.ok(h.loadDiagnostics().conrab.some(d => d.message.includes("ADMIN")));
+  assert.ok(h.loadDiagnostics().conrab.every(d => !d.message.includes("DIPOLE_RTOL")));
   const saving = h.handleSave();
   await flushMicrotasks();
   assert.equal(h.files.get("conrab.txt"), "{}\n{}\n");
@@ -308,7 +370,7 @@ test("actual close failure preserves original file and its load warning", async 
   } });
   await h.handleSave();
   assert.equal(h.files.get("conrab.txt"), "{}\n{}\n");
-  assert.ok(h.loadDiagnostics().conrab.some(d => d.message.includes("DIPOLE_RTOL")));
+  assert.ok(h.loadDiagnostics().conrab.some(d => d.message.includes("ADMIN")));
   assert.deepEqual(h.loadDiagnostics().moves, []);
   assertFeedback(h, "error");
 });

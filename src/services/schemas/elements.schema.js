@@ -576,6 +576,7 @@ export default createSchema({
         },
 
         take: {
+            optionalOnRead: true,
             type: FIELD_TYPES.INTEGER,
             label: "Силовая группа",
             description: "Номер группы для расчёта взаимодействий. Группа 0 даёт вклад на поверхности каждой положительной группы.",

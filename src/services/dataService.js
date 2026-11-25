@@ -34,7 +34,7 @@ export const dataService = {
 
     // Загрузка данных.
     // diagnostics — необязательный коллектор диагностики загрузки.
-    // loadState.requiresSave — данные дополнены и требуют записи в файл.
+    // loadState.requiresSave — решателю нужна запись преобразованного формата.
     async load(dirHandle, schema, diagnostics = [], loadState = {}) {
         loadState.requiresSave = false;
         if (!dirHandle) {
@@ -139,7 +139,6 @@ export const dataService = {
             for (const record of storageModel) {
                 if (typeof record.take === "boolean") {
                     record.take = 0;
-                    requiresSave = true;
                 }
             }
         }
@@ -154,12 +153,16 @@ export const dataService = {
 
     // Состав ключей файла относительно схемы.
     checkStorageKeys(storageModel, schema, diagnostics, tab) {
-        const declared = Object.entries(schema.properties)
-            .filter(([, property]) => isStoredProperty(property))
-            .map(([key, property]) =>
-                propertyStorageReadPaths(key, property)
-            );
-        if (Object.keys(schema.properties).length === 0) return;
+        const properties = Object.entries(schema.properties);
+        if (properties.length === 0) return;
+        const knownPaths = [];
+        const requiredPathGroups = [];
+        for (const [key, property] of properties) {
+            if (!isStoredProperty(property)) continue;
+            const paths = propertyStorageReadPaths(key, property);
+            knownPaths.push(...paths);
+            if (!property.optionalOnRead) requiredPathGroups.push(paths);
+        }
 
         const items = Array.isArray(storageModel)
             ? storageModel
@@ -173,12 +176,12 @@ export const dataService = {
 
             findUnknownStoragePaths(
                 item,
-                declared.flat(),
+                knownPaths,
                 schema.config.obsoleteStoragePaths,
             )
                 .forEach(path => unknown.add(path));
 
-            for (const paths of declared) {
+            for (const paths of requiredPathGroups) {
                 if (!paths.some(path => hasStorageValue(item, path))) missing.add(paths[0]);
             }
         }
