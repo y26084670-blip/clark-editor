@@ -1,3 +1,6 @@
+import { toRowMajor } from "../model/arrayShape.js";
+import { unpackKvVertices } from "../solver/geometryKv.js";
+import { unpackTkVertices } from "../solver/geometryTk.js";
 import { applyMatrix4ToPoint } from "../solver/rotation3d.js";
 import { bilinearRegionNormals } from "./geometryDiscretization.js";
 import { buildGeometryScene } from "./geometrySceneModel.js";
@@ -41,6 +44,26 @@ export function snapSymmetryStage(stages, requested, forward) {
         : stages.findLast(n => n <= requested) ?? stages[0];
 }
 
+function unpackedGeometry(record, element, primitive) {
+    const unpack = element ? unpackKvVertices : unpackTkVertices;
+    const geo = Array.isArray(record.geo) ? toRowMajor(record.geo, 3) : [];
+    const { vertices, err } = unpack(geo, record.geoType);
+    if (err < 0 || !vertices.every(point => point.every(Number.isFinite))) {
+        return { vertices: [], vertexLabels: [] };
+    }
+
+    // Picking indexes rendered corners. A segment has two endpoints but four
+    // solver vertices, and several rows of a pyramid can share its apex.
+    const corners = primitive?.controlVertices ?? primitive?.vertices ?? [];
+    const vertexLabels = [];
+    for (let offset = 0; offset < corners.length; offset += 3) {
+        const numbers = vertices.flatMap((point, i) =>
+            point.every((value, axis) => value === corners[offset + axis]) ? [i + 1] : []);
+        vertexLabels.push(numbers.length === 1 ? `вершина ${numbers[0]}` : `вершины ${numbers.join(", ")}`);
+    }
+    return { vertices, vertexLabels };
+}
+
 // Enable successive factors of the existing scene builder rather than composing
 // a second chain of solver matrices. Trajectories are sampled at a fixed t=0.
 export function buildRecordSymmetryStage(record, general, moves, element, stage, index = 0, choices = {}) {
@@ -72,6 +95,7 @@ export function buildRecordSymmetryStage(record, general, moves, element, stage,
     const scene = buildGeometryScene({ general: settings, [group]: [staged] }, { imageIndexes });
     const primitive = scene.primitives[0];
     const result = { scene, record: staged, general: settings, index,
+        unpacked: unpackedGeometry(record, element, primitive),
         notices: [...frame.diagnostics, ...scene.diagnostics].map(d => d.message) };
     if (!primitive) return result;
     primitive.source.recordIndex = index;

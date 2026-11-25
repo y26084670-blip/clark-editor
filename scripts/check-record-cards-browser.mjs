@@ -43,6 +43,57 @@ const commit = async (input, text, key = "Enter") => {
   await input.fill(text);
   await input.press(key);
 };
+
+async function assertUnpackedTable(panel, expected) {
+  const table = panel.getByRole("table");
+  await table.waitFor();
+  assert.deepEqual(await table.locator("tbody tr").evaluateAll(rows =>
+    rows.map(row => Array.from(row.cells, cell => Number(cell.textContent)))), expected.map((p, i) => [i + 1, ...p]));
+  assert.equal(await panel.locator("input, textarea, [contenteditable=true]").count(), 0);
+  const layout = await panel.evaluate(el => {
+    const content = el.querySelector(".floating-window-content");
+    return { resize: getComputedStyle(el).resize, height: content.clientHeight, width: content.clientWidth,
+      scrollHeight: content.scrollHeight, scrollWidth: content.scrollWidth };
+  });
+  assert.equal(layout.resize, "none");
+  assert.ok(layout.scrollHeight <= layout.height && layout.scrollWidth <= layout.width, JSON.stringify(layout));
+}
+
+// Locate actual yellow vertex pixels, then move the browser pointer onto them.
+// The check exercises both drawing and picking without assuming a camera scale.
+async function visibleVertexLabels(viewport) {
+  const canvas = viewport.locator("canvas");
+  await page.mouse.move(1, 1);
+  await page.evaluate(() => new Promise(done => requestAnimationFrame(() => requestAnimationFrame(done))));
+  const png = await canvas.screenshot();
+  const positions = await page.evaluate(async base64 => {
+    const bitmap = await createImageBitmap(await (await fetch("data:image/png;base64," + base64)).blob());
+    const surface = new OffscreenCanvas(bitmap.width, bitmap.height);
+    const ctx = surface.getContext("2d");
+    ctx.drawImage(bitmap, 0, 0);
+    const { data, width, height } = ctx.getImageData(0, 0, bitmap.width, bitmap.height);
+    bitmap.close();
+    const points = [];
+    for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+      const at = (y * width + x) * 4;
+      if (data[at] >= 253 && Math.abs(data[at + 1] - 238) <= 2 && Math.abs(data[at + 2] - 117) <= 2
+        && !points.some(p => Math.abs(x - p.x) < 10 && Math.abs(y - p.y) < 10)) points.push({ x, y });
+    }
+    return points;
+  }, png.toString("base64"));
+  assert.ok(positions.length, "vertex markers were rendered");
+  const labels = new Set();
+  const tooltip = viewport.getByRole("tooltip");
+  for (const position of positions) {
+    await page.mouse.move(1, 1);
+    await tooltip.waitFor({ state: "hidden" });
+    await canvas.hover({ position });
+    await tooltip.waitFor();
+    labels.add(await tooltip.innerText());
+  }
+  return labels;
+}
+
 async function openCardDemo() {
   const style = await demoToggle.evaluate(input => {
     const label = input.closest("label");
@@ -156,13 +207,13 @@ try {
   await tab("Элементы");
   await current.getByTitle("Добавить запись", {exact:true}).click();
   await ready("elements",0);
-  assert.deepEqual(await visibleFields(), ["name","rowLabel"]);
+  assert.deepEqual(await visibleFields(), ["name","rowLabel","take"]);
   assert.equal(await field("geo",23).count(),1);
   await assertCardFrame();
   const hexBounds = await elementGeometryBounds();
   await commit(field("name"),"Статор внешний");
   await flag("Разбиение").check();
-  assert.deepEqual(await visibleFields(), ["dp","eoCount","eoRange","name","rowLabel"]);
+  assert.deepEqual(await visibleFields(), ["dp","eoCount","eoRange","name","rowLabel","take"]);
   await flag("Симметрии").check();
   for (const key of ["yc1","yc2","yc3","yc4"]) assert.ok((await visibleFields()).includes(key));
   await flag("Свойства").check();
@@ -316,12 +367,12 @@ try {
   await current.getByTitle("Добавить запись",{exact:true}).click();
   await ready("regions",0);
   assert.equal(await card.locator("input[data-field=geo]").count(),12);
-  assert.deepEqual(await visibleFields(),["name","rowLabel"]);
+  assert.deepEqual(await visibleFields(),["forceGroup","name","rowLabel"]);
   await assertCardFrame();
   const expectedBounds=await regionGeometryBounds();
   await flag("Разбиение").check(); await flag("Симметрии").check();
   await flag("Индексы катушки и траектории").check();
-  assert.deepEqual(await visibleFields(),["dp","epCount","indCoil","indMove","name","rowLabel","symLs","symYl","wCoil"]);
+  assert.deepEqual(await visibleFields(),["dp","epCount","forceGroup","indCoil","indMove","name","rowLabel","symLs","symYl","wCoil"]);
   await field("geoType").selectOption("1"); await ready("regions",1);
   assert.deepEqual(await regionGeometryBounds(),expectedBounds);
   await commit(card.getByLabel("Проекция на X",{exact:true}),"21.5");
@@ -632,6 +683,70 @@ try {
   await demoToggle.uncheck();
   assert.equal(await current.locator(".record-demo-card, .record-demo-view").count(),0);
   console.log("PASS Local region stages, surface normals, edges and length; element M/J, orthographic WebGL, default widths and splitters");
+
+  const unpack = demo.getByRole("button", { name: "Распакованная", exact: true });
+  const panel = name => page.getByRole("dialog", { name: "Распакованная геометрия " + name, exact: true });
+  const elementPanel = panel("элемента"), regionPanel = panel("области");
+  const prism = lx => [[0,8,0], [lx,8,0], [0,8,5], [lx,8,5], [0,0,0], [lx,0,0], [0,0,5], [lx,0,5]];
+  const selectedRow = current.locator('.tabulator-row.tabulator-selected [tabulator-field="rowLabel"]');
+  async function activateRow(number) {
+    if ((await card.locator(".record-card-info").first().innerText()).startsWith("№ " + number + " ·")) return;
+    if ((await selectedRow.allTextContents()).includes(String(number))) await row(number);
+    await row(number);
+  }
+  await openCardDemo();
+  await activateRow(1);
+  await field("geoType").selectOption("2");
+  await ready("elements", 2);
+  for (const [i, n] of [11,8,5].entries()) await commit(field("geo", i), String(n));
+  await commit(field("symLs"), "2");
+  await commit(field("symYl"), "72");
+  assert.equal(await demo.locator(".record-card-info").innerText(), "Построение образов элемента");
+  await stageButton(3).click();
+  assert.ok(await unpack.evaluate(el => el.previousElementSibling.dataset.stage === "1" &&
+    Math.abs(el.getBoundingClientRect().right - el.parentElement.getBoundingClientRect().right) <= 1));
+  await unpack.click();
+  assert.equal(await slide.inputValue(), "3");
+  await assertUnpackedTable(elementPanel, prism(11));
+  const elementSize = await elementPanel.boundingBox();
+  await commit(field("geo", 0), "13");
+  await assertUnpackedTable(elementPanel, prism(13));
+  assert.deepEqual(await elementPanel.boundingBox(), elementSize);
+  await activateRow(2);
+  await field("geoType").selectOption("4");
+  for (const [i, n] of [4,4,1,4,5,2,1].entries()) await commit(field("geo", i), String(n));
+  await assertUnpackedTable(elementPanel, [[0,0,4],[-5,2,1],[0,4,5],[-5,2,1],[0,0,0],[-5,2,1],[0,4,1],[-5,2,1]]);
+  await tab("Области");
+  assert.equal(await elementPanel.count(), 0);
+  await openCardDemo();
+  assert.equal(await demo.locator(".record-card-info").innerText(), "Построение образов области");
+  await field("geoType").selectOption("2");
+  for (const [label, n] of Object.entries({"X A":2, "Y A":1, "Z A":1, "X B":6, "Y B":5, "Z B":3})) {
+    await commit(card.getByLabel(label, {exact:true}), String(n));
+  }
+  await unpack.click();
+  await assertUnpackedTable(regionPanel, [[2,1,1],[2,1,1],[6,5,3],[6,5,3]]);
+  await commit(card.getByLabel("Y B", {exact:true}), "7");
+  await assertUnpackedTable(regionPanel, [[2,1,1],[2,1,1],[6,7,3],[6,7,3]]);
+  await regionPanel.getByRole("button", {name: "Закрыть окно"}).click();
+  await stageButton(1).click();
+  await transparency.press("Home");
+  assert.deepEqual(await visibleVertexLabels(viewport), new Set(["вершины 1, 2", "вершины 3, 4"]));
+  await tab("Элементы");
+  await elementPanel.getByRole("button", {name: "Закрыть окно"}).click();
+  await stageButton(1).click();
+  await transparency.press("Home");
+  await length.press("Home");
+  await viewport.focus(); await page.keyboard.press("x");
+  const pyramidLabels = await visibleVertexLabels(viewport);
+  assert.ok(pyramidLabels.has("вершины 2, 4, 6, 8"));
+  assert.ok([...pyramidLabels].some(label => /^вершина [1357]$/.test(label)));
+  await unpack.click();
+  await activateRow(1);
+  await assertUnpackedTable(elementPanel, prism(13));
+  await demoToggle.uncheck();
+  assert.equal(await elementPanel.count(), 0);
+  console.log("PASS Unpacked geometry, live coordinates, tab visibility, fixed tables and WebGL vertex hover");
   assert.deepEqual(errors,[]);
 } finally {
   await browser.close();
