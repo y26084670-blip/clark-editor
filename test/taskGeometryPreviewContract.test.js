@@ -26,7 +26,7 @@ test("task geometry preview loads only the three geometry model parts", async ()
   assert.doesNotMatch(source, /modelService|selectionService|setModelPart/u);
 });
 
-test("task geometry preview shows only original objects with mouse and keyboard controls", async () => {
+test("task geometry preview shows original objects with mouse-only camera controls", async () => {
   const source = await readFile(componentUrl, "utf8");
 
   assert.match(source, /<ThreeGeometryViewport/u);
@@ -38,9 +38,8 @@ test("task geometry preview shows only original objects with mouse and keyboard 
   assert.match(source, /periodic: false/u);
   assert.match(source, /projection="orthographic"/u);
   assert.match(source, /autoFit=\{true\}/u);
-  assert.match(source, /tabIndex="0"/u);
-  assert.match(source, /geometryCameraCommandFromKeyboardEvent\(event\)/u);
-  assert.match(source, /viewRequest=\{viewRequest\(\)\}/u);
+  assert.match(source, /<ThreeGeometryViewport\s+taskPreview\b/u);
+  assert.doesNotMatch(source, /onKeyDown|viewRequest|tabIndex/u);
   assert.match(source, /showVertices=\{false\}/u);
   assert.match(source, /showDiscretizationLines=\{false\}/u);
   assert.match(source, /showCentersAndNodes=\{false\}/u);

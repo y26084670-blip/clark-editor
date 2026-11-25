@@ -3,6 +3,57 @@ import { fileURLToPath } from "node:url";
 import { createServer } from "vite";
 import { chooseProjectDisk } from "./browser-project-access.mjs";
 
+async function checkPreviewCamera(page) {
+  const preview = page.locator(".task-geometry-preview");
+  const canvas = preview.locator("canvas"), tooltip = preview.getByRole("tooltip");
+  const box = await canvas.boundingBox();
+  const center = { x: Math.floor(box.width / 2), y: Math.floor(box.height / 2) };
+  const x = box.x + center.x, y = box.y + center.y;
+  const snapshot = async () => {
+    await canvas.hover({ position: { x: box.width - 5, y: 5 } });
+    await tooltip.waitFor({ state: "hidden" });
+    // Native Ctrl+A can select the canvas on this standalone fixture page.
+    await page.evaluate(() => window.getSelection()?.removeAllRanges());
+    return canvas.screenshot();
+  };
+
+  await canvas.hover({ position: center });
+  await tooltip.filter({ hasText: /элемент/i }).waitFor();
+  const axes = { x: 60, y: box.height - 60 };
+  await canvas.hover({ position: axes });
+  await tooltip.waitFor({ state: "hidden" });
+  const initial = await snapshot();
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x + 40, y + 18, { steps: 5 });
+  await page.mouse.up();
+  const rotated = await snapshot();
+  assert.ok(!rotated.equals(initial), "mouse drag rotates the preview");
+  await page.mouse.move(x, y);
+  await page.mouse.down({ button: "right" });
+  await page.mouse.move(x + 30, y, { steps: 4 });
+  await page.mouse.up({ button: "right" });
+  const panned = await snapshot();
+  assert.ok(!panned.equals(rotated), "mouse drag pans the preview");
+
+  // A panned, oblique view makes fit, reset and all six axis views observable.
+  await canvas.click({ position: center });
+  for (const key of ["a", "Control+a", "x", "Control+x", "y", "Control+y", "z", "Control+z"]) {
+    await page.keyboard.press(key);
+    assert.ok((await snapshot()).equals(panned), key + " moved the preview camera");
+  }
+  for (const modifier of ["Alt", "Shift"]) {
+    for (const axis of ["x", "y", "z"]) {
+      await page.mouse.move(x, y);
+      await page.keyboard.down(modifier);
+      await page.keyboard.press(axis);
+      await page.mouse.move(x + 40, y, { steps: 4 });
+      await page.keyboard.up(modifier);
+      assert.ok((await snapshot()).equals(panned), modifier + "+" + axis + " rotated the preview");
+    }
+  }
+}
+
 const root = fileURLToPath(new URL("../", import.meta.url));
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || "playwright");
 const route = "/__complete-geometry-window";
@@ -100,6 +151,8 @@ try {
   assert.equal(await preview.evaluate(c => c === previewCanvas && !c.getContext("webgl2").isContextLost()), true);
   assert.deepEqual(errors, []);
   console.log("PASS returning to the selected task preview keeps its canvas with zero extra directory reads");
+  await checkPreviewCamera(page);
+  console.log("PASS task preview keeps mouse navigation and geometry hover with camera keys and axes help off");
 
   await page.goto("http://127.0.0.1:" + server.httpServer.address().port + appRoute);
   await page.waitForFunction(() => window.editorFixture?.ready);

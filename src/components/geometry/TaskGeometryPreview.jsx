@@ -1,10 +1,6 @@
 import { Show, createEffect, createMemo, createSignal, onCleanup } from "solid-js";
 
 import { loadTaskGeometryPreview } from "../../services/taskGeometryPreviewService.js";
-import {
-  geometryCameraCommandFromKeyboardEvent,
-  isGeometryCameraShortcutTarget,
-} from "../../services/visualization/geometryCameraView.js";
 import { buildGeometryScene } from "../../services/visualization/geometrySceneModel.js";
 import { ThreeGeometryViewport } from "./ThreeGeometryViewport.jsx";
 import "./GeometryViewerWindow.css";
@@ -40,8 +36,6 @@ function PreviewContents(props) {
   const [sameAsLoaded, setSameAsLoaded] = createSignal(false);
   const [loading, setLoading] = createSignal(false);
   const [message, setMessage] = createSignal("");
-  const [viewRequest, setViewRequest] = createSignal(null);
-  let previewElement;
   let loadRevision = 0;
   let identityRevision = 0;
 
@@ -81,28 +75,12 @@ function PreviewContents(props) {
     }
   });
 
-  const requestView = (command) => {
-    setViewRequest((previous) => ({
-      command,
-      sequence: (previous?.sequence ?? 0) + 1,
-    }));
-  };
-
-  const handleKeyDown = (event) => {
-    if (!isGeometryCameraShortcutTarget(event.target)) return;
-    const command = geometryCameraCommandFromKeyboardEvent(event);
-    if (!command) return;
-    event.preventDefault();
-    requestView(command);
-  };
-
   createEffect(() => {
     const taskHandle = props.taskHandle;
     const revision = ++loadRevision;
 
     setSavedModel(null);
     setScene(null);
-    setViewRequest(null);
     setLoading(false);
     setMessage("");
     if (!taskHandle) return;
@@ -135,32 +113,24 @@ function PreviewContents(props) {
 
   return (
     <section
-      ref={(element) => (previewElement = element)}
       class="task-geometry-preview"
       aria-label="Предварительный просмотр геометрии выбранного задания"
       aria-busy={loading()}
-      tabIndex="0"
-      onPointerDown={(event) => {
-        if (isGeometryCameraShortcutTarget(event.target)) {
-          previewElement?.focus({ preventScroll: true });
-        }
-      }}
-      onKeyDown={handleKeyDown}
     >
       <Show when={scene()}>
-          <ThreeGeometryViewport
-            scene={scene()}
-            active={props.active}
-            filters={ORIGINAL_OBJECT_FILTERS}
-            mode="solid"
-            showEdges={true}
-            showVertices={false}
-            showDiscretizationLines={false}
-            showCentersAndNodes={false}
-            projection="orthographic"
-            autoFit={true}
-            viewRequest={viewRequest()}
-          />
+        <ThreeGeometryViewport
+          taskPreview
+          scene={scene()}
+          active={props.active}
+          filters={ORIGINAL_OBJECT_FILTERS}
+          mode="solid"
+          showEdges={true}
+          showVertices={false}
+          showDiscretizationLines={false}
+          showCentersAndNodes={false}
+          projection="orthographic"
+          autoFit={true}
+        />
       </Show>
       <Show when={!loading() && message()} keyed>
         {(text) => <div class="task-geometry-preview-overlay">{text}</div>}
