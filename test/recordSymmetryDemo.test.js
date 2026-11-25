@@ -17,6 +17,40 @@ const hex = {
     symKya: -1, symKyp: -1,
 };
 const stage = (n, changes = {}) => buildRecordSymmetryStage({ ...hex, ...changes }, settings, [], true, n);
+
+test("unpacked rows and vertex numbers stay local across stages and selected images", () => {
+    const vertices = [[0,3,0], [2,3,0], [0,3,4], [2,3,4], [0,0,0], [2,0,0], [0,0,4], [2,0,4]];
+    const expected = { vertices, vertexLabels: vertices.map((_, i) => `вершина ${i + 1}`) };
+    assert.deepEqual(stage(1).unpacked, expected);
+    const selected = buildRecordSymmetryStage(hex, settings, [], true, 9, 3, { ls: { all: false, number: 2 } });
+    assert.deepEqual(selected.unpacked, expected);
+    assert.ok(selected.scene.primitives[0].instances.every(image => image.ls === 1));
+    assert.deepEqual(stage(1, { geoType: 0, geo: vertices }).unpacked, expected);
+    const invalidTransform = stage(5, { symR0: vec(NaN, 0, 0) });
+    assert.equal(invalidTransform.scene.primitives.length, 0);
+    assert.deepEqual(invalidTransform.unpacked.vertices, vertices);
+    assert.deepEqual(stage(1, { geoType: 99 }).unpacked.vertices, []);
+});
+
+test("3D1 hover identifies all unpacked rows of coincident corners", () => {
+    const apex = [-5,6,7];
+    const pyramid = stage(1, { geoType: 4, geo: [[1,2,0], [4,5,6], [7]] }).unpacked;
+    for (const i of [1,3,5,7]) {
+        assert.deepEqual(pyramid.vertices[i], apex);
+        assert.equal(pyramid.vertexLabels[i], "вершины 2, 4, 6, 8");
+    }
+    const a = [1,2,3], b = [4,5,6];
+    const region = (geoType, geo) => buildRecordSymmetryStage({ ...hex, geoType, geo }, settings, [], false, 5);
+    assert.deepEqual(region(2, [a,b]).unpacked, {
+        vertices: [a,a,b,b], vertexLabels: ["вершины 1, 2", "вершины 3, 4"],
+    });
+    assert.deepEqual(region(2, [a,a]).unpacked.vertexLabels, ["вершины 1, 2, 3, 4", "вершины 1, 2, 3, 4"]);
+    const patch = [[0,0,0], [8,0,0], [8,5,4], [0,5,0]];
+    assert.deepEqual(region(0, patch).unpacked, {
+        vertices: patch, vertexLabels: ["вершина 1", "вершина 2", "вершина 3", "вершина 4"],
+    });
+});
+
 function near(actual, expected) {
     assert.equal(actual.length, expected.length);
     actual.forEach((x, i) => assert.ok(Math.abs(x - expected[i]) < 1e-10, actual + " vs " + expected));

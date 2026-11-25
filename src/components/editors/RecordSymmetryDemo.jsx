@@ -7,6 +7,7 @@ import {
   buildRecordSymmetryStage, buildDemoVectors, buildRegionNormalArrows,
 } from "../../services/visualization/recordSymmetryDemo.js";
 import { ThreeGeometryViewport } from "../geometry/ThreeGeometryViewport.jsx";
+import { FloatingWindow } from "../window/FloatingWindow.jsx";
 import "../geometry/GeometryViewerWindow.css";
 import { CardInput } from "./RecordCard.jsx";
 
@@ -63,9 +64,33 @@ function ImageSelection(props) {
   </>;
 }
 
+function UnpackedGeometryWindow(props) {
+  const { demo } = props;
+  const width = 576;
+  const height = demo.element ? 280 : 192;
+  const title = demo.element ? "Распакованная геометрия элемента" : "Распакованная геометрия области";
+  const rows = () => demo.geometry()?.unpacked.vertices ?? [];
+  return <FloatingWindow open={true} title={title} class="record-unpacked-window"
+    storageKey={"web-gui:unpacked-" + (demo.element ? "element" : "region")}
+    initialX={window.innerWidth - width - 16} initialY={window.innerHeight - height - 16}
+    initialWidth={width} fixedWidth={width} initialHeight={height} fixedHeight={height} minHeight={height}
+    allowMaximize={false} onClose={props.onClose}>
+    <Show when={rows().length} fallback={<p role="status">Координаты геометрии недоступны.</p>}>
+      <table>
+        <caption>{demo.element ? "Шестигранник" : "Площадка"} в локальной системе координат, мм</caption>
+        <thead><tr><th scope="col">Вершина</th><th scope="col">X</th><th scope="col">Y</th><th scope="col">Z</th></tr></thead>
+        <tbody><Index each={rows()}>{(point, i) =>
+          <tr><th scope="row">{i + 1}</th><Index each={point()}>{value => <td>{String(value())}</td>}</Index></tr>
+        }</Index></tbody>
+      </table>
+    </Show>
+  </FloatingWindow>;
+}
+
 export function RecordSymmetryControls(props) {
   const demo = props.demo;
   const count = demo.element ? 9 : 5;
+  const [unpackedOpen, setUnpackedOpen] = createSignal(false);
   function choose(request) {
     demo.setPosition(snapSymmetryStage(demo.stages(), request, request > demo.stage()));
   }
@@ -77,12 +102,14 @@ export function RecordSymmetryControls(props) {
         <button type="button" data-stage={n} disabled={!demo.stages().includes(n)}
           aria-current={demo.stage() === n && demo.record() ? "step" : undefined}
           onClick={() => choose(n)}><b>{n}.</b> {label}</button>
+        {n === 1 && <button type="button" class="record-demo-unpack" disabled={!demo.record()}
+          aria-haspopup="dialog" aria-expanded={unpackedOpen()} onClick={() => setUnpackedOpen(true)}>Распакованная</button>}
         {family && <ImageSelection demo={demo} family={family} label={label} />}
       </div>;
     }}</For>;
   }
   return <section class="record-demo-card" aria-label="Стадии построения образов">
-    <div class="record-card-info">{demo.element ? "Построение образов ШГ" : "Построение образов области"}</div>
+    <div class="record-card-info">{demo.element ? "Построение образов элемента" : "Построение образов области"}</div>
     <input class="record-demo-stage" type="range" aria-label="Стадия построения" min="1" max={count} step="1"
       value={demo.stage()} disabled={!demo.stages().length}
       aria-valuetext={demo.stage() + ". " + SYMMETRY_STAGES[demo.stage() - 1]}
@@ -126,6 +153,9 @@ export function RecordSymmetryControls(props) {
       </div>
     </div>
     <Show when={demo.error()}><div class="record-card-error" role="alert">{demo.error()}</div></Show>
+    <Show when={unpackedOpen() && demo.geometry()}>
+      <UnpackedGeometryWindow demo={demo} onClose={() => setUnpackedOpen(false)} />
+    </Show>
   </section>;
 }
 
@@ -152,7 +182,7 @@ export function RecordSymmetryViewport(props) {
       <Show when={demo.geometry()?.scene.primitives.length}>
         <ThreeGeometryViewport scene={demo.geometry().scene} demoStage={demo.geometry()}
           demoArrows={demo.arrows()} demoVectorKind={demo.element ? demo.kind() : "normal"} projection="orthographic"
-          autoFit={true} mode="solid" showEdges={demo.edges()} geometryOpacity={1 - demo.transparency() / 100}
+          autoFit={true} mode="solid" showVertices={true} showEdges={demo.edges()} geometryOpacity={1 - demo.transparency() / 100}
           viewRequest={viewRequest()} />
       </Show>
       <Show when={demo.geometry()?.notices.length || !demo.record()}>

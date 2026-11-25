@@ -1779,18 +1779,10 @@ export function ThreeGeometryViewport(props) {
       if (range && coordinates) {
         const metadata = vertexHitMetadata(range, vertexHit.index);
         if (metadata) {
-          if (flightPicking) return makeFlightTarget(range.source, coordinates,
-            formatVertexTooltip(range.source, metadata.vertexIndex, coordinates, metadata.instance), true);
-          showTooltip(
-            formatVertexTooltip(
-              range.source,
-              metadata.vertexIndex,
-              coordinates,
-              metadata.instance,
-            ),
-            x,
-            y,
-          );
+          const label = props.demoStage?.unpacked?.vertexLabels[metadata.vertexIndex]
+            ?? formatVertexTooltip(range.source, metadata.vertexIndex, coordinates, metadata.instance);
+          if (flightPicking) return makeFlightTarget(range.source, coordinates, label, true);
+          showTooltip(label, x, y);
           return;
         }
       }
