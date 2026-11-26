@@ -1,0 +1,1 @@
+{"j_HC0":1000000000,"JC0":2.5,"JCa":1,"JCb":0,"j_ani":false,"j_type":2,"j_gmin":25000,"j1_delta":0.1,"j2_n":24,"m_type":1,"m_HC0":1000,"m1_delta":0.1,"m3_Mmax":0,"m3_a":2,"m3_b":1,"KHabc":1,"Diag":0,"M3D":false,"comment":"Berger/MUFEM cube: isotropic n=25, constant Jc=2.5 A/mm2, Ec=1e-4 V/m. htcMu=false. Pure power law; MUFEM regularization differs."}
