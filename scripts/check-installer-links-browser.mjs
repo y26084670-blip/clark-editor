@@ -71,9 +71,13 @@ render(()=><Fixture/>, document.getElementById('root'));
       assert.equal(await demo.locator("..").innerText(),
         "Для быстрого знакомства без обязательств и загрузки дополнительных файлов нажмите кнопку Демо для эмуляции загрузки с возможностью редактирования конкретной задачи, 3D просмотра конструкции и общего ознакомления с интерфейсом.");
       const installation = help.locator('section[aria-labelledby="general-information-installation"]');
-      for (const text of ["PICT", "DOCS", "Добавить в список", "ClarkInstaller.exe", "mpiRanks"]) {
+      for (const text of ["PICT", "DOCS", "Локальная загрузка выделенного облачного проекта",
+        "Локальный каталог с проектами", "ClarkInstaller.exe", "mpiRanks"]) {
         assert.ok((await installation.innerText()).includes(text));
       }
+      assert.ok(!(await installation.innerText()).includes("Добавить в список"));
+      assert.match(await help.locator("#general-information-quick-start").locator("..").innerText(),
+        /Перетащите нужное локальное задание из списка проекта/);
       assert.equal(await installation.locator("a, button").count(), 0);
       await help.getByRole("button", { name: "Закрыть", exact: true }).click();
       pass("Quick Start shows cloud examples, the original Demo explanation and local installation instructions");
