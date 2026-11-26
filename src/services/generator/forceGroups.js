@@ -3,7 +3,7 @@ import { bounds, boxesMeet } from "../solver/medContactGeometry.js";
 import { needsCommonForceShell } from "./forceSurfaceGeometry.js";
 
 const physical = row => row.targ !== 3;
-export const forceSourceGroup = row => Number.isSafeInteger(row.take) && row.take > 0 ? row.take : 0;
+const groupOf = row => Number.isSafeInteger(row.take) && row.take > 0 ? row.take : 0;
 
 // Sweep expanded bounding boxes first. Only a candidate pair needs a solid
 // distance query. Mirror, local, axial and periodic images retain the source ID.
@@ -37,7 +37,7 @@ function visitClosePairs(kernel,model,geometry,minimum,relevant,visit) {
 
 export function conflictingForceContacts(kernel, model, minimum=model.general?.forceGroupMinGap ?? 2) {
     const externalFaces = model.general?.forceFaceOffset > 0;
-    const ids = model.elements.map(row => physical(row) ? forceSourceGroup(row) : null);
+    const ids = model.elements.map(row => physical(row) ? groupOf(row) : null);
     if (new Set(ids.filter(id => id !== null && (externalFaces || id > 0))).size < 2) return [];
     const conflicts = new Map();
     visitClosePairs(kernel,model,forceBodies(model),externalFaces ? 0 : minimum,

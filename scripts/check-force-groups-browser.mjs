@@ -142,8 +142,23 @@ async function checkMode(offset) {
         assert.equal(after.some(m => m.includes("Для группы 3 нет силовых площадок")),offset === 0);
         await page.keyboard.press("Control+s");
         await page.waitForFunction(async () => JSON.parse((await editorFixture.read("input3XX/tks.txt")).split("\n")[0]).forceGroup === 1);
+        await page.locator(".tabs-header button").getByText("Элементы",{exact:true}).click();
+        await page.evaluate(async () => {
+            const table = editorFixture.tables(".tabulator").find(t => t.getData().some(r => r.name === "ШГ 1"));
+            await table.scrollToColumn("take", "center", false);
+            table.getRows()[0].getCell("take").edit();
+        });
+        const input = page.locator(".tabulator-editing input");
+        await input.fill("-12");
+        await input.press("Enter");
+        await page.waitForFunction(() => editorFixture.model().elements[0].take === -12);
+        await open();
+        await buildAndConfirm([-12,1,2,3]);
+        await button("Закрыть").click();
+        await page.keyboard.press("Control+s");
+        await page.waitForFunction(async () => JSON.parse((await editorFixture.read("input3XX/kvs.txt")).split("\n")[0]).take === -12);
         assert.deepEqual(errors,[]);
-        console.log(`PASS group-0 selection, rebuild, manual TK assignment, validation and save; offset=${offset}`);
+        console.log(`PASS group-0 selection, signed group edit, rebuild, manual TK assignment, validation and save; offset=${offset}`);
     } finally {
         await page.close();
     }
