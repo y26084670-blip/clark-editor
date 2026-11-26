@@ -22,4 +22,4 @@ jobs:
       - name: Browser group entry, grouping and save
         run: |
           export CHROMIUM_EXECUTABLE="$(command -v google-chrome)"
-          node scripts/check-force-groups-browser.mjs
+          timeout --kill-after=10s 115s env DEBUG=pw:api node scripts/check-force-groups-browser.mjs
