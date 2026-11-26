@@ -1,0 +1,56 @@
+{
+  "center_L2_change_from_half_modes": 0.0,
+  "interior_convergence": {
+    "ratio": 0.00916905871368699,
+    "flux_change": 1.0051898803744392e-19,
+    "flux_ratio": 7.999046910377149e-5,
+    "worst_probe": [
+      0.0,
+      4.0e-9,
+      1
+    ],
+    "worst_component": "Jy",
+    "worst_change": 1.408892345096545e-7,
+    "worst_tolerance": 1.5365724978873127e-5
+  },
+  "modes": 2048,
+  "pickup": {
+    "bar_emf_V": {
+      "amp": 0.022015006394136154,
+      "im": 0.008905750664556851,
+      "re": 0.02013325884288485
+    },
+    "bar_linkage_Wb": {
+      "amp": 1.751898544913226e-7,
+      "im": 1.6021538326968684e-7,
+      "re": -7.086971201040773e-8
+    },
+    "inner_radius_mm": 12.0,
+    "mean_turn_area_mm2": 531.9763560078716,
+    "name": "pickup_1",
+    "orientation": 1,
+    "outer_radius_mm": 14.0,
+    "primary_linkage_Wb": {
+      "amp": 6.685012047671192e-7,
+      "im": -6.685012047671192e-7,
+      "re": 0.0
+    },
+    "total_emf_V": {
+      "amp": 0.06449095097443971,
+      "im": 0.008905750664556851,
+      "re": -0.06387308010960746
+    },
+    "total_linkage_Wb": {
+      "amp": 5.132026816139583e-7,
+      "im": -5.082858214974324e-7,
+      "re": -7.086971201040773e-8
+    },
+    "turns": 1
+  },
+  "scope": "Infinite 2D nonmagnetic bar; centred circular coil completely enclosing bar; one turn, normal +X",
+  "skin_depth_mm": [
+    1.1253953951963824,
+    3.5588127170858854
+  ],
+  "time_convention": "exp(+i omega t); Hhat=-i 1 kA/m"
+}
