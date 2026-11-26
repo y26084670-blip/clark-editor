@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "settings": {
+    "only": false,
+    "areas": false,
+    "showSlices": false,
+    "slices": [],
+    "active": null,
+    "profiles": [],
+    "activeProfile": null,
+    "expandedProfile": null,
+    "view": {
+      "resultVectorScale": 3.9810717055349722,
+      "resultPalette": "Rainbow",
+      "resultElementsQuantity": "J",
+      "resultRegionsQuantity": "Bs",
+      "resultVirtualQuantity": "none",
+      "areaGraphX": true,
+      "areaGraphY": true,
+      "areaGraphZ": false,
+      "elementsMode": "exceptSelected",
+      "regionsMode": "all",
+      "showLocalSymmetry": true,
+      "showAxialSymmetry": true,
+      "showPeriodicSymmetry": true,
+      "showMirrorSymmetry": true
+    },
+    "selections": {
+      "elements": [
+        4
+      ],
+      "regions": []
+    }
+  }
+}
