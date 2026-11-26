@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { buildCloudCatalogs, copyCloudTask } from '../src/services/cloudExamples.js';
 import assert from 'node:assert/strict';
 import * as fs from 'node:fs/promises';
 import path from 'node:path';
@@ -389,4 +390,24 @@ test('partial delete reports remaining files and does not keep a runnable list r
   });
   assert.equal(await f.read(f.source, 'protocol.log'), 'old log');
   assert.equal(await f.read(f.root, 'clark.tasks.txt'), '*Project/Other\n');
+});
+
+test('cloud download rolls back a short response and retries without overwriting a sibling', async t => {
+  const f = await fixture(t);
+  const root = 'clark.examples';
+  const prefix = root + '/Project/Task/';
+  const manifest = {
+    version: 1, baseUrl: 'examples/', catalogs: [{ directory: root, name: root + '_cloud' }],
+    entries: ['input3XX/model', 'output3XX/solution'].map(name => ({ path: prefix + name, type: 'file', size: 3 })),
+  };
+  let truncated = true;
+  const [catalog] = buildCloudCatalogs(manifest, 'https://example.test/cloud-examples.json',
+    async url => new Response(truncated && url.endsWith('solution') ? 'x' : 'abc'));
+  const source = await (await catalog.handle.getDirectoryHandle('project')).getDirectoryHandle('Task');
+  await assert.rejects(copyCloudTask(source, f.parent, 'Test'), /Размер/);
+  await assert.rejects(f.parent.getDirectoryHandle('Test'), { name: 'NotFoundError' });
+  truncated = false;
+  const local = await copyCloudTask(source, f.parent, 'Test');
+  assert.equal(await fs.readFile(path.join(local.location, 'output3XX/solution'), 'utf8'), 'abc');
+  await assert.rejects(copyCloudTask(source, f.parent, 'test'), error => Boolean(error.suggestedName));
 });

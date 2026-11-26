@@ -43,11 +43,13 @@ export async function prepareExamplesAssets({
     outputRoot = defaultOutputRoot,
     configPath = defaultConfigPath,
     allowMissingSource = path.resolve(sourceRoot) === path.resolve(defaultSourceRoot),
+    baseUrl = "examples/clark.projects/",
+    manifestName = "examples-manifest.json",
     omBundle = path.resolve(sourceRoot) === path.resolve(defaultSourceRoot) ? path.join(projectRoot, "data", "om-examples.json") : null,
 } = {}) {
     const source = path.resolve(sourceRoot);
     const output = path.resolve(outputRoot);
-    const destination = path.join(output, "examples", "clark.projects");
+    const destination = path.join(output, baseUrl);
     const sourceLocation = await resolveLocation(source);
     const destinationLocation = await resolveLocation(destination);
     const inPlace = sourceLocation === destinationLocation;
@@ -160,8 +162,12 @@ export async function prepareExamplesAssets({
         }
     }
     await writeFile(path.join(output, "examples-config.json"), configText, "utf8");
-    const manifestPath = path.join(output, "examples-manifest.json");
-    const manifest = { version: 1, baseUrl: "examples/clark.projects/", entries };
+    const manifestPath = path.join(output, manifestName);
+    const manifest = { version: 1, baseUrl, entries };
+    if (manifestName === "cloud-examples.json") {
+        manifest.catalogs = entries.filter(entry => entry.type === "directory" && !entry.path.includes("/"))
+            .map(({ path: directory }) => ({ directory, name: directory + "_cloud" }));
+    }
     await writeFile(manifestPath, JSON.stringify(manifest, null, 2) + "\n", "utf8");
     return {
         sourceRoot: source, outputRoot: output, manifestPath, sourceAvailable, inPlace,
@@ -186,10 +192,18 @@ function parseArguments(args) {
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
     try {
-        const result = await prepareExamplesAssets(parseArguments(process.argv.slice(2)));
+        const options = parseArguments(process.argv.slice(2));
+        if (!options.sourceRoot) {
+            const cloud = await prepareExamplesAssets({
+                ...options, sourceRoot: path.join(projectRoot, "public", "examples"),
+                baseUrl: "examples/", manifestName: "cloud-examples.json", omBundle: null,
+            });
+            console.log("Индекс облачных примеров подготовлен. Файлов: " + cloud.fileCount);
+        }
+        const result = await prepareExamplesAssets(options);
         console.log(result.sourceAvailable
             ? `Подготовлены примеры: ${result.fileCount} файлов, ${result.directoryCount} каталогов, ${result.totalBytes} байт.`
-            : "Каталог примеров пока отсутствует; подготовлен пустой список файлов.");
+            : "Подготовлен комплект дополнительных примеров ОМ.");
     }
     catch (error) {
         console.error(error.message);

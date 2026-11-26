@@ -1,7 +1,6 @@
-import { For, createEffect, createSignal, onCleanup } from "solid-js";
+import { For, createEffect, onCleanup } from "solid-js";
 import projectSelectionUrl from "../../assets/help/project-selection.png";
 import taskSelectionUrl from "../../assets/help/task-selection.png";
-import { ExamplesInstaller } from "./ExamplesInstaller";
 import "./GeneralInformationDialog.css";
 
 const units = [
@@ -22,11 +21,9 @@ export function GeneralInformationDialog(props) {
   let dialog;
   let closeButton;
   let content;
-  const [installerOpen, setInstallerOpen] = createSignal(false);
 
   createEffect(() => {
     if (!dialog) return;
-    setInstallerOpen(Boolean(props.open));
     if (props.open) {
       if (!dialog.open) {
         dialog.showModal();
@@ -47,11 +44,7 @@ export function GeneralInformationDialog(props) {
       ref={(el) => (dialog = el)}
       class="general-information-dialog"
       aria-labelledby="general-information-title"
-      onCancel={() => setInstallerOpen(false)}
-      onClose={() => {
-        setInstallerOpen(false);
-        props.onClose?.();
-      }}
+      onClose={() => props.onClose?.()}
     >
       <header class="general-information-header">
         <h2 id="general-information-title">Общая информация</h2>
@@ -65,13 +58,18 @@ export function GeneralInformationDialog(props) {
         tabindex="0"
       >
         <section aria-labelledby="general-information-installation">
-          <h3 id="general-information-installation">1. Установка примеров и решателя</h3>
+          <h3 id="general-information-installation">1. Установка примеров</h3>
           <p>
-            Знакомство с редактором рекомендуется начать с установки примеров.
-            Ниже можно скачать ZIP-архив примеров и актуальный установщик решателя.
-            Для первой установки оставьте «Прямая загрузка» выключенной.
+            Для загрузки рассчитанных примеров на вкладке «Выбор задания» выберите каталог
+            со значком облака ☁, затем проект и задание. До выбора локального диска уже
+            доступны 3D-геометрия, иллюстрации PICT и документы DOCS.
           </p>
-          <ExamplesInstaller open={installerOpen()} />
+          <p>
+            Нажмите <strong>«Загрузить»</strong>, выберите локальный диск, каталог и проект.
+            Нажмите <strong>«Применить»</strong>, чтобы скопировать задание целиком.
+            При совпадении имён можно принять предложенное имя или ввести своё.
+            Флажок <strong>«Добавить в список»</strong> включает копию в список заданий для расчёта.
+          </p>
           <p>
             Для быстрого знакомства без обязательств и загрузки дополнительных
             файлов нажмите кнопку{" "}
@@ -110,12 +108,12 @@ export function GeneralInformationDialog(props) {
         <section aria-labelledby="general-information-selection">
           <h3 id="general-information-selection">2. Выбор и предпросмотр</h3>
           <p>
-            После открытия страницы или F5 в панели <strong>«Доступ к проектам»</strong>
-            выберите диск с правами чтения и записи. Там же можно нажать
+            Для работы с локальными заданиями откройте панель <strong>«Доступ к проектам»</strong>
+            и выберите диск с правами чтения и записи. Там же можно нажать
             <strong> «Связать с Решателем»</strong> и один раз подтвердить тот же диск
             в Clark. Затем нажмите <strong>«Продолжить»</strong> и выберите в верхнем
             списке каталог <strong>clark.*</strong>, обычно <strong>clark.projects</strong>.
-            Каталог clark.app исключён. Значок папки рядом со списком снова открывает панель доступа.
+            Каталог clark.app исключён. Кнопка «Доступ к проектам» позволяет снова выбрать диск.
           </p>
           <p>
             Редактор использует двухуровневую систему каталогов:
@@ -240,55 +238,15 @@ export function GeneralInformationDialog(props) {
             4. Быстрая справка по установке и использованию решателя.
           </h3>
           <ul>
-            <li>
-              Установить решатель. Для этого нажать
-              {" "}<strong>«Скачать установщик решателя»</strong> и подтверждать
-              согласие на это. После закачки запустить указанный файл и также
-              назначить после запроса диск D (для удобства). После установки
-              на рабочем столе появится папка Clark с ярлыками.
-            </li>
-            <li>
-              Нажать кнопку <strong>«Установить примеры»</strong>, скачать
-              ZIP-архив и распаковать его в корень рабочего диска, обычно D.
-              Каталог примеров будет доступен как
-              {" "}<code>D:\clark.projects</code>. В ней помимо каталогов с
-              задачами будет образец файла списка заданий
-              {" "}<code>clark.examples.txt</code>.
-            </li>
-            <li>
-              Открыть список и убрать лишние символы у строк каталогов заданий,
-              для которых требуется расчёт. То есть строка должна содержать
-              правильный путь к задаче. Сохранить изменения для подготовленного
-              списка.
-            </li>
-            <li>
-              Проверить наличие ошибок в нужных заданиях. Для этого в этом
-              редакторе: выбрать диск D в панели доступа, затем каталог
-              {" "}<strong>clark.projects</strong> в верхнем списке → Список проектов: выбрать
-              проект → Список заданий: выбрать задание. В процессе выбора
-              (выделения строк в списке) будет обновляться показ геометрии.
-              Для выбранного задания нажать
-              {" "}<strong>«Загрузить для редактирования»</strong>.
-            </li>
-            <li>
-              Нажать <strong>«Проверить модель»</strong> →
-              {" "}<strong>«Диагностика»</strong> (круглая кнопка). Пояснение:
-              примеры содержат импортированные данные, для которых осознанно
-              не создавались локальные библиотеки характеристик. Поэтому для
-              исправления ошибок перейти на вкладку характеристик материалов
-              и создать локальные библиотеки из выделенных характеристик,
-              пользуясь логикой. После всех исправлений нажать
-              {" "}<strong>«Сохранить модель»</strong>.
-            </li>
-            <li>
-              Теперь: исходные данные подготовлены, список задач подготовлен,
-              решатель установлен. Следовательно, можно запускать расчёт.
-              На рабочем столе выбрать ярлык <code>Clark\Запуск расчета</code>.
-              В диалоге предложится выбрать список заданий (тот, который ранее
-              был подготовлен). В нашем случае надо в диалоге найти и открыть
-              файл <code>D:\clark.projects\clark.examples.txt</code>.
-              После этого начнётся расчёт.
-            </li>
+            <li>Установите Clark с помощью <code>ClarkInstaller.exe</code> и свяжите
+              локальный диск с решателем через «Доступ к проектам».</li>
+            <li>Загрузите нужные примеры по пункту 1. В Editor откройте зелёную кнопку
+              «Формирование списка заданий и запуск приложений» и проверьте состав списка.</li>
+            <li>Если Windows отметила файлы задания как заблокированные, его имя подсвечивается красным.
+              Для проверки обновите список заданий. В окне запуска выберите
+              «разблокировать» и нажмите «Запустить». Команда применяется к заданиям списка.</li>
+            <li>Для расчёта выберите режим «расчёт» и нажмите «Запустить».
+              Список также можно передать ярлыку «Запуск расчета» в папке Clark на рабочем столе.</li>
           </ul>
         </section>
 
@@ -329,7 +287,6 @@ export function GeneralInformationDialog(props) {
           type="button"
           class="general-information-close-button"
           onClick={() => {
-            setInstallerOpen(false);
             dialog.close();
           }}
         >
