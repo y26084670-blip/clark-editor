@@ -1,5 +1,3 @@
-import { isProjectCatalog, readTaskQueueCatalog } from "./projectDiskAccessService.js";
-
 export const TASK_DRAG_TYPE = "application/x-clark-task";
 const keyOf = value => value.toLowerCase();
 
@@ -16,39 +14,7 @@ export function describeTaskQueue(root, catalogs, entries) {
   });
 }
 
-export async function createTaskQueueEntry(queueRoot, disk, source) {
-  const root = source?.rootHandle;
-  if (!queueRoot || !disk || !root || !source.handle || !isProjectCatalog(root.name)) {
-    throw new Error("Перетащите задание из списка выбранного проекта.");
-  }
-  const [origin, location, parts] = await Promise.all([
-    disk.resolve(queueRoot), disk.resolve(root), root.resolve(source.handle),
-  ]);
-  if (origin?.length !== 1 || location?.length !== 1 || parts?.length !== 2
-    || keyOf(origin[0]) !== keyOf(queueRoot.name) || keyOf(location[0]) !== keyOf(root.name)) {
-    throw new Error("Задание должно находиться в каталоге с проектами выбранного диска.");
-  }
-  const taskPath = parts.join("/");
-  const sameCatalog = keyOf(origin[0]) === keyOf(location[0]);
-  return { path: sameCatalog ? taskPath : `../${location[0]}/${taskPath}`, enabled: true };
-}
-
-export async function restoreTaskQueueRoot(disk, catalogs, readCatalog = readTaskQueueCatalog) {
-  const saved = await readCatalog(disk);
-  const remembered = catalogs.find(item => keyOf(item.name) === keyOf(saved ?? ""));
-  if (remembered) return remembered.handle;
-  // До появления сохранённого адреса используем последний записанный список.
-  const lists = await Promise.all(catalogs.map(async catalog => {
-    try {
-      const file = await (await catalog.handle.getFileHandle("clark.tasks.txt")).getFile();
-      return { handle: catalog.handle, modified: file.lastModified };
-    } catch (error) {
-      if (error?.name === "NotFoundError") return null;
-      throw error;
-    }
-  }));
-  return lists.filter(Boolean).sort((left, right) => right.modified - left.modified)[0]?.handle ?? null;
-}
+export { createTaskQueueEntry, restoreTaskQueueRoot } from "./taskListFile.js";
 
 export function taskQueueWindowRect(panels, viewport = window) {
   const middle = panels?.querySelector(".task-summary-panel")?.getBoundingClientRect();

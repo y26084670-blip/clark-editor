@@ -1,6 +1,6 @@
 import {
   For, Show, batch, createEffect, createMemo, createSignal, createUniqueId,
-  onCleanup, onMount, untrack,
+  on, onCleanup, onMount, untrack,
 } from "solid-js";
 import { FloatingWindow } from "../window/FloatingWindow.jsx";
 import { selectionService } from "../../services/selectionService.js";
@@ -11,9 +11,11 @@ import { readTaskSolutionEntry } from "../../services/taskStatusService.js";
 import {
   createNativeLaunchUri, invalidateLaunchRequest,
   prepareLaunchRequest, readLaunchResult,
-  readTaskList, writeTaskList,
+  readTaskList,
   parseMpiRanks, formatMpiRanks, readRuntimeSettings,
 } from "../../services/taskLaunchService.js";
+import { changeTaskList } from "../../services/taskListFile.js";
+import { readZoneReport } from "../../services/cloudExamples.js";
 import { TASK_DRAG_TYPE, createTaskQueueEntry, describeTaskQueue } from "../../services/taskQueueService.js";
 import "./TaskLaunchWindow.css";
 
@@ -28,6 +30,16 @@ export function TaskLaunchWindow(props) {
     () => entries().map(entry => ({ key: entry.path, root: entry.rootHandle, path: entry.taskPath })),
     { refreshOnChange: false, read: readTaskSolutionEntry },
   );
+  const [blockedPaths, setBlockedPaths] = createSignal(new Set());
+  let zoneRevision = 0;
+  async function refreshZones(rows) {
+    const revision = ++zoneRevision;
+    const roots = [...new Set(rows.map(row => row.rootHandle).filter(Boolean))];
+    const reports = new Map(await Promise.all(roots.map(async root => [root, await readZoneReport(root)])));
+    if (revision === zoneRevision && !disposed) setBlockedPaths(new Set(rows.filter(row =>
+      reports.get(row.rootHandle)?.blocked.has(keyOf(row.taskPath.normalize("NFC")))).map(row => row.path)));
+  }
+  createEffect(() => { void refreshZones(entries()); });
   const [listExists, setListExists] = createSignal(false);
   const [listValid, setListValid] = createSignal(false);
   const [dragOver, setDragOver] = createSignal(false);
@@ -91,11 +103,13 @@ export function TaskLaunchWindow(props) {
   });
   const launchReady = () => !launchBaseReason();
   const canLaunch = () => launchReady() && enabledEntries().length > 0;
+  const usesMpi = () => !["import", "unblock"].includes(launchMode());
   const selectedLaunchReason = createMemo(() => {
     if (!enabledEntries().length) return "Добавьте в список хотя бы одно задание.";
     if (launchBaseReason()) return launchBaseReason();
     if (launchMode() === "modelica" && enabledEntries().length !== 1) return "Для запуска ОМ-клиента оставьте ровно одно задание в списке.";
-    if (launchMode() !== "import") {
+    if (launchMode() === "unblock" && binding()?.fileZonesVersion !== 1) return "Для разблокировки обновите Windows-обработчик Clark и повторите привязку.";
+    if (usesMpi()) {
       if (mpiError()) return mpiError();
       if (mpiEdited() && parseMpiRanks(mpiValue()) !== null && binding()?.launchOptionsVersion !== 1) {
         return "Для выбора числа процессов обновите установленный Clark и повторите привязку.";
@@ -126,7 +140,7 @@ export function TaskLaunchWindow(props) {
 
   async function loadRoot(root, revision) {
     if (!root) return;
-    setBusy(true);
+    setBusy(true); setProof(null); setListValid(false);
     try {
       const result = await readTaskList(root);
       if (!current(root, revision)) return;
@@ -170,6 +184,13 @@ export function TaskLaunchWindow(props) {
       void loadRoot(root, revision);
     });
   });
+
+  // Viewer can append downloaded tasks while this window is closed or in the background.
+  function readQueueOnReturn() {
+    if (props.open && !pending() && !locked()) void loadRoot(props.rootHandle, rootRevision);
+    else void refreshOnFocus();
+  }
+  createEffect(on(() => props.open, open => { if (open) readQueueOnReturn(); }, { defer: true }));
 
   createEffect(() => {
     const marker = binding();
@@ -277,16 +298,14 @@ export function TaskLaunchWindow(props) {
     if (!acceptsDrop(event)) return;
     event.preventDefault();
     const source = props.draggedTask;
-    const snapshot = entries();
     void changeList(async root => {
       const entry = await createTaskQueueEntry(root, props.diskHandle, source);
-      return writeTaskList(root, [...snapshot, entry]);
+      return changeTaskList(root, rows => [...rows.filter(row => keyOf(row.path) !== keyOf(entry.path)), entry]);
     }, true);
   }
 
   function removeEntry(entry) {
-    const snapshot = entries().filter(item => keyOf(item.path) !== keyOf(entry.path));
-    return changeList(root => writeTaskList(root, snapshot));
+    return changeList(root => changeTaskList(root, rows => rows.filter(item => keyOf(item.path) !== keyOf(entry.path))));
   }
 
   async function copyTaskList() {
@@ -363,7 +382,7 @@ export function TaskLaunchWindow(props) {
     const prepared = proof();
     const snapshot = entries().map(entry => ({ ...entry }));
     try {
-      const ranks = action === "import" || !mpiEdited() ? null : parseMpiRanks(mpiValue());
+      const ranks = action === "import" || action === "unblock" || !mpiEdited() ? null : parseMpiRanks(mpiValue());
       if (ranks !== null && binding()?.launchOptionsVersion !== 1) {
         throw new Error("Для выбора числа процессов обновите установленный Clark и повторите привязку.");
       }
@@ -412,7 +431,8 @@ export function TaskLaunchWindow(props) {
       setNotice(result.message || "Выполнение завершено.");
     }
     try {
-      if (result.state === "completed" || (run.action === "import"
+      if (run.action === "unblock") await refreshZones(entries());
+      if (result.state === "completed" || run.action === "unblock" || (run.action === "import"
         && (run.state === "accepted" || Number.isInteger(result.exitCode)))) {
         if (run.action === "import" && result.state === "completed") {
           setNotice("Импорт данных завершён. Перенос используемых характеристик из XAP.lib…");
@@ -520,7 +540,7 @@ export function TaskLaunchWindow(props) {
 
   onMount(() => {
     const timer = window.setInterval(() => { void pollNative(); void pollSettings(); }, 1000);
-    const onFocus = () => { void refreshOnFocus(); void pollSettings(); };
+    const onFocus = () => { readQueueOnReturn(); void pollSettings(); };
     window.addEventListener("focus", onFocus);
     onCleanup(() => {
       window.clearInterval(timer);
@@ -592,7 +612,7 @@ export function TaskLaunchWindow(props) {
           <For each={entries()} fallback={
             <div class="task-launch-empty">{busy() ? "Загрузка…" : "Перетащите сюда задания из списка выбранного проекта."}</div>
           }>{entry => (
-            <div role="listitem" class="task-launch-row" tabIndex="0"
+            <div role="listitem" class="task-launch-row" classList={{ "is-zone-blocked": blockedPaths().has(entry.path) }} tabIndex="0"
               title="Двойной щелчок — выбрать каталог, проект и задание"
               onDblClick={event => { if (!event.target.closest("button")) void navigateEntry(entry); }}
               onKeyDown={event => { if (event.key === "Enter" && event.target === event.currentTarget) void navigateEntry(entry); }}>
@@ -624,18 +644,18 @@ export function TaskLaunchWindow(props) {
           <div class="task-launch-mode">
             <label class="task-launch-mpi">
               <span>MPI</span>
-              <input type="text" inputMode="numeric" aria-label="Число процессов MPI" value={mpiValue()} disabled={locked() || launchMode() === "import"}
-                aria-invalid={launchMode() !== "import" && Boolean(mpiError())}
+              <input type="text" inputMode="numeric" aria-label="Число процессов MPI" value={mpiValue()} disabled={locked() || !usesMpi()}
+                aria-invalid={usesMpi() && Boolean(mpiError())}
                 title="Число процессов для расчёта и полевого решателя цепи. Для постоянного значения измените mpiRanks в clark.app\config\runtime.json. Значение в этом поле применяется к текущему запуску; default — значение из настроек Clark. Импорт не использует MPI."
                 onInput={event => { setMpiEdited(true); setMpiValue(event.currentTarget.value); }}
                 onBlur={() => { if (!mpiValue().trim()) setMpiValue("default"); }} />
             </label>
-            <Show when={launchMode() !== "import" && mpiError()}><span class="task-launch-error" role="alert">{mpiError()}</span></Show>
+            <Show when={usesMpi() && mpiError()}><span class="task-launch-error" role="alert">{mpiError()}</span></Show>
             <button ref={modelicaButton} class="task-launch-start" type="button" disabled={!selectedLaunchReady()}
               title={selectedLaunchReason() || "Запустить задания из сформированного списка"}
               onClick={requestLaunch}>Запустить</button>
             <div class="task-launch-modes" role="radiogroup" aria-label="Режим запуска">
-              <For each={[[ "solver", "расчёт" ], [ "modelica", "ОМ клиент" ], [ "import", "импорт" ]]}>{([mode, label]) =>
+              <For each={[[ "solver", "расчёт" ], [ "modelica", "ОМ клиент" ], [ "import", "импорт" ], [ "unblock", "разблокировать" ]]}>{([mode, label]) =>
                 <label><input type="radio" name={`${listId}-launch-mode`} checked={launchMode() === mode} disabled={locked()}
                   onChange={() => { setConfirmImport(false); setLaunchMode(mode); }} />{label}</label>}</For>
             </div>

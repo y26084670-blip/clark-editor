@@ -20,10 +20,6 @@ const server = await createServer({ root, cacheDir: `${output}/vite-cache`, reso
     await realpath(resolve(root, "node_modules")), await realpath(resolve(viewer, "node_modules"))] } },
   plugins: [{ name: "update-notifications-fixture", configureServer(server) {
     server.middlewares.use(async (req, res, next) => {
-      if (req.url === "/__updates/examples-config.json") {
-        res.setHeader("Content-Type", "application/json"); res.setHeader("Cache-Control", "no-store");
-        res.end(JSON.stringify({ solverInstallerUrl: "https://example.test/ClarkInstaller.exe" })); return;
-      }
       if (req.url === "/__updates/feed") {
         res.setHeader("Content-Type", "application/json"); res.setHeader("Cache-Control", "no-store");
         res.statusCode = offline ? 503 : 200; res.end(JSON.stringify(feed)); return;
@@ -59,12 +55,14 @@ try {
   pass("new notifications use a passive badge in both applications");
   await show(editor); await show(viewerPage);
   await editor.getByText("Рекомендуется обновить Clark", { exact: true }).waitFor();
-  assert.equal(await editor.getByRole("link", { name: "Скачать установщик" }).getAttribute("href"), "https://example.test/ClarkInstaller.exe");
+  for (const page of [editor, viewerPage]) {
+    assert.equal(await page.getByRole("link", { name: "Скачать установщик" }).count(), 0);
+  }
   assert.equal(await badge(editor).textContent(), "2"); assert.equal(await editor.locator(".whats-new-entry").count(), 2);
   pass("version 0.10.9 is below 0.10.10; opening preserves unread marks and shows the archive");
   for (const page of [editor, viewerPage]) {
     const tabs = page.getByRole("tablist").getByRole("tab");
-    assert.deepEqual(await tabs.allTextContents(), ["Рекомендации", "Интерфейс (1)", "Алгоритмы (1)"]);
+    assert.deepEqual(await tabs.allTextContents(), ["Рекомендации", "Интерфейс (1)", "Модель (1)"]);
     await tabs.first().click();
     await page.getByText("Рекомендаций пока нет.", { exact: true }).waitFor();
     assert.equal(await page.getByLabel("Только непрочитанные").count(), 0);
@@ -75,7 +73,7 @@ try {
   pass("recommendations precede both news tabs and old feeds open an empty section without changing unread counts");
   await editor.getByRole("button", { name: "Отметить раздел прочитанным" }).click();
   await viewerPage.waitForFunction(() => document.querySelector(".whats-new-count")?.textContent === "1");
-  await viewerPage.getByRole("tab", { name: "Алгоритмы (1)", exact: true }).click();
+  await viewerPage.getByRole("tab", { name: "Модель (1)", exact: true }).click();
   await viewerPage.getByText("Влияет на результаты расчёта", { exact: true }).waitFor();
   assert.equal(await viewerPage.locator(".whats-new-entry").count(), 1);
   await viewerPage.getByRole("button", { name: "Прочитано", exact: true }).click();
@@ -147,6 +145,7 @@ try {
   feed = await published.json();
   assert.deepEqual(feed.recommendations, [...journal.recommendations].reverse());
   assert.deepEqual(feed.entries, journal.entries);
+  assert.deepEqual(feed.recommendedClark, journal.recommendedClark);
   await show(editor);
   await editor.getByRole("button", { name: "Проверить обновления", exact: true }).click();
   for (const [app, appPage] of [["editor", editor], ["viewer", viewerPage]]) {
@@ -162,7 +161,7 @@ try {
     for (const title of ["Верхняя панель Editor и тема уведомлений", "Уведомления об изменениях и обновлениях"]) {
       assert.equal(await appPage.getByRole("heading", { name: title, exact: true }).count(), 0);
     }
-    for (const [key, label] of [["interface", "Интерфейс"], ["computation", "Алгоритмы"]]) {
+    for (const [key, label] of [["interface", "Интерфейс"], ["computation", "Модель"]]) {
       await appPage.getByRole("tab", { name: new RegExp(`^${label}`) }).click();
       const section = feed.entries.filter(item => item.category === key)
         .sort((a, b) => b.date.localeCompare(a.date));
@@ -177,7 +176,7 @@ try {
       name: "Снятие формальных ограничений на шестигранные элементы", exact: true }) });
     const summary = (await hex.locator("p").first().innerText()).split("\n");
     assert.ok(summary.length >= 4 && summary.length <= 5);
-    assert.match(summary.at(-1), /сходимость итераций/);
+    assert.ok(summary.some(line => line.includes("сходимость итераций")));
     await appPage.getByRole("tab", { name: "Рекомендации", exact: true }).click();
     const panel = appPage.getByRole("tabpanel", { name: "Рекомендации" });
     assert.deepEqual(await panel.getByRole("heading").allTextContents(),

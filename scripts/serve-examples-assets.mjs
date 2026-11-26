@@ -2,7 +2,7 @@ import { open, readFile, realpath } from "node:fs/promises";
 import path from "node:path";
 import { pipeline } from "node:stream";
 
-const EXAMPLES_PATH = "examples/clark.projects/";
+const EXAMPLES_PATH = "examples/";
 
 function isWithin(root, filePath) {
     const relative = path.relative(root, filePath);
@@ -10,19 +10,20 @@ function isWithin(root, filePath) {
         && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative);
 }
 
-async function readIndex(assetsRoot, prefix) {
+async function readIndex(assetsRoot, base, manifestName, directory) {
     let manifest;
     try {
-        manifest = JSON.parse(await readFile(path.join(assetsRoot, "examples-manifest.json"), "utf8"));
+        manifest = JSON.parse(await readFile(path.join(assetsRoot, manifestName), "utf8"));
     }
     catch (error) {
         if (error.code === "ENOENT") return new Map();
         throw error;
     }
-    if (manifest?.version !== 1 || manifest.baseUrl !== EXAMPLES_PATH
+    if (manifest?.version !== 1 || manifest.baseUrl !== directory
         || !Array.isArray(manifest.entries)) {
         throw new Error("Некорректный список файлов примеров.");
     }
+    const prefix = new URL(directory, base).pathname;
     const files = new Map();
     for (const entry of manifest.entries) {
         if (entry?.type === "directory") continue;
@@ -39,7 +40,7 @@ async function readIndex(assetsRoot, prefix) {
         // encoded URL directly; only manifest names become filesystem paths.
         const requestPath = prefix + segments.map(encodeURIComponent).join("/");
         if (files.has(requestPath)) throw new Error("Повторяющийся путь в списке файлов примеров.");
-        files.set(requestPath, path.join(assetsRoot, EXAMPLES_PATH, ...segments));
+        files.set(requestPath, path.join(assetsRoot, directory, ...segments));
     }
     return files;
 }
@@ -93,7 +94,10 @@ async function registerExamples(server, assetsRoot) {
     try {
         const root = await realpath(assetsRoot);
         examplesRoot = path.join(root, EXAMPLES_PATH);
-        files = await readIndex(root, prefix);
+        files = new Map([
+            ...await readIndex(root, base, "cloud-examples.json", EXAMPLES_PATH),
+            ...await readIndex(root, base, "examples-manifest.json", "examples/clark.projects/"),
+        ]);
     }
     catch (error) {
         server.config.logger.warn(`Примеры недоступны: ${error.message} Повторите подготовку ресурсов и перезапустите сервер.`);

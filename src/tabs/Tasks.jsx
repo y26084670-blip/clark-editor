@@ -1,3 +1,4 @@
+import { CloudDownloadDialog, useCloudCatalogs } from "../components/tasks/CloudDownloadDialog.jsx";
 import { readTaskDirectoryLists } from "../services/taskDirectoryRefresh.js";
 //
 // вкладка выбора задания
@@ -69,6 +70,8 @@ export function Tasks(props) {
   const [rootHandle, setRootHandle] = createSignal(null);
   const [rootName, setRootName] = createSignal("");
   const [projects, setProjects] = createSignal([]);
+  const cloud = useCloudCatalogs("editor", rootHandle);
+  const [download, setDownload] = createSignal(null);
   const [selectedProject, setSelectedProject] = createSignal("");
   const [tasks, setTasks] = createSignal([]);
   const [protocolDownloadRevision, setProtocolDownloadRevision] = createSignal(0);
@@ -151,10 +154,10 @@ export function Tasks(props) {
   const operationsBlocked = () => navigationBlocked() || taskLaunchOpen();
   createEffect(() => props.onTaskActionsChange?.({
     sketchEnabled: !operationsBlocked() && !omClientState().open,
-    createProjectEnabled: Boolean(rootHandle()) && !operationsBlocked() && !omClientState().open,
-    projectEnabled: Boolean(selectedProject()) && !operationsBlocked() && !omClientState().open,
-    createEnabled: Boolean(selectedProject()) && !operationsBlocked() && !omClientState().open,
-    selectedEnabled: Boolean(selectedTask()) && !operationsBlocked() && !omClientState().open,
+    createProjectEnabled: !rootHandle()?.cloud && Boolean(rootHandle()) && !operationsBlocked() && !omClientState().open,
+    projectEnabled: !rootHandle()?.cloud && Boolean(selectedProject()) && !operationsBlocked() && !omClientState().open,
+    createEnabled: !rootHandle()?.cloud && Boolean(selectedProject()) && !operationsBlocked() && !omClientState().open,
+    selectedEnabled: !rootHandle()?.cloud && Boolean(selectedTask()) && !operationsBlocked() && !omClientState().open,
     run: openTaskOperation,
   }));
 
@@ -163,6 +166,7 @@ export function Tasks(props) {
       if (!operationsBlocked() && !omClientState().open) setSketchOpen(true);
       return;
     }
+    if (rootHandle()?.cloud) return;
     if (kind.startsWith("project-")) {
       kind = kind.slice("project-".length);
       if (!["create", "rename", "delete"].includes(kind) || operationsBlocked() || omClientState().open || !rootHandle()) return;
@@ -391,7 +395,7 @@ export function Tasks(props) {
   }
 
   async function showInViewer(event) {
-    if (!selectedTask() || selectedTask().isDemo || navigationBlocked() || selectionSending()) return;
+    if (!selectedTask() || selectedTask().handle.cloud || selectedTask().isDemo || navigationBlocked() || selectionSending()) return;
     const sourceButton = event.currentTarget;
     const task = selectedTask(), project = selectedProject(), root = rootHandle();
     setSelectionSending(true); setSelectionNotice("");
@@ -454,7 +458,7 @@ export function Tasks(props) {
   }
 
   function openTaskLaunch() {
-    if (operationsBlocked() || queueRestoring()) return;
+    if (operationsBlocked() || queueRestoring() || (!taskLaunchRoot() && rootHandle()?.cloud)) return;
     if (!taskLaunchRoot()) {
       setTaskLaunchRoot(rootHandle());
       setTaskLaunchBinding(workspaceBinding());
@@ -507,7 +511,8 @@ export function Tasks(props) {
       const result = await readCatalogBindingResult(disk, expected);
       if (!result || !bindingIsCurrent(disk, revision) || bindingRequest() !== expected) return;
       const root = rootHandle();
-      const marker = root ? await readWorkspaceBinding(root) : null;
+      void cloud.refreshZones();
+      const marker = root && !root.cloud ? await readWorkspaceBinding(root) : null;
       const queueRoot = taskLaunchRoot();
       const queueMarker = queueRoot && queueRoot !== root ? await readWorkspaceBinding(queueRoot) : marker;
       if (!bindingIsCurrent(disk, revision) || bindingRequest() !== expected) return;
@@ -570,6 +575,12 @@ export function Tasks(props) {
       setTaskInfo(EMPTY_TASK_INFO); setTaskResultsText("");
     });
     if (!handle) { lastTaskHistory.dispose(); setLastTask(null); setLastTaskNotice(""); return; }
+    if (handle.cloud) {
+      lastTaskHistory.dispose(); setLastTask(null); setLastTaskNotice("");
+      const subdirs = await getSubdirs(handle);
+      if (!disposed && requestId === selectionRevision) setProjects(subdirs);
+      return;
+    }
     const historyRead = lastTaskHistory.open(handle);
     const [subdirs, marker] = await Promise.all([getSubdirs(handle), readWorkspaceBinding(handle).catch(() => null)]);
     if (disposed || requestId !== selectionRevision || handle !== rootHandle()) return;
@@ -611,12 +622,33 @@ export function Tasks(props) {
     }
   };
 
-  async function handleCatalogChange(event) {
+  async function handleCatalogChange(value) {
     if (accessDisabled()) return;
     setAccessBusy(true);
-    try { await selectCatalog(catalogs().find(item => item.name === event.currentTarget.value)); }
+    try {
+      await selectCatalog(cloud.catalogs().find(item => item.id === value) ?? catalogs().find(item => item.name === value));
+    }
     catch (error) { showTaskError("Не удалось открыть каталог: " + error.message, catalogSelect); }
     finally { if (!disposed) setAccessBusy(false); }
+  }
+
+  async function finishCloudDownload(result) {
+    directoryPickRevision++;
+    bindingRevision++;
+    batch(() => { setDiskHandle(result.disk); setCatalogs(result.catalogs); setDiskPicked(true);
+      setBindingRequest(null); setCatalogsBound(false); });
+    await selectCatalog({ name: result.root.name, handle: result.root });
+    setSelectedProject(result.parent.name);
+    const list = await getSubdirs(result.parent);
+    setTasks(list);
+    const task = list.find(row => row.name === result.handle.name);
+    if (task) await selectTaskCandidate(task);
+    if (result.queue) {
+      setTaskLaunchRoot(result.queue);
+      setTaskLaunchBinding(await readWorkspaceBinding(result.queue).catch(() => null));
+    }
+    setBindingNotice("Загружено задание: " + [result.root.name, result.parent.name, result.handle.name].join("/"));
+    await saveProjectDisk(result.disk).catch(() => {});
   }
 
   async function browseProjects() {
@@ -654,13 +686,13 @@ export function Tasks(props) {
         }
       });
       if (selected) await selectTaskCandidate(selected);
-      await taskStatus.refresh();
+      await Promise.all([taskStatus.refresh(), cloud.refreshZones()]);
     } catch (error) {
       if (!disposed && request === selectionRevision) showTaskError(`Не удалось обновить список ${refreshProjects ? "проектов" : "заданий"}: ${error.message}`);
     } finally { if (!disposed) setBusy(false); }
   }
   const refreshProjects = () => refreshDirectoryLists(true);
-  const refreshTasks = () => refreshDirectoryLists(false);
+  const refreshTasks = () => { cloud.checkZones(); return refreshDirectoryLists(false); };
 
   // выбор проекта
   const handleProjectChange = async (event) => {
@@ -805,6 +837,7 @@ export function Tasks(props) {
   };
 
   const handleLaunchComplete = async (entries, action, context) => {
+    if (action === "unblock") { await cloud.refreshZones(); return; }
     const isCurrent = context.isCurrent;
     if (!isCurrent()) return;
     let report;
@@ -831,7 +864,7 @@ export function Tasks(props) {
     }
     if (!isCurrent()) return report;
     const root = rootHandle(), task = selectedTask();
-    if (!root || !task || task.isDemo) return report;
+    if (!root || !task || task.handle.cloud || task.isDemo) return report;
     const segments = await root.resolve(task.handle);
     if (!isCurrent() || root !== rootHandle() || task !== selectedTask() || !segments) return report;
     const relativePath = segments.join("/").toLowerCase();
@@ -870,6 +903,7 @@ export function Tasks(props) {
     if (operation() || galleryBusy() || protocolBusy()) return;
     const task = selectedTask();
     if (!task) return;
+    if (task.handle.cloud) { setDownload(task); return; }
     const requestId = ++taskLoadRevision;
 
     try {
@@ -922,7 +956,10 @@ export function Tasks(props) {
   return (
     <div class="tasks-scroll-viewport">
     <div class="tasks-layout" ref={taskPanels}>
+      <Show when={download()} keyed>{item => <CloudDownloadDialog task={item} project={selectedProject()} disk={diskHandle()}
+      catalogs={catalogs()} onDone={finishCloudDownload} onClose={() => setDownload(null)} />}</Show>
       <TaskAccessDialog open={accessOpen() && props.active !== false && !props.helpOpen}
+        cloudCatalogs={cloud.catalogs()} onCloud={async id => { await handleCatalogChange(id); closeAccess(); }}
         disk={diskHandle()} picked={diskPicked()} count={catalogs().length} busy={accessBusy() || bindingBusy()}
         notice={bindingNotice()} bound={catalogsBound()} onPick={handlePickDirectory} onBind={bindWorkspace} onClose={closeAccess} />
       <div class="task-browser-panel">
@@ -935,18 +972,21 @@ export function Tasks(props) {
                 aria-label="Открыть Viewer в новой вкладке">Viewer ↗</a>
             </div>
             <select id="projectCatalog" ref={catalogSelect} class="task-project-select" aria-label="Каталоги с проектами"
-              value={rootHandle()?.name ?? ""} disabled={accessDisabled() || !catalogs().length}
-              onChange={handleCatalogChange}>
-              <Show when={!catalogs().length}><option value="">Выберите диск с проектами</option></Show>
-              {catalogs().map(catalog => <option value={catalog.name}>{catalog.name}</option>)}
-            </select>
+              value={cloud.value()} disabled={accessDisabled() || (!catalogs().length && !cloud.catalogs().length)}
+              onChange={event => handleCatalogChange(event.currentTarget.value)}>
+              <option value="" selected={!rootHandle()}>Выберите каталог</option>
+              {catalogs().map(catalog => <option value={catalog.name} selected={cloud.value() === catalog.name}>{catalog.name}</option>)}
+              {cloud.catalogs().map(item => <option value={item.id} selected={cloud.value() === item.id}>☁ {item.name}</option>)}
+            </select><button type="button" aria-label="Доступ к проектам" title="Выбрать диск с локальными проектами"
+              disabled={accessDisabled()} onClick={() => { setDiskPicked(false); setAccessOpen(true); }}>Доступ к проектам</button>
+            <Show when={cloud.error()}><span role="status">{cloud.error()} <button type="button" onClick={cloud.refresh}>Повторить</button></span></Show>
             <span id="rootName">{rootName()}</span>
           </div>
           <div class="box">
             <div class="task-project-heading">
               <h4><label for="listProject">Список проектов</label></h4>
               <div class="task-project-actions">
-                <button type="button" class="task-project-browse" disabled={!rootHandle() || navigationBlocked()}
+                <button type="button" class="task-project-browse" disabled={rootHandle()?.cloud || !rootHandle() || navigationBlocked()}
                   aria-label="Просмотр каталога с проектами" title="Просмотр каталога с проектами (выбор не изменяется)" onClick={browseProjects}>
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
                     <path d="M3 7V5h7l2 2h9v13H3V7Z" /><path d="M3 10h18" />
@@ -1006,11 +1046,12 @@ export function Tasks(props) {
                   classList={{
                     "listTask-item": true,
                     "task-status-row": true,
+                    "is-zone-blocked": cloud.blocked(selectedProject(), task.name),
                     selected: selectedTask()?.handle === task.handle,
                   }}
-                  draggable={taskLaunchOpen() && !navigationBlocked() && !task.isDemo}
+                  draggable={taskLaunchOpen() && !navigationBlocked() && !task.isDemo && !task.handle.cloud}
                   onDragStart={event => {
-                    if (!taskLaunchOpen() || navigationBlocked() || task.isDemo) {
+                    if (!taskLaunchOpen() || navigationBlocked() || task.isDemo || task.handle.cloud) {
                       event.preventDefault(); return;
                     }
                     setDraggedTask({ rootHandle: rootHandle(), handle: task.handle });
@@ -1023,7 +1064,7 @@ export function Tasks(props) {
                   onDblClick={() => {
                     if (selectedTask()?.handle === task.handle) void requestTaskLoad();
                   }}
-                  title="Двойной щелчок — загрузить задание для редактирования"
+                  title={cloud.blocked(selectedProject(), task.name) ? "Windows обнаружила заблокированные файлы задания" : task.handle.cloud ? "Загрузить локальную копию задания" : "Двойной щелчок — загрузить задание для редактирования"}
                 >
                   <TaskStatusCells status={taskStatus(task.handle)} disabled={operationsBlocked() || Boolean(pendingTaskLoad())}
                     onOpenProtocols={() => { void openTestProtocols(task); }} />
@@ -1045,7 +1086,7 @@ export function Tasks(props) {
           >
             <span class="task-load-label">
               <span class="task-load-leading">
-                <Show keyed when={loadedTaskPath()}>
+                <Show when={!selectedTask()?.handle.cloud}><Show keyed when={loadedTaskPath()}>
                   {() => (
                     <span
                       class="task-load-confirmation"
@@ -1056,21 +1097,21 @@ export function Tasks(props) {
                       ✓
                     </span>
                   )}
-                </Show>
+                </Show></Show>
               </span>
-              <span class="task-load-text">Загрузить для редактирования</span>
+              <span class="task-load-text">{selectedTask()?.handle.cloud ? "Загрузить" : "Загрузить для редактирования"}</span>
               <span class="task-load-trailing" aria-hidden="true" />
             </span>
           </button>
           <button type="button" class="task-cross-open-button"
-            disabled={!selectedTask() || selectedTask()?.isDemo || !selectionChannel.supported || navigationBlocked() || selectionSending()}
+            disabled={!selectedTask() || selectedTask()?.handle.cloud || selectedTask()?.isDemo || !selectionChannel.supported || navigationBlocked() || selectionSending()}
             aria-busy={selectionSending()}
             title="Выбрать каталог проектов, проект и задание в открытом Viewer; браузер может ограничить переключение вкладки"
             onClick={showInViewer}>Выбрать в Viewer</button>
           <button
             type="button"
             class="task-launch-open-button"
-            disabled={!rootHandle() || operationsBlocked() || queueRestoring()}
+            disabled={(!taskLaunchRoot() && (!rootHandle() || rootHandle().cloud)) || operationsBlocked() || queueRestoring()}
             onClick={openTaskLaunch}
           >
             Формирование списка заданий и запуск приложений

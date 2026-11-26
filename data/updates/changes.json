@@ -91,6 +91,15 @@
   ],
   "entries": [
     {
+      "id": "2026-11-27-cloud-examples",
+      "revision": 1,
+      "release": "Editor 4.125.0, Viewer 4.80.0",
+      "date": "2026-11-27",
+      "category": "interface",
+      "title": "Облачные примеры на вкладке «Выбор задания»",
+      "summary": "Выберите каталог со значком облака, чтобы посмотреть геометрию, PICT и DOCS. Команда «Загрузить» копирует задание с результатами в выбранный локальный проект."
+    },
+    {
       "id": "signed-element-groups-20261126",
       "revision": 1,
       "category": "computation",
