@@ -1,0 +1,32 @@
+{
+  "rotor": {
+    "clark_area_mm2": 696482.8333690668,
+    "femm_mesh_area_mm2": 698257.8403676789,
+    "area_delta_percent": -0.25420509387726886,
+    "symmetric_difference_percent": 1.1638153062168537,
+    "components_at_1e_6_mm_tolerance": 1
+  },
+  "stator": {
+    "clark_area_mm2": 3592650.5485043083,
+    "femm_mesh_area_mm2": 3604649.7734332834,
+    "area_delta_percent": -0.33288185214027655,
+    "symmetric_difference_percent": 0.4041516138952238,
+    "components_at_1e_6_mm_tolerance": 1
+  },
+  "windings": {
+    "clark_area_mm2": 273972.9600020537,
+    "femm_mesh_area_mm2": 273972.9600351661,
+    "area_delta_percent": -1.2086021072832409e-08,
+    "symmetric_difference_percent": 3.9827465116759924,
+    "components_at_1e_6_mm_tolerance": 144
+  },
+  "same_material_overlap_mm2": 7.965508848428726e-05,
+  "steel_winding_overlap_mm2": 0.0,
+  "rotor_slot_equivalent_half_widths_mm": [
+    12.23362443908114,
+    16.25,
+    22.07397921952474,
+    16.707525671400447
+  ],
+  "note": "Geometry and FEM mesh identical to validated task 1; current excitations updated separately."
+}

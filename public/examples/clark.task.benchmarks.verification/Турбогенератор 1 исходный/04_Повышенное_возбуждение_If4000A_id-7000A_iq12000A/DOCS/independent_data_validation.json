@@ -1,0 +1,9 @@
+{
+  "task": "04_Повышенное_возбуждение_If4000A_id-7000A_iq12000A",
+  "input_geometry_materials_identical_to_reference": true,
+  "MH_global_B_error_T": 8.881784197001252e-16,
+  "HS_B_error_T": 0.0,
+  "JE_J_error_A_mm2": 0.0,
+  "coordinate_grids_identical_to_reference": true,
+  "input_J_exactly_matches_JE": true
+}

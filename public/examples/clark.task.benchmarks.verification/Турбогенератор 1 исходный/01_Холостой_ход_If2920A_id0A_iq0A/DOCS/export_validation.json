@@ -1,0 +1,63 @@
+{
+  "magnetic_records": 19,
+  "coil_records": 5,
+  "region_records": 4,
+  "MH_rows": 4476,
+  "JE_rows": 126,
+  "HS_rows": 3361,
+  "rotor_magnetic_EO": 2856,
+  "stator_magnetic_EO": 1620,
+  "unknown_magnetic_components": 13428,
+  "region_node_counts": [
+    1,
+    180,
+    120,
+    3060
+  ],
+  "region_local_copies": [
+    1,
+    90,
+    30,
+    90
+  ],
+  "region_grid": [
+    [
+      1,
+      1
+    ],
+    [
+      1,
+      2
+    ],
+    [
+      1,
+      4
+    ],
+    [
+      17,
+      2
+    ]
+  ],
+  "all_magnetic_nodes_match_FEM_material": true,
+  "all_observation_nodes_in_air": true,
+  "all_observations_in_quarter90": true,
+  "all_X_zero": true,
+  "boundary_max_distance_to_FEM_edge_mm": 2.2991740043103942e-12,
+  "boundary_FEM_max_normal_B_T": 1.3227266504323154e-17,
+  "boundary_max_sagitta_of_sampled_nodes_mm": 0.7888990327442116,
+  "MH_global_identity_error_T": 8.881784197001252e-16,
+  "native_AS_rows_rotated": 596,
+  "provenance": {
+    "source": "FEMM task 1 DC planar solution; Clark nonlinear solve not performed",
+    "source_fem_sha256": "5e347903f6bb906f2cbc848e4f33aa6d534795aa4813689795178deeb6d88af5",
+    "source_ans_sha256": "2cae6a236b5018f7fdb6bbc660e4ca26fca51893f7888a720fdee0d2dfe79593",
+    "coordinates": "X=0; FEMM x,y -> Clark Y,Z, right handed",
+    "length_mm": 120000,
+    "regions": "Four air-only records over Y>=0,Z>=0, 90 degrees",
+    "MH": "Clark convention: in azimuthally symmetric elements (including geometric symmetry), image vectors are expressed in the orientation of the original unrotated element. To global XYZ use HEADER/toGlobalRotationAboutX_degrees.",
+    "HS": "B in air equals mu0 H; actual FEM boundary uses one-sided adjacent-air-triangle trace",
+    "frame_index": 0,
+    "source_time_known": false,
+    "source_iteration_known": false
+  }
+}

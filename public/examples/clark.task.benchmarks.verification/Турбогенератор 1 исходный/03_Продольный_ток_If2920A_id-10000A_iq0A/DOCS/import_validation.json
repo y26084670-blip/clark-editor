@@ -1,0 +1,106 @@
+{
+  "task_name": "03_Продольный_ток_If2920A_id-10000A_iq0A",
+  "magnetic_records": 19,
+  "coil_records": 5,
+  "region_records": 4,
+  "MH_rows": 4476,
+  "rotor_magnetic_EO": 2856,
+  "stator_magnetic_EO": 1620,
+  "unknown_M_components": 13428,
+  "JE_saved_rows": 126,
+  "JE_physical_rows": 144,
+  "unknown_J_components": 0,
+  "HS_rows": 3361,
+  "region_node_counts": [
+    1,
+    180,
+    120,
+    3060
+  ],
+  "all_magnetic_nodes_correct_material": true,
+  "all_current_nodes_in_copper": true,
+  "all_air_nodes_in_air": true,
+  "all_observation_nodes_in_quarter90": true,
+  "all_X_zero": true,
+  "full_winding_label_coverage": true,
+  "rotor_antisymmetry_verified": true,
+  "maximum_J_reconstruction_error_A_mm2": 2.1316282072803006e-14,
+  "maximum_ampere_turn_error_A": 6.548361852765083e-11,
+  "signed_total_ampere_turns": -3.54702933691442e-11,
+  "MH_global_B_identity_error_T": 4.440892098500626e-16,
+  "native_AS_rows_rotated": 596,
+  "boundary_max_distance_to_FEM_edge_mm": 2.2991740043103942e-12,
+  "boundary_max_normal_B_T": 8.673617379884035e-19,
+  "circuits": [
+    {
+      "name": "F",
+      "current_A": 2920.0
+    },
+    {
+      "name": "A1",
+      "current_A": -3.061616997868383e-13
+    },
+    {
+      "name": "A2",
+      "current_A": -3.061616997868383e-13
+    },
+    {
+      "name": "B1",
+      "current_A": -4330.127018922193
+    },
+    {
+      "name": "B2",
+      "current_A": -4330.127018922193
+    },
+    {
+      "name": "C1",
+      "current_A": 4330.127018922194
+    },
+    {
+      "name": "C2",
+      "current_A": 4330.127018922194
+    }
+  ],
+  "provenance": {
+    "source": "FEMM task 3 static solution; Clark solve not performed",
+    "source_archive": "03_Продольный_ток_If2920A_id-10000A_iq0A.rar",
+    "task_name": "03_Продольный_ток_If2920A_id-10000A_iq0A",
+    "source_fem": "TVV320_control_point3.fem",
+    "source_ans": "TVV320_control_point3.ans",
+    "source_fem_sha256": "c452d7eebde337c2f789eec4e8ca09dbfdc2e730af78c4cc42b2112bff1672e6",
+    "source_ans_sha256": "0edee7aaa5d4adb699b2c345cc9d3bdd1c8feb0dc92403885689e85577e4692c",
+    "length_mm": 120000,
+    "FEM_depth_mm": 6000,
+    "coordinates": "FEMM x,y -> Clark Y,Z; centres at X=0",
+    "vector_rule": "In all azimuthally symmetric elements, including geometric symmetry, stored image vectors use the orientation of the original unrotated element; coordinates stay global.",
+    "MH": "Native AS slots; M,H in kA/m; raw triangle B with FEMM natural cubic H(B)",
+    "JE": "Prescribed J in A/mm2, one value per independent winding side; E unavailable, NaN",
+    "HS": "B in tesla, global XYZ, air only; one-sided trace on the FEM boundary",
+    "frame_index": 0,
+    "source_time_known": false,
+    "source_time_step_known": false,
+    "source_iteration_known": false,
+    "source_solve_duration_seconds": null,
+    "frequency_Hz": 0,
+    "If_A": 2920.0,
+    "id_A": -10000.0,
+    "iq_A": 0.0,
+    "geometric_source_symmetry": "Full 360 degrees; magnetic images independent; only observation areas span 90 degrees"
+  },
+  "M_norm_range": [
+    22.595775005845503,
+    1669.2002494883125
+  ],
+  "H_norm_range": [
+    0.008667929711561467,
+    380.23838506522304
+  ],
+  "B_steel_norm_range": [
+    0.02845680049163526,
+    2.575400543318594
+  ],
+  "B_air_norm_range": [
+    2.544941540640349e-06,
+    1.1728341719155562
+  ]
+}

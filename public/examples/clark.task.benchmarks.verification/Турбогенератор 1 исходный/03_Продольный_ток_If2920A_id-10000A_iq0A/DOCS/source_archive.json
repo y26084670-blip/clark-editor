@@ -1,0 +1,16 @@
+{
+  "archive": "03_Продольный_ток_If2920A_id-10000A_iq0A.rar",
+  "archive_sha256": "39e12f0006e43b6474359db01bfe38333d00cfd80d60981d205ac476b54cb7e2",
+  "files": [
+    {
+      "archive_entry": "TVV320_control_point3.fem",
+      "bytes": 189045,
+      "sha256": "c452d7eebde337c2f789eec4e8ca09dbfdc2e730af78c4cc42b2112bff1672e6"
+    },
+    {
+      "archive_entry": "TVV320_control_point3.ans",
+      "bytes": 10514535,
+      "sha256": "0edee7aaa5d4adb699b2c345cc9d3bdd1c8feb0dc92403885689e85577e4692c"
+    }
+  ]
+}

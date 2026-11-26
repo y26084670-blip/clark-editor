@@ -1,0 +1,90 @@
+{
+  "editor": {
+    "reader": "Native Editor schemas, task validators, geometry scene builder",
+    "diagnostics": [],
+    "geometry": {
+      "elements": 24,
+      "regions": 4,
+      "primitives": 28,
+      "instances": 843,
+      "vertices": 7548,
+      "triangles": 10464,
+      "lines": 121,
+      "skipped": 0
+    },
+    "materialEditor": [
+      {
+        "name": "Rotor_forging_energy_nn",
+        "nodes": 507,
+        "editorLibraryLimitation": "Таблица ФММ должна содержать 24 значения; получено 1014."
+      },
+      {
+        "name": "Stator_3413_kFe_energy_nn",
+        "nodes": 894,
+        "editorLibraryLimitation": "Таблица ФММ должна содержать 24 значения; получено 1788."
+      }
+    ]
+  },
+  "viewer": {
+    "reader": "Native Viewer Hdf5ResultFile, result layers and line frames via Node h5wasm",
+    "checks": [
+      {
+        "quantity": "M",
+        "nodes": 4476,
+        "state": "ready"
+      },
+      {
+        "quantity": "H",
+        "nodes": 4476,
+        "state": "ready"
+      },
+      {
+        "quantity": "J",
+        "nodes": 144,
+        "state": "ready"
+      },
+      {
+        "quantity": "Bs",
+        "nodes": 3361,
+        "state": "ready"
+      }
+    ],
+    "lines": [
+      {
+        "id": 1,
+        "direction": "i2",
+        "series": 1,
+        "points": 1
+      },
+      {
+        "id": 2,
+        "direction": "i2",
+        "series": 90,
+        "points": 180
+      },
+      {
+        "id": 3,
+        "direction": "i2",
+        "series": 30,
+        "points": 120
+      },
+      {
+        "id": 4,
+        "direction": "i1",
+        "series": 180,
+        "points": 3060
+      },
+      {
+        "id": 4,
+        "direction": "i2",
+        "series": 1530,
+        "points": 3060
+      }
+    ]
+  },
+  "coordinateCrossCheck": {
+    "reader": "Native Editor unpacking and symmetry matrices; Solver node traversal order",
+    "checked": 7837,
+    "maxNodeError_mm": 9.094947017729282e-13
+  }
+}

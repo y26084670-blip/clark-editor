@@ -1,0 +1,16 @@
+{
+  "archive": "04_Повышенное_возбуждение_If4000A_id-7000A_iq12000A.rar",
+  "archive_sha256": "d0dad06eab1651e1104db2103463e89a48e854d2c11efb986cc858e3e0cb689b",
+  "files": [
+    {
+      "archive_entry": "TVV320_control_point4.fem",
+      "bytes": 189009,
+      "sha256": "4d9260b50f71898dd3ca16c20195e304343f001c384205a38c805d394219ce22"
+    },
+    {
+      "archive_entry": "TVV320_control_point4.ans",
+      "bytes": 10487028,
+      "sha256": "dcf534f906a086546e2fb57b27c686d74bcdaa039f7875e57602755b5044eb95"
+    }
+  ]
+}

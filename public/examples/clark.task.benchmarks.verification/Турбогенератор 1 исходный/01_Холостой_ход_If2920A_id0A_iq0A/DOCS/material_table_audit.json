@@ -1,0 +1,36 @@
+{
+  "source": "User supplied prior Clark calculation, 3048 magnetic EOs; not a new solve",
+  "metric": "|| |M|-M_table(|H|) ||_2 / || M_table(|H|) ||_2",
+  "materials": [
+    {
+      "material": "Rotor_forging_energy_nn",
+      "table_nodes": 507,
+      "printed_protocol_rows": 507,
+      "all_table_rows_loaded_in_protocol": true,
+      "working_points": 1428,
+      "H_range_kAm": [
+        0.18367861991929177,
+        412.6669165107407
+      ],
+      "L2_relative_M_deviation_percent": 0.03960665113944197,
+      "maximum_pointwise_relative_M_deviation_percent": 0.582742859412692,
+      "maximum_M_deviation_kAm": 6.591611896513996,
+      "all_working_points_beyond_node12": true
+    },
+    {
+      "material": "Stator_3413_kFe_energy_nn",
+      "table_nodes": 894,
+      "printed_protocol_rows": 894,
+      "all_table_rows_loaded_in_protocol": true,
+      "working_points": 1620,
+      "H_range_kAm": [
+        0.01289164657506712,
+        273.0497889003955
+      ],
+      "L2_relative_M_deviation_percent": 0.02777778393353509,
+      "maximum_pointwise_relative_M_deviation_percent": 0.2327678999650991,
+      "maximum_M_deviation_kAm": 1.0480165037556617,
+      "all_working_points_beyond_node12": true
+    }
+  ]
+}

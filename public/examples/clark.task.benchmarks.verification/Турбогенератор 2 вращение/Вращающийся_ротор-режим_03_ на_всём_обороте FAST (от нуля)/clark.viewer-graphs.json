@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "settings": {
+    "only": false,
+    "areas": false,
+    "showSlices": false,
+    "slices": [],
+    "active": null,
+    "profiles": [],
+    "activeProfile": null,
+    "expandedProfile": null,
+    "view": {
+      "resultVectorScale": 1,
+      "resultPalette": "Rainbow",
+      "resultElementsQuantity": "M",
+      "resultRegionsQuantity": "Bs",
+      "resultVirtualQuantity": "none",
+      "elementsMode": "selected",
+      "regionsMode": "none",
+      "showLocalSymmetry": true,
+      "showAxialSymmetry": true,
+      "showPeriodicSymmetry": true,
+      "showMirrorSymmetry": true
+    },
+    "selections": {
+      "elements": [
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34
+      ],
+      "regions": []
+    }
+  }
+}
