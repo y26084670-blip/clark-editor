@@ -145,7 +145,7 @@ async function checkMode(offset) {
         await page.locator(".tabs-header button").getByText("Элементы",{exact:true}).click();
         await page.evaluate(async () => {
             const table = editorFixture.tables(".tabulator").find(t => t.getData().some(r => r.name === "ШГ 1"));
-            await table.scrollToColumn("take", "center", false);
+            await table.scrollToColumn("take", "center", true);
             table.getRows()[0].getCell("take").edit();
         });
         const input = page.locator(".tabulator-editing input");
