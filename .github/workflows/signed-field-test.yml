@@ -1,0 +1,25 @@
+name: Verify signed group editing
+on:
+  push:
+    branches: [verify/signed-group-editor-20261126]
+permissions:
+  contents: read
+jobs:
+  groups:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci && npm run assets:prepare
+      - run: node --test test/forceSurface.test.js test/modelSaveFeedback.test.js test/modelElementNames.test.js
+      - run: npm install --no-save --package-lock=false playwright
+      - name: Browser group entry, grouping and save
+        run: |
+          export CHROMIUM_EXECUTABLE="$(command -v google-chrome)"
+          node scripts/check-force-groups-browser.mjs
