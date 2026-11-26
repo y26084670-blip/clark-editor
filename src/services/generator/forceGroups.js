@@ -54,7 +54,7 @@ export function buildForceGroups(kernel, model, zeroIndices = []) {
     const geometry = forceBodies(model);
     if (!geometry.bodies.length) throw new Error("В задании нет физических элементов.");
     const excluded = new Set(zeroIndices);
-    const candidates = geometry.bodies.filter(body => !excluded.has(body.index));
+    const candidates = geometry.bodies.filter(body => !excluded.has(body.index) && (model.elements[body.index].take ?? 0) >= 0);
     const parent = model.elements.map((_, index) => index);
     function root(index) {
         while (parent[index] !== index) {
@@ -70,7 +70,9 @@ export function buildForceGroups(kernel, model, zeroIndices = []) {
 
     const components = new Map();
     const ids = model.elements.map((row, index) => {
-        if (!physical(row) || excluded.has(index)) return 0;
+        if (!physical(row)) return 0;
+        if (row.take < 0) return row.take;
+        if (excluded.has(index)) return 0;
         const key = root(index);
         if (!components.has(key)) components.set(key, {id:components.size + 1, members:[]});
         const group = components.get(key);

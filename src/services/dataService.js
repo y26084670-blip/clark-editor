@@ -138,7 +138,7 @@ export const dataService = {
         if (schema.id === "elements" && Array.isArray(storageModel)) {
             for (const record of storageModel) {
                 if (typeof record.take === "boolean") {
-                    record.take = 0;
+                    record.take = !record.take && record.targ !== 3 ? -1 : 0;
                 }
             }
         }

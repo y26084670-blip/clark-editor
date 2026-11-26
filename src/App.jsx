@@ -437,7 +437,7 @@ export default function App() {
     const checkedSnapshot = { ...modelSnapshot, jweakLocal: await loadJweakLocal(taskHandle) };
     let forceClosePairs = [], gapError = "";
     const {elements, general, moves} = checkedSnapshot;
-    const groupIds = new Set((elements ?? []).filter(e => e.targ !== 3).map(e => e.take ?? 0));
+    const groupIds = new Set((elements ?? []).filter(e => e.targ !== 3).map(e => Math.max(0, e.take ?? 0)));
     if (!(general?.forceFaceOffset > 0)) groupIds.delete(0);
     if (general?.evalForce && groupIds.size > 1) {
       try {

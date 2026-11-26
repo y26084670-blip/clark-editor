@@ -68,6 +68,12 @@ async function checkMode(offset) {
         },index);
         const waitIds = expected => page.waitForFunction(ids =>
             editorFixture.model().elements.every((row,i) => row.take === ids[i]),expected);
+        async function saveModel() {
+            const before = await page.evaluate(() => editorFixture.writes.filter(f => f === "general.txt").length);
+            await page.keyboard.press("Control+s");
+            await page.waitForFunction(n => editorFixture.writes.filter(f => f === "general.txt").length > n, before);
+            await page.locator('.save-button[aria-busy="false"]').waitFor();
+        }
         await open();
         for (const index of [1,3]) {
             await select(index);
@@ -97,9 +103,7 @@ async function checkMode(offset) {
             await done.getByRole("button",{name:"ОК"}).click();
         }
         await buildAndConfirm([1,0,2,0]);
-        const savedCount = await page.evaluate(()=>editorFixture.writes.filter(x=>x==="general.txt").length);
-        await page.keyboard.press("Control+s");
-        await page.waitForFunction(n=>editorFixture.writes.filter(x=>x==="general.txt").length>n,savedCount);
+        await saveModel();
         await page.waitForFunction(async () =>
             (await editorFixture.read("input3XX/kvs.txt")).trim().split("\n").map(s=>JSON.parse(s).take).join() === "1,0,2,0");
         const saved = await page.evaluate(async () => ({
@@ -140,10 +144,25 @@ async function checkMode(offset) {
         const after = await forceDiagnostics();
         assert.ok(!after.some(m => m.includes("Для группы 1 нет силовых площадок") || m.includes("Нет физических элементов группы 7")));
         assert.equal(after.some(m => m.includes("Для группы 3 нет силовых площадок")),offset === 0);
-        await page.keyboard.press("Control+s");
+        await saveModel();
         await page.waitForFunction(async () => JSON.parse((await editorFixture.read("input3XX/tks.txt")).split("\n")[0]).forceGroup === 1);
+        await page.locator(".tabs-header button").getByText("Элементы",{exact:true}).click();
+        const current = page.locator(".tab-content:visible");
+        const firstRow = current.locator(".tabulator-row").filter({has:page.locator('[tabulator-field="take"]')}).first();
+        if (!(await firstRow.evaluate(row => row.classList.contains("tabulator-selected")))) {
+            await firstRow.locator('[tabulator-field="rowLabel"]').click();
+        }
+        const input = current.locator('.record-card-column input[data-field="take"]');
+        await input.fill("-12");
+        await input.press("Enter");
+        await page.waitForFunction(() => editorFixture.model().elements[0].take === -12);
+        await open();
+        await buildAndConfirm([-12,1,2,3]);
+        await button("Закрыть").click();
+        await saveModel();
+        await page.waitForFunction(async () => JSON.parse((await editorFixture.read("input3XX/kvs.txt")).split("\n")[0]).take === -12);
         assert.deepEqual(errors,[]);
-        console.log(`PASS group-0 selection, rebuild, manual TK assignment, validation and save; offset=${offset}`);
+        console.log(`PASS group-0 selection, signed group edit, rebuild, manual TK assignment, validation and save; offset=${offset}`);
     } finally {
         await page.close();
     }
