@@ -67,6 +67,7 @@ export function RecordGraphRegion(props) {
   createEffect(() => {
     const records = props.records ?? [];
     const mode = currentMode();
+    const endTime = props.endTime;
     const revision = ++renderRevision;
     chart?.destroy();
     chart = null;
@@ -79,7 +80,7 @@ export function RecordGraphRegion(props) {
       if (revision !== renderRevision || !canvas) return;
       chart = new Chart(
         canvas,
-        recordGraphConfig(props.schema, records, mode.value),
+        recordGraphConfig(props.schema, records, mode.value, endTime),
       );
     }).catch((error) => {
       if (revision !== renderRevision) return;

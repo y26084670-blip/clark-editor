@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+    calculationEndTime,
     recordGraphConfig,
     recordGraphDatasets,
     recordGraphModeForProperty,
@@ -87,6 +88,38 @@ test("selected amplitudes become one time-value dataset each", () => {
         recordGraphModeForProperty(ampsSchema, "impuls").value,
         "amplitude",
     );
+});
+
+test("calculation end uses the current number of intervals and step", () => {
+    assert.equal(calculationEndTime({ countTimeSteps: 20, timeStep: 0.001 }), 0.02);
+    assert.equal(calculationEndTime({ countTimeSteps: 0, timeStep: 0 }), 0);
+    for (const general of [null, {}, { countTimeSteps: 1, timeStep: 0 },
+        { countTimeSteps: -1, timeStep: 1 }, { countTimeSteps: 2, timeStep: Number.MAX_VALUE }]) {
+        assert.equal(calculationEndTime(general), null);
+    }
+});
+
+test("the time axis includes the end marker and the full visible dependency", () => {
+    const records = [{ impuls: [[0, 1], [0.012, 2]] }, { impuls: [[0, 3], [0.031, 4]] }];
+    const config = recordGraphConfig(ampsSchema, records, "amplitude", 0.02);
+    const axis = config.options.scales.x;
+    assert.equal(axis.bounds, "data");
+    assert.equal(config.plugins[0].id, "calculationEnd");
+    for (const [min, max, expectedMax] of [[0, 0.012, 0.02], [0, 0.02, 0.02], [-0.01, 0.031, 0.031]]) {
+        const scale = { getMinMax: () => ({ min, max }) };
+        axis.afterDataLimits(scale);
+        assert.equal(scale.min, min);
+        assert.equal(scale.max, expectedMax);
+    }
+    assert.deepEqual(config.data.datasets.map(series => series.data.length), [2, 2]);
+    assert.equal(config.data.datasets[0].data.at(-1).x, 0.012);
+
+    const stationary = recordGraphConfig(ampsSchema, [{ impuls: [[0, 1]] }], "amplitude", 0);
+    const scale = { getMinMax: () => ({ min: 0, max: 0 }) };
+    stationary.options.scales.x.afterDataLimits(scale);
+    assert.equal(scale.max, 0);
+    assert.ok(scale.min < scale.max);
+    assert.equal(recordGraphConfig(ampsSchema, records, "amplitude", null).plugins, undefined);
 });
 
 test("trajectory graph defaults to displacement and exposes three axes", () => {

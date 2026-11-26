@@ -1,4 +1,5 @@
 import { formatGraphNumber } from "../../services/graphs/graphNumbers.js";
+import { withCalculationEnd } from "../../services/graphs/recordGraphModel.js";
 import {
   createEffect,
   createSignal,
@@ -61,6 +62,7 @@ function GeneratorPreviewGraph(props) {
 
   createEffect(() => {
     const points = props.points ?? [];
+    const endTime = props.endTime;
     const revision = ++renderRevision;
     chart?.destroy();
     chart = null;
@@ -69,7 +71,7 @@ function GeneratorPreviewGraph(props) {
 
     void import("chart.js/auto").then(({ default: Chart }) => {
       if (revision !== renderRevision || !canvas) return;
-      chart = new Chart(canvas, {
+      chart = new Chart(canvas, withCalculationEnd({
         type: "line",
         data: {
           datasets: [{
@@ -116,7 +118,7 @@ function GeneratorPreviewGraph(props) {
             },
           },
         },
-      });
+      }, endTime));
     }).catch((error) => props.onError?.(errorText(error)));
   });
 
@@ -215,17 +217,8 @@ export function TimeFunctionGenerator(props) {
   createEffect(() => {
     const taskHandle = selectionService.loadedTaskHandle();
     if (taskHandle !== observedTaskHandle) resetForTask(taskHandle);
-  });
-
-  createEffect(() => {
-    modelService.getModelPartUpdate(TABS.GENERAL.id)?.revision;
-    const general = modelService.getModel()[TABS.GENERAL.id];
-    if (rangeTouched || !general) return;
-    const intervals = Number(general.countTimeSteps);
-    const step = Number(general.timeStep);
-    if (Number.isFinite(intervals) && Number.isFinite(step)) {
-      setMaximumTime(String(Math.max(0, intervals * step)));
-    }
+    const endTime = props.endTime;
+    if (!rangeTouched && endTime != null) setMaximumTime(String(endTime));
   });
 
   function stopGraphResize() {
@@ -449,6 +442,7 @@ export function TimeFunctionGenerator(props) {
       >
         <GeneratorPreviewGraph
           points={preview()?.points ?? []}
+          endTime={props.endTime}
           label={preview()?.label ?? targetDefinition()?.label}
           tables={previewTables()}
           ratio={graphRatio()}

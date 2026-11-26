@@ -61,6 +61,7 @@ import {
   recordIndexFromColumn,
 } from "../../tabulator/converters/recordColumns";
 import { RecordGraphRegion } from "../graphs/RecordGraphRegion.jsx";
+import { calculationEndTime } from "../../services/graphs/recordGraphModel.js";
 import { TimeFunctionGenerator } from "../generator/TimeFunctionGenerator.jsx";
 import { unsavedChangesService } from "../../services/unsavedChangesService.js";
 import {
@@ -281,6 +282,10 @@ export function DataEditor(props) {
     (!hasMainView || mainViewStructureMutable);
   const generatorDescriptor = schema.views?.generator ?? null;
   const hasGeneratorRegion = Boolean(generatorDescriptor);
+  const endTime = createMemo(() =>
+    hasGraphRegion || hasGeneratorRegion
+      ? calculationEndTime(modelService.getModel()[TABS.GENERAL.id])
+      : null);
 
   // Transient source ID существует только в памяти и не входит в BaseModel.
   const modelSource = Symbol(`DataEditor:${schema.id}`);
@@ -1467,6 +1472,7 @@ export function DataEditor(props) {
                 </div>
                 <TimeFunctionGenerator
                   schema={schema}
+                  endTime={endTime()}
                   onApply={applyGeneratedDependency}
                 />
               </section>
@@ -1523,6 +1529,7 @@ export function DataEditor(props) {
             {hasGraphRegion && (
               <RecordGraphRegion
                 schema={schema}
+                endTime={endTime()}
                 records={selectedGraphRecords()}
                 field={detailGraphField()}
               />

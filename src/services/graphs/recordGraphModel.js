@@ -1,4 +1,5 @@
 import { formatGraphNumber } from "./graphNumbers.js";
+import { geometryTimeState } from "../visualization/geometryTimeModel.js";
 const COLORS = Object.freeze([
     "#4e9af1",
     "#e36d67",
@@ -85,9 +86,58 @@ export function recordGraphDatasets(schema, records, modeValue) {
     return datasets;
 }
 
-export function recordGraphConfig(schema, records, modeValue) {
+export function calculationEndTime(general) {
+    if (general?.countTimeSteps == null || general.timeStep == null) return null;
+    const { time, diagnostics } = geometryTimeState(general, general.countTimeSteps);
+    return diagnostics.length ? null : time;
+}
+
+function drawCalculationEnd({ ctx, chartArea: area, scales }, endTime) {
+    if (area.width <= 12 || area.height <= 0) return;
+    const x = scales.x.getPixelForValue(endTime);
+    const label = `Конец расчёта · ${formatGraphNumber(endTime)} с`;
+    ctx.save();
+    ctx.strokeStyle = scales.x.options.title.color;
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([5, 4]);
+    ctx.beginPath();
+    ctx.moveTo(x, area.top);
+    ctx.lineTo(x, area.bottom);
+    ctx.stroke();
+
+    ctx.font = "600 12px sans-serif";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "top";
+    const width = Math.min(ctx.measureText(label).width, area.width - 12);
+    const left = x + 6 + width <= area.right ? x + 6 : Math.max(area.left + 6, x - 6 - width);
+    ctx.fillStyle = "#28343f";
+    ctx.fillRect(left - 3, area.top + 2, width + 6, 17);
+    ctx.fillStyle = "#fff";
+    ctx.fillText(label, left, area.top + 4, width);
+    ctx.restore();
+}
+
+export function withCalculationEnd(config, endTime) {
+    if (!Number.isFinite(endTime)) return config;
+    const x = config.options.scales.x;
+    x.bounds = "data";
+    x.afterDataLimits = scale => {
+        const { min, max } = scale.getMinMax(false);
+        const first = Math.min(0, min);
+        scale.max = Math.max(endTime, max);
+        // A stationary task with just t = 0 still needs a nonzero axis span.
+        scale.min = first < scale.max ? first : first - 1;
+    };
+    config.plugins = [...(config.plugins ?? []), {
+        id: "calculationEnd",
+        afterDatasetsDraw: chart => drawCalculationEnd(chart, endTime),
+    }];
+    return config;
+}
+
+export function recordGraphConfig(schema, records, modeValue, endTime) {
     const mode = recordGraphMode(schema, modeValue);
-    return {
+    return withCalculationEnd({
         type: "line",
         data: {
             datasets: recordGraphDatasets(schema, records, mode.value),
@@ -127,5 +177,5 @@ export function recordGraphConfig(schema, records, modeValue) {
                 },
             },
         },
-    };
+    }, endTime);
 }
