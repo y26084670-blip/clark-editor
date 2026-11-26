@@ -143,9 +143,8 @@ async function checkMode(offset) {
         await page.keyboard.press("Control+s");
         await page.waitForFunction(async () => JSON.parse((await editorFixture.read("input3XX/tks.txt")).split("\n")[0]).forceGroup === 1);
         await page.locator(".tabs-header button").getByText("Элементы",{exact:true}).click();
-        await page.evaluate(async () => {
+        await page.evaluate(() => {
             const table = editorFixture.tables(".tabulator").find(t => t.getData().some(r => r.name === "ШГ 1"));
-            await table.scrollToColumn("take", "center", true);
             table.getRows()[0].getCell("take").edit();
         });
         const input = page.locator(".tabulator-editing input");
