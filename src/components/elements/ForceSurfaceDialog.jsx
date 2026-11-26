@@ -18,7 +18,7 @@ export function ForceSurfaceDialog(props) {
             || current.elements !== saved.request.elements || current.order !== saved.request.order
             || current.moves !== saved.request.moves || current.general !== saved.request.general) return "";
         return saved.plan.groups.map(group => `Группа ${group.id} — ШГ ${group.members.map(i => i + 1).join(", ")}`)
-            .join(" · ") || "Все физические элементы отнесены к группе 0.";
+            .join(" · ") || "Положительные силовые группы отсутствуют.";
     };
 
     createEffect(() => {
@@ -70,10 +70,10 @@ export function ForceSurfaceDialog(props) {
             let message;
             if (general.forceFaceOffset > 0) {
                 message = plan.groups.length ? "Силовую поверхность построит решатель по внешним граням. Для этого режима площадки на вкладке «Области» не требуются."
-                    : "Все элементы отнесены к группе 0. Для расчёта по внешним граням нужна хотя бы одна положительная группа элементов.";
+                    : "Положительные группы отсутствуют. Для расчёта по внешним граням нужна хотя бы одна положительная группа элементов.";
             } else {
                 message = plan.groups.length ? "На вкладке «Области» создайте или проверьте замкнутую оболочку каждой положительной группы. Задайте каждой её площадке тот же номер в столбце «Силовая группа»."
-                    : "Все элементы отнесены к группе 0. Для расчёта по полному полю задайте оболочку вручную на вкладке «Области» и оставьте у её площадок силовую группу 0.";
+                    : "Положительные группы отсутствуют. Для расчёта по полному полю задайте оболочку вручную на вкладке «Области» и оставьте у её площадок силовую группу 0.";
             }
             inform("Построение силовых групп завершено", message);
         } catch (e) {
@@ -112,7 +112,7 @@ export function ForceSurfaceDialog(props) {
             <div class="force-surface-body">
                 <Show when={props.request} fallback={<span>Откройте вкладку «Элементы» задания.</span>}>
                     <span>{zeroIndices().length ? `Запомнены для группы 0: ${zeroIndices().map(i => i+1).join(", ")}.`
-                        : "Чтобы оставить элементы в группе 0, выделите их и нажмите «Перевести в группу 0» до построения."}</span>
+                        : "Чтобы оставить элементы в группе 0, выделите их и нажмите «Перевести в группу 0» до построения. Элементы с отрицательными номерами сохраняют свои номера."}</span>
                 </Show>
                 <Show when={busy() || summary()}><span role="status">{busy() ? "Выполнение…" : summary()}</span></Show>
                 <Show when={error()}><span class="force-surface-error" role="alert">{error()}</span></Show>

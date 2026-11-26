@@ -11,7 +11,7 @@ import { MaterialSelectionDialog } from "./components/materials/MaterialSelectio
 import { GeometryViewerWindow } from "./components/geometry/GeometryViewerWindow.jsx";
 import { MedAutofillDialog } from "./components/elements/MedAutofillDialog.jsx";
 import {ContactElementDialog} from "./components/elements/ContactElementDialog.jsx";
-import { applyForceGroups, excludeForceElements } from "./services/generator/forceGroups.js";
+import { applyForceGroups, excludeForceElements, forceSourceGroup } from "./services/generator/forceGroups.js";
 import { ForceSurfaceDialog } from "./components/elements/ForceSurfaceDialog.jsx";
 import { forceSurfaceMotionWarning } from "./services/generator/forceSurfaceMotion.js";
 import {applyContactElement, CONTACT_CURRENT_NOTICE} from "./services/generator/contactElement.js";
@@ -437,7 +437,7 @@ export default function App() {
     const checkedSnapshot = { ...modelSnapshot, jweakLocal: await loadJweakLocal(taskHandle) };
     let forceClosePairs = [], gapError = "";
     const {elements, general, moves} = checkedSnapshot;
-    const groupIds = new Set((elements ?? []).filter(e => e.targ !== 3).map(e => e.take ?? 0));
+    const groupIds = new Set((elements ?? []).filter(e => e.targ !== 3).map(forceSourceGroup));
     if (!(general?.forceFaceOffset > 0)) groupIds.delete(0);
     if (general?.evalForce && groupIds.size > 1) {
       try {

@@ -300,9 +300,10 @@ test("old solver-compatible inputs load quietly with their effective values", as
   assert.deepEqual(loaded.messages, []);
 
   const [first] = (await fixture("fixtures/team7-med/kvs.txt")).trim().split("\n").map(JSON.parse);
-  const records = [true, false, undefined, 0, 3].map(take => JSON.stringify({ ...first, take }));
+  const records = [true, false, undefined, 0, 3, -8].map(take => JSON.stringify({ ...first, take }));
+  records.push(JSON.stringify({ ...first, targ: 3, take: false }));
   const elements = await h.loadInput("elements", records.join("\n"));
-  assert.deepEqual(elements.value.map(row => row.take), [0, 0, 0, 0, 3]);
+  assert.deepEqual(elements.value.map(row => row.take), [0, -1, 0, 0, 3, -8, 0]);
   assert.deepEqual(elements.messages, []);
   assert.equal(elements.requiresSave, false);
 

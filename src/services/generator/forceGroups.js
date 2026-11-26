@@ -3,7 +3,7 @@ import { bounds, boxesMeet } from "../solver/medContactGeometry.js";
 import { needsCommonForceShell } from "./forceSurfaceGeometry.js";
 
 const physical = row => row.targ !== 3;
-const groupOf = row => Number.isSafeInteger(row.take) && row.take > 0 ? row.take : 0;
+export const forceSourceGroup = row => Number.isSafeInteger(row.take) && row.take > 0 ? row.take : 0;
 
 // Sweep expanded bounding boxes first. Only a candidate pair needs a solid
 // distance query. Mirror, local, axial and periodic images retain the source ID.
@@ -37,7 +37,7 @@ function visitClosePairs(kernel,model,geometry,minimum,relevant,visit) {
 
 export function conflictingForceContacts(kernel, model, minimum=model.general?.forceGroupMinGap ?? 2) {
     const externalFaces = model.general?.forceFaceOffset > 0;
-    const ids = model.elements.map(row => physical(row) ? groupOf(row) : null);
+    const ids = model.elements.map(row => physical(row) ? forceSourceGroup(row) : null);
     if (new Set(ids.filter(id => id !== null && (externalFaces || id > 0))).size < 2) return [];
     const conflicts = new Map();
     visitClosePairs(kernel,model,forceBodies(model),externalFaces ? 0 : minimum,
@@ -54,7 +54,7 @@ export function buildForceGroups(kernel, model, zeroIndices = []) {
     const geometry = forceBodies(model);
     if (!geometry.bodies.length) throw new Error("В задании нет физических элементов.");
     const excluded = new Set(zeroIndices);
-    const candidates = geometry.bodies.filter(body => !excluded.has(body.index));
+    const candidates = geometry.bodies.filter(body => !excluded.has(body.index) && (model.elements[body.index].take ?? 0) >= 0);
     const parent = model.elements.map((_, index) => index);
     function root(index) {
         while (parent[index] !== index) {
@@ -70,7 +70,9 @@ export function buildForceGroups(kernel, model, zeroIndices = []) {
 
     const components = new Map();
     const ids = model.elements.map((row, index) => {
-        if (!physical(row) || excluded.has(index)) return 0;
+        if (!physical(row)) return 0;
+        if (row.take < 0) return row.take;
+        if (excluded.has(index)) return 0;
         const key = root(index);
         if (!components.has(key)) components.set(key, {id:components.size + 1, members:[]});
         const group = components.get(key);

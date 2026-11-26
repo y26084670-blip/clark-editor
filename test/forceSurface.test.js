@@ -141,6 +141,13 @@ const block = (x,y=0,z=0, extra={}) => ({...prism([x,y,z],[1,1,1]),targ:0,take:0
 const automatic = (m, minimumGap=.2, excluded=[]) => buildForceGroups(kernel,
     {...m, general:{...m.general, forceGroupMinGap:minimumGap}}, excluded);
 
+test("automatic force groups preserve negative observation group numbers", () => {
+    const m = model([block(0), block(1.25,0,0,{take:-7}), block(2.5), block(8,0,0,{take:-2})]);
+    const plan = automatic(m, .4);
+    assert.deepEqual(plan.ids, [1,-7,2,-2]);
+    assert.deepEqual(applyForceGroups(m.elements, plan.ids).map(row => row.take), plan.ids);
+});
+
 test('automatic grouping uses resolvable solid distance at a face, edge, point, overlap and containment', () => {
     for (const b of [block(1,.5),block(1,1),block(1,1,1),block(.45,.4,.1),
         {...prism([.3,.3,.3],[.1,.1,.1]),targ:1}]) {
