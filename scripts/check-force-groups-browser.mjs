@@ -147,11 +147,12 @@ async function checkMode(offset) {
         await saveModel();
         await page.waitForFunction(async () => JSON.parse((await editorFixture.read("input3XX/tks.txt")).split("\n")[0]).forceGroup === 1);
         await page.locator(".tabs-header button").getByText("Элементы",{exact:true}).click();
-        await page.evaluate(() => {
-            const table = editorFixture.tables(".tabulator").find(t => t.getData().some(r => r.name === "ШГ 1"));
-            table.getRows()[0].getCell("take").edit();
-        });
-        const input = page.locator(".tabulator-editing input");
+        const current = page.locator(".tab-content:visible");
+        const firstRow = current.locator(".tabulator-row").filter({has:page.locator('[tabulator-field="take"]')}).first();
+        if (!(await firstRow.evaluate(row => row.classList.contains("tabulator-selected")))) {
+            await firstRow.locator('[tabulator-field="rowLabel"]').click();
+        }
+        const input = current.locator('.record-card-column input[data-field="take"]');
         await input.fill("-12");
         await input.press("Enter");
         await page.waitForFunction(() => editorFixture.model().elements[0].take === -12);
