@@ -56,6 +56,8 @@ try {
   await show(editor); await show(viewerPage);
   await editor.getByText("Рекомендуется обновить Clark", { exact: true }).waitFor();
   for (const page of [editor, viewerPage]) {
+    await page.getByText("Установлено 0.10.9. Версия поставки Clark 0.10.10.", { exact: true }).waitFor();
+    assert.equal(await page.getByText(/доступно обновление:/i).count(), 0);
     assert.equal(await page.getByRole("link", { name: "Скачать установщик" }).count(), 0);
   }
   assert.equal(await badge(editor).textContent(), "2"); assert.equal(await editor.locator(".whats-new-entry").count(), 2);
@@ -123,7 +125,7 @@ try {
   await editor.getByRole("button", { name: "Проверить обновления", exact: true }).click();
   for (const appPage of [editor, viewerPage]) {
     await appPage.getByText("Установлена более новая версия Clark. Обновление не требуется", { exact: true }).waitFor();
-    await appPage.getByText("Установлено: 0.10.49; версия в журнале: 0.10.48.", { exact: true }).waitFor();
+    await appPage.getByText("Установлено 0.10.49. Версия поставки Clark 0.10.48.", { exact: true }).waitFor();
     assert.equal(await appPage.getByRole("link", { name: "Скачать установщик" }).count(), 0);
     const style = await appPage.locator(".whats-new-button").evaluate(el => getComputedStyle(el).borderTopWidth);
     assert.equal(style, "2px");
@@ -139,6 +141,10 @@ try {
   assert.equal(await editor.locator(".whats-new-button").evaluate(el => el === document.activeElement), true);
   pass("narrow dialog fits, Escape closes it and focus returns to the notification button");
 
+  feed.recommendedClark.version = "2.03.00";
+  await viewerPage.getByRole("button", { name: "Проверить обновления", exact: true }).click();
+  await viewerPage.getByText(/Версия поставки Clark 2\.03\.00/).waitFor();
+
   const journal = JSON.parse(await readFile(resolve(root, "data/updates/changes.json"), "utf8"));
   const published = await context.request.get(origin + "/updates.json");
   assert.ok(published.ok());
@@ -146,9 +152,13 @@ try {
   assert.deepEqual(feed.recommendations, [...journal.recommendations].reverse());
   assert.deepEqual(feed.entries, journal.entries);
   assert.deepEqual(feed.recommendedClark, journal.recommendedClark);
+  const release = journal.recommendedClark.version;
+  await editor.evaluate(version => updateFixture.setNativeVersion(version), release);
   await show(editor);
   await editor.getByRole("button", { name: "Проверить обновления", exact: true }).click();
   for (const [app, appPage] of [["editor", editor], ["viewer", viewerPage]]) {
+    await appPage.getByText("Установлена рекомендуемая версия Clark", { exact: true }).waitFor();
+    await appPage.getByText(`Установлено ${release}. Версия поставки Clark ${release}.`, { exact: true }).waitFor();
     await appPage.getByLabel("Только непрочитанные", { exact: true }).uncheck();
     await appPage.getByRole("tab", { name: /^Интерфейс/ }).click();
     const med = appPage.locator(".whats-new-entry").filter({ has:

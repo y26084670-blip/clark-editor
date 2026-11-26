@@ -643,10 +643,6 @@ export function Tasks(props) {
     setTasks(list);
     const task = list.find(row => row.name === result.handle.name);
     if (task) await selectTaskCandidate(task);
-    if (result.queue) {
-      setTaskLaunchRoot(result.queue);
-      setTaskLaunchBinding(await readWorkspaceBinding(result.queue).catch(() => null));
-    }
     setBindingNotice("Загружено задание: " + [result.root.name, result.parent.name, result.handle.name].join("/"));
     await saveProjectDisk(result.disk).catch(() => {});
   }
