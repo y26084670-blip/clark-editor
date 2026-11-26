@@ -1,0 +1,1 @@
+{"useMED":true,"fullAxialSymmetry":false,"doubleFloat":true,"mirrorSymmetryX":-1,"mirrorSymmetryY":-1,"countTimeSteps":32,"timeStep":0.00015625,"polusForceX":0,"polusForceY":0,"polusForceZ":0,"evalForce":false,"htsRegimFC":false,"htsMu":false,"htsRo":false}

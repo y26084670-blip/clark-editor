@@ -1,0 +1,290 @@
+idtk = 0 (40)
+1	0.0	0.0	0.0	0.0
+
+idtk = 1 (40)
+JWeak1: cells=4500 constraints=5856 rank=5774 row_nullity=82
+Токовая система: упрощённый Newton — fullJNewton=false.
+1	1.0	0.18299320702913713	0.0	0.0
+100	4.1901806969184145e-6	0.666622165066803	0.0	0.0
+114	9.51330171652042e-7	0.6666226694641505	0.0	0.0
+
+JWeak1: iterations=113 equation=9.51330171652042e-7 constraint=5.619893966238059e-14 tolerance=1.0e-6 linear_iterations=0 linear_error=0.0
+JWeak1 diagnostics: dJ_full_last_A_per_mm2=6.787858877589467e-6 rE_max_V_per_m=4.0560513417190557e-7
+idtk = 2 (40)
+Токовая система: упрощённый Newton — fullJNewton=false.
+1	0.199604669566037	0.7746793198082079	0.0	0.0
+82	9.138015613131869e-7	1.0375208556709312	0.0	0.0
+
+JWeak1: iterations=81 equation=9.138015613131869e-7 constraint=4.39746303562706e-14 tolerance=1.0e-6 linear_iterations=0 linear_error=0.0
+JWeak1 diagnostics: dJ_full_last_A_per_mm2=2.1828602043121677e-5 rE_max_V_per_m=9.112961630935795e-7
+idtk = 3 (40)
+Токовая система: упрощённый Newton — fullJNewton=false.
+1	0.09543544207683075	1.1069526647969092	0.0	0.0
+82	9.64029310708873e-7	1.25625341767293	0.0	0.0
+
+JWeak1: iterations=81 equation=9.64029310708873e-7 constraint=3.963469250935101e-14 tolerance=1.0e-6 linear_iterations=0 linear_error=0.0
+JWeak1 diagnostics: dJ_full_last_A_per_mm2=7.786651677047376e-6 rE_max_V_per_m=7.434446159482832e-7
+idtk = 4 (40)
+Токовая система: упрощённый Newton — fullJNewton=false.
+1	0.04642783384406015	1.2944859832994857	0.0	0.0
+84	9.198700150858023e-7	1.367505534177917	0.0	0.0
+
+JWeak1: iterations=83 equation=9.198700150858023e-7 constraint=3.662533606646323e-14 tolerance=1.0e-6 linear_iterations=0 linear_error=0.0
+JWeak1 diagnostics: dJ_full_last_A_per_mm2=1.3884662865690126e-5 rE_max_V_per_m=7.633583129185027e-7
+idtk = 5 (40)
+Токовая система: упрощённый Newton — fullJNewton=false.
+1	0.01808589082728668	1.379450760047117	0.0	0.0
+85	9.887747569975245e-7	1.3937360084522743	0.0	0.0
+
+JWeak1: iterations=84 equation=9.887747569975245e-7 constraint=3.4939765933090464e-14 tolerance=1.0e-6 linear_iterations=0 linear_error=0.0
+JWeak1 diagnostics: dJ_full_last_A_per_mm2=1.6918592264928727e-5 rE_max_V_per_m=8.378416619769989e-7
+idtk = 6 (40)
+Токовая система: упрощённый Newton — fullJNewton=false.
+1	0.01763514293172312	1.383286905918116	0.0	0.0
+87	9.624019313367166e-7	1.3498105076539844	0.0	0.0
+
+JWeak1: iterations=86 equation=9.624019313367166e-7 constraint=3.2881646938083994e-14 tolerance=1.0e-6 linear_iterations=0 linear_error=0.0
+JWeak1 diagnostics: dJ_full_last_A_per_mm2=1.6503473690440155e-5 rE_max_V_per_m=7.963399698847816e-7
+idtk = 7 (40)
+Токовая система: упрощённый Newton — fullJNewton=false.
+1	0.037092191879725546	1.3202736348421562	0.0	0.0
+89	9.466084550259601e-7	1.2473099123762943	0.0	0.0
+
+JWeak1: iterations=88 equation=9.466084550259601e-7 constraint=3.059464108314997e-14 tolerance=1.0e-6 linear_iterations=0 linear_error=0.0
+JWeak1 diagnostics: dJ_full_last_A_per_mm2=1.5200972628587977e-5 rE_max_V_per_m=7.27786446602444e-7
+idtk = 8 (40)
+Токовая система: упрощённый Newton — fullJNewton=false.
+1	0.06033500612488169	1.2016305441396151	0.0	0.0
+91	9.495675766388599e-7	1.0962591137762425	0.0	0.0
+
+JWeak1: iterations=90 equation=9.495675766388599e-7 constraint=2.808711434835815e-14 tolerance=1.0e-6 linear_iterations=0 linear_error=0.0
+JWeak1 diagnostics: dJ_full_last_A_per_mm2=1.3450973954935451e-5 rE_max_V_per_m=6.436394689206597e-7
+idtk = 9 (40)
+Токовая система: упрощённый Newton — fullJNewton=false.
+1	0.08956833891630353	1.0371675142724508	0.0	0.0
+93	9.873007524147489e-7	0.906067975783359	0.0	0.0
+
+JWeak1: iterations=92 equation=9.873007524147489e-7 constraint=2.447777212953508e-14 tolerance=1.0e-6 linear_iterations=0 linear_error=0.0
+JWeak1 diagnostics: dJ_full_last_A_per_mm2=1.1527940403046502e-5 rE_max_V_per_m=5.530326479664013e-7
+idtk = 10 (40)
+Токовая система: упрощённый Newton — fullJNewton=false.
+1	0.13199854601647718	0.8361928576077079	0.0	0.0
+96	9.871496873469116e-7	0.6864193952413158	0.0	0.0
+
+JWeak1: iterations=95 equation=9.871496873469116e-7 constraint=2.0841009439133077e-14 tolerance=1.0e-6 linear_iterations=0 linear_error=0.0
+JWeak1 diagnostics: dJ_full_last_A_per_mm2=8.597019685406052e-6 rE_max_V_per_m=4.1649107190558004e-7
+idtk = 11 (40)
+Токовая система: упрощённый Newton — fullJNewton=false.
+1	0.20724393814222877	0.608475662952599	0.0	0.0
+100	1.0190017975386814e-6	0.4495757719115459	0.0	0.0
+101	9.164370770031258e-7	0.4495757719115459	0.0	0.0
+
+JWeak1: iterations=100 equation=9.164370770031258e-7 constraint=1.6784254060394115e-14 tolerance=1.0e-6 linear_iterations=0 linear_error=0.0
+JWeak1 diagnostics: dJ_full_last_A_per_mm2=5.0075884469327035e-6 rE_max_V_per_m=2.4763655841793873e-7
+idtk = 12 (40)
+Токовая система: упрощённый Newton — fullJNewton=false.
+1	0.39071299320985037	0.36748503499832974	0.0	0.0
+100	1.9893170122100096e-6	0.2266013477597289	0.0	0.0
+107	9.467727462971257e-7	0.22660138977238703	0.0	0.0
+
+JWeak1: iterations=106 equation=9.467727462971257e-7 constraint=8.133456248744902e-14 tolerance=1.0e-6 linear_iterations=0 linear_error=0.0
+JWeak1 diagnostics: dJ_full_last_A_per_mm2=2.5524030499296054e-6 rE_max_V_per_m=1.292122105822813e-7
+idtk = 13 (40)
+Токовая система: упрощённый Newton — fullJNewton=false.
+1	0.6625489561461447	0.1634791047046319	0.0	0.0
+100	2.4384675195583362e-6	0.20370416005177325	0.0	0.0
+109	9.386996606526674e-7	0.20370425476105342	0.0	0.0
+
+JWeak1: iterations=108 equation=9.386996606526674e-7 constraint=7.077666591533539e-14 tolerance=1.0e-6 linear_iterations=0 linear_error=0.0
+JWeak1 diagnostics: dJ_full_last_A_per_mm2=1.9768293777678858e-6 rE_max_V_per_m=1.0036620675051763e-7
+idtk = 14 (40)
+Токовая система: упрощённый Newton — fullJNewton=false.
+1	0.4576581659786651	0.25077012180662944	0.0	0.0
+100	9.354826124818882e-7	0.422942780135068	0.0	0.0
+
+JWeak1: iterations=99 equation=9.354826124818882e-7 constraint=5.19195194352481e-14 tolerance=1.0e-6 linear_iterations=0 linear_error=0.0
+JWeak1 diagnostics: dJ_full_last_A_per_mm2=5.037779101250684e-6 rE_max_V_per_m=2.429224831675932e-7
+idtk = 15 (40)
+Токовая система: упрощённый Newton — fullJNewton=false.
+1	0.23434224470204779	0.49466172906613576	0.0	0.0
+94	9.775008114465645e-7	0.673476100165345	0.0	0.0
+
+JWeak1: iterations=93 equation=9.775008114465645e-7 constraint=4.629906614203086e-14 tolerance=1.0e-6 linear_iterations=0 linear_error=0.0
+JWeak1 diagnostics: dJ_full_last_A_per_mm2=8.967958830288833e-6 rE_max_V_per_m=4.1437755167381465e-7
+idtk = 16 (40)
+Токовая система: упрощённый Newton — fullJNewton=false.
+1	0.14985769484010425	0.7465838260441097	0.0	0.0
+90	9.46106188933311e-7	0.9169974822700159	0.0	0.0
+
+JWeak1: iterations=89 equation=9.46106188933311e-7 constraint=4.276096314965396e-14 tolerance=1.0e-6 linear_iterations=0 linear_error=0.0
+JWeak1 diagnostics: dJ_full_last_A_per_mm2=1.2339217162690345e-5 rE_max_V_per_m=5.500327013187054e-7
+idtk = 17 (40)
+Токовая система: упрощённый Newton — fullJNewton=false.
+1	0.10543214207457177	0.986026751898578	0.0	0.0
+86	9.538725656743109e-7	1.1420253079982403	0.0	0.0
+
+JWeak1: iterations=85 equation=9.538725656743109e-7 constraint=4.0832583051200755e-14 tolerance=1.0e-6 linear_iterations=0 linear_error=0.0
+JWeak1 diagnostics: dJ_full_last_A_per_mm2=1.621680783731013e-5 rE_max_V_per_m=6.928643549709747e-7
+idtk = 18 (40)
+Токовая система: упрощённый Newton — fullJNewton=false.
+1	0.07705263204125502	1.204057074515327	0.0	0.0
+82	9.439381914720629e-7	1.3412462553663242	0.0	0.0
+
+JWeak1: iterations=81 equation=9.439381914720629e-7 constraint=3.874325178012119e-14 tolerance=1.0e-6 linear_iterations=0 linear_error=0.0
+JWeak1 diagnostics: dJ_full_last_A_per_mm2=1.9943844817485125e-5 rE_max_V_per_m=8.076474398267356e-7
+idtk = 19 (40)
+Токовая система: упрощённый Newton — fullJNewton=false.
+1	0.05656481387426444	1.3941765740957317	0.0	0.0
+77	9.434792465070833e-7	1.508956009875609	0.0	0.0
+
+JWeak1: iterations=76 equation=9.434792465070833e-7 constraint=3.7757844839923756e-14 tolerance=1.0e-6 linear_iterations=0 linear_error=0.0
+JWeak1 diagnostics: dJ_full_last_A_per_mm2=2.45907539740417e-5 rE_max_V_per_m=9.12613098583825e-7
+idtk = 20 (40)
+Токовая система: упрощённый Newton — fullJNewton=false.
+1	0.0404363218156691	1.5511479170076445	0.0	0.0
+69	9.460418599392311e-7	1.6405942078426188	0.0	0.0
+
+JWeak1: iterations=68 equation=9.460418599392311e-7 constraint=3.674985015385192e-14 tolerance=1.0e-6 linear_iterations=0 linear_error=0.0
+JWeak1 diagnostics: dJ_full_last_A_per_mm2=3.3676544422307983e-5 rE_max_V_per_m=1.0065439500955805e-6
+idtk = 21 (40)
+Токовая система: упрощённый Newton — fullJNewton=false.
+1	0.026882992592947193	1.6707890235950862	0.0	0.0
+54	9.76918493046654e-7	1.7326645483432181	0.0	0.0
+
+JWeak1: iterations=53 equation=9.76918493046654e-7 constraint=3.573643532151787e-14 tolerance=1.0e-6 linear_iterations=0 linear_error=0.0
+JWeak1 diagnostics: dJ_full_last_A_per_mm2=3.2660790334772286e-5 rE_max_V_per_m=1.3359772364654258e-6
+idtk = 22 (40)
+Токовая система: упрощённый Newton — fullJNewton=false.
+1	0.014995090226363417	1.749960000027106	0.0	0.0
+71	9.686020866355151e-7	1.7827455797132639	0.0	0.0
+
+JWeak1: iterations=70 equation=9.686020866355151e-7 constraint=3.447043818577836e-14 tolerance=1.0e-6 linear_iterations=0 linear_error=0.0
+JWeak1 diagnostics: dJ_full_last_A_per_mm2=1.924172697790862e-5 rE_max_V_per_m=1.0572985188459834e-6
+idtk = 23 (40)
+Токовая система: упрощённый Newton — fullJNewton=false.
+1	0.005722487069706216	1.786592216585827	0.0	0.0
+77	9.339949332125417e-7	1.7895107576638283	0.0	0.0
+
+JWeak1: iterations=76 equation=9.339949332125417e-7 constraint=3.384967597375055e-14 tolerance=1.0e-6 linear_iterations=0 linear_error=0.0
+JWeak1 diagnostics: dJ_full_last_A_per_mm2=2.1170237100566993e-5 rE_max_V_per_m=1.0214703812186094e-6
+idtk = 24 (40)
+Токовая система: упрощённый Newton — fullJNewton=false.
+1	0.010460866378555544	1.779711599237469	0.0	0.0
+80	9.913222933508483e-7	1.7527505585077965	0.0	0.0
+
+JWeak1: iterations=79 equation=9.913222933508483e-7 constraint=3.2470746597032233e-14 tolerance=1.0e-6 linear_iterations=0 linear_error=0.0
+JWeak1 diagnostics: dJ_full_last_A_per_mm2=2.2804616947277554e-5 rE_max_V_per_m=1.0642836276476782e-6
+idtk = 25 (40)
+Токовая система: упрощённый Newton — fullJNewton=false.
+1	0.021752772779838673	1.7294569021687936	0.0	0.0
+83	9.638283473669398e-7	1.6733701475790712	0.0	0.0
+
+JWeak1: iterations=82 equation=9.638283473669398e-7 constraint=3.130868510167313e-14 tolerance=1.0e-6 linear_iterations=0 linear_error=0.0
+JWeak1 diagnostics: dJ_full_last_A_per_mm2=2.1355096836320532e-5 rE_max_V_per_m=9.942038963995678e-7
+idtk = 26 (40)
+Токовая система: упрощённый Newton — fullJNewton=false.
+1	0.034730986187558696	1.637071864651549	0.0	0.0
+86	9.004885935441693e-7	1.5533734150783505	0.0	0.0
+
+JWeak1: iterations=85 equation=9.004885935441693e-7 constraint=2.9940822101078565e-14 tolerance=1.0e-6 linear_iterations=0 linear_error=0.0
+JWeak1 diagnostics: dJ_full_last_A_per_mm2=1.849495758129541e-5 rE_max_V_per_m=8.661855196506018e-7
+idtk = 27 (40)
+Токовая система: упрощённый Newton — fullJNewton=false.
+1	0.04996713740073992	1.5048825090886764	0.0	0.0
+88	9.220821785998826e-7	1.3958356343677056	0.0	0.0
+
+JWeak1: iterations=87 equation=9.220821785998826e-7 constraint=2.839194984042028e-14 tolerance=1.0e-6 linear_iterations=0 linear_error=0.0
+JWeak1 diagnostics: dJ_full_last_A_per_mm2=1.7011009577571128e-5 rE_max_V_per_m=7.988845414066134e-7
+idtk = 28 (40)
+Токовая система: упрощённый Newton — fullJNewton=false.
+1	0.0689537145552287	1.3362636051411494	0.0	0.0
+90	9.484452440671728e-7	1.204884076458969	0.0	0.0
+
+JWeak1: iterations=89 equation=9.484452440671728e-7 constraint=2.600773782100017e-14 tolerance=1.0e-6 linear_iterations=0 linear_error=0.0
+JWeak1 diagnostics: dJ_full_last_A_per_mm2=1.5045659488019996e-5 rE_max_V_per_m=7.098692830835921e-7
+idtk = 29 (40)
+Токовая система: упрощённый Newton — fullJNewton=false.
+1	0.09459269024623414	1.1356166974487947	0.0	0.0
+93	8.996730225031258e-7	0.985746246830692	0.0	0.0
+
+JWeak1: iterations=92 equation=8.996730225031258e-7 constraint=2.4118475210459944e-14 tolerance=1.0e-6 linear_iterations=0 linear_error=0.0
+JWeak1 diagnostics: dJ_full_last_A_per_mm2=1.152832778521395e-5 rE_max_V_per_m=5.502892328282001e-7
+idtk = 30 (40)
+Токовая система: упрощённый Newton — fullJNewton=false.
+1	0.1332685017268605	0.9084321792674491	0.0	0.0
+96	9.03679086292262e-7	0.7450905666675703	0.0	0.0
+
+JWeak1: iterations=95 equation=9.03679086292262e-7 constraint=2.06694970876939e-14 tolerance=1.0e-6 linear_iterations=0 linear_error=0.0
+JWeak1 diagnostics: dJ_full_last_A_per_mm2=8.597090734803888e-6 rE_max_V_per_m=4.150942583838485e-7
+idtk = 31 (40)
+Токовая система: упрощённый Newton — fullJNewton=false.
+1	0.20230617599200829	0.661735299436634	0.0	0.0
+100	9.236275839451528e-7	0.4928328654133424	0.0	0.0
+
+JWeak1: iterations=99 equation=9.236275839451528e-7 constraint=1.7540785707379485e-14 tolerance=1.0e-6 linear_iterations=0 linear_error=0.0
+JWeak1 diagnostics: dJ_full_last_A_per_mm2=5.595793082332896e-6 rE_max_V_per_m=2.7462093593562514e-7
+idtk = 32 (40)
+Токовая система: упрощённый Newton — fullJNewton=false.
+1	0.3661114398228703	0.4067568371633678	0.0	0.0
+100	1.7566014882008054e-6	0.25576647563914245	0.0	0.0
+106	9.295329219833454e-7	0.25576650831213804	0.0	0.0
+
+JWeak1: iterations=105 equation=9.295329219833454e-7 constraint=7.441900596724395e-14 tolerance=1.0e-6 linear_iterations=0 linear_error=0.0
+JWeak1 diagnostics: dJ_full_last_A_per_mm2=2.8508837680671677e-6 rE_max_V_per_m=1.433968349529896e-7
+idtk = 33 (40)
+Токовая система: упрощённый Newton — fullJNewton=false.
+1	0.649860893495796	0.18593688808761213	0.0	0.0
+100	2.5512367667725622e-6	0.20028678549770051	0.0	0.0
+109	9.820962123708491e-7	0.20028688182310783	0.0	0.0
+
+JWeak1: iterations=108 equation=9.820962123708491e-7 constraint=7.431304495371482e-14 tolerance=1.0e-6 linear_iterations=0 linear_error=0.0
+JWeak1 diagnostics: dJ_full_last_A_per_mm2=1.976832335626423e-6 rE_max_V_per_m=1.0024047061698768e-7
+idtk = 34 (40)
+Токовая система: упрощённый Newton — fullJNewton=false.
+1	0.4863652247458306	0.24095015617889778	0.0	0.0
+100	9.66876367749544e-7	0.4116389289658882	0.0	0.0
+
+JWeak1: iterations=99 equation=9.66876367749544e-7 constraint=5.258874805487495e-14 tolerance=1.0e-6 linear_iterations=0 linear_error=0.0
+JWeak1 diagnostics: dJ_full_last_A_per_mm2=5.037780168401219e-6 rE_max_V_per_m=2.426900129340442e-7
+idtk = 35 (40)
+Токовая система: упрощённый Newton — fullJNewton=false.
+1	0.244080474497802	0.4833192471340937	0.0	0.0
+94	9.922610418024981e-7	0.6638869539073082	0.0	0.0
+
+JWeak1: iterations=93 equation=9.922610418024981e-7 constraint=4.590430838547089e-14 tolerance=1.0e-6 linear_iterations=0 linear_error=0.0
+JWeak1 diagnostics: dJ_full_last_A_per_mm2=8.967959451123543e-6 rE_max_V_per_m=4.140636079743169e-7
+idtk = 36 (40)
+Токовая система: упрощённый Newton — fullJNewton=false.
+1	0.1536654198127752	0.737567436208511	0.0	0.0
+90	9.534209050315315e-7	0.9096440234563733	0.0	0.0
+
+JWeak1: iterations=89 equation=9.534209050315315e-7 constraint=4.3315727239974685e-14 tolerance=1.0e-6 linear_iterations=0 linear_error=0.0
+JWeak1 diagnostics: dJ_full_last_A_per_mm2=1.2339217600562018e-5 rE_max_V_per_m=5.496886103865072e-7
+idtk = 37 (40)
+Токовая система: упрощённый Newton — fullJNewton=false.
+1	0.10725387418019644	0.9792310990493714	0.0	0.0
+86	9.578955949945997e-7	1.1365341617876237	0.0	0.0
+
+JWeak1: iterations=85 equation=9.578955949945997e-7 constraint=4.065416379831796e-14 tolerance=1.0e-6 linear_iterations=0 linear_error=0.0
+JWeak1 diagnostics: dJ_full_last_A_per_mm2=1.6216808229889565e-5 rE_max_V_per_m=6.924866969206157e-7
+idtk = 38 (40)
+Токовая система: упрощённый Newton — fullJNewton=false.
+1	0.07803074380521301	1.1990191638264218	0.0	0.0
+82	9.461201151789466e-7	1.3371884091712039	0.0	0.0
+
+JWeak1: iterations=81 equation=9.461201151789466e-7 constraint=3.909325266242954e-14 tolerance=1.0e-6 linear_iterations=0 linear_error=0.0
+JWeak1 diagnostics: dJ_full_last_A_per_mm2=1.9943845222505798e-5 rE_max_V_per_m=8.072496833998953e-7
+idtk = 39 (40)
+Токовая система: упрощённый Newton — fullJNewton=false.
+1	0.05713052093224781	1.390467998524418	0.0	0.0
+77	9.445293879990346e-7	1.5059724311462859	0.0	0.0
+
+JWeak1: iterations=76 equation=9.445293879990346e-7 constraint=3.745350389926002e-14 tolerance=1.0e-6 linear_iterations=0 linear_error=0.0
+JWeak1 diagnostics: dJ_full_last_A_per_mm2=2.4590754608207308e-5 rE_max_V_per_m=9.1212837765371e-7
+idtk = 40 (40)
+Токовая система: упрощённый Newton — fullJNewton=false.
+1	0.04078132061354927	1.5484276141080198	0.0	0.0
+69	9.460239127878669e-7	1.6384064799164062	0.0	0.0
+
+JWeak1: iterations=68 equation=9.460239127878669e-7 constraint=3.653450587637437e-14 tolerance=1.0e-6 linear_iterations=0 linear_error=0.0
+JWeak1 diagnostics: dJ_full_last_A_per_mm2=3.3676546614332215e-5 rE_max_V_per_m=1.0057726291586993e-6
