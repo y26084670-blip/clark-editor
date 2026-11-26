@@ -1,0 +1,689 @@
+{
+  "schema": "clark.task.contacts/1",
+  "generated_at": "2026-10-24T20:12:51+03:00",
+  "face_numbering": {
+    "1": "Z-",
+    "2": "Z+",
+    "3": "Y-",
+    "4": "Y+",
+    "5": "X-",
+    "6": "X+"
+  },
+  "useMED": true,
+  "contact_pair_count": 28,
+  "contacts": [
+    {
+      "block_a": 1,
+      "face_a": 1,
+      "block_b": 20,
+      "face_b": 2,
+      "normal_from_a": [
+        0,
+        0,
+        -1
+      ],
+      "plane_axis": "Z",
+      "plane_mm": -20.0,
+      "area_mm2": 0.5000000000000004,
+      "face_grid_a": [
+        18,
+        1
+      ],
+      "face_grid_b": [
+        1,
+        1
+      ],
+      "same_face_grid": false,
+      "prescribed_source_contact": true
+    },
+    {
+      "block_a": 1,
+      "face_a": 2,
+      "block_b": 2,
+      "face_b": 1,
+      "normal_from_a": [
+        0,
+        0,
+        1
+      ],
+      "plane_axis": "Z",
+      "plane_mm": -5.0,
+      "area_mm2": 0.5000000000000004,
+      "face_grid_a": [
+        18,
+        1
+      ],
+      "face_grid_b": [
+        18,
+        1
+      ],
+      "same_face_grid": true,
+      "prescribed_source_contact": false
+    },
+    {
+      "block_a": 2,
+      "face_a": 2,
+      "block_b": 3,
+      "face_b": 1,
+      "normal_from_a": [
+        0,
+        0,
+        1
+      ],
+      "plane_axis": "Z",
+      "plane_mm": 5.0,
+      "area_mm2": 0.5000000000000004,
+      "face_grid_a": [
+        18,
+        1
+      ],
+      "face_grid_b": [
+        18,
+        1
+      ],
+      "same_face_grid": true,
+      "prescribed_source_contact": false
+    },
+    {
+      "block_a": 2,
+      "face_a": 3,
+      "block_b": 13,
+      "face_b": 4,
+      "normal_from_a": [
+        0,
+        -1,
+        0
+      ],
+      "plane_axis": "Y",
+      "plane_mm": 0.95,
+      "area_mm2": 50.0,
+      "face_grid_a": [
+        18,
+        30
+      ],
+      "face_grid_b": [
+        18,
+        30
+      ],
+      "same_face_grid": true,
+      "prescribed_source_contact": false
+    },
+    {
+      "block_a": 2,
+      "face_a": 4,
+      "block_b": 8,
+      "face_b": 3,
+      "normal_from_a": [
+        0,
+        1,
+        0
+      ],
+      "plane_axis": "Y",
+      "plane_mm": 1.05,
+      "area_mm2": 50.0,
+      "face_grid_a": [
+        18,
+        30
+      ],
+      "face_grid_b": [
+        18,
+        30
+      ],
+      "same_face_grid": true,
+      "prescribed_source_contact": false
+    },
+    {
+      "block_a": 2,
+      "face_a": 5,
+      "block_b": 12,
+      "face_b": 6,
+      "normal_from_a": [
+        -1,
+        0,
+        0
+      ],
+      "plane_axis": "X",
+      "plane_mm": -2.5,
+      "area_mm2": 1.0000000000000009,
+      "face_grid_a": [
+        1,
+        30
+      ],
+      "face_grid_b": [
+        1,
+        30
+      ],
+      "same_face_grid": true,
+      "prescribed_source_contact": false
+    },
+    {
+      "block_a": 2,
+      "face_a": 6,
+      "block_b": 16,
+      "face_b": 5,
+      "normal_from_a": [
+        1,
+        0,
+        0
+      ],
+      "plane_axis": "X",
+      "plane_mm": 2.5,
+      "area_mm2": 1.0000000000000009,
+      "face_grid_a": [
+        1,
+        30
+      ],
+      "face_grid_b": [
+        1,
+        30
+      ],
+      "same_face_grid": true,
+      "prescribed_source_contact": false
+    },
+    {
+      "block_a": 4,
+      "face_a": 2,
+      "block_b": 5,
+      "face_b": 1,
+      "normal_from_a": [
+        0,
+        0,
+        1
+      ],
+      "plane_axis": "Z",
+      "plane_mm": -5.0,
+      "area_mm2": 0.5000000000000004,
+      "face_grid_a": [
+        18,
+        1
+      ],
+      "face_grid_b": [
+        18,
+        1
+      ],
+      "same_face_grid": true,
+      "prescribed_source_contact": false
+    },
+    {
+      "block_a": 5,
+      "face_a": 2,
+      "block_b": 6,
+      "face_b": 1,
+      "normal_from_a": [
+        0,
+        0,
+        1
+      ],
+      "plane_axis": "Z",
+      "plane_mm": 5.0,
+      "area_mm2": 0.5000000000000004,
+      "face_grid_a": [
+        18,
+        1
+      ],
+      "face_grid_b": [
+        18,
+        1
+      ],
+      "same_face_grid": true,
+      "prescribed_source_contact": false
+    },
+    {
+      "block_a": 5,
+      "face_a": 3,
+      "block_b": 18,
+      "face_b": 4,
+      "normal_from_a": [
+        0,
+        -1,
+        0
+      ],
+      "plane_axis": "Y",
+      "plane_mm": -1.05,
+      "area_mm2": 50.0,
+      "face_grid_a": [
+        18,
+        30
+      ],
+      "face_grid_b": [
+        18,
+        30
+      ],
+      "same_face_grid": true,
+      "prescribed_source_contact": false
+    },
+    {
+      "block_a": 5,
+      "face_a": 4,
+      "block_b": 13,
+      "face_b": 3,
+      "normal_from_a": [
+        0,
+        1,
+        0
+      ],
+      "plane_axis": "Y",
+      "plane_mm": -0.95,
+      "area_mm2": 50.0,
+      "face_grid_a": [
+        18,
+        30
+      ],
+      "face_grid_b": [
+        18,
+        30
+      ],
+      "same_face_grid": true,
+      "prescribed_source_contact": false
+    },
+    {
+      "block_a": 5,
+      "face_a": 5,
+      "block_b": 10,
+      "face_b": 6,
+      "normal_from_a": [
+        -1,
+        0,
+        0
+      ],
+      "plane_axis": "X",
+      "plane_mm": -2.5,
+      "area_mm2": 1.0000000000000009,
+      "face_grid_a": [
+        1,
+        30
+      ],
+      "face_grid_b": [
+        1,
+        30
+      ],
+      "same_face_grid": true,
+      "prescribed_source_contact": false
+    },
+    {
+      "block_a": 5,
+      "face_a": 6,
+      "block_b": 14,
+      "face_b": 5,
+      "normal_from_a": [
+        1,
+        0,
+        0
+      ],
+      "plane_axis": "X",
+      "plane_mm": 2.5,
+      "area_mm2": 1.0000000000000009,
+      "face_grid_a": [
+        1,
+        30
+      ],
+      "face_grid_b": [
+        1,
+        30
+      ],
+      "same_face_grid": true,
+      "prescribed_source_contact": false
+    },
+    {
+      "block_a": 6,
+      "face_a": 2,
+      "block_b": 21,
+      "face_b": 1,
+      "normal_from_a": [
+        0,
+        0,
+        1
+      ],
+      "plane_axis": "Z",
+      "plane_mm": 20.0,
+      "area_mm2": 0.5000000000000004,
+      "face_grid_a": [
+        18,
+        1
+      ],
+      "face_grid_b": [
+        1,
+        1
+      ],
+      "same_face_grid": false,
+      "prescribed_source_contact": true
+    },
+    {
+      "block_a": 7,
+      "face_a": 3,
+      "block_b": 12,
+      "face_b": 4,
+      "normal_from_a": [
+        0,
+        -1,
+        0
+      ],
+      "plane_axis": "Y",
+      "plane_mm": 1.05,
+      "area_mm2": 25.0,
+      "face_grid_a": [
+        9,
+        30
+      ],
+      "face_grid_b": [
+        9,
+        30
+      ],
+      "same_face_grid": true,
+      "prescribed_source_contact": false
+    },
+    {
+      "block_a": 7,
+      "face_a": 6,
+      "block_b": 8,
+      "face_b": 5,
+      "normal_from_a": [
+        1,
+        0,
+        0
+      ],
+      "plane_axis": "X",
+      "plane_mm": -2.5,
+      "area_mm2": 19.5,
+      "face_grid_a": [
+        6,
+        30
+      ],
+      "face_grid_b": [
+        6,
+        30
+      ],
+      "same_face_grid": true,
+      "prescribed_source_contact": false
+    },
+    {
+      "block_a": 8,
+      "face_a": 6,
+      "block_b": 9,
+      "face_b": 5,
+      "normal_from_a": [
+        1,
+        0,
+        0
+      ],
+      "plane_axis": "X",
+      "plane_mm": 2.5,
+      "area_mm2": 19.5,
+      "face_grid_a": [
+        6,
+        30
+      ],
+      "face_grid_b": [
+        6,
+        30
+      ],
+      "same_face_grid": true,
+      "prescribed_source_contact": false
+    },
+    {
+      "block_a": 9,
+      "face_a": 3,
+      "block_b": 16,
+      "face_b": 4,
+      "normal_from_a": [
+        0,
+        -1,
+        0
+      ],
+      "plane_axis": "Y",
+      "plane_mm": 1.05,
+      "area_mm2": 25.0,
+      "face_grid_a": [
+        9,
+        30
+      ],
+      "face_grid_b": [
+        9,
+        30
+      ],
+      "same_face_grid": true,
+      "prescribed_source_contact": false
+    },
+    {
+      "block_a": 10,
+      "face_a": 3,
+      "block_b": 17,
+      "face_b": 4,
+      "normal_from_a": [
+        0,
+        -1,
+        0
+      ],
+      "plane_axis": "Y",
+      "plane_mm": -1.05,
+      "area_mm2": 25.0,
+      "face_grid_a": [
+        9,
+        30
+      ],
+      "face_grid_b": [
+        9,
+        30
+      ],
+      "same_face_grid": true,
+      "prescribed_source_contact": false
+    },
+    {
+      "block_a": 10,
+      "face_a": 4,
+      "block_b": 11,
+      "face_b": 3,
+      "normal_from_a": [
+        0,
+        1,
+        0
+      ],
+      "plane_axis": "Y",
+      "plane_mm": -0.95,
+      "area_mm2": 25.0,
+      "face_grid_a": [
+        9,
+        30
+      ],
+      "face_grid_b": [
+        9,
+        30
+      ],
+      "same_face_grid": true,
+      "prescribed_source_contact": false
+    },
+    {
+      "block_a": 11,
+      "face_a": 4,
+      "block_b": 12,
+      "face_b": 3,
+      "normal_from_a": [
+        0,
+        1,
+        0
+      ],
+      "plane_axis": "Y",
+      "plane_mm": 0.95,
+      "area_mm2": 25.0,
+      "face_grid_a": [
+        9,
+        30
+      ],
+      "face_grid_b": [
+        9,
+        30
+      ],
+      "same_face_grid": true,
+      "prescribed_source_contact": false
+    },
+    {
+      "block_a": 11,
+      "face_a": 6,
+      "block_b": 13,
+      "face_b": 5,
+      "normal_from_a": [
+        1,
+        0,
+        0
+      ],
+      "plane_axis": "X",
+      "plane_mm": -2.5,
+      "area_mm2": 19.0,
+      "face_grid_a": [
+        6,
+        30
+      ],
+      "face_grid_b": [
+        6,
+        30
+      ],
+      "same_face_grid": true,
+      "prescribed_source_contact": false
+    },
+    {
+      "block_a": 13,
+      "face_a": 6,
+      "block_b": 15,
+      "face_b": 5,
+      "normal_from_a": [
+        1,
+        0,
+        0
+      ],
+      "plane_axis": "X",
+      "plane_mm": 2.5,
+      "area_mm2": 19.0,
+      "face_grid_a": [
+        6,
+        30
+      ],
+      "face_grid_b": [
+        6,
+        30
+      ],
+      "same_face_grid": true,
+      "prescribed_source_contact": false
+    },
+    {
+      "block_a": 14,
+      "face_a": 3,
+      "block_b": 19,
+      "face_b": 4,
+      "normal_from_a": [
+        0,
+        -1,
+        0
+      ],
+      "plane_axis": "Y",
+      "plane_mm": -1.05,
+      "area_mm2": 25.0,
+      "face_grid_a": [
+        9,
+        30
+      ],
+      "face_grid_b": [
+        9,
+        30
+      ],
+      "same_face_grid": true,
+      "prescribed_source_contact": false
+    },
+    {
+      "block_a": 14,
+      "face_a": 4,
+      "block_b": 15,
+      "face_b": 3,
+      "normal_from_a": [
+        0,
+        1,
+        0
+      ],
+      "plane_axis": "Y",
+      "plane_mm": -0.95,
+      "area_mm2": 25.0,
+      "face_grid_a": [
+        9,
+        30
+      ],
+      "face_grid_b": [
+        9,
+        30
+      ],
+      "same_face_grid": true,
+      "prescribed_source_contact": false
+    },
+    {
+      "block_a": 15,
+      "face_a": 4,
+      "block_b": 16,
+      "face_b": 3,
+      "normal_from_a": [
+        0,
+        1,
+        0
+      ],
+      "plane_axis": "Y",
+      "plane_mm": 0.95,
+      "area_mm2": 25.0,
+      "face_grid_a": [
+        9,
+        30
+      ],
+      "face_grid_b": [
+        9,
+        30
+      ],
+      "same_face_grid": true,
+      "prescribed_source_contact": false
+    },
+    {
+      "block_a": 17,
+      "face_a": 6,
+      "block_b": 18,
+      "face_b": 5,
+      "normal_from_a": [
+        1,
+        0,
+        0
+      ],
+      "plane_axis": "X",
+      "plane_mm": -2.5,
+      "area_mm2": 19.5,
+      "face_grid_a": [
+        6,
+        30
+      ],
+      "face_grid_b": [
+        6,
+        30
+      ],
+      "same_face_grid": true,
+      "prescribed_source_contact": false
+    },
+    {
+      "block_a": 18,
+      "face_a": 6,
+      "block_b": 19,
+      "face_b": 5,
+      "normal_from_a": [
+        1,
+        0,
+        0
+      ],
+      "plane_axis": "X",
+      "plane_mm": 2.5,
+      "area_mm2": 19.5,
+      "face_grid_a": [
+        6,
+        30
+      ],
+      "face_grid_b": [
+        6,
+        30
+      ],
+      "same_face_grid": true,
+      "prescribed_source_contact": false
+    }
+  ],
+  "note": "Контакты 1–20 и 6–21: сетка торца ленты 18×1, сетка токового элемента 1×1. Геометрические грани совпадают полностью."
+}

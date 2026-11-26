@@ -1,0 +1,151 @@
+{
+  "case_id": "three_tapes_130mm_d0p1",
+  "created": "2026-10-26T17:13:18+03:00",
+  "status": "prepared_not_solved",
+  "comparison_status": "approximate_COMSOL_transfer",
+  "geometry": {
+    "length_mm": 130,
+    "width_mm": 12,
+    "thickness_mm": 0.1,
+    "edge_gap_mm": 1,
+    "tape_centres_y_mm": [
+      -13,
+      0,
+      13
+    ],
+    "x_range_mm": [
+      -65,
+      65
+    ],
+    "voltage_taps_x_mm": [
+      -50,
+      50
+    ],
+    "source_length_mm": 1,
+    "source_density_A_mm2": {
+      "centre": 257.515,
+      "outer": 246.2425
+    }
+  },
+  "coordinates": {
+    "comsol_x_m": "(clark_x_mm+65)*1e-3",
+    "comsol_y_m": "clark_y_mm*1e-3",
+    "comsol_z_m": "clark_z_mm*1e-3"
+  },
+  "mesh": {
+    "full_tape_divisions_xyz": [
+      390,
+      44,
+      2
+    ],
+    "step_xyz_mm": [
+      0.3333333333333333,
+      0.2727272727272727,
+      0.05
+    ],
+    "independent_tape_cells": 12870,
+    "independent_unknown_cells": 12870,
+    "independent_source_cells": 2,
+    "physical_tape_cells": 102960,
+    "physical_unknown_cells": 102960,
+    "reconstruction_multiplicity": 8
+  },
+  "excitation": {
+    "total_current_A": 900,
+    "law": "900*(1-exp(-(t/0.1)^2))",
+    "time_step_s": 0.01,
+    "steps": 500,
+    "end_time_s": 5,
+    "branch_currents_A": [
+      295.491,
+      309.018,
+      295.491
+    ],
+    "branch_currents": "prescribed",
+    "branch_current_provenance": "COMSOL d130: average outer currents, normalize to 900 A, round to 0.001 A",
+    "clark_solution": "not_run"
+  },
+  "material": {
+    "Kc0_A_m": 26900.6450861432,
+    "physical_Jc0_A_mm2": 269.006450861432,
+    "Ec_V_m": 0.0001,
+    "n": 30,
+    "B0_T": 0.1,
+    "Gamma": 5,
+    "JCb_code": -1.0344827586206897,
+    "j_gmin_MS_m": 2690064.5086143194,
+    "admissible_Beff_T": "0 <= Beff < 0.1"
+  },
+  "estimated_matrix_storage_GiB": 44.430730640888214,
+  "source": {
+    "solver_tree": "c01a5cb93047955da6f1dc8457983d6ac4dfc25d",
+    "tests_tree": "f54dad3c4fa6666d9549f2682778b7f82917de09",
+    "inputs_archive_sha256": "971c2e427edc9a9c603161ca928bd337a0edfa57713570f12c3ce98921a4c291",
+    "sources": [
+      {
+        "repo": "y26084670-blip/solver",
+        "path": "src/core/02_model_hts.jl",
+        "sha": "29e28b03276adb2d3d18bc45e1e9635ea984f257"
+      },
+      {
+        "repo": "y26084670-blip/solver",
+        "path": "src/core/types.jl",
+        "sha": "df309230a93a67b84b090a1aa7f2181e30afb358"
+      },
+      {
+        "repo": "y26084670-blip/solver",
+        "path": "src/base/02_vector.jl",
+        "sha": "a08b36eb7aaada8a2fa6bab6c8e89456b83232df"
+      },
+      {
+        "repo": "y26084670-blip/solver",
+        "path": "src/task/04_current_topology.jl",
+        "sha": "bd59ab5c9c81b1be0afc236af76694a1160afaf9"
+      },
+      {
+        "repo": "y26084670-blip/solver",
+        "path": "src/vsolver/04_clist.jl",
+        "sha": "5a44174576cac9514851d1f61973494894be7674"
+      },
+      {
+        "repo": "y26084670-blip/solver",
+        "path": "src/vsolver/02_solver.jl",
+        "sha": "24226e1aeb45973b2573cd6710db2c583855fca0"
+      },
+      {
+        "repo": "y26084670-blip/solver",
+        "path": "src/task/01_counters.jl",
+        "sha": "88e1e2d64a1f9569220b1e01d055a61c4fdf1153"
+      },
+      {
+        "repo": "y26084670-blip/clark.analitic",
+        "path": "2026.10.21/Три_полосы_ВТСП_полный_комплект_2026-10-21/project/experiment/matched_leads_130mm/MatchedH3D.java",
+        "sha": "d2d1ed0fc485965b1b69cfc78c8960f04cefff44"
+      },
+      {
+        "repo": "y26084670-blip/clark.analitic",
+        "path": "2026.10.21/Три_полосы_ВТСП_полный_комплект_2026-10-21/project/experiment/matched_leads_130mm/L130.properties",
+        "sha": "eb37e0783b517f52cd6395f647cefe2f42d2596e"
+      },
+      {
+        "repo": "y26084670-blip/clark.analitic",
+        "path": "2026.10.21/Три_полосы_ВТСП_полный_комплект_2026-10-21/project/experiment/local_comparison_130mm/comparison.json",
+        "sha": "413bfc6057a934ec4ff9cdbf4a20df31528d2604"
+      }
+    ],
+    "comsol_3d130_branch_currents_A": [
+      295.4942094540681,
+      309.0178951926908,
+      295.4875995774174
+    ]
+  },
+  "limitations": [
+    "COMSOL Fkim thickness integral is approximated by two physical volume layers.",
+    "Separate uniform-current contacts prescribe the branch currents obtained from COMSOL; redistribution is not tested.",
+    "Only the DC endpoint is matched; branch-current transient histories are assumed proportional to the common ramp.",
+    "Free space replaces the COMSOL circular/cylindrical R=60 mm boundary.",
+    "The nonzero physical thickness changes the near field and edge behaviour.",
+    "COMSOL Kreg and Breg smoothing is not reproduced.",
+    "Native CLARK solve and convergence checks have not been run."
+  ]
+}

@@ -1,0 +1,201 @@
+{
+  "schema": "clark.task.input_validation/1",
+  "generated_at": "2026-10-24T20:12:51+03:00",
+  "scope": "input_data",
+  "all_checks_passed": true,
+  "checks": [
+    {
+      "check": "input_counts",
+      "passed": true,
+      "details": null
+    },
+    {
+      "check": "positive_rectangular_geometry",
+      "passed": true,
+      "details": null
+    },
+    {
+      "check": "positive_orientation",
+      "passed": true,
+      "details": null
+    },
+    {
+      "check": "positive_mesh_counts",
+      "passed": true,
+      "details": null
+    },
+    {
+      "check": "total_cells",
+      "passed": true,
+      "details": 23654
+    },
+    {
+      "check": "tape_thickness_and_width",
+      "passed": true,
+      "details": null
+    },
+    {
+      "check": "single_thickness_cell",
+      "passed": true,
+      "details": null
+    },
+    {
+      "check": "material_assignment",
+      "passed": true,
+      "details": null
+    },
+    {
+      "check": "metal_conductivity",
+      "passed": true,
+      "details": null
+    },
+    {
+      "check": "effective_material",
+      "passed": true,
+      "details": null
+    },
+    {
+      "check": "electric_field_criterion",
+      "passed": true,
+      "details": null
+    },
+    {
+      "check": "time_settings",
+      "passed": true,
+      "details": null
+    },
+    {
+      "check": "run_modes",
+      "passed": true,
+      "details": null
+    },
+    {
+      "check": "amplitude_shape",
+      "passed": true,
+      "details": null
+    },
+    {
+      "check": "prescribed_waveform",
+      "passed": true,
+      "details": {
+        "maximum_error_A": 6.738652298493385e-14
+      }
+    },
+    {
+      "check": "source_directions",
+      "passed": true,
+      "details": null
+    },
+    {
+      "check": "source_current_scale",
+      "passed": true,
+      "details": {
+        "face_area_mm2": [
+          0.5000000000000004,
+          0.5000000000000004
+        ],
+        "peak_current_A": 50
+      }
+    },
+    {
+      "check": "no_volume_overlaps",
+      "passed": true,
+      "details": []
+    },
+    {
+      "check": "complete_reciprocal_med_faces",
+      "passed": true,
+      "details": {
+        "directed_faces": 56,
+        "contact_pairs": 28
+      }
+    },
+    {
+      "check": "single_connected_current_domain",
+      "passed": true,
+      "details": null
+    },
+    {
+      "check": "conforming_non_source_contact_meshes",
+      "passed": true,
+      "details": {
+        "source_contacts_with_different_grids": 2
+      }
+    },
+    {
+      "check": "central_block_partition",
+      "passed": true,
+      "details": {
+        "volume_mm3": 600.0
+      }
+    }
+  ],
+  "input_sha256": {
+    "input3XX/_summary.txt": "b8bb0bee34ad8c3daa1574acca25cb9803c6368e6722b7ad73eca1515a126376",
+    "input3XX/amplitudes.txt": "ada3670b72418cab3346582861e13ad9e64ac360c147976fdc6ad5ee9e6f7ec5",
+    "input3XX/conrab.txt": "e2169cf989d0f14f087f09d853f14611a143c1059b7e3ac7a765b7c2bbb91f8a",
+    "input3XX/general.txt": "f389d5f91705fe5a44c8bcf8ef1a63482e0434fccd3568bdf137562154328979",
+    "input3XX/kvs.txt": "08316b1e5dad6358b994e08bd1fd6e00d366c6ab2b3ab6ce68cffb33657f9cb2",
+    "input3XX/mhj.txt": "d2489b54786ea4730dfa5c89698d9b766aa4fb014da54e33df34c9bff54a2130",
+    "input3XX/moves.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "input3XX/tks.txt": "f93b229b4564215138ee651a5ef7c26c7a9f912c1b12a8119cdf663ec92aa60a",
+    "input3XX/xapLibHTS/COMSOL_HTS_n30_Jc10000.txt": "b23967b843d138d761480ae75ba12deed0d7bc4e8c620fd223198483ae6f6b2e"
+  },
+  "discretization": {
+    "total_cells": 23654,
+    "hts_cells": 3132,
+    "metal_cells": 20520,
+    "source_cells": 2
+  },
+  "contacts_with_different_face_grids": [
+    {
+      "block_a": 1,
+      "face_a": 1,
+      "block_b": 20,
+      "face_b": 2,
+      "normal_from_a": [
+        0,
+        0,
+        -1
+      ],
+      "plane_axis": "Z",
+      "plane_mm": -20.0,
+      "area_mm2": 0.5000000000000004,
+      "face_grid_a": [
+        18,
+        1
+      ],
+      "face_grid_b": [
+        1,
+        1
+      ],
+      "same_face_grid": false,
+      "prescribed_source_contact": true
+    },
+    {
+      "block_a": 6,
+      "face_a": 2,
+      "block_b": 21,
+      "face_b": 1,
+      "normal_from_a": [
+        0,
+        0,
+        1
+      ],
+      "plane_axis": "Z",
+      "plane_mm": 20.0,
+      "area_mm2": 0.5000000000000004,
+      "face_grid_a": [
+        18,
+        1
+      ],
+      "face_grid_b": [
+        1,
+        1
+      ],
+      "same_face_grid": false,
+      "prescribed_source_contact": true
+    }
+  ],
+  "note": "Проверка входных данных. Не является протоколом сходимости решателя или проверкой рассчитанных полей."
+}

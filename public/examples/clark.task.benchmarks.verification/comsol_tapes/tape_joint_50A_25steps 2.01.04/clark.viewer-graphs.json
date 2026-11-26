@@ -1,0 +1,88 @@
+{
+  "version": 1,
+  "settings": {
+    "only": false,
+    "areas": false,
+    "showSlices": false,
+    "slices": [],
+    "active": null,
+    "profiles": [
+      {
+        "id": 1,
+        "graphId": "region:0",
+        "instanceKey": "regions:0:0:0:0:0:0",
+        "surfaceComponent": 1,
+        "direction": 0,
+        "index": 7,
+        "view": {
+          "autoScale": true,
+          "showLegend": true,
+          "limits": {},
+          "legendPosition": {
+            "x": 1,
+            "y": 0
+          },
+          "hidden": []
+        }
+      },
+      {
+        "id": 2,
+        "graphId": "region:0",
+        "instanceKey": "regions:0:0:0:0:0:0",
+        "surfaceComponent": 1,
+        "direction": 1,
+        "index": 6,
+        "view": {
+          "autoScale": true,
+          "showLegend": true,
+          "limits": {},
+          "legendPosition": {
+            "x": 1,
+            "y": 0
+          },
+          "hidden": []
+        }
+      },
+      {
+        "id": 3,
+        "graphId": "region:0",
+        "instanceKey": "regions:0:0:0:0:0:0",
+        "surfaceComponent": 1,
+        "direction": 1,
+        "index": 11,
+        "view": {
+          "autoScale": true,
+          "showLegend": true,
+          "limits": {},
+          "legendPosition": {
+            "x": 1,
+            "y": 0
+          },
+          "hidden": []
+        }
+      }
+    ],
+    "activeProfile": 2,
+    "expandedProfile": null,
+    "view": {
+      "resultVectorScale": 0.01,
+      "resultPalette": "Rainbow",
+      "resultElementsQuantity": "JEdot",
+      "resultRegionsQuantity": "Bs",
+      "resultVirtualQuantity": "none",
+      "areaGraphX": true,
+      "areaGraphY": true,
+      "areaGraphZ": true,
+      "elementsMode": "exceptSelected",
+      "regionsMode": "none",
+      "showLocalSymmetry": true,
+      "showAxialSymmetry": true,
+      "showPeriodicSymmetry": true,
+      "showMirrorSymmetry": false
+    },
+    "selections": {
+      "elements": [],
+      "regions": []
+    }
+  }
+}

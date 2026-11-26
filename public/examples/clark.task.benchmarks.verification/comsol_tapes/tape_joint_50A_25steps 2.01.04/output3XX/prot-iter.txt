@@ -1,0 +1,233 @@
+idtk = 0 (25)
+Нормальное состояние (воздух)
+1	0.0	0.0	0.0	0.0
+
+переход в СП состояние
+1	0.0	0.0	0.0	0.0
+
+idtk = 1 (25)
+JWeak1: cells=23652 constraints=28419 rank=28217 row_nullity=202
+JWeak1 line search mode=halving initial_alpha=1.0
+Токовая система: полный Newton — обязательный режим для ВТСП.
+1	0.03769537466059134	0.19146030847577558	0.0	0.0
+2	4.642174964916443e-5	0.19146030847577558	0.0	0.0
+
+JWeak1: iterations=1 equation=4.642174964916443e-5 constraint=5.1141199653796715e-8 tolerance=0.0005 linear_iterations=8 linear_error=0.0008644680066373673
+JWeak1 diagnostics: dJ_full_last_A_per_mm2=2.7291415487291415 rE_max_V_per_m=4.018360917848079e-7
+JWeak1 line search: mode=halving trials=1 rejected=0 quadratic=0 cubic=0 halvings=0 alpha_last=1.0 alpha_min=1.0
+idtk = 2 (25)
+JWeak1 line search mode=halving initial_alpha=1.0
+Токовая система: полный Newton — обязательный режим для ВТСП.
+1	0.31023946356249155	0.7415337658831709	0.0	0.0
+2	0.00010245794574835819	0.7415337658831709	0.0	0.0
+
+JWeak1: iterations=1 equation=0.00010245794574835819 constraint=3.621788680444986e-8 tolerance=0.0005 linear_iterations=7 linear_error=0.0007933730649483052
+JWeak1 diagnostics: dJ_full_last_A_per_mm2=7.731774154112231 rE_max_V_per_m=1.8788690565091785e-6
+JWeak1 line search: mode=halving trials=1 rejected=0 quadratic=0 cubic=0 halvings=0 alpha_last=1.0 alpha_min=1.0
+idtk = 3 (25)
+JWeak1 line search mode=halving initial_alpha=1.0
+Токовая система: полный Newton — обязательный режим для ВТСП.
+1	0.25732156782130217	1.5746053545744179	0.0	0.0
+2	7.663304313350737e-5	1.5746053545744179	0.0	0.0
+
+JWeak1: iterations=1 equation=7.663304313350737e-5 constraint=1.807830432543675e-8 tolerance=0.0005 linear_iterations=7 linear_error=0.0004431603805971679
+JWeak1 diagnostics: dJ_full_last_A_per_mm2=11.564878230056301 rE_max_V_per_m=2.9894084572402475e-6
+JWeak1 line search: mode=halving trials=1 rejected=0 quadratic=0 cubic=0 halvings=0 alpha_last=1.0 alpha_min=1.0
+idtk = 4 (25)
+JWeak1 line search mode=halving initial_alpha=1.0
+Токовая система: полный Newton — обязательный режим для ВТСП.
+1	0.20038009337936583	2.5645947255996466	0.0	0.0
+2	0.00013920522657233077	2.5645947255996466	0.0	0.0
+
+JWeak1: iterations=1 equation=0.00013920522657233077 constraint=1.576239644936265e-7 tolerance=0.0005 linear_iterations=6 linear_error=0.0008749021103581124
+JWeak1 diagnostics: dJ_full_last_A_per_mm2=13.55761832880908 rE_max_V_per_m=1.1043222541285891e-5
+JWeak1 line search: mode=halving trials=1 rejected=0 quadratic=0 cubic=0 halvings=0 alpha_last=1.0 alpha_min=1.0
+idtk = 5 (25)
+JWeak1 line search mode=halving initial_alpha=1.0
+Токовая система: полный Newton — обязательный режим для ВТСП.
+1	0.1559340980849804	3.562118443784157	0.0	0.0
+2	0.00010487923267158299	3.562118443784157	0.0	0.0
+
+JWeak1: iterations=1 equation=0.00010487923267158299 constraint=1.5215828817386666e-7 tolerance=0.0005 linear_iterations=6 linear_error=0.000770348172449554
+JWeak1 diagnostics: dJ_full_last_A_per_mm2=13.513054495109643 rE_max_V_per_m=1.084726885078347e-5
+JWeak1 line search: mode=halving trials=1 rejected=0 quadratic=0 cubic=0 halvings=0 alpha_last=1.0 alpha_min=1.0
+idtk = 6 (25)
+JWeak1 line search mode=halving initial_alpha=1.0
+Токовая система: полный Newton — обязательный режим для ВТСП.
+1	0.11879537430766123	4.410599283357892	0.0	0.0
+2	7.517768788725874e-5	4.410599283357892	0.0	0.0
+
+JWeak1: iterations=1 equation=7.517768788725874e-5 constraint=1.5807975591235725e-7 tolerance=0.0005 linear_iterations=6 linear_error=0.0006792957504721128
+JWeak1 diagnostics: dJ_full_last_A_per_mm2=11.333731324959361 rE_max_V_per_m=9.70121667089695e-6
+JWeak1 line search: mode=halving trials=1 rejected=0 quadratic=0 cubic=0 halvings=0 alpha_last=1.0 alpha_min=1.0
+idtk = 7 (25)
+JWeak1 line search mode=halving initial_alpha=1.0
+Токовая система: полный Newton — обязательный режим для ВТСП.
+1	0.08502123848272872	4.968992822841303	0.0	0.0
+2	4.7301715395647446e-5	4.968992822841303	0.0	0.0
+
+JWeak1: iterations=1 equation=4.7301715395647446e-5 constraint=1.9097203511539992e-7 tolerance=0.0005 linear_iterations=6 linear_error=0.0005682942083130608
+JWeak1 diagnostics: dJ_full_last_A_per_mm2=7.585040343672863 rE_max_V_per_m=7.065187786937664e-6
+JWeak1 line search: mode=halving trials=1 rejected=0 quadratic=0 cubic=0 halvings=0 alpha_last=1.0 alpha_min=1.0
+idtk = 8 (25)
+JWeak1 line search mode=halving initial_alpha=1.0
+Токовая система: полный Newton — обязательный режим для ВТСП.
+1	0.051380082360845264	5.12769656344495	0.0	0.0
+2	2.385741248430691e-5	5.12769656344495	0.0	0.0
+
+JWeak1: iterations=1 equation=2.385741248430691e-5 constraint=1.0278517686777675e-6 tolerance=0.0005 linear_iterations=6 linear_error=0.00048640603002003755
+JWeak1 diagnostics: dJ_full_last_A_per_mm2=3.613535900944569 rE_max_V_per_m=3.485304874155197e-6
+JWeak1 line search: mode=halving trials=1 rejected=0 quadratic=0 cubic=0 halvings=0 alpha_last=1.0 alpha_min=1.0
+idtk = 9 (25)
+JWeak1 line search mode=halving initial_alpha=1.0
+Токовая система: полный Newton — обязательный режим для ВТСП.
+1	0.01415221975386195	4.822441791582934	0.0	0.0
+2	1.2483150243791145e-5	4.822441791582934	0.0	0.0
+
+JWeak1: iterations=1 equation=1.2483150243791145e-5 constraint=3.0199700103725765e-8 tolerance=0.0005 linear_iterations=7 linear_error=0.0008112595050924908
+JWeak1 diagnostics: dJ_full_last_A_per_mm2=4.703614725747881 rE_max_V_per_m=2.1811851085034647e-6
+JWeak1 line search: mode=halving trials=1 rejected=0 quadratic=0 cubic=0 halvings=0 alpha_last=1.0 alpha_min=1.0
+idtk = 10 (25)
+JWeak1 line search mode=halving initial_alpha=1.0
+Токовая система: полный Newton — обязательный режим для ВТСП.
+1	0.031225774454544886	4.0304075463051	0.0	0.0
+2	2.110299470385008e-5	4.0304075463051	0.0	0.0
+
+JWeak1: iterations=1 equation=2.110299470385008e-5 constraint=2.7457514711458416e-8 tolerance=0.0005 linear_iterations=8 linear_error=0.0006007857018309245
+JWeak1 diagnostics: dJ_full_last_A_per_mm2=11.302987881467931 rE_max_V_per_m=2.4042592945532865e-6
+JWeak1 line search: mode=halving trials=1 rejected=0 quadratic=0 cubic=0 halvings=0 alpha_last=1.0 alpha_min=1.0
+idtk = 11 (25)
+JWeak1 line search mode=halving initial_alpha=1.0
+Токовая система: полный Newton — обязательный режим для ВТСП.
+1	0.09041127713170771	2.7790996087906676	0.0	0.0
+2	6.018531480578031e-5	2.7790996087906676	0.0	0.0
+
+JWeak1: iterations=1 equation=6.018531480578031e-5 constraint=5.335518183795187e-9 tolerance=0.0005 linear_iterations=7 linear_error=0.0005835727828313265
+JWeak1 diagnostics: dJ_full_last_A_per_mm2=17.540555020998045 rE_max_V_per_m=6.293943301009318e-6
+JWeak1 line search: mode=halving trials=1 rejected=0 quadratic=0 cubic=0 halvings=0 alpha_last=1.0 alpha_min=1.0
+idtk = 12 (25)
+JWeak1 line search mode=halving initial_alpha=1.0
+Токовая система: полный Newton — обязательный режим для ВТСП.
+1	0.1866693081773565	1.1503934744210205	0.0	0.0
+2	0.00015841461014954732	1.1503934744210205	0.0	0.0
+
+JWeak1: iterations=1 equation=0.00015841461014954732 constraint=1.228752962968521e-7 tolerance=0.0005 linear_iterations=7 linear_error=0.0006732785648148452
+JWeak1 diagnostics: dJ_full_last_A_per_mm2=22.921860603407776 rE_max_V_per_m=1.1821201321103049e-5
+JWeak1 line search: mode=halving trials=1 rejected=0 quadratic=0 cubic=0 halvings=0 alpha_last=1.0 alpha_min=1.0
+idtk = 13 (25)
+JWeak1 line search mode=halving initial_alpha=1.0
+Токовая система: полный Newton — обязательный режим для ВТСП.
+1	0.4321562397554619	0.961067735984707	0.0	0.0
+2	0.00037361128044211065	0.961067735984707	0.0	0.0
+
+JWeak1: iterations=1 equation=0.00037361128044211065 constraint=8.299842859832639e-7 tolerance=0.0005 linear_iterations=6 linear_error=0.000971208442193519
+JWeak1 diagnostics: dJ_full_last_A_per_mm2=27.121950294932585 rE_max_V_per_m=2.1935874889845977e-5
+JWeak1 line search: mode=halving trials=1 rejected=0 quadratic=0 cubic=0 halvings=0 alpha_last=1.0 alpha_min=1.0
+idtk = 14 (25)
+JWeak1 line search mode=halving initial_alpha=1.0
+Токовая система: полный Newton — обязательный режим для ВТСП.
+1	0.4619465058298057	3.121749805900226	0.0	0.0
+2	0.00017757453579682794	3.121749805900226	0.0	0.0
+
+JWeak1: iterations=1 equation=0.00017757453579682794 constraint=4.11384703327549e-8 tolerance=0.0005 linear_iterations=7 linear_error=0.000584416376612344
+JWeak1 diagnostics: dJ_full_last_A_per_mm2=30.099674471249468 rE_max_V_per_m=1.578807285661057e-5
+JWeak1 line search: mode=halving trials=1 rejected=0 quadratic=0 cubic=0 halvings=0 alpha_last=1.0 alpha_min=1.0
+idtk = 15 (25)
+JWeak1 line search mode=halving initial_alpha=1.0
+Токовая система: полный Newton — обязательный режим для ВТСП.
+1	0.24540515292375548	5.4447048595512895	0.0	0.0
+2	0.00016938527199572123	5.4447048595512895	0.0	0.0
+
+JWeak1: iterations=1 equation=0.00016938527199572123 constraint=1.806825457589094e-7 tolerance=0.0005 linear_iterations=6 linear_error=0.0008651850902969043
+JWeak1 diagnostics: dJ_full_last_A_per_mm2=31.591400692001624 rE_max_V_per_m=2.632887067440272e-5
+JWeak1 line search: mode=halving trials=1 rejected=0 quadratic=0 cubic=0 halvings=0 alpha_last=1.0 alpha_min=1.0
+idtk = 16 (25)
+JWeak1 line search mode=halving initial_alpha=1.0
+Токовая система: полный Newton — обязательный режим для ВТСП.
+1	0.16814184702213672	7.803228913738284	0.0	0.0
+3	0.0003273150715712998	7.742011541417486	0.0	0.0
+
+JWeak1: iterations=2 equation=0.0003273150715712998 constraint=7.1138623181447725e-12 tolerance=0.0005 linear_iterations=16 linear_error=0.000971568849489618
+JWeak1 diagnostics: dJ_full_last_A_per_mm2=3.134218210004633 rE_max_V_per_m=0.00026450754344210813
+JWeak1 line search: mode=halving trials=2 rejected=0 quadratic=0 cubic=0 halvings=0 alpha_last=1.0 alpha_min=1.0
+idtk = 17 (25)
+JWeak1 line search mode=halving initial_alpha=1.0
+Токовая система: полный Newton — обязательный режим для ВТСП.
+1	0.12618944870845628	9.639562834659479	0.0	0.0
+5	0.00012005244988992408	9.57852621343002	0.0	0.0
+
+JWeak1: iterations=4 equation=0.00012005244988992408 constraint=1.3951321536773958e-16 tolerance=0.0005 linear_iterations=31 linear_error=0.0007811724247488944
+JWeak1 diagnostics: dJ_full_last_A_per_mm2=2.698775725942143 rE_max_V_per_m=0.0003295079219220605
+JWeak1 line search: mode=halving trials=4 rejected=0 quadratic=0 cubic=0 halvings=0 alpha_last=1.0 alpha_min=1.0
+idtk = 18 (25)
+JWeak1 line search mode=halving initial_alpha=1.0
+Токовая система: полный Newton — обязательный режим для ВТСП.
+1	0.09886409691069643	11.406308991140119	0.0	0.0
+3	0.0003727486239669962	11.371023808835767	0.0	0.0
+
+JWeak1: iterations=2 equation=0.0003727486239669962 constraint=8.535886786946331e-12 tolerance=0.0005 linear_iterations=16 linear_error=0.0009079345821165818
+JWeak1 diagnostics: dJ_full_last_A_per_mm2=3.5533385800273027 rE_max_V_per_m=0.0013119873491630307
+JWeak1 line search: mode=halving trials=2 rejected=0 quadratic=0 cubic=0 halvings=0 alpha_last=1.0 alpha_min=1.0
+idtk = 19 (25)
+JWeak1 line search mode=halving initial_alpha=1.0
+Токовая система: полный Newton — обязательный режим для ВТСП.
+1	0.07872949061480378	12.930792114683548	0.0	0.0
+4	0.00026071382452576216	12.901017064989333	0.0	0.0
+
+JWeak1: iterations=3 equation=0.00026071382452576216 constraint=2.272811152206456e-15 tolerance=0.0005 linear_iterations=22 linear_error=0.0009233296742846997
+JWeak1 diagnostics: dJ_full_last_A_per_mm2=3.3350338156969994 rE_max_V_per_m=0.0012301769943838898
+JWeak1 line search: mode=halving trials=3 rejected=0 quadratic=0 cubic=0 halvings=0 alpha_last=1.0 alpha_min=1.0
+idtk = 20 (25)
+JWeak1 line search mode=halving initial_alpha=1.0
+Токовая система: полный Newton — обязательный режим для ВТСП.
+1	0.06312895566791742	14.31352038268196	0.0	0.0
+5	0.00015711985541815523	14.251524577826329	0.0	0.0
+
+JWeak1: iterations=4 equation=0.00015711985541815523 constraint=1.6409825610811973e-16 tolerance=0.0005 linear_iterations=29 linear_error=0.000743576178446759
+JWeak1 diagnostics: dJ_full_last_A_per_mm2=2.743902569362626 rE_max_V_per_m=0.0003580380607118849
+JWeak1 line search: mode=halving trials=4 rejected=0 quadratic=0 cubic=0 halvings=0 alpha_last=1.0 alpha_min=1.0
+idtk = 21 (25)
+JWeak1 line search mode=halving initial_alpha=1.0
+Токовая система: полный Newton — обязательный режим для ВТСП.
+1	0.050313761978032286	15.40366708509585	0.0	0.0
+3	0.00021600531770030692	15.385264324089112	0.0	0.0
+
+JWeak1: iterations=2 equation=0.00021600531770030692 constraint=1.6853689730597814e-11 tolerance=0.0005 linear_iterations=16 linear_error=0.0008416896700042105
+JWeak1 diagnostics: dJ_full_last_A_per_mm2=3.3823021938754896 rE_max_V_per_m=0.0011476703384645374
+JWeak1 line search: mode=halving trials=2 rejected=0 quadratic=0 cubic=0 halvings=0 alpha_last=1.0 alpha_min=1.0
+idtk = 22 (25)
+JWeak1 line search mode=halving initial_alpha=1.0
+Токовая система: полный Newton — обязательный режим для ВТСП.
+1	0.03941304064071031	16.284228464454632	0.0	0.0
+2	0.000413485443214703	16.284228464454632	0.0	0.0
+
+JWeak1: iterations=1 equation=0.000413485443214703 constraint=9.282107198373079e-8 tolerance=0.0005 linear_iterations=7 linear_error=0.0007573410543277431
+JWeak1 diagnostics: dJ_full_last_A_per_mm2=20.870150127013858 rE_max_V_per_m=0.0021831355096513672
+JWeak1 line search: mode=halving trials=1 rejected=0 quadratic=0 cubic=0 halvings=0 alpha_last=1.0 alpha_min=1.0
+idtk = 23 (25)
+JWeak1 line search mode=halving initial_alpha=1.0
+Токовая система: полный Newton — обязательный режим для ВТСП.
+1	0.02979631115253478	16.938170748058567	0.0	0.0
+2	0.0004325940487791243	16.938170748058567	0.0	0.0
+
+JWeak1: iterations=1 equation=0.0004325940487791243 constraint=5.52851788477556e-8 tolerance=0.0005 linear_iterations=7 linear_error=0.0007492694561875868
+JWeak1 diagnostics: dJ_full_last_A_per_mm2=17.90725091110313 rE_max_V_per_m=0.0010822699969909309
+JWeak1 line search: mode=halving trials=1 rejected=0 quadratic=0 cubic=0 halvings=0 alpha_last=1.0 alpha_min=1.0
+idtk = 24 (25)
+JWeak1 line search mode=halving initial_alpha=1.0
+Токовая система: полный Newton — обязательный режим для ВТСП.
+1	0.021060014994952005	17.340978383258026	0.0	0.0
+2	0.0001765609769993286	17.340978383258026	0.0	0.0
+
+JWeak1: iterations=1 equation=0.0001765609769993286 constraint=9.320254806842501e-8 tolerance=0.0005 linear_iterations=7 linear_error=0.0007548004392689584
+JWeak1 diagnostics: dJ_full_last_A_per_mm2=13.659318241930253 rE_max_V_per_m=0.0003736569704972484
+JWeak1 line search: mode=halving trials=1 rejected=0 quadratic=0 cubic=0 halvings=0 alpha_last=1.0 alpha_min=1.0
+idtk = 25 (25)
+JWeak1 line search mode=halving initial_alpha=1.0
+Токовая система: полный Newton — обязательный режим для ВТСП.
+1	0.01290491674907593	17.484052124706082	0.0	0.0
+2	5.858442653963895e-5	17.484052124706082	0.0	0.0
+
+JWeak1: iterations=1 equation=5.858442653963895e-5 constraint=2.5034074030656784e-7 tolerance=0.0005 linear_iterations=7 linear_error=0.0007640324461776799
+JWeak1 diagnostics: dJ_full_last_A_per_mm2=8.452659040748648 rE_max_V_per_m=7.863304819469731e-5
+JWeak1 line search: mode=halving trials=1 rejected=0 quadratic=0 cubic=0 halvings=0 alpha_last=1.0 alpha_min=1.0

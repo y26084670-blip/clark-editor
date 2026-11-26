@@ -1,0 +1,50 @@
+{
+  "created": "2026-10-26T17:13:19+03:00",
+  "validation_type": "static input checks; no native solver execution",
+  "checks_passed": 1050,
+  "checks_failed": 0,
+  "independent_conductor_cells": 12870,
+  "physical_images": 32,
+  "physical_conductor_cells": 102960,
+  "explicit_face_contacts_counted_both_sides": 32,
+  "symmetry_face_contacts_counted_both_sides": 64,
+  "source_interfaces": 16,
+  "volume_mm3": {
+    "tape": 468.0,
+    "source": 7.199999999999999
+  },
+  "terminal_current_A": {
+    "-1": 900.0,
+    "1": 900.0
+  },
+  "branch_terminal_current_A": {
+    "-1": {
+      "left": 295.49100000000004,
+      "centre": 309.01800000000003,
+      "right": 295.49100000000004
+    },
+    "1": {
+      "left": 295.49100000000004,
+      "centre": 309.01800000000003,
+      "right": 295.49100000000004
+    }
+  },
+  "max_relative_local_material_law_error": 6.772360450213455e-15,
+  "estimated_dense_matrix_bytes": 47707133760,
+  "solver_run": "not_run",
+  "import_via_GUI": "not_run",
+  "strict_COMSOL_equivalence": false,
+  "files": {
+    "README.md": "a0d79bbcd3a9f45df199043837b511fc6bdc7cd4843691f6848c7205a821fad9",
+    "case.json": "290d14e61b7e7ba8fb35ef3d4d2f7f616d7c8eac94367e28ffea0236d0cd13ba",
+    "docs/AI_MODEL.md": "bfacebaf6c9a4870a670d313f8dbb3152fa70a20c24f5098b43c08a9c0cc4bdb",
+    "input3XX/amplitudes.txt": "5a768d7e810ff755a4caa919a4a62e09eab584054c0ea229f97d04724190c0d8",
+    "input3XX/conrab.txt": "e2169cf989d0f14f087f09d853f14611a143c1059b7e3ac7a765b7c2bbb91f8a",
+    "input3XX/general.txt": "4a3d6e7938c8597dcc6ba3024d275315af466e786b75993b873e5629225ce3e8",
+    "input3XX/kvs.txt": "31a052529c7fc8dab48c91a89582dcf8727421af4b84ceda4e0fa936f3295065",
+    "input3XX/mhj.txt": "65e81f20aa3e0429ca8f58c21f17422d410c84f9a6d59cb9c14040b57912353f",
+    "input3XX/moves.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "input3XX/tks.txt": "65efa65cef08b754f3ff161433ffcb477cc9c16616424d48013bda14299e0b4f",
+    "input3XX/xapLibHTS/GdBCO_local_Kim_n30_d0p1.txt": "783868420f44a0020cd46eab9c4c0c2991254975da093cdb026dbf46154606d8"
+  }
+}
