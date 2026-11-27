@@ -1,4 +1,5 @@
 import { CloudDownloadDialog, useCloudCatalogs } from "../components/tasks/CloudDownloadDialog.jsx";
+import { catalogDisplayName } from "../services/cloudExamples.js";
 import { readTaskDirectoryLists } from "../services/taskDirectoryRefresh.js";
 //
 // вкладка выбора задания
@@ -143,7 +144,7 @@ export function Tasks(props) {
     const handle = loadedTaskHandle(), path = loadedTaskPath();
     const isDemo = selectionService.loadedTaskIsDemo();
     untrack(() => {
-      if (omClientState().open) setOMClientRequest(handle && !isDemo ? { handle, path } : null);
+      if (omClientState().open) setOMClientRequest(handle && !handle.cloud && !isDemo ? { handle, path } : null);
     });
   });
 
@@ -358,11 +359,14 @@ export function Tasks(props) {
     setSelectionNotice("");
     try {
       const selected = await readTaskSelection(root, request, {
+        cloudCatalogs: request.cloudCatalog ? await cloud.getCatalogs() : [],
         catalogs: catalogs(), diskHandle: diskHandle(),
         isCurrent: () => !disposed && root === rootHandle() && revision === selectionRevision && !props.editorBusy,
       });
       const switched = selected.root !== root;
-      const marker = switched ? await readWorkspaceBinding(selected.root).catch(() => null) : workspaceBinding();
+      const marker = switched
+        ? (selected.root.cloud ? null : await readWorkspaceBinding(selected.root).catch(() => null))
+        : workspaceBinding();
       if (disposed || root !== rootHandle() || revision !== selectionRevision || props.editorBusy) {
         throw new Error("Выбор задания отменён: состояние страницы изменилось.");
       }
@@ -374,7 +378,7 @@ export function Tasks(props) {
         if (switched) {
           bindingRevision += 1;
           setRootHandle(selected.root);
-          setRootName("Корневой каталог: " + selected.root.name);
+          setRootName("Корневой каталог: " + catalogDisplayName(selected.root));
           setWorkspaceBinding(marker); setSettingsRequest(null);
         }
         setProjects(selected.projects);
@@ -382,9 +386,12 @@ export function Tasks(props) {
         setTasks(selected.tasks);
         void selectTaskCandidate(selected.task, { external: true });
       });
-      if (switched) await lastTaskHistory.open(selected.root);
+      if (switched) {
+        if (selected.root.cloud) { lastTaskHistory.dispose(); setLastTask(null); setLastTaskNotice(""); }
+        else await lastTaskHistory.open(selected.root);
+      }
       props.onOpenTab?.(TABS.TASKS.id);
-      setSelectionNotice(`Выбрано задание из Viewer: ${selected.root.name}/${selected.project.name}/${selected.task.name}`);
+      setSelectionNotice(`Выбрано задание из Viewer: ${catalogDisplayName(selected.root)}/${selected.project.name}/${selected.task.name}`);
       queueMicrotask(() => {
         if (!disposed && revision === selectionRevision) {
           taskListElement?.querySelector(".selected")?.scrollIntoView({ block: "nearest" });
@@ -395,7 +402,7 @@ export function Tasks(props) {
   }
 
   async function showInViewer(event) {
-    if (!selectedTask() || selectedTask().handle.cloud || selectedTask().isDemo || navigationBlocked() || selectionSending()) return;
+    if (!selectedTask() || selectedTask().isDemo || navigationBlocked() || selectionSending()) return;
     const sourceButton = event.currentTarget;
     const task = selectedTask(), project = selectedProject(), root = rootHandle();
     setSelectionSending(true); setSelectionNotice("");
@@ -474,6 +481,10 @@ export function Tasks(props) {
   function openOMClient() {
     if (operationsBlocked()) return;
     const handle = loadedTaskHandle();
+    if (handle?.cloud) {
+      showTaskError("Для работы с клиентской моделью загрузите задание на локальный диск и откройте его для редактирования.");
+      return;
+    }
     if (!handle || selectionService.loadedTaskIsDemo()) {
       showTaskError(selectionService.loadedTaskIsDemo()
         ? "Для клиентской модели нужно обычное задание, сохранённое в каталоге проекта. Выберите его в списке и нажмите «Загрузить для редактирования», затем откройте «Клиентская модель». Демо не имеет каталога для сохранения OM-данных."
@@ -545,7 +556,7 @@ export function Tasks(props) {
   const getFullPath = async (root, handle) => {
     const segments = await root.resolve(handle);
     if (!segments) return root.name;
-    return root.name + "/" + segments.join("/");
+    return catalogDisplayName(root) + "/" + segments.join("/");
   };
 
   // получение списка подкаталогов
@@ -748,7 +759,7 @@ export function Tasks(props) {
       selectionService.setLoadedTaskPath(fullPath);
       selectionService.setLoadedTaskHandle(task.handle);
     });
-    if (openEditor && !task.isDemo) void lastTaskHistory.remember(lastTaskSnapshot);
+    if (openEditor && !task.isDemo && !task.handle.cloud) void lastTaskHistory.remember(lastTaskSnapshot);
     if (openEditor) props.onOpenTab?.(TABS.GENERAL.id);
     if (task.isDemo) void selectTaskCandidate(task);
     console.log("Выбранное задание:", fullPath);
@@ -899,7 +910,6 @@ export function Tasks(props) {
     if (operation() || galleryBusy() || protocolBusy()) return;
     const task = selectedTask();
     if (!task) return;
-    if (task.handle.cloud) { setDownload(task); return; }
     const requestId = ++taskLoadRevision;
 
     try {
@@ -955,7 +965,6 @@ export function Tasks(props) {
       <Show when={download()} keyed>{item => <CloudDownloadDialog task={item} project={selectedProject()} disk={diskHandle()}
       catalogs={catalogs()} onDone={finishCloudDownload} onClose={() => setDownload(null)} />}</Show>
       <TaskAccessDialog open={accessOpen() && props.active !== false && !props.helpOpen}
-        cloudCatalogs={cloud.catalogs()} onCloud={async id => { await handleCatalogChange(id); closeAccess(); }}
         disk={diskHandle()} picked={diskPicked()} count={catalogs().length} busy={accessBusy() || bindingBusy()}
         notice={bindingNotice()} bound={catalogsBound()} onPick={handlePickDirectory} onBind={bindWorkspace} onClose={closeAccess} />
       <div class="task-browser-panel">
@@ -973,8 +982,7 @@ export function Tasks(props) {
               <option value="" selected={!rootHandle()}>Выберите каталог</option>
               {catalogs().map(catalog => <option value={catalog.name} selected={cloud.value() === catalog.name}>{catalog.name}</option>)}
               {cloud.catalogs().map(item => <option value={item.id} selected={cloud.value() === item.id}>☁ {item.name}</option>)}
-            </select><button type="button" aria-label="Доступ к проектам" title="Выбрать диск с локальными проектами"
-              disabled={accessDisabled()} onClick={() => { setDiskPicked(false); setAccessOpen(true); }}>Доступ к проектам</button>
+            </select>
             <Show when={cloud.error()}><span role="status">{cloud.error()} <button type="button" onClick={cloud.refresh}>Повторить</button></span></Show>
             <span id="rootName">{rootName()}</span>
           </div>
@@ -1060,7 +1068,7 @@ export function Tasks(props) {
                   onDblClick={() => {
                     if (selectedTask()?.handle === task.handle) void requestTaskLoad();
                   }}
-                  title={cloud.blocked(selectedProject(), task.name) ? "Windows обнаружила заблокированные файлы задания" : task.handle.cloud ? "Загрузить локальную копию задания" : "Двойной щелчок — загрузить задание для редактирования"}
+                  title={cloud.blocked(selectedProject(), task.name) ? "Windows обнаружила заблокированные файлы задания" : task.handle.cloud ? "Двойной щелчок — открыть облачное задание для чтения" : "Двойной щелчок — загрузить задание для редактирования"}
                 >
                   <TaskStatusCells status={taskStatus(task.handle)} disabled={operationsBlocked() || Boolean(pendingTaskLoad())}
                     onOpenProtocols={() => { void openTestProtocols(task); }} />
@@ -1075,32 +1083,45 @@ export function Tasks(props) {
           </div>
         </div>
         <div class="task-browser-actions">
-          <button
-            class="task-load-button"
-            disabled={!selectedTask() || galleryBusy() || selectionReceiving() || protocolBusy()}
-            onClick={requestTaskLoad}
-          >
-            <span class="task-load-label">
-              <span class="task-load-leading">
-                <Show when={!selectedTask()?.handle.cloud}><Show keyed when={loadedTaskPath()}>
-                  {() => (
-                    <span
-                      class="task-load-confirmation"
-                      role="status"
-                      aria-label="Задание загружено"
-                      title="Задание загружено"
-                    >
-                      ✓
-                    </span>
-                  )}
-                </Show></Show>
+          <div class="task-load-slot" classList={{ "has-cloud-task": selectedTask()?.handle.cloud }}>
+            <button
+              class="task-load-button"
+              aria-hidden={selectedTask()?.handle.cloud || undefined}
+              disabled={selectedTask()?.handle.cloud || !selectedTask() || galleryBusy() || selectionReceiving() || protocolBusy()}
+              onClick={requestTaskLoad}
+            >
+              <span class="task-load-label">
+                <span class="task-load-leading">
+                  <Show keyed when={loadedTaskPath()}>
+                    {() => (
+                      <span
+                        class="task-load-confirmation"
+                        role="status"
+                        aria-label="Задание загружено"
+                        title="Задание загружено"
+                      >
+                        ✓
+                      </span>
+                    )}
+                  </Show>
+                </span>
+                <span class="task-load-text">Загрузить для редактирования</span>
+                <span class="task-load-trailing" aria-hidden="true" />
               </span>
-              <span class="task-load-text">{selectedTask()?.handle.cloud ? "Загрузить" : "Загрузить для редактирования"}</span>
-              <span class="task-load-trailing" aria-hidden="true" />
-            </span>
-          </button>
+            </button>
+            <Show when={selectedTask()?.handle.cloud}>
+              <div class="cloud-task-actions">
+                <button type="button" disabled={navigationBlocked()} onClick={() => setDownload(selectedTask())}>
+                  <span>Загрузить на</span>{" "}<span>локальный диск</span>
+                </button>
+                <button type="button" disabled={navigationBlocked()} onClick={requestTaskLoad}>
+                  <span>Открыть</span>{" "}<span>для чтения</span>
+                </button>
+              </div>
+            </Show>
+          </div>
           <button type="button" class="task-cross-open-button"
-            disabled={!selectedTask() || selectedTask()?.handle.cloud || selectedTask()?.isDemo || !selectionChannel.supported || navigationBlocked() || selectionSending()}
+            disabled={!selectedTask() || selectedTask()?.isDemo || !selectionChannel.supported || navigationBlocked() || selectionSending()}
             aria-busy={selectionSending()}
             title="Выбрать каталог проектов, проект и задание в открытом Viewer; браузер может ограничить переключение вкладки"
             onClick={showInViewer}>Выбрать в Viewer</button>

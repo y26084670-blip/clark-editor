@@ -49,19 +49,17 @@ try {
   await help.getByRole('button', { name: 'Закрыть', exact: true }).click();
   await access.waitFor({ state: 'visible' });
   check('only one modal and focus inside access panel', await page.locator('dialog[open]').count() === 1 && await access.evaluate(el => el.contains(document.activeElement)));
-  check('instructions are separate paragraphs and catalog count starts at zero',
-    JSON.stringify(await access.locator(':scope > p').allTextContents()) === JSON.stringify([
-      'Выберите диск с проектами и разрешите чтение и запись.',
-      'Каталоги clark.* с проектами появятся в верхнем списке.', ''
-    ]) && await access.locator('.task-access-location').textContent() === 'Выбрано каталогов: 0');
+  check('startup dialog has only local access controls and catalog count starts at zero',
+    await access.locator('select, :scope > p:not([role="status"])').count() === 0
+    && await access.locator('.task-access-location').textContent() === 'Выбрано каталогов: 0');
   for (const mode of ['cancel', 'denied']) {
     await page.evaluate(value => accessFixture.mode(value), mode); await pick();
     check(`${mode} keeps the picker available for retry`, await button('Выбрать диск с проектами').isEnabled());
   }
   await page.evaluate(() => accessFixture.mode('disk'));
   await pick();
-  await page.waitForFunction(() => document.querySelector('#projectCatalog')?.options.length === 2);
-  check('service directories, clark.app and files excluded', JSON.stringify(await page.locator('#projectCatalog option').allTextContents()) === JSON.stringify(['clark.projects', 'CLARK.Tests']));
+  await page.waitForFunction(() => document.querySelectorAll('#projectCatalog option:not([value=""]):not([value^="cloud:"])').length === 2);
+  check('service directories, clark.app and files excluded', JSON.stringify(await page.locator('#projectCatalog option:not([value=""]):not([value^="cloud:"])').allTextContents()) === JSON.stringify(['clark.projects', 'CLARK.Tests']));
   check('picker requests entire selected disk read-write', await page.evaluate(() => accessFixture.calls.every(call => call.mode === 'readwrite')));
   check('completed selection disables picker and displays catalog count', await button('Выбрать диск с проектами').isDisabled()
     && await access.locator('.task-access-location').textContent() === 'Выбрано каталогов: 2');
@@ -97,7 +95,7 @@ try {
   await enter('Продолжить');
   await access.waitFor({ state: 'hidden' });
   await reloadAccess(); await page.evaluate(() => accessFixture.mode('empty')); await pick();
-  check('empty disk clears catalog and project lists', await page.locator('#projectCatalog').isDisabled() && await button('Продолжить').isDisabled() && await page.locator('#listProject option').count() === 1);
+  check('empty disk clears catalog and project lists', await page.locator('#projectCatalog option:not([value=""]):not([value^="cloud:"])').count() === 0 && await button('Продолжить').isDisabled() && await page.locator('#listProject option').count() === 1);
   check('completed empty-disk selection also disables picker', await button('Выбрать диск с проектами').isDisabled());
   check('empty disk focuses the available close action', await focused('Закрыть'));
   await reloadAccess(); await pick();

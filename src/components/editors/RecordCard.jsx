@@ -102,7 +102,7 @@ export function RecordCard(props) {
     const [r, c] = position ?? [];
     const matrix = () => field === "geo" ? geo().rows : record()?.[field];
     return <CardInput field={field} label={label || p.label} title={p.description}
-      property={position ? p.items : p} readonly={p.readonly} floatDigits={element ? 10 : undefined}
+      property={position ? p.items : p} readonly={props.readOnly || p.readonly} floatDigits={element ? 10 : undefined}
       value={position ? matrix()?.[r]?.[c] : record()?.[field]} onError={props.onError}
       onChange={value => {
         if (!position) return change(field, value);
@@ -117,10 +117,10 @@ export function RecordCard(props) {
     const p = schema.properties[field];
     const label = shortLabel || p.label;
     if (p.type === FIELD_TYPES.BOOLEAN) return <label class="record-card-check" title={p.description}>
-      <input type="checkbox" data-field={field} checked={!!record()?.[field]} disabled={p.readonly}
+      <input type="checkbox" data-field={field} checked={!!record()?.[field]} disabled={props.readOnly || p.readonly}
         onChange={e => change(field, e.currentTarget.checked)} />{label}</label>;
     if (p.type === FIELD_TYPES.ENUM) return <label class="record-card-pair" title={p.description}>
-      <span>{label}</span><select aria-label={p.label} data-field={field}
+      <span>{label}</span><select aria-label={p.label} data-field={field} disabled={props.readOnly || p.readonly}
         value={String(record()?.[field])}
         onChange={e => change(field, Number(e.currentTarget.value))}>
         <Show when={!p.enum.some(option => option.value === record()?.[field])}>
@@ -203,7 +203,7 @@ export function RecordCard(props) {
           {element ? <div class="record-card-bottom"><Section title="Электрические и магнитные свойства" class="record-card-material">
             <div class="record-card-material-fields">
               {scalar("model","Модель")}
-              <label class="record-card-pair"><span>Характеристика</span><button type="button" data-field="xapName"
+              <label class="record-card-pair"><span>Характеристика</span><button type="button" data-field="xapName" disabled={props.readOnly}
                 title="Выбрать характеристику материала" onClick={props.onChooseMaterial}>{record()?.xapName || "Выбрать…"}</button></label>
               <div><div class="record-card-caption">Углы анизотропии</div>{matrix("vkan", AXES)}</div>
               {scalar("rv","GAM, МСм/м")}

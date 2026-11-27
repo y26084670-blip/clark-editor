@@ -71,6 +71,30 @@ async parts => {
 """
 
 
+def check_action_layout(page):
+    dimensions = page.locator(".cloud-task-actions").evaluate("""pair => {
+        const standard = pair.parentElement.querySelector(":scope > button");
+        const row = pair.parentElement.parentElement;
+        const width = row.style.width;
+        try {
+            return [320, 360, 430, 590, 760].map(size => {
+                row.style.width = size + "px";
+                const base = standard.getBoundingClientRect(), cloud = pair.getBoundingClientRect();
+                const first = pair.firstElementChild, lines = first.querySelectorAll("span");
+                return {
+                    sameSize: base.width === cloud.width && base.height === cloud.height,
+                    fits: [...pair.children].every(b => b.scrollWidth <= b.clientWidth + 1 && b.scrollHeight <= b.clientHeight + 1),
+                    wrapped: lines[1].getBoundingClientRect().top > lines[0].getBoundingClientRect().top + 2,
+                    smaller: parseFloat(getComputedStyle(lines[0]).fontSize) < parseFloat(getComputedStyle(first).fontSize)
+                };
+            });
+        } finally { row.style.width = width; }
+    }""")
+    assert all(size["sameSize"] and size["fits"] for size in dimensions), dimensions
+    assert dimensions[0]["wrapped"] and dimensions[0]["smaller"], dimensions
+    assert not dimensions[-1]["wrapped"] and not dimensions[-1]["smaller"], dimensions
+
+
 def check_app(browser, origin, app, expected):
     context = browser.new_context(viewport={"width": 1500, "height": 900})
     try:
@@ -80,7 +104,10 @@ def check_app(browser, origin, app, expected):
         page.on("pageerror", lambda error: errors.append(str(error)))
         page.goto(f"{origin}/clark-{app}/")
         access = page.get_by_role("dialog", name="Доступ к проектам")
-        access.get_by_label("Облачные примеры").select_option("cloud:" + CATALOG)
+        expect(access.get_by_label("Облачные примеры")).to_have_count(0)
+        access.get_by_role("button", name="Закрыть", exact=True).click()
+        expect(page.get_by_role("button", name="Доступ к проектам", exact=True)).to_have_count(0)
+        page.locator("#projectCatalog").select_option("cloud:" + CATALOG)
         queue_before = ("\ufeff*" + PROJECT + "/" + TASK + "\r\n").encode("utf-8")
         copy_name = TASK + " — копия"
 
@@ -89,7 +116,9 @@ def check_app(browser, origin, app, expected):
                 page.locator("#projectCatalog").select_option("cloud:" + CATALOG)
             page.locator("#listProject").select_option(PROJECT)
             page.locator(".task-status-row").filter(has_text=TASK).click()
-            page.get_by_role("button", name="Загрузить", exact=True).click()
+            if name == TASK:
+                check_action_layout(page)
+            page.get_by_role("button", name="Загрузить на локальный диск", exact=True).click()
             dialog = page.get_by_role("dialog", name=TITLE, exact=True)
             expect(dialog.get_by_role("checkbox")).to_have_count(0)
             if name == TASK:
@@ -138,6 +167,71 @@ def check_app(browser, origin, app, expected):
         context.close()
 
 
+
+def check_reading(browser, origin):
+    context = browser.new_context(viewport={"width": 1500, "height": 900})
+    try:
+        context.add_init_script(SETUP)
+        pages = {}
+        errors = []
+        for app in ("editor", "viewer"):
+            page = context.new_page()
+            page.on("pageerror", lambda error: errors.append(str(error)))
+            page.goto(f"{origin}/clark-{app}/")
+            access = page.get_by_role("dialog", name="Доступ к проектам")
+            access.get_by_role("button", name="Закрыть", exact=True).click()
+            pages[app] = page
+        editor, viewer = pages["editor"], pages["viewer"]
+        editor.locator("#projectCatalog").select_option("cloud:" + CATALOG)
+        editor.locator("#listProject").select_option(PROJECT)
+        editor.locator(".task-status-row").filter(has_text=TASK).click()
+        editor.get_by_role("button", name="Выбрать в Viewer").click()
+        expect(viewer.locator(".task-status-row.selected")).to_contain_text(TASK)
+        expect(viewer.locator("#projectCatalog")).to_have_value("cloud:" + CATALOG)
+
+        # Change the receiver's selection before testing the return command.
+        editor.locator("#listProject").select_option("")
+        viewer.get_by_role("button", name="Выбрать в Editor").click()
+        expect(editor.locator(".task-status-row.selected")).to_contain_text(TASK)
+
+        result_files = []
+        viewer.on("response", lambda response: result_files.append(response.url) if response.ok and response.url.endswith(".h5") else None)
+        viewer.get_by_role("button", name="Открыть для чтения", exact=True).click()
+        expect(viewer.get_by_role("button", name="Источники / Поле 3D", exact=True)).to_have_attribute("aria-current", "page", timeout=45000)
+        assert any(url.endswith("/JE.h5") for url in result_files), result_files
+        viewer.get_by_role("button", name="Графики", exact=True).click()
+        expect(viewer.get_by_role("button", name="Графики", exact=True)).to_have_attribute("aria-current", "page")
+        editor.get_by_role("button", name="Открыть для чтения", exact=True).click()
+        expect(editor.locator(".task-info-path")).to_contain_text(LOCAL + "/" + PROJECT + "/" + TASK)
+        expect(editor.locator(".save-button")).to_be_disabled()
+        editor.locator('button[data-tab-id="elements"]').click()
+        section = editor.locator(".tab-content:visible")
+        section.locator(".data-editor-main-table .tabulator-row").first.click()
+        expect(section.locator('input[data-field="dp"]').first).to_have_attribute("readonly", "")
+        expect(section.locator('.record-card-pair select').first).to_be_disabled()
+        editor.locator('button[data-tab-id="tasks"]').click()
+        editor.get_by_role("button", name="Загрузить на локальный диск").click()
+        dialog = editor.get_by_role("dialog", name=TITLE)
+        dialog.get_by_role("button", name="Выбрать диск").click()
+        dialog.get_by_label("Локальный каталог с проектами", exact=True).fill(LOCAL)
+        dialog.get_by_role("button", name="Применить").click()
+        expect(editor.locator("#projectCatalog")).to_have_value(LOCAL)
+        editor.get_by_role("button", name="Загрузить для редактирования").click()
+        expect(editor.locator(".task-info-path")).not_to_contain_text("только чтение")
+        expect(editor.locator(".save-button")).to_be_enabled()
+        editor.locator('button[data-tab-id="elements"]').click()
+        section = editor.locator(".tab-content:visible")
+        section.locator(".data-editor-main-table .tabulator-row").first.click()
+        expect(section.locator('.record-card-pair select').first).to_be_enabled()
+        viewer.get_by_role("button", name="Выбор задания", exact=True).click()
+        viewer.get_by_role("button", name="Выбрать в Editor").click()
+        expect(editor.locator("#projectCatalog")).to_have_value("cloud:" + CATALOG)
+        expect(editor.locator(".task-status-row.selected")).to_contain_text(TASK)
+        assert not errors, errors
+        print("Editor cloud input, Viewer results and selection in both directions passed", flush=True)
+    finally:
+        context.close()
+
 def main():
     for site in SITES.values():
         if not (site / "index.html").is_file():
@@ -152,6 +246,7 @@ def main():
             with sync_playwright() as playwright:
                 browser = playwright.chromium.launch(executable_path=os.getenv("CHROMIUM_EXECUTABLE"))
                 try:
+                    check_reading(browser, f"http://127.0.0.1:{server.server_port}")
                     for app in ("editor", "viewer"):
                         check_app(browser, f"http://127.0.0.1:{server.server_port}", app, expected)
                 finally:

@@ -210,7 +210,7 @@ export function TaskInfoBar(props) {
               </span>
             }
           >
-            {(path) => <span class="task-info-path-value">{path}</span>}
+            {(path) => <span class="task-info-path-value">{path}{props.readOnly ? " · только чтение" : ""}</span>}
           </Show>
         </div>
       </div>
@@ -239,7 +239,7 @@ export function TaskInfoBar(props) {
               "save-button-success": props.saveFeedback?.status === "success",
               "save-button-error": props.saveFeedback?.status === "error",
             }}
-            disabled={!props.path || props.isDemo || props.saveBusy}
+            disabled={!props.path || props.readOnly || props.isDemo || props.saveBusy}
             onClick={props.onSave}
             title={saveButtonTitle()}
             aria-label="Сохранить модель"

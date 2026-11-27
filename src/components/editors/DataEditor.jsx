@@ -134,7 +134,7 @@ export function DataEditor(props) {
   function editCardField(field, value) {
     const row = table.getRows()[cardIndex()];
     const property = schema.properties[field];
-    if (!row || !hasActiveTask() || !row.isSelected() || isPropertyReadonly(property)) return;
+    if (props.readOnly || !row || !hasActiveTask() || !row.isSelected() || isPropertyReadonly(property)) return;
     row.getCell(field).setValue(value);
   }
 
@@ -334,6 +334,7 @@ export function DataEditor(props) {
       schema,
       required: !!schema.config.required && schema.id !== TABS.REGIONS.id,
       detailRegion,
+      isWritable: () => !props.readOnly,
       model: {
         getSnapshot() {
           return modelService.getModel();
@@ -352,7 +353,7 @@ export function DataEditor(props) {
         },
       },
       structure: {
-        get mutable() { return !hasRecordColumns && !jweakStructureLocked(); },
+        get mutable() { return !props.readOnly && !hasRecordColumns && !jweakStructureLocked(); },
         createDefaultRow: () => dataService.createDefaultRecord(schema),
         beginChange() {
           pendingCellChange = null;
@@ -411,6 +412,7 @@ export function DataEditor(props) {
     }
 
     mainView = adapter.createPrimary({
+      isWritable: () => !props.readOnly,
       schema,
       property: mainViewProperty,
       propertyName: mainViewPropertyName,
@@ -481,7 +483,7 @@ export function DataEditor(props) {
   }
 
   async function applyGeneratedDependency({ targetValue, points }) {
-    if (!hasActiveTask()) {
+    if (props.readOnly || !hasActiveTask()) {
       throw new Error("Сначала загрузите задание.");
     }
 
@@ -515,6 +517,7 @@ export function DataEditor(props) {
   }
 
   async function replaceTableFromClipboard(propertyName) {
+    if (props.readOnly) return;
     if (!hasActiveTask() || !props.active) throw new Error("Сначала загрузите задание и откройте нужную вкладку.");
     const selected = table?.getSelectedRows?.() ?? [];
     if (selected.length !== 1) throw new Error("Выделите ровно одну строку основной таблицы.");
@@ -1231,7 +1234,7 @@ export function DataEditor(props) {
         schemaConstraintDiagnostics(schema, update.data),
       );
       unsavedChangesService.setBaseline(schema.id, update.data);
-      unsavedChangesService.setExplicitDirty(schema.id, loadState.requiresSave === true);
+      unsavedChangesService.setExplicitDirty(schema.id, !dirHandle.cloud && loadState.requiresSave === true);
       await replaceEditorData(update.data);
     } catch (err) {
       if (revision !== loadRevision) return;
@@ -1339,7 +1342,7 @@ export function DataEditor(props) {
           }}
         >
           <button
-            disabled={!hasActiveTask() || jweakStructureLocked()}
+            disabled={props.readOnly || !hasActiveTask() || jweakStructureLocked()}
             title={structureTitle(!hasActiveTask()
               ? "Сначала загрузите задание"
               : hasMainView ? "Добавить строку" : "Добавить запись")}
@@ -1360,7 +1363,7 @@ export function DataEditor(props) {
                 C
               </button>
               <button
-                disabled={!hasActiveTask() || jweakStructureLocked()}
+                disabled={props.readOnly || !hasActiveTask() || jweakStructureLocked()}
                 title={structureTitle(!hasActiveTask()
                   ? "Сначала загрузите задание"
                   : "Вставить скопированные")}
@@ -1371,7 +1374,7 @@ export function DataEditor(props) {
             </>
           )}
           <button
-            disabled={!hasActiveTask() || jweakStructureLocked()}
+            disabled={props.readOnly || !hasActiveTask() || jweakStructureLocked()}
             title={structureTitle(!hasActiveTask()
               ? "Сначала загрузите задание"
               : hasMainView ? "Удалить строки" : "Удалить выделенные")}
@@ -1380,7 +1383,7 @@ export function DataEditor(props) {
             −
           </button>
           <button
-            disabled={!hasActiveTask() || jweakStructureLocked()}
+            disabled={props.readOnly || !hasActiveTask() || jweakStructureLocked()}
             title={structureTitle(!hasActiveTask()
               ? "Сначала загрузите задание"
               : hasMainView ? "Переместить строки вверх" : "Переместить выделенные вверх")}
@@ -1389,7 +1392,7 @@ export function DataEditor(props) {
             ↑
           </button>
           <button
-            disabled={!hasActiveTask() || jweakStructureLocked()}
+            disabled={props.readOnly || !hasActiveTask() || jweakStructureLocked()}
             title={structureTitle(!hasActiveTask()
               ? "Сначала загрузите задание"
               : hasMainView ? "Переместить строки вниз" : "Переместить выделенные вниз")}
@@ -1429,11 +1432,11 @@ export function DataEditor(props) {
           classList={{
             "data-editor-main": true,
             "with-record-card": !!card,
-            "with-generator": hasGeneratorRegion,
+            "with-generator": hasGeneratorRegion && !props.readOnly,
             "compact-reference": hasCompactReferenceLayout,
           }}
         >
-          {card && <RecordCard schema={schema} record={cardRecord()} index={cardIndex()} showDemo={demo.open()}
+          {card && <RecordCard readOnly={props.readOnly} schema={schema} record={cardRecord()} index={cardIndex()} showDemo={demo.open()}
             focusRequest={cardFocus()} error={cardError()} onError={setCardError}
             onChange={editCardField}
             onChooseMaterial={() => {
@@ -1448,11 +1451,11 @@ export function DataEditor(props) {
           <div
             ref={(el) => (tableDiv = el)}
             class="data-editor-main-table"
-            style={hasGeneratorRegion
+            style={hasGeneratorRegion && !props.readOnly
               ? { "flex-basis": `${mainTableRatio() * 100}%` }
               : undefined}
           />
-          {hasGeneratorRegion && (
+          {hasGeneratorRegion && !props.readOnly && (
             <>
               <div
                 class="data-editor-main-splitter"

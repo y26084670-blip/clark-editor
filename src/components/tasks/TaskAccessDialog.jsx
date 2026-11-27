@@ -18,18 +18,6 @@ export function TaskAccessDialog(props) {
   return <dialog ref={dialog} class="task-access-dialog" aria-labelledby="task-access-title"
     onCancel={event => { event.preventDefault(); if (!props.busy) props.onClose(); }}>
     <h2 id="task-access-title">Доступ к проектам</h2>
-    <Show when={props.cloudCatalogs?.length}><label>Облачные примеры
-      <select aria-label="Облачные примеры" value="" disabled={props.busy} onChange={event => {
-        const catalog = event.currentTarget.value;
-        event.currentTarget.value = "";
-        if (catalog) void props.onCloud(catalog);
-      }}>
-        <option value="">Выберите каталог</option>
-        {props.cloudCatalogs.map(item => <option value={item.id}>☁ {item.name}</option>)}
-      </select>
-    </label></Show>
-    <p>Выберите диск с проектами и разрешите чтение и запись.</p>
-    <p>Каталоги clark.* с проектами появятся в верхнем списке.</p>
     <div class="task-access-row">
       <button ref={picker} type="button" onClick={props.onPick} disabled={props.busy || props.picked}>Выбрать диск с проектами</button>
       <p class="task-access-location">Выбрано каталогов: {props.count}</p>

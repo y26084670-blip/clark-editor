@@ -7,13 +7,13 @@ const componentUrl = new URL(
     import.meta.url,
 );
 
-test("record list actions are disabled until a task is loaded", async () => {
+test("record list actions require a loaded task and editing requires a writable task", async () => {
     const source = await readFile(componentUrl, "utf8");
-    const disabled = source.match(/disabled=\{!hasActiveTask\(\)(?: \|\| jweakStructureLocked\(\))?\}/gu) ?? [];
+    const disabled = source.match(/disabled=\{(?:props\.readOnly \|\| )?!hasActiveTask\(\)(?: \|\| jweakStructureLocked\(\))?\}/gu) ?? [];
 
     assert.equal(disabled.length, 6);
-    assert.equal((source.match(/disabled=\{!hasActiveTask\(\) \|\| jweakStructureLocked\(\)\}/gu) ?? []).length, 5);
-    assert.match(source, /get mutable\(\) \{ return !hasRecordColumns && !jweakStructureLocked\(\); \}/u);
+    assert.equal((source.match(/disabled=\{props\.readOnly \|\| !hasActiveTask\(\) \|\| jweakStructureLocked\(\)\}/gu) ?? []).length, 5);
+    assert.match(source, /get mutable\(\) \{ return !props\.readOnly && !hasRecordColumns && !jweakStructureLocked\(\); \}/u);
     assert.match(source, /if \(!hasActiveTask\(\)\) return;/u);
     assert.match(source, /Сначала загрузите задание/u);
 });
