@@ -185,7 +185,7 @@ export function TaskLaunchWindow(props) {
     });
   });
 
-  // Viewer can append downloaded tasks while this window is closed or in the background.
+  // Another Editor tab can update the task list while this window is closed or in the background.
   function readQueueOnReturn() {
     if (props.open && !pending() && !locked()) void loadRoot(props.rootHandle, rootRevision);
     else void refreshOnFocus();

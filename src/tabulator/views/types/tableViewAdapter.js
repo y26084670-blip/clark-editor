@@ -55,7 +55,7 @@ function createCellBinding(cell) {
         },
 
         isWritable() {
-            return Boolean(
+            return ownerTable?._gui?.isWritable?.() !== false && Boolean(
                 ownerTable?.getRows().some(
                     row => row.getData() === rowData
                 )
@@ -87,6 +87,7 @@ function createCellBinding(cell) {
 }
 
 function createPrimaryBinding({
+    isWritable,
     schema,
     propertyName,
     getRecords,
@@ -115,7 +116,7 @@ function createPrimaryBinding({
         getModelSnapshot,
 
         isWritable() {
-            return read().valid;
+            return isWritable?.() !== false && read().valid;
         },
 
         setValue(value) {

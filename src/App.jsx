@@ -53,6 +53,7 @@ export default function App() {
   const [activeTab, setActiveTab] = createSignal(TABS.TASKS.id);
   const [taskActions, setTaskActions] = createSignal(null);
   const [generalInformationOpen, setGeneralInformationOpen] = createSignal(true);
+  const readOnly = () => Boolean(selectionService.loadedTaskHandle()?.cloud);
   const editorControllers = new Map();
   const [clipboardBusy, setClipboardBusy] = createSignal(false);
   const [clipboardError, setClipboardError] = createSignal("");
@@ -60,7 +61,7 @@ export default function App() {
 
   const clipboardTableActions = () => tabRegistry.find(schema => schema.id === activeTab())?.views?.clipboardTables ?? [];
   async function replaceTableFromClipboard(property) {
-    if (clipboardBusy()) return;
+    if (readOnly() || clipboardBusy()) return;
     setSidePanelOpen(false);
     setClipboardBusy(true);
     try {
@@ -87,7 +88,7 @@ export default function App() {
         const task = selectionService.loadedTaskHandle();
         const version = selectionService.taskDataVersion();
         const editor = editorControllers.get(activeTab());
-        if (!task || selectionService.loadedTaskIsDemo() || savePending()) return;
+        if (!task || task.cloud || selectionService.loadedTaskIsDemo() || savePending()) return;
         document.activeElement?.blur();
         await new Promise(resolve => setTimeout(resolve, 0));
         await editor?.flush();
@@ -281,7 +282,7 @@ export default function App() {
     }
   }
   async function applyCurrentMed() {
-    if (medApplying() || medBusy()) return;
+    if (medTask()?.cloud || medApplying() || medBusy()) return;
     const applyingRequest = medRequest();
     setMedApplying(true);
     try {
@@ -316,7 +317,7 @@ export default function App() {
   }
 
   function writeMedFaces(row, block, values) {
-    if (!medOpen() || medBusy() || medApplying() || !row || medTask() !== selectionService.loadedTaskHandle()
+    if (medTask()?.cloud || !medOpen() || medBusy() || medApplying() || !row || medTask() !== selectionService.loadedTaskHandle()
       || medEditor?.rows()[block - 1] !== row || values.length !== 6
       || !values.every(value => Number.isSafeInteger(value) && value >= -1)) return;
     medEditor.writeFaces(row, values);
@@ -482,7 +483,7 @@ export default function App() {
       );
       if (!isValidationContextCurrent(context)) return;
 
-      if (!selectionService.loadedTaskIsDemo()) {
+      if (!taskHandle.cloud && !selectionService.loadedTaskIsDemo()) {
         await refreshPlanarModeMarker(taskHandle, {
           isCurrent: () => isValidationContextCurrent(context) && !savePending(),
         });
@@ -533,6 +534,7 @@ export default function App() {
       label: schema.title,
       component: (props) => (
         <DataEditor
+          readOnly={readOnly()}
           schema={schema}
           active={props.active}
           forceMotionWarning={schema.id === TABS.REGIONS.id && props.active && forceMotionWarning()}
@@ -676,7 +678,7 @@ export default function App() {
 
   async function handleSave() {
     const dirHandle = selectionService.loadedTaskHandle();
-    if (!dirHandle || selectionService.loadedTaskIsDemo() || savePending()) return;
+    if (!dirHandle || dirHandle.cloud || selectionService.loadedTaskIsDemo() || savePending()) return;
 
     const taskDataVersion = selectionService.taskDataVersion();
     const modelSnapshot = modelService.getModel();
@@ -842,6 +844,7 @@ export default function App() {
         onGeneralInformationOpenChange={setGeneralInformationOpen}
         path={selectionService.loadedTaskPath()}
         browseTaskHandle={activeTab() === TABS.TASKS.id ? null : selectionService.loadedTaskHandle()}
+        readOnly={readOnly()}
         isDemo={selectionService.loadedTaskIsDemo()}
         onValidate={handleModelValidation}
         validationBusy={Boolean(validationPending())}
@@ -865,15 +868,16 @@ export default function App() {
         }}
       />
       <SidePanel
+        readOnly={readOnly()}
         clipboardTableActions={clipboardTableActions()}
-        clipboardTableEnabled={Boolean(selectionService.loadedTaskHandle()) && !clipboardBusy()}
+        clipboardTableEnabled={!readOnly() && Boolean(selectionService.loadedTaskHandle()) && !clipboardBusy()}
         onReplaceTableFromClipboard={replaceTableFromClipboard}
         taskActions={activeTab() === TABS.TASKS.id ? taskActions() : null}
         onTaskAction={kind => { setSidePanelOpen(false); taskActions()?.run(kind); }}
         open={sidePanelOpen()}
         onClose={() => setSidePanelOpen(false)}
         historyTabLabel={historyTabLabel()}
-        historyEnabled={historyTabId() !== null}
+        historyEnabled={!readOnly() && historyTabId() !== null}
         canUndo={historyController().canUndo(historyTabId())}
         canRedo={historyController().canRedo(historyTabId())}
         onUndo={() => runHistoryAction(
@@ -883,13 +887,13 @@ export default function App() {
           () => historyController().redo(historyTabId()),
         )}
         materialActionVisible={materialActionVisible()}
-        materialActionEnabled={materialActionEnabled()}
+        materialActionEnabled={!readOnly() && materialActionEnabled()}
         onChooseMaterial={() => openMaterialSelection(selectionContextService.getActiveTable())}
-        medActionEnabled={Boolean(selectionService.loadedTaskHandle()) && Array.isArray(modelService.getModel().elements)}
+        medActionEnabled={!readOnly() && Boolean(selectionService.loadedTaskHandle()) && Array.isArray(modelService.getModel().elements)}
         onAutofillMed={analyzeCurrentMed}
         onCreateUniformFieldCoil={openCoil}
         onCreateContactElement={openContact}
-        forceSurfaceEnabled={Boolean(selectionService.loadedTaskHandle()) && modelService.getModel().elements?.some(row => row.targ !== 3)}
+        forceSurfaceEnabled={!readOnly() && Boolean(selectionService.loadedTaskHandle()) && modelService.getModel().elements?.some(row => row.targ !== 3)}
         onCreateForceSurface={openForceSurface}
         onCreateConstantMu={() => { setSidePanelOpen(false); openConstantMuGenerator?.(); }}
         onMakeNonmagnetic={handleMakeElementsNonmagnetic}
@@ -975,7 +979,7 @@ export default function App() {
           geometryViewerButton?.focus();
         }}
       />
-      <MedAutofillDialog open={medOpen()} busy={medBusy()} applying={medApplying()} stale={medStale()}
+      <MedAutofillDialog readOnly={readOnly()} open={medOpen()} busy={medBusy()} applying={medApplying()} stale={medStale()}
         navigationEnabled={!medBusy() && !medApplying() && medCanNavigate()}
         rows={medEditor?.rows()} elements={modelService.getModel().elements}
         navigation={medNavigation()} selectedBlock={medEditor?.selectedBlock?.()} onWriteFaces={writeMedFaces}

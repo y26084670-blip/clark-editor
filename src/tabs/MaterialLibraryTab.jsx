@@ -180,7 +180,8 @@ export function MaterialLibraryTab(props) {
   const recordsReady = () => !loading() && !error()
     && loadedLibrary()?.session === librarySession()
     && loadedLibrary()?.source === librarySource();
-  const canEditLibrary = () => isTaskSource() && recordsReady() && !actionBusy() && !clipboardRequest();
+  const readOnly = () => Boolean(taskHandle()?.cloud);
+  const canEditLibrary = () => !readOnly() && isTaskSource() && recordsReady() && !actionBusy() && !clipboardRequest();
 
   // Own writes are already applied to the live table. Consuming this revision
   // avoids a reload that would discard edits to other local characteristics.
@@ -1153,7 +1154,7 @@ export function MaterialLibraryTab(props) {
   return (
     <div class="material-library-tab">
       <Show when={isFmm}><ConstantMuFmmDialog open={constantMuOpen()} onClose={() => setConstantMuOpen(false)}
-        taskHandle={taskHandle()} canSave={Boolean(taskHandle()) && !selectionService.loadedTaskIsDemo()}
+        taskHandle={taskHandle()} canSave={!readOnly() && Boolean(taskHandle()) && !selectionService.loadedTaskIsDemo()}
         onSave={saveGeneratedConstantMu}/></Show>
       <div class="material-library-actions">
         <label class="material-library-source">
@@ -1193,7 +1194,7 @@ export function MaterialLibraryTab(props) {
         </Show>
         <Show when={!isTaskSource()}>
           <button
-            disabled={
+            disabled={readOnly() ||
               actionBusy() || !recordsReady()
               || !taskHandle()
               || selectedRecords().length === 0
@@ -1211,7 +1212,7 @@ export function MaterialLibraryTab(props) {
         <Show when={isTaskSource()}>
           <Show when={isFmm}>
             <button
-              disabled={
+              disabled={readOnly() ||
                 actionBusy() || !recordsReady()
                 || !taskHandle()
                 || !["importable", "missing"].includes(legacyFmmStatus())
@@ -1234,14 +1235,14 @@ export function MaterialLibraryTab(props) {
             </button>
           </Show>
           <button
-            disabled={actionBusy() || !recordsReady() || dirtyRecords().length === 0}
+            disabled={readOnly() || actionBusy() || !recordsReady() || dirtyRecords().length === 0}
             title="Сохранить изменённые локальные характеристики"
             onClick={saveEditedMaterials}
           >
             Сохранить
           </button>
           <button
-            disabled={
+            disabled={readOnly() ||
               actionBusy() || !recordsReady()
               || selectedRecords().length === 0
               || dirtyRecords().length > 0

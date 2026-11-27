@@ -32,7 +32,7 @@ function MedFaceEditor(props) {
 
   function save(event) {
     event.preventDefault();
-    if (!enabled() || !faces()) return;
+    if (props.readOnly || !enabled() || !faces()) return;
     const values = inputs.map(input => input.valueAsNumber);
     if (!values.every(value => Number.isSafeInteger(value) && value >= -1)) return;
     if (values.some((value, i) => value !== faces()?.[i]?.[0])) {
@@ -41,7 +41,7 @@ function MedFaceEditor(props) {
   }
 
   return <details class="med-manual" open={open()} onToggle={e => setOpen(e.currentTarget.open)}>
-    <summary>Ручная правка MED</summary>
+    <summary>{props.readOnly ? "Значения MED по граням" : "Ручная правка MED"}</summary>
     <form onSubmit={save}><fieldset disabled={!enabled() || !block()}>
       <label>Шестигранник <select ref={selector} value={String(block())}
         onChange={e => setRow(rows()[Number(e.currentTarget.value) - 1])}>
@@ -50,9 +50,9 @@ function MedFaceEditor(props) {
         </option>}</For>
       </select></label>
       <div class="med-face-fields">{MED_FACE_NAMES.map((face, i) => <label>{face}
-        <input ref={el => { inputs[i] = el; }} type="number" min="-1" step="1" required
+        <input ref={el => { inputs[i] = el; }} type="number" readOnly={props.readOnly} min="-1" step="1" required
           aria-label={"MED " + face} />
-      </label>)}<button type="submit">Записать грани</button></div>
+      </label>)}<button type="submit" disabled={props.readOnly}>Записать грани</button></div>
     </fieldset></form>
   </details>;
 }
@@ -71,12 +71,12 @@ export function MedAutofillDialog(props) {
         Полный согласованный контакт считается проводящим, включая прежние MED = −1 / −1.</p>
       <div class="med-toolbar">
         <button type="button" onClick={props.onAnalyze} title="Повторить полный анализ текущих исходных данных">{props.busy?"Начать анализ заново":"Повторить анализ"}</button>
-        <button type="button" disabled={props.busy||props.applying||!props.result||(!props.stale&&!props.result.canApply)}
+        <button type="button" disabled={props.readOnly||props.busy||props.applying||!props.result||(!props.stale&&!props.result.canApply)}
           onClick={props.onApply} title="При изменении данных обновить анализ, затем применить MED одной операцией с поддержкой Undo/Redo">
           {props.stale?"Проверить и применить":"Применить"}</button>
         <button type="button" onClick={props.onClose} title="Закрыть окно без применения новых предложений">Закрыть</button>
       </div>
-      <MedFaceEditor enabled={!props.busy && !props.applying} rows={props.rows} navigation={props.navigation}
+      <MedFaceEditor readOnly={props.readOnly} enabled={!props.busy && !props.applying} rows={props.rows} navigation={props.navigation}
         elements={props.elements} selectedBlock={props.selectedBlock} onWriteFaces={props.onWriteFaces} />
       <Show when={props.busy}><p role="status">Анализ контактов…</p></Show>
       <Show when={props.stale}><p role="status">Исходные данные изменены. Список относится к последнему анализу.

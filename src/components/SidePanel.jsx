@@ -147,7 +147,7 @@ export function SidePanel(props) {
           <details class="side-panel-submenu">
             <summary class="side-panel-section-title">Характеристики ФММ</summary>
             <div class="side-panel-options">
-              <button class="side-panel-option" disabled={!props.open}
+              <button class="side-panel-option" disabled={!props.open || props.readOnly}
                 onClick={props.onCreateConstantMu}>Создать таблицу μ = const</button>
             </div>
           </details>

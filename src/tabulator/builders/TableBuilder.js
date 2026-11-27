@@ -120,7 +120,7 @@ export const TableBuilder = {
         return {
             editable(cell) {
                 const property = resolveProperty(cell, schema,);
-                if (!property) return false;
+                if (!property || cell.getTable?.()?._gui?.isWritable?.() === false) return false;
                 return property.type !== FIELD_TYPES.ARRAY &&
                     property.type !== FIELD_TYPES.BOOLEAN &&
                     !isPropertyReadonly(property);
@@ -151,7 +151,7 @@ export const TableBuilder = {
 
                 if (
                     property.type === FIELD_TYPES.BOOLEAN &&
-                    !isPropertyReadonly(property)
+                    cell.getTable?.()?._gui?.isWritable?.() !== false && !isPropertyReadonly(property)
                 ) {
                     cell.setValue(!cell.getValue());
                     return;
