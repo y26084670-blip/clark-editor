@@ -8,6 +8,12 @@
 .sketch-request-dialog footer .sketch-request-close { margin-left: auto; }
 .sketch-request-dialog h2 { margin: 0; font-size: 20px; }
 .sketch-request-content { overflow: auto; padding: 0 18px 18px; min-height: 0; line-height: 1.45; }
+.geometry-chat-workflow h3 { margin: 12px 0 4px; font-size: 1em; }
+.geometry-chat-workflow ol { margin: 0; padding-left: 1.6em; }
+.geometry-chat-workflow li + li { margin-top: .25em; }
+.geometry-example-reference { margin: 4px 0 12px; }
+.geometry-instruction-heading { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 12px; margin-top: 12px; }
+.sketch-request-dialog .geometry-instruction-heading label { margin: 0; }
 .sketch-request-dialog label { display: block; margin: 12px 0 6px; }
 .sketch-request-dialog input, .sketch-request-dialog textarea { display: block; width: 100%; box-sizing: border-box; margin-top: 5px; padding: 8px; border: 1px solid #647180; border-radius: 4px; background: #131a21; color: inherit; font: inherit; }
 .sketch-request-dialog textarea { resize: vertical; min-height: 72px; }

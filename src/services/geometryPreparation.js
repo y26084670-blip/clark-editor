@@ -1,5 +1,5 @@
 import { createStoredZip } from "./zipStore.js";
-import { sha256 } from "./sketchRequestService.js";
+import { REQUEST_CHAT_PROMPT, RESULT_ZIP_LAYOUT, sha256 } from "./sketchRequestService.js";
 
 export const geometryAsset = (name) =>
   `${typeof import.meta.env === "object" ? import.meta.env.BASE_URL : "/"}geometry/${name}`;
@@ -21,9 +21,9 @@ export async function fetchGeometryAsset(name, signal) {
   return response;
 }
 export const meshPrompt =
-  "Открой REQUEST.md и приложенную сетку. Выполни задание с общим контекстом CLARK. Сначала предложи крупные шестигранники по физическим границам, затем подбери внутреннее разбиение каждого.";
+  `${REQUEST_CHAT_PROMPT}. Изучи приложенную сетку. Сначала предложи крупные шестигранники по физическим границам, затем подбери внутреннее разбиение каждого.`;
 export const meshRules = `Прочитай узлы, элементы и метки областей. Определи размерность сетки и единицы. В каждой однородной области восстанови внешние контуры или поверхности по инцидентности. Сохрани окна, зазоры, интерфейсы, материал и цепи. Проверь происхождение ненадписанных границ. Для плоской сетки установи оси и условие вдоль X.
-Предложи разбиение на крупные ШГ и обоснуй каждый разрез. Затем задай каждому ШГ своё dp, проверь геометрию, контакты и лимит RAM. Выдай папку input3XX, DOCS с таблицей соответствия и отчётом, ZIP для Editor. Расчёт поля выполняется по отдельному заданию.`;
+Предложи разбиение на крупные ШГ и обоснуй каждый разрез. Затем задай каждому ШГ своё dp, проверь геометрию, контакты и лимит RAM. Сохрани в DOCS таблицу соответствия и отчёт. ${RESULT_ZIP_LAYOUT} Расчёт поля выполняется по отдельному заданию.`;
 
 export async function buildMeshRequest({ file, title, description }, { signal } = {}) {
   if (!file || !/\.msh$/i.test(file.name) || !file.size || file.size > 24 * 1024 ** 2) {

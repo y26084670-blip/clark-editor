@@ -47,6 +47,34 @@ const open = async (action = command) => {
 };
 const snapshot = () => page.evaluate(() => taskFixture.snapshot());
 const addImage = buffer => dialog.locator('input[type="file"]').setInputFiles({ name: "Эскиз.png", mimeType: "image/png", buffer });
+async function checkPickerCancel(mode) {
+  const state = () => dialog.evaluate(el => ({
+    open: el.open, example: el.querySelector("select").value,
+    title: el.querySelector("input:not([type=file])").value,
+    instructions: el.querySelector("textarea")?.value,
+    sources: [...el.querySelectorAll("figcaption a")].map(a => [a.download, a.href]),
+    ready: !el.querySelector("footer button:nth-of-type(2)").disabled,
+  }));
+  const before = await state();
+  const picker = dialog.locator("input[type=file]");
+  const session = await page.context().newCDPSession(page);
+  try {
+    await session.send("Page.setInterceptFileChooserDialog", { enabled: true, cancel: true });
+    await picker.evaluate(input => {
+      window.geometryPickerCancelled = false;
+      input.addEventListener("cancel", event => {
+        window.geometryPickerCancelled = event.isTrusted && event.bubbles;
+      }, { once: true });
+    });
+    await picker.click();
+    await page.waitForFunction(() => window.geometryPickerCancelled);
+    assert.deepEqual(await state(), before);
+    check("cancelling the browser file picker preserves the open " + mode + " form and prepared ZIP", before.open && before.ready);
+  } finally {
+    await session.send("Page.setInterceptFileChooserDialog", { enabled: false });
+    await session.detach();
+  }
+}
 async function downloadZip(filename, label = "Скачать пакет ZIP") {
   const pending = page.waitForEvent("download"); await dialog.getByRole("button", { name: label, exact: true }).click();
   const result = await pending; await result.saveAs(path.join(out, filename)); return result;
@@ -101,18 +129,28 @@ try {
     return c.toDataURL("image/png").split(",")[1];
   }), "base64");
   await command.click(); await dialog.waitFor({ state: "visible" });
-  const condition = dialog.getByLabel("Масштаб и уточнения", { exact: true });
+  const condition = dialog.getByLabel("Инструкции пользователя по задаче", { exact: true });
   await page.waitForFunction(() => document.querySelector(".sketch-request-dialog textarea")?.value.includes("μr=500"));
   const defaultCondition = await condition.inputValue();
+  const workflow = dialog.getByRole("region", {name:"Порядок работы с ИИ",exact:true});
+  check("workflow distinguishes loading context, sending the task and unpacking the result",
+    await workflow.getByRole("listitem").count() === 4 && (await workflow.innerText()).includes("START.txt")
+    && (await workflow.innerText()).includes("REQUEST.md") && (await workflow.innerText()).toLowerCase().includes("распакуйте"));
+  check("the editable field identifies its file and the example explains repeatability and origin",
+    await condition.getAttribute("aria-describedby") === "geometry-instruction-file"
+    && await dialog.locator("#geometry-instruction-file code").innerText() === "REQUEST.md"
+    && (await dialog.locator(".geometry-example-reference").innerText()).includes("ChatGPT Pro с моделью GPT-6.x Sol")
+    && (await dialog.innerText()).includes("при одинаковых файлах и инструкциях"));
   check("condition starts with editable content, not a placeholder", await condition.inputValue() === defaultCondition
     && !(await condition.getAttribute("placeholder")));
   check("all four actions share the bottom row and ZIP is disabled until prepared", await dialog.locator('footer button').count() === 4
     && await dialog.getByRole('button', {name:'Скачать пакет ZIP',exact:true}).isDisabled()
     && await dialog.getByRole('link',{name:'Скачать REQUEST.md отдельно',exact:true}).count() === 0);
   await prepare.click(); await readyZip();
+  await checkPickerCancel("sketch prototype");
   await requestFromZip("REQUEST-default.md");
   const defaultRequest = await readFile(path.join(out, "REQUEST-default.md"), "utf8");
-  check("unchanged example is exported as the user condition", defaultRequest.includes(defaultCondition));
+  check("unchanged example is exported as the user condition", defaultRequest.includes(defaultCondition) && defaultRequest.includes("в корень итогового ZIP"));
   await condition.focus(); await condition.press("Control+End"); await condition.pressSequentially("; материал назначу позже");
   check("typing preserves the starting text", await condition.inputValue() === defaultCondition + "; материал назначу позже");
   await condition.fill("d=12 мм, использовать не более 12 шестигранников");
@@ -150,10 +188,11 @@ try {
   check("fresh sketch includes a ready prototype", await prepare.isEnabled());
   await addImage(png);
   await dialog.getByLabel("Название запроса", { exact: true }).fill("Блок по наброску");
-  await dialog.getByLabel("Масштаб и уточнения", { exact: true }).fill("Длина 40 мм; остальные размеры уточнить.");
+  await dialog.getByLabel("Инструкции пользователя по задаче", { exact: true }).fill("Длина 40 мм; остальные размеры уточнить.");
   await page.waitForFunction(() => document.querySelector(".sketch-request-previews img")?.naturalWidth === 200);
   check("selected image is decoded and previewed", await dialog.locator("figure").count() === 1);
   await prepare.click(); await readyZip();
+  await checkPickerCancel("custom sketch");
   const zip = await downloadZip("request.zip");
   await requestFromZip("REQUEST.md");
   const request = await readFile(path.join(out, "REQUEST.md"), "utf8");
@@ -178,7 +217,7 @@ try {
     }));
     await page.screenshot({ path: path.join(out, `sketch-${width}.png`) });
   }
-  await dialog.getByLabel("Масштаб и уточнения", { exact: true }).fill("Исправлено: длина 50 мм.");
+  await dialog.getByLabel("Инструкции пользователя по задаче", { exact: true }).fill("Исправлено: длина 50 мм.");
   check("editing the condition invalidates the previous package", await dialog.locator(".sketch-request-result").count() === 0);
   await prepare.click(); await readyZip();
   await requestFromZip("REQUEST-updated.md");
@@ -214,9 +253,9 @@ try {
   const meshAction = aiSection.getByRole("button", {name:"Запрос к ИИ по сетке…", exact:true});
   await open(meshAction);
   await dialog.getByRole("link", {name:"frame.msh", exact:true}).waitFor();
-  const meshText = dialog.getByLabel("Условие задачи", {exact:true});
+  const meshText = dialog.getByLabel("Инструкции пользователя по задаче", {exact:true});
   check("mesh example is ready with tagged frame and magnet regions", (await meshText.inputValue()).includes("группа 2 magnet"));
-  await prepare.click(); await readyZip(); await downloadZip("example-mesh.zip");
+  await prepare.click(); await readyZip(); await checkPickerCancel("mesh"); await downloadZip("example-mesh.zip");
   await meshText.fill("Экструзия 20 мм");
   await dialog.locator('input[type=file]').setInputFiles(path.join(root,"public/geometry/frame.msh"));
   check("changing the mesh preserves a manually edited condition", await meshText.inputValue() === "Экструзия 20 мм");
@@ -235,6 +274,7 @@ try {
     const result = dialog.locator(".sketch-request-result");
     await result.waitFor();
     check("direct import produces a native task for "+file, (await result.innerText()).includes(i===2 ? "1 ШГ" : "24 ШГ"));
+    if (i === 2) await checkPickerCancel("STEP");
     await downloadZip(file+".zip","Скачать задание ZIP");
   }
   await dialog.getByLabel("Название задания",{exact:true}).fill("STEP edited");

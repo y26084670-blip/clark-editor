@@ -2,6 +2,8 @@ import { createEffect, createSignal, For, onCleanup, Show, untrack } from "solid
 import {
   buildSketchRequest,
   checkSketchFiles,
+  CONTEXT_CHAT_PROMPT,
+  REQUEST_CHAT_PROMPT,
   SKETCH_CHAT_PROMPT,
   SKETCH_LIMITS,
 } from "../../services/sketchRequestService.js";
@@ -264,6 +266,7 @@ export function SketchRequestDialog(props) {
       class="sketch-request-dialog"
       aria-labelledby="geometry-preparation-title"
       onCancel={(e) => {
+        if (e.target !== e.currentTarget) return;
         e.preventDefault();
         if (!saving()) props.onClose();
       }}
@@ -281,13 +284,16 @@ export function SketchRequestDialog(props) {
       </header>
       <div class="sketch-request-content">
         <Show when={!direct()}>
-          <p>
-            <a href={geometryAsset("01_CLARK_Context.zip")} download>
-              Скачать общий контекст CLARK
-            </a>
-            . В новом чате сначала выполните START.txt из этого архива, затем REQUEST.md из пакета выбранной
-            задачи.
-          </p>
+          <section class="geometry-chat-workflow" aria-labelledby="geometry-chat-workflow-title">
+            <h3 id="geometry-chat-workflow-title">Порядок работы с ИИ</h3>
+            <ol>
+              <li>В новом чате прикрепите <a href={geometryAsset("01_CLARK_Context.zip")} download>общий контекст CLARK</a> и отправьте сообщение «{CONTEXT_CHAT_PROMPT}».</li>
+              <li>В Editor выберите пример или свои файлы, отредактируйте инструкции и нажмите «Подготовить ZIP», затем «Скачать пакет ZIP».</li>
+              <li>В том же чате прикрепите скачанный пакет и отправьте сообщение «{REQUEST_CHAT_PROMPT}».</li>
+              <li>Распакуйте полученный от ИИ ZIP в каталог задания. В нём появится <code>input3XX</code>. Откройте задание в Editor и проверьте модель.</li>
+            </ol>
+          </section>
+          <p>Даже при одинаковых файлах и инструкциях одна и та же модель ИИ может выбрать другие крупные шестигранники и другое разбиение внутри них.</p>
         </Show>
         <label>
           Пример
@@ -312,9 +318,10 @@ export function SketchRequestDialog(props) {
           </select>
         </label>
         <Show when={!direct() && variant() >= 0}>
-          <a href={geometryAsset("frame-reference.zip")} download>
-            Скачать контрольное задание CLARK для примера
-          </a>
+          <p class="geometry-example-reference">
+            <a href={geometryAsset("frame-reference.zip")} download>Скачать контрольное задание CLARK для примера</a>
+            {" "}По сведениям владельца проекта, пример подготовлен в обычном чате ChatGPT Pro с моделью GPT-6.x Sol. Точный номер выпуска не зафиксирован.
+          </p>
         </Show>
         <label>
           {direct() ? "Название задания" : "Название запроса"}
@@ -359,20 +366,23 @@ export function SketchRequestDialog(props) {
           </For>
         </div>
         <Show when={!direct()}>
-          <label>
-            {props.mode === "sketch" ? "Масштаб и уточнения" : "Условие задачи"}
-            <textarea
-              rows={6}
-              maxLength={SKETCH_LIMITS.description}
-              value={description()}
-              disabled={loading()}
-              onInput={(e) => {
-                editedCondition = true;
-                invalidate();
-                setDescription(e.currentTarget.value);
-              }}
-            />
-          </label>
+          <div class="geometry-instruction-heading">
+            <label for="geometry-user-instructions">Инструкции пользователя по задаче</label>
+            <small id="geometry-instruction-file">Файл в пакете ZIP — <code>REQUEST.md</code></small>
+          </div>
+          <textarea
+            id="geometry-user-instructions"
+            aria-describedby="geometry-instruction-file"
+            rows={6}
+            maxLength={SKETCH_LIMITS.description}
+            value={description()}
+            disabled={loading()}
+            onInput={(e) => {
+              editedCondition = true;
+              invalidate();
+              setDescription(e.currentTarget.value);
+            }}
+          />
         </Show>
         <Show when={direct() && files().length}>
           <Show
