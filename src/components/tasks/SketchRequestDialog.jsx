@@ -286,14 +286,33 @@ export function SketchRequestDialog(props) {
         <Show when={!direct()}>
           <section class="geometry-chat-workflow" aria-labelledby="geometry-chat-workflow-title">
             <h3 id="geometry-chat-workflow-title">Порядок работы с ИИ</h3>
-            <ol>
-              <li>В новом чате прикрепите <a href={geometryAsset("01_CLARK_Context.zip")} download>общий контекст CLARK</a> и отправьте сообщение «{CONTEXT_CHAT_PROMPT}».</li>
-              <li>В Editor выберите пример или свои файлы, отредактируйте инструкции и нажмите «Подготовить ZIP», затем «Скачать пакет ZIP».</li>
-              <li>В том же чате прикрепите скачанный пакет и отправьте сообщение «{REQUEST_CHAT_PROMPT}».</li>
-              <li>Распакуйте полученный от ИИ ZIP в каталог задания. В нём появится <code>input3XX</code>. Откройте задание в Editor и проверьте модель.</li>
-            </ol>
+            <table aria-labelledby="geometry-chat-workflow-title">
+              <thead>
+                <tr><th scope="col">Что приложить</th><th scope="col">Что написать в чате</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>
+                    <a href={geometryAsset("01_CLARK_Context.zip")} download>Общий контекст CLARK</a>
+                    <small>Один раз для нового чата</small>
+                  </td>
+                  <td>{CONTEXT_CHAT_PROMPT}.</td>
+                </tr>
+                <tr>
+                  <td>
+                    {props.mode === "sketch" ? "Подготовленный пакет эскиза" : "Подготовленный пакет сетки"}
+                    <small>В том же чате</small>
+                  </td>
+                  <td>{REQUEST_CHAT_PROMPT}.</td>
+                </tr>
+              </tbody>
+            </table>
+            <p class="geometry-chat-note" role="note">
+              Повторный запрос может дать другую геометрию. Даже у одной модели при тех же исходниках могут различаться число крупных ШГ, положение их границ и внутреннее разбиение
+            </p>
+            <p>Чтобы собрать пакет, выберите пример или свои файлы, отредактируйте инструкции и нажмите «Подготовить ZIP», затем «Скачать пакет ZIP».</p>
+            <p>Распакуйте полученный от ИИ ZIP в каталог задания и проверьте модель в Editor. Папка <code>input3XX</code> должна лежать непосредственно в каталоге задания.</p>
           </section>
-          <p>Даже при одинаковых файлах и инструкциях одна и та же модель ИИ может выбрать другие крупные шестигранники и другое разбиение внутри них.</p>
         </Show>
         <label>
           Пример

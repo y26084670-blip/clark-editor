@@ -36,6 +36,27 @@ page.on("request", req => { if (/chatgpt\.com|api\.openai\.com/u.test(req.url())
 const check = (name, condition) => { assert.ok(condition, name); checks.push(name); console.log("PASS", name); };
 const button = name => page.getByRole("button", { name, exact: true });
 const dialog = page.locator(".sketch-request-dialog");
+const workflow = dialog.getByRole("region", { name: "Порядок работы с ИИ", exact: true });
+const chatTable = workflow.getByRole("table");
+const repeatabilityNote = "Повторный запрос может дать другую геометрию. Даже у одной модели при тех же исходниках могут различаться число крупных ШГ, положение их границ и внутреннее разбиение";
+
+async function checkChatTable(packageName) {
+  assert.deepEqual(await chatTable.getByRole("columnheader").allTextContents(), ["Что приложить", "Что написать в чате"]);
+  const rows = chatTable.locator("tbody tr");
+  assert.equal(await rows.count(), 2);
+  const context = rows.nth(0).getByRole("cell");
+  const task = rows.nth(1).getByRole("cell");
+  const contextLink = context.first().getByRole("link", { name: "Общий контекст CLARK", exact: true });
+  assert.equal(await contextLink.getAttribute("href"), "/clark-editor/geometry/01_CLARK_Context.zip");
+  assert.match(await context.first().innerText(), /Один раз для нового чата/);
+  assert.equal(await context.last().innerText(), "Открой START.txt в приложенном архиве CLARK и выполни его инструкцию.");
+  assert.equal(await task.first().innerText(), packageName + "\nВ том же чате");
+  assert.equal(await task.last().innerText(), "Выполни задание из REQUEST.md по приложенным файлам, используя общий контекст CLARK.");
+  const note = workflow.getByRole("note");
+  assert.equal((await note.innerText()).trim(), repeatabilityNote);
+  check(packageName + " — both attachments have the corresponding chat prompts and a static note below",
+    await note.isVisible() && await note.evaluate(el => el.previousElementSibling?.tagName === "TABLE"));
+}
 const aiSection = page.locator(".side-panel details").filter({ hasText: "Подготовка геометрии" });
 const command = aiSection.getByRole("button", { name: "Запрос к ИИ по эскизу…", exact: true });
 const prepare = dialog.getByRole("button", { name: "Подготовить ZIP", exact: true });
@@ -132,15 +153,22 @@ try {
   const condition = dialog.getByLabel("Инструкции пользователя по задаче", { exact: true });
   await page.waitForFunction(() => document.querySelector(".sketch-request-dialog textarea")?.value.includes("μr=500"));
   const defaultCondition = await condition.inputValue();
-  const workflow = dialog.getByRole("region", {name:"Порядок работы с ИИ",exact:true});
-  check("workflow distinguishes loading context, sending the task and unpacking the result",
-    await workflow.getByRole("listitem").count() === 4 && (await workflow.innerText()).includes("START.txt")
-    && (await workflow.innerText()).includes("REQUEST.md") && (await workflow.innerText()).toLowerCase().includes("распакуйте"));
-  check("the editable field identifies its file and the example explains repeatability and origin",
+  await checkChatTable("Подготовленный пакет эскиза");
+  check("workflow retains the steps for preparing the package and unpacking the result",
+    (await workflow.innerText()).includes("Скачать пакет ZIP") && (await workflow.innerText()).toLowerCase().includes("распакуйте"));
+  check("the editable field identifies its file and the example explains its origin",
     await condition.getAttribute("aria-describedby") === "geometry-instruction-file"
     && await dialog.locator("#geometry-instruction-file code").innerText() === "REQUEST.md"
-    && (await dialog.locator(".geometry-example-reference").innerText()).includes("ChatGPT Pro с моделью GPT-6.x Sol")
-    && (await dialog.innerText()).includes("при одинаковых файлах и инструкциях"));
+    && (await dialog.locator(".geometry-example-reference").innerText()).includes("ChatGPT Pro с моделью GPT-6.x Sol"));
+  for (const width of [320, 390, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    check("table and cell text fit without horizontal scrolling at " + width + "px", await chatTable.evaluate(table => {
+      const bounds = table.getBoundingClientRect();
+      const content = table.closest(".sketch-request-content");
+      return bounds.left >= 0 && bounds.right <= innerWidth && content.scrollWidth <= content.clientWidth + 1
+        && [...table.querySelectorAll("th,td")].every(cell => cell.scrollWidth <= cell.clientWidth + 1);
+    }));
+  }
   check("condition starts with editable content, not a placeholder", await condition.inputValue() === defaultCondition
     && !(await condition.getAttribute("placeholder")));
   check("all four actions share the bottom row and ZIP is disabled until prepared", await dialog.locator('footer button').count() === 4
@@ -253,6 +281,7 @@ try {
   const meshAction = aiSection.getByRole("button", {name:"Запрос к ИИ по сетке…", exact:true});
   await open(meshAction);
   await dialog.getByRole("link", {name:"frame.msh", exact:true}).waitFor();
+  await checkChatTable("Подготовленный пакет сетки");
   const meshText = dialog.getByLabel("Инструкции пользователя по задаче", {exact:true});
   check("mesh example is ready with tagged frame and magnet regions", (await meshText.inputValue()).includes("группа 2 magnet"));
   await prepare.click(); await readyZip(); await checkPickerCancel("mesh"); await downloadZip("example-mesh.zip");
@@ -265,6 +294,7 @@ try {
 
   const directAction = aiSection.getByRole("button", {name:"Прямой импорт геометрии…", exact:true});
   await open(directAction);
+  check("the procedural importer keeps its own workflow", await workflow.count() === 0);
   const buildTask = dialog.getByRole("button", {name:"Построить задание", exact:true});
   const saveTask = dialog.getByRole("button", {name:"Сохранить в проект", exact:true});
   for (const [i, file] of [[0,"TVV320_1.fem"],[1,"TVV320_2.fem"],[2,"magnet.step"]]) {
