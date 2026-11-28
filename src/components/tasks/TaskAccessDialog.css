@@ -1,5 +1,6 @@
 .task-access-dialog {
   --task-access-action-height: 31px;
+  --access-title-line: 24px;
   width: min(550px, calc(100vw - 48px));
   max-height: calc(100dvh - 48px);
   box-sizing: border-box;
@@ -9,10 +10,10 @@
   background: #202c38;
   border: 1px solid #637589;
   border-radius: 10px;
-  transform: translateY(calc(var(--task-access-action-height) / 2));
+  transform: translateY(calc((var(--task-access-action-height) - var(--access-title-line)) / 2));
 }
 .task-access-dialog::backdrop { background: rgb(0 0 0 / 55%); }
-.task-access-dialog h2 { margin: 0 0 10px; font-size: 20px; }
+.task-access-dialog h2 { margin: 0 0 calc(10px + var(--access-title-line)); font-size: 20px; line-height: var(--access-title-line); }
 .task-access-dialog p { margin: 0 0 12px; line-height: 1.4; }
 .task-access-dialog button { padding: 8px 12px; border-radius: 5px; cursor: pointer; }
 .task-access-dialog button:disabled { cursor: default; opacity: .55; }

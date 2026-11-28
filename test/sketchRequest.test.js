@@ -102,7 +102,7 @@ test("the profile's collapsed-edge prism remains a valid volume after discretiza
 test("unsupported, empty, too many and oversized images fail before packaging", () => {
   assert.throws(() => checkSketchFiles([]));
   assert.throws(() => checkSketchFiles(Array(4).fill(png)));
-  assert.throws(() => checkSketchFiles([new File(["<svg/>"], "x.svg")]));
+  assert.throws(() => checkSketchFiles([new File(["data"], "x.bmp")]));
   assert.throws(() => checkSketchFiles([new File([], "x.png")]));
   const large = new File([new Uint8Array(SKETCH_LIMITS.eachBytes + 1)], "large.png");
   assert.throws(() => checkSketchFiles([large]), /8 МиБ/);

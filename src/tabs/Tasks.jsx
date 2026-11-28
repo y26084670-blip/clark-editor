@@ -5,6 +5,7 @@ import { readTaskDirectoryLists } from "../services/taskDirectoryRefresh.js";
 // вкладка выбора задания
 //
 import { Show, batch, createEffect, createSignal, on, onCleanup, onMount, untrack } from "solid-js";
+import { writeGeometryTask } from "../services/geometryPreparation.js";
 import { SketchRequestDialog } from "../components/tasks/SketchRequestDialog.jsx";
 import { TaskOperationDialog } from "../components/tasks/TaskOperationDialog.jsx";
 import { TaskMediaPanel } from "../components/tasks/TaskMediaPanel.jsx";
@@ -86,8 +87,8 @@ export function Tasks(props) {
     () => tasks().map(task => ({ key: task.handle, handle: task.handle })),
   );
   const [selectedTask, setSelectedTask] = createSignal(null);
-  const [sketchOpen, setSketchOpen] = createSignal(false);
-  createEffect(() => { if (props.active === false) setSketchOpen(false); });
+  const [geometryMode, setGeometryMode] = createSignal(null);
+  createEffect(() => { if (props.active === false) setGeometryMode(null); });
   const loadedTaskHandle = selectionService.loadedTaskHandle;
   const loadedTaskPath = selectionService.loadedTaskPath;
   const [taskErrorMessage, setTaskErrorMessage] = createSignal("");
@@ -148,7 +149,7 @@ export function Tasks(props) {
     });
   });
 
-  const browsingBlocked = () => sketchOpen() || accessBusy() || projectListBusy() || taskListBusy() || Boolean(operation()) || demoLoading() || bindingBusy()
+  const browsingBlocked = () => geometryMode() || accessBusy() || projectListBusy() || taskListBusy() || Boolean(operation()) || demoLoading() || bindingBusy()
     || launchBusy() || omClientState().busy || props.editorBusy || selectionReceiving() || protocolBusy();
   const navigationBlocked = () => browsingBlocked() || galleryBusy();
   const galleryDisabled = () => browsingBlocked() || taskLaunchOpen();
@@ -163,8 +164,8 @@ export function Tasks(props) {
   }));
 
   function openTaskOperation(kind) {
-    if (kind === "sketch") {
-      if (!operationsBlocked() && !omClientState().open) setSketchOpen(true);
+    if (["sketch", "mesh", "direct"].includes(kind)) {
+      if (!operationsBlocked() && !omClientState().open) setGeometryMode(kind);
       return;
     }
     if (rootHandle()?.cloud) return;
@@ -194,6 +195,18 @@ export function Tasks(props) {
         if (operation() === request) setOperation({ ...request, name });
       }).catch(error => setOperationError(error.message)).finally(() => setOperationBusy(false));
     }
+  }
+
+  async function saveGeometryTask(name, entries) {
+    const root = rootHandle(), project = projects().find(item => item.name === selectedProject());
+    if (!root || root.cloud || !project) throw new Error("Выберите локальный проект для сохранения задания.");
+    const create = async () => {
+      const result = await runTaskDirectoryOperation({ kind: "create", root, destinationParent: project.handle,
+        name, initialize: target => writeGeometryTask(target, entries) });
+      await finishTaskOperation({ kind: "create", root, parent: project.handle }, project.handle, result, false);
+    };
+    if (navigator.locks) await navigator.locks.request(`clark-create:${root.name}/${project.name}/${name.toLowerCase()}`, create);
+    else await create();
   }
 
   async function submitTaskOperation(name) {
@@ -1201,7 +1214,8 @@ export function Tasks(props) {
         dirtyParts={["amps", "elements", "regions", "moves", "general"].filter(part => unsavedChangesService.isDirty(part))}
         locked={launchBusy() || bindingBusy() || operationBusy()} />
 
-      <SketchRequestDialog open={sketchOpen() && props.active !== false} onClose={() => setSketchOpen(false)} />
+      <SketchRequestDialog mode={props.active !== false ? geometryMode() : null} project={rootHandle()?.cloud ? "" : selectedProject()}
+        onSaveTask={saveGeometryTask} onClose={() => setGeometryMode(null)} />
       <TaskOperationDialog request={operation()} busy={operationBusy()} error={operationError()}
         failed={operationFailed()} onSubmit={submitTaskOperation} onClose={() => setOperation(null)} />
 

@@ -1,0 +1,131 @@
+{
+  "general": {
+    "useMED": true,
+    "fullAxialSymmetry": false,
+    "doubleFloat": true,
+    "mirrorSymmetryX": -1,
+    "mirrorSymmetryY": -1,
+    "countTimeSteps": 0,
+    "timeStep": 0,
+    "polusForceX": 0,
+    "polusForceY": 0,
+    "polusForceZ": 0,
+    "forceGroupMinGap": 2,
+    "evalForce": false,
+    "forceFaceOffset": 0,
+    "htsRegimFC": false,
+    "htsMu": false,
+    "htsRo": false
+  },
+  "conrab": [
+    {
+      "startITER": false,
+      "EPS": 0.005,
+      "TAU": 0.3,
+      "EXTRA": true,
+      "ADMIN": 0.001,
+      "UZMIN": 0.005,
+      "POLAR_EPS_PERCENT": 0.05,
+      "DIPOLE_RTOL": 0.001,
+      "CF_FMMEPS": 0.01,
+      "CF_HTSEPS": 0.01,
+      "fullJNewton": false
+    },
+    {
+      "startITER": false,
+      "EPS": 0.005,
+      "TAU": 0.3,
+      "EXTRA": true,
+      "ADMIN": 0.001,
+      "UZMIN": 0.005,
+      "POLAR_EPS_PERCENT": 0.05,
+      "DIPOLE_RTOL": 0.001,
+      "CF_FMMEPS": 0.01,
+      "CF_HTSEPS": 0.01,
+      "fullJNewton": false
+    }
+  ],
+  "kv": {
+    "name": "Иллюстративный заданный M",
+    "geo": [
+      0,
+      0,
+      0,
+      10,
+      0,
+      0,
+      0,
+      10,
+      0,
+      10,
+      10,
+      0,
+      0,
+      0,
+      10,
+      10,
+      0,
+      10,
+      0,
+      10,
+      10,
+      10,
+      10,
+      10
+    ],
+    "geoType": 0,
+    "dr": [
+      0,
+      0,
+      0
+    ],
+    "sym": {
+      "vi": [
+        0,
+        0,
+        0
+      ],
+      "r0": [
+        0,
+        0,
+        0
+      ],
+      "yl": 0,
+      "ya": 0,
+      "tx": 0,
+      "ls": 1,
+      "as": 1,
+      "ps": 1,
+      "kya": 0,
+      "kyp": 0
+    },
+    "dp": [
+      2,
+      2,
+      2
+    ],
+    "indCoil": 0,
+    "wCoil": 0,
+    "indAmp": 0,
+    "indMove": 0,
+    "model": 0,
+    "xapName": "",
+    "vkan": [
+      0,
+      0,
+      0
+    ],
+    "targ": 1,
+    "rv": 0,
+    "med": [
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1
+    ],
+    "auto": true,
+    "take": 0
+  }
+}

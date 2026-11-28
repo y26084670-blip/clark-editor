@@ -36,19 +36,19 @@ page.on("request", req => { if (/chatgpt\.com|api\.openai\.com/u.test(req.url())
 const check = (name, condition) => { assert.ok(condition, name); checks.push(name); console.log("PASS", name); };
 const button = name => page.getByRole("button", { name, exact: true });
 const dialog = page.locator(".sketch-request-dialog");
-const aiSection = page.locator(".side-panel details").filter({ hasText: "AI запросы" });
-const command = aiSection.getByRole("button", { name: "Геометрия по эскизу", exact: true });
+const aiSection = page.locator(".side-panel details").filter({ hasText: "Подготовка геометрии" });
+const command = aiSection.getByRole("button", { name: "Запрос к ИИ по эскизу…", exact: true });
 const prepare = dialog.getByRole("button", { name: "Подготовить ZIP", exact: true });
 const close = () => dialog.getByRole("button", { name: "Закрыть", exact: true }).click();
-const open = async () => {
+const open = async (action = command) => {
   if (!(await button("Закрыть дополнительные функции").isVisible())) await button("Открыть дополнительные функции").click();
   if (!(await aiSection.evaluate(section => section.open))) await aiSection.locator("summary").click();
-  await command.click();
+  await action.click();
 };
 const snapshot = () => page.evaluate(() => taskFixture.snapshot());
 const addImage = buffer => dialog.locator('input[type="file"]').setInputFiles({ name: "Эскиз.png", mimeType: "image/png", buffer });
-async function downloadZip(filename) {
-  const pending = page.waitForEvent("download"); await dialog.getByRole("button", { name: "Скачать пакет ZIP", exact: true }).click();
+async function downloadZip(filename, label = "Скачать пакет ZIP") {
+  const pending = page.waitForEvent("download"); await dialog.getByRole("button", { name: label, exact: true }).click();
   const result = await pending; await result.saveAs(path.join(out, filename)); return result;
 }
 const readyZip = () => page.waitForFunction(() => [...document.querySelectorAll('.sketch-request-dialog footer button')]
@@ -102,18 +102,18 @@ try {
   }), "base64");
   await command.click(); await dialog.waitFor({ state: "visible" });
   const condition = dialog.getByLabel("Масштаб и уточнения", { exact: true });
-  const defaultCondition = "d=10 мм, использовать не более 20 шестигранников";
+  await page.waitForFunction(() => document.querySelector(".sketch-request-dialog textarea")?.value.includes("μr=500"));
+  const defaultCondition = await condition.inputValue();
   check("condition starts with editable content, not a placeholder", await condition.inputValue() === defaultCondition
     && !(await condition.getAttribute("placeholder")));
   check("all four actions share the bottom row and ZIP is disabled until prepared", await dialog.locator('footer button').count() === 4
     && await dialog.getByRole('button', {name:'Скачать пакет ZIP',exact:true}).isDisabled()
     && await dialog.getByRole('link',{name:'Скачать REQUEST.md отдельно',exact:true}).count() === 0);
-  await addImage(png);
   await prepare.click(); await readyZip();
   await requestFromZip("REQUEST-default.md");
   const defaultRequest = await readFile(path.join(out, "REQUEST-default.md"), "utf8");
   check("unchanged example is exported as the user condition", defaultRequest.includes(defaultCondition));
-  await condition.focus(); await condition.press("End"); await condition.pressSequentially("; материал назначу позже");
+  await condition.focus(); await condition.press("Control+End"); await condition.pressSequentially("; материал назначу позже");
   check("typing preserves the starting text", await condition.inputValue() === defaultCondition + "; материал назначу позже");
   await condition.fill("d=12 мм, использовать не более 12 шестигранников");
   await prepare.click(); await readyZip();
@@ -146,7 +146,8 @@ try {
   const before = await snapshot();
   await button("Выбор задания").click();
   await open(); await dialog.waitFor({ state: "visible" });
-  check("empty sketch cannot produce a request", await prepare.isDisabled());
+  await dialog.getByText("frame.svg", { exact:true }).waitFor();
+  check("fresh sketch includes a ready prototype", await prepare.isEnabled());
   await addImage(png);
   await dialog.getByLabel("Название запроса", { exact: true }).fill("Блок по наброску");
   await dialog.getByLabel("Масштаб и уточнения", { exact: true }).fill("Длина 40 мм; остальные размеры уточнить.");
@@ -156,8 +157,8 @@ try {
   const zip = await downloadZip("request.zip");
   await requestFromZip("REQUEST.md");
   const request = await readFile(path.join(out, "REQUEST.md"), "utf8");
-  check("downloaded ZIP contains REQUEST.md with the condition and seven actual schemas", /^clark-sketch-[\w-]+\.zip$/u.test(zip.suggestedFilename())
-    && request.includes("Длина 40 мм") && (request.match(/"exampleOnlyNotTask":/gu) || []).length === 7);
+  check("downloaded ZIP contains the edited condition and refers to the separate common context", /^clark-sketch-[\w-]+\.zip$/u.test(zip.suggestedFilename())
+    && request.includes("Длина 40 мм") && request.includes("01_CLARK_Context.zip") && !request.includes('"exampleOnlyNotTask":'));
   check("selected images and loaded model remain independent", JSON.stringify(await snapshot()) === JSON.stringify(before)
     && !request.includes('"timeStep": 42'));
   check("external chat is an ordinary explicit link", await dialog.getByRole("link", { name: "ChatGPT", exact: true }).getAttribute("href") === "https://chatgpt.com/");
@@ -183,15 +184,16 @@ try {
   await requestFromZip("REQUEST-updated.md");
   check("rebuilt package uses the current condition", (await readFile(path.join(out, "REQUEST-updated.md"), "utf8")).includes("длина 50 мм"));
   await close(); await open();
-  check("reopening starts a new request with the editable example", await condition.inputValue() === defaultCondition && await prepare.isDisabled() && await dialog.getByLabel("Название запроса", { exact: true }).inputValue() === ""
-    && await dialog.locator("figure").count() === 0 && await dialog.locator(".sketch-request-result").count() === 0);
+  await dialog.getByText("frame.svg", {exact:true}).waitFor();
+  check("reopening starts a new request with the editable example", await condition.inputValue() === defaultCondition && await prepare.isEnabled() && await dialog.getByLabel("Название запроса", { exact: true }).inputValue() === "Рамка и отдельный магнит"
+    && await dialog.locator("figure").count() === 1 && await dialog.locator(".sketch-request-result").count() === 0);
   await addImage(png);
   await page.evaluate(() => {
     const digest = crypto.subtle.digest.bind(crypto.subtle); let first = true;
     crypto.subtle.digest = async (...args) => { if (first) { first = false; await new Promise(resolve => { window.resumeSketchDigest = resolve; }); } return digest(...args); };
   });
   await prepare.click(); await page.waitForFunction(() => typeof window.resumeSketchDigest === "function");
-  check("preparation exposes its busy state", await prepare.isDisabled() && await dialog.getByText("Подготовка пакета…", { exact: true }).isVisible());
+  check("preparation exposes its busy state", await dialog.getByRole("button", { name: "Подготовка пакета…", exact: true }).isDisabled());
   await close(); await page.evaluate(() => window.resumeSketchDigest());
   await open(); await dialog.waitFor({ state: "visible" });
   // A new successful generation runs after the old async digest has resumed.
@@ -202,6 +204,52 @@ try {
   check("incorrect image signature cannot produce a package", await dialog.locator(".sketch-request-result").count() === 0);
   await page.keyboard.press("Escape"); await dialog.waitFor({ state: "hidden" });
   check("closing keeps the loaded dirty task untouched", JSON.stringify(await snapshot()) === JSON.stringify(before));
+  await open();
+  const select = dialog.getByLabel("Пример", { exact: true });
+  await select.selectOption("1");
+  await dialog.getByRole("link", {name:"frame.png", exact:true}).waitFor();
+  check("PNG prototype includes matching editable drawing instructions", (await condition.inputValue()).includes("frame.png") && !(await condition.inputValue()).includes("SVG"));
+  await prepare.click(); await readyZip(); await downloadZip("example-png.zip"); await close();
+
+  const meshAction = aiSection.getByRole("button", {name:"Запрос к ИИ по сетке…", exact:true});
+  await open(meshAction);
+  await dialog.getByRole("link", {name:"frame.msh", exact:true}).waitFor();
+  const meshText = dialog.getByLabel("Условие задачи", {exact:true});
+  check("mesh example is ready with tagged frame and magnet regions", (await meshText.inputValue()).includes("группа 2 magnet"));
+  await prepare.click(); await readyZip(); await downloadZip("example-mesh.zip");
+  await meshText.fill("Экструзия 20 мм");
+  await dialog.locator('input[type=file]').setInputFiles(path.join(root,"public/geometry/frame.msh"));
+  check("changing the mesh preserves a manually edited condition", await meshText.inputValue() === "Экструзия 20 мм");
+  await prepare.click(); await readyZip();
+  check("edited mesh request packages the source and new condition", (await requestFromZip("mesh-custom.md")).includes("Экструзия 20 мм"));
+  await close();
+
+  const directAction = aiSection.getByRole("button", {name:"Прямой импорт геометрии…", exact:true});
+  await open(directAction);
+  const buildTask = dialog.getByRole("button", {name:"Построить задание", exact:true});
+  const saveTask = dialog.getByRole("button", {name:"Сохранить в проект", exact:true});
+  for (const [i, file] of [[0,"TVV320_1.fem"],[1,"TVV320_2.fem"],[2,"magnet.step"]]) {
+    await select.selectOption(String(i));
+    await dialog.getByRole("link", {name:file,exact:true}).waitFor();
+    await buildTask.click();
+    const result = dialog.locator(".sketch-request-result");
+    await result.waitFor();
+    check("direct import produces a native task for "+file, (await result.innerText()).includes(i===2 ? "1 ШГ" : "24 ШГ"));
+    await downloadZip(file+".zip","Скачать задание ZIP");
+  }
+  await dialog.getByLabel("Название задания",{exact:true}).fill("STEP edited");
+  await dialog.getByLabel("Mz, кА/м",{exact:true}).fill("720");
+  await dialog.getByLabel("Разбиение каждого ШГ (D1 D2 D3)",{exact:true}).fill("3 4 1");
+  check("editing STEP parameters invalidates the former task", await saveTask.isDisabled());
+  await buildTask.click();
+  await dialog.getByText("1 ШГ · 12 ЭО · Mz = 720 кА/м",{exact:true}).waitFor();
+  await saveTask.click(); await dialog.waitFor({state:"hidden"});
+  check("direct import selects the new editable task in its project", await page.locator("#listTask .listTask-item.selected").filter({hasText:"STEP edited"}).count() === 1);
+  await open(directAction); await dialog.getByRole("link",{name:"TVV320_1.fem",exact:true}).waitFor();
+  await dialog.getByLabel("Название задания",{exact:true}).fill("STEP edited");
+  await buildTask.click(); await saveTask.click();
+  check("collision preserves the existing task and shows the name", (await dialog.getByRole("alert").innerText()).includes("STEP edited"));
+  await close();
   check("no request is sent to a model", modelRequests.length === 0);
   check("no uncaught browser errors", errors.length === 0);
   await writeFile(path.join(out, "checks.json"), JSON.stringify({ checks, errors, modelRequests, browser: browser.browser().version() }, null, 2) + "\n");

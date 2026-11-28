@@ -1,4 +1,4 @@
-import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
+import { cp, mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -30,6 +30,7 @@ async function collect(directory, prefix = "") {
 
 await collect(sourceRoot);
 await mkdir(outputRoot, { recursive: true });
+await cp(join(projectRoot, "public", "geometry"), join(outputRoot, "geometry"), { recursive: true });
 await writeFile(
     join(outputRoot, "demo-task.json"),
     `${JSON.stringify(bundle)}\n`,

@@ -1,7 +1,7 @@
 {
   "name": "samp_app4",
   "private": true,
-  "version": "4.126.0",
+  "version": "4.127.0",
   "type": "module",
   "scripts": {
     "test": "node --test",
@@ -19,6 +19,7 @@
     "gifuct-js": "2.1.2",
     "h5wasm": "^0.10.3",
     "manifold-3d": "3.5.5",
+    "occt-import-js": "0.0.23",
     "solid-js": "^1.9.12",
     "tabulator-tables": "^6.5.0",
     "three": "^0.180.0"

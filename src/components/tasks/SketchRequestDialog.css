@@ -26,3 +26,7 @@
 .sketch-request-result { border-top: 1px solid #46515e; margin-top: 16px; padding-top: 14px; }
 .sketch-request-result li { margin-bottom: 8px; }
 .sketch-request-result [role="status"] { display: block; margin-top: 8px; }
+.sketch-request-content select { width: 100%; padding: 7px; margin-top: 5px; font: inherit; color: inherit; background: #131a21; }
+.geometry-currents { display: grid; grid-template-columns: repeat(auto-fit,minmax(74px,1fr)); gap: 8px; border: 1px solid #46515e; }
+.geometry-currents label { margin: 0; }
+.sketch-request-dialog footer { flex-wrap: wrap; }

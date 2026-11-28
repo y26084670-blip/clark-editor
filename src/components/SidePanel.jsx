@@ -57,11 +57,14 @@ export function SidePanel(props) {
 
         {props.taskActions && <section class="side-panel-section">
           <details class="side-panel-submenu">
-            <summary class="side-panel-section-title" tabIndex={props.open ? 0 : -1}>AI запросы</summary>
+            <summary class="side-panel-section-title" tabIndex={props.open ? 0 : -1}>Подготовка геометрии</summary>
             <div class="side-panel-options">
-              <button class="side-panel-option" disabled={!props.open || !props.taskActions.sketchEnabled}
-                title="Подготовить ZIP с эскизом и правилами CLARK для передачи ИИ"
-                onClick={() => props.onTaskAction?.("sketch")}>Геометрия по эскизу</button>
+              {[
+                ["sketch", "Запрос к ИИ по эскизу…", "Подготовить исходный чертёж и условие для внешнего ИИ"],
+                ["mesh", "Запрос к ИИ по сетке…", "Подготовить сетку и задание на построение крупных ШГ"],
+                ["direct", "Прямой импорт геометрии…", "Построить задание CLARK из поддерживаемой модели FEMM или STEP"],
+              ].map(([kind, label, title]) => <button class="side-panel-option" disabled={!props.open || !props.taskActions.sketchEnabled}
+                title={title} onClick={() => props.onTaskAction?.(kind)}>{label}</button>)}
             </div>
           </details>
         </section>}
